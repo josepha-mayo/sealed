@@ -24,18 +24,18 @@ Prediction markets on AI progress settle against leaderboards run by single comp
 packages/harness (TypeScript)            programs/sealed (Anchor)         encrypted-ixs (Arcis, runs in MPC)
 ------------------------------            ------------------------         ----------------------------------
 buildBank(seed) -> prompts, answers  --> create_benchmark(items_root)
-  answerHash = SHA256(...)[0..8]     --> init_chunk / stage_chunk_part
-  encrypt(RescueCipher, x25519)      --> seal_chunk  ------------------>  seal_chunk: Enc<Shared> -> Enc<Mxe>
-                                         seal_chunk_callback <-----------  (ciphertext stored in AnswerChunk)
+  answerHash = SHA256(...)[0..8]     --> init_chunk / stage_part (8 items)
+  encrypt(RescueCipher, x25519)      --> seal_part  -------------------->  seal_part: Enc<Shared> -> Enc<Mxe>
+                                         seal_part_callback <------------  (ciphertext stored in AnswerChunk)
 runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
-  canonicalAnswer -> answerHash      --> score_chunk(outputs[32]) ------>  score_chunk: count(outputs == answers)
+  canonicalAnswer -> answerHash      --> score_chunk(outputs[32]) ------>  score_chunk: count(outputs == 4 sealed parts)
                                          score_chunk_callback <----------  reveals only the count
                                          Run.correct += count; finalized when all chunks scored
 ```
 
 - **Items** are procedural, exact-answer tasks (arithmetic chains, stack-machine programs, list transforms, Caesar shifts, base conversion, grid walks, gcd/lcm, digit sums, calendar arithmetic, word sorting), generated from a master seed. The bank is infinite and fresh by construction; contamination is a rotation policy, not a hope.
 - **Canonicalization** (`canonical.ts`) is the only normalization applied to a model's reply before hashing; author and runner use the same function.
-- **Chunks** are 32 items. One scoring computation per chunk; a run over a 10-chunk (320-item) bank is 10 MPC computations.
+- **Chunks** are 32 items, stored as 4 parts of 8. Sealing is per part because an MPC callback must fit in one Solana transaction (8 ciphertexts = 256 B; 32 would not). Scoring reads all 4 parts in one computation, so a run over a 10-chunk (320-item) bank is 10 MPC computations.
 - **Fee**: `create_run` pays `Benchmark.fee_lamports` to the benchmark authority. That is the business.
 
 ### Trust model (honest version)
@@ -59,19 +59,25 @@ scripts/                setup-wsl.sh (toolchain), install-solana-cdn.sh
 Toolchain (Ubuntu 24.04 / WSL2): `scripts/setup-wsl.sh` installs Docker, Node 22, Rust, Solana CLI 3.1.10, Anchor 1.0.2 and Arcium.
 
 ```bash
+yarn install
 arcium build                      # circuits + program (+ .idarc callback types)
-arcium test                       # spins up a local 2-node MPC cluster and runs tests/
-cd packages/harness && npm test   # generators, canonicalization, Merkle, run pipeline
+scripts/e2e.sh                    # build + `arcium test`: local 2-node MPC cluster, full seal/score flow
+yarn harness:test                 # generators, canonicalization, Merkle, run pipeline (offline)
 ```
 
-Harness CLI:
+Harness CLI (`yarn --cwd packages/harness cli ...`):
 
 ```bash
-sealed bank build  --seed "$SEALED_MASTER_SEED" --id 1 --chunks 10     # -> bank/1.json (private)
-sealed run         --bank bank/1.json --model openai/gpt-5.2           # -> runs/… (private)
-sealed chain seal  --bank bank/1.json                                  # create_benchmark + seal every chunk
-sealed chain score --run runs/….json                                   # create_run + score every chunk
+sealed bank build  --seed "$SEALED_MASTER_SEED" --id 1 --chunks 10   # -> bank/1.json (private: prompts + answers)
+sealed run         --bank bank/1.json --model openai/gpt-5.2         # -> runs/… (private: raw replies)
+sealed run         --bank bank/1.json --model mock/oracle-0.6        # offline stand-in, 60% correct
+sealed chain init                                                    # comp defs + circuit upload, once per deployment
+sealed chain seal  --bank bank/1.json --fee-lamports 1000000         # create_benchmark, stage + seal every part
+sealed chain score --bank bank/1.json --run runs/….json              # create_run + score every chunk in MPC
+sealed chain status --benchmark <pubkey>                             # leaderboard from chain state
 ```
+
+Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `ARCIUM_CLUSTER_OFFSET` (localnet: 0). `scripts/smoke-localnet.sh` runs the whole pipeline against a running `arcium localnet`.
 
 Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALED_API_KEY`; defaults to OpenRouter).
 
@@ -79,8 +85,9 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 
 - [x] Circuits and program
 - [x] Harness: generators, canonicalization, hashing, model client, run pipeline (tests green)
-- [ ] Localnet end-to-end test
-- [ ] Devnet deployment + first public leaderboard
+- [x] Localnet end-to-end: `arcium test` seals 2 chunks, scores a run (45/64 planted), finalizes
+- [x] CLI pipeline on localnet: generated bank -> mock run -> MPC score 40/64, equal to the local pre-score
+- [ ] Devnet deployment + first public leaderboard over real model APIs
 - [ ] Web: leaderboard + proof explorer
 - [ ] Market that resolves on `Run.correct`
 
