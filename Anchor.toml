@@ -7,6 +7,7 @@ skip-lint = false
 
 [programs.localnet]
 sealed = "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ"
+market = "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
 
 [provider]
 cluster = "localnet"

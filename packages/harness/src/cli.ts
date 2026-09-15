@@ -120,8 +120,13 @@ async function main() {
                     (model "mock/oracle-<p>" answers a fraction p correctly, offline)
   sealed chain init                                   init comp defs + upload circuits (once per deployment)
   sealed chain seal  --bank <file> [--fee-lamports n]
-  sealed chain score --bank <file> --run <file>
-  sealed chain status --benchmark <pubkey>`);
+  sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
+  sealed chain status --benchmark <pubkey>
+  sealed chain market open    --run <pubkey> --threshold <n>   market: will run.correct >= n?
+  sealed chain market bet     --market <pk> --side yes|no --lamports <n> [--bettor keypair.json]
+  sealed chain market resolve --market <pk>
+  sealed chain market claim   --market <pk> [--bettor keypair.json]
+  sealed chain market show    --market <pk>`);
   process.exit(2);
 }
 

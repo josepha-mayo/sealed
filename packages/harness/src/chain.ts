@@ -202,7 +202,7 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
 
 // ------------------------------------------------------------------ score
 
-export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, ctx = setup()) {
+export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, createOnly = false, runIndexOverride?: bigint, ctx = setup()) {
   const { program, provider, wallet } = ctx;
   if (run.benchmarkId !== bank.benchmarkId) throw new Error("run/bank benchmark id mismatch");
   const { benchmark, chunk, run: runPda } = pdas(ctx, authority, bank.benchmarkId);
@@ -210,16 +210,34 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   const b = await acct.benchmark.fetch(benchmark);
   if (b.status !== 1) throw new Error(`benchmark not live (status ${b.status})`);
 
-  const runIndex = BigInt(b.runCount.toString());
+  const runIndex = runIndexOverride ?? BigInt(b.runCount.toString());
   const r = runPda(runIndex);
-  console.log(`create_run #${runIndex} model=${run.model} fee=${Number(b.feeLamports) / LAMPORTS_PER_SOL} SOL`);
-  await program.methods
-    .createRun(run.model, Array.from(Buffer.from(run.harnessHash, "hex")), Array.from(Buffer.from(run.outputsRoot, "hex")))
-    .accountsPartial({ runner: wallet.publicKey, authority, benchmark, run: r })
-    .rpc({ commitment: "confirmed" });
+  let state: any = await fetchOrNull(acct.run.fetch(r));
+  if (!state) {
+    if (runIndexOverride !== undefined) throw new Error(`run #${runIndex} does not exist`);
+    console.log(`create_run #${runIndex} model=${run.model} fee=${Number(b.feeLamports) / LAMPORTS_PER_SOL} SOL`);
+    await program.methods
+      .createRun(run.model, Array.from(Buffer.from(run.harnessHash, "hex")), Array.from(Buffer.from(run.outputsRoot, "hex")))
+      .accountsPartial({ runner: wallet.publicKey, authority, benchmark, run: r })
+      .rpc({ commitment: "confirmed" });
+    state = await acct.run.fetch(r);
+  } else {
+    if (run.model !== state.modelId) throw new Error(`run #${runIndex} already exists for model ${state.modelId}`);
+    console.log(`run #${runIndex} exists (scored_mask=${state.scoredMask}); resuming`);
+  }
+  if (createOnly) {
+    console.log(`run ${r.toBase58()} created (pending, unscored)`);
+    return r;
+  }
 
-  let correct = 0;
+  let correct = Number(state.correct);
   for (let i = 0; i < bank.chunkCount; i++) {
+    state = await acct.run.fetch(r);
+    const mask = BigInt(state.scoredMask.toString()) | BigInt(state.pendingMask.toString());
+    if (mask & (1n << BigInt(i))) {
+      console.log(`chunk ${i}: already scored or pending`);
+      continue;
+    }
     const outputs = runChunkOutputs(run, i).map((h) => new anchor.BN(h.toString()));
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
@@ -228,7 +246,7 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
       .rpc({ commitment: "confirmed" });
     process.stdout.write(`chunk ${i}: scoring in MPC...`);
     await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
-    const state = await acct.run.fetch(r);
+    state = await acct.run.fetch(r);
     const delta = Number(state.correct) - correct;
     correct = Number(state.correct);
     console.log(` +${delta} (total ${correct})`);
@@ -261,6 +279,95 @@ export async function status(benchmark: PublicKey, ctx = setup()) {
   });
 }
 
+// ------------------------------------------------------------------ market
+
+/** Parimutuel YES/NO markets that resolve on a finalized Run's `correct` field. */
+const MARKET_PROGRAM_ID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
+
+function loadKeypair(path: string): Keypair {
+  return Keypair.fromSecretKey(new Uint8Array(JSON.parse(readFileSync(path, "utf8"))));
+}
+
+function marketProgram(kpPath?: string) {
+  const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
+  const kp = kpPath ? loadKeypair(kpPath) : loadKeypair(process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json"));
+  const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { commitment: "confirmed" });
+  const idl = require(join(ROOT, "target", "idl", "market.json"));
+  if (process.env.MARKET_PROGRAM_ID) idl.address = process.env.MARKET_PROGRAM_ID;
+  return { market: new anchor.Program(idl, provider), kp };
+}
+
+const marketPda = (run: PublicKey, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync([Buffer.from("market"), run.toBuffer()], pid)[0];
+const positionPda = (market: PublicKey, bettor: PublicKey, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync([Buffer.from("position"), market.toBuffer(), bettor.toBuffer()], pid)[0];
+
+async function marketOpen(run: PublicKey, threshold: number, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const m = marketPda(run, market.programId);
+  await (market.methods as any)
+    .createMarket(threshold)
+    .accounts({ authority: kp.publicKey, run, market: m })
+    .rpc({ commitment: "confirmed" });
+  console.log(`market ${m.toBase58()} opened: run ${run.toBase58()} threshold=${threshold}`);
+  return m;
+}
+
+async function marketBet(marketPk: PublicKey, side: "yes" | "no", lamports: bigint, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const m: any = await (market.account as any).market.fetch(marketPk);
+  const position = positionPda(marketPk, kp.publicKey, market.programId);
+  const sig = await (market.methods as any)
+    .bet(side === "yes" ? 1 : 2, new anchor.BN(lamports.toString()))
+    .accounts({ bettor: kp.publicKey, run: m.run, market: marketPk, position })
+    .rpc({ commitment: "confirmed" });
+  console.log(`bet ${side.toUpperCase()} ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
+}
+
+async function marketResolve(marketPk: PublicKey, kpPath?: string) {
+  const { market } = marketProgram(kpPath);
+  const m: any = await (market.account as any).market.fetch(marketPk);
+  const sig = await (market.methods as any)
+    .resolve()
+    .accounts({ run: m.run, market: marketPk })
+    .rpc({ commitment: "confirmed" });
+  const after: any = await (market.account as any).market.fetch(marketPk);
+  const oc = after.status === 2 ? "CANCELLED" : after.outcome === 1 ? "YES" : "NO";
+  console.log(`market resolved (${sig}): score=${after.resolvedScore} threshold=${after.threshold} outcome=${oc}`);
+}
+
+async function marketClaim(marketPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const position = positionPda(marketPk, kp.publicKey, market.programId);
+  const before = await provider0(kp).getBalance(kp.publicKey);
+  const sig = await (market.methods as any)
+    .claim()
+    .accounts({ bettor: kp.publicKey, market: marketPk, position })
+    .rpc({ commitment: "confirmed" });
+  const after = await provider0(kp).getBalance(kp.publicKey);
+  console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+}
+
+function provider0(kp: Keypair) {
+  const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
+  return new Connection(url, "confirmed");
+}
+
+async function marketShow(marketPk: PublicKey) {
+  const { market } = marketProgram();
+  const m: any = await (market.account as any).market.fetch(marketPk);
+  const status = ["OPEN", "RESOLVED", "CANCELLED"][m.status as number];
+  const outcome = ["-", "YES", "NO"][m.outcome as number];
+  console.log(`market ${marketPk.toBase58()} status=${status}`);
+  console.log(`  run=${m.run.toBase58()} benchmark=${m.benchmark.toBase58()} run_index=${m.runIndex}`);
+  console.log(`  question: will run.correct >= ${m.threshold}?  resolved_score=${m.resolvedScore} outcome=${outcome}`);
+  console.log(`  pot: yes=${Number(m.yesTotal) / LAMPORTS_PER_SOL} SOL no=${Number(m.noTotal) / LAMPORTS_PER_SOL} SOL`);
+  const positions = await (market.account as any).position.all([{ memcmp: { offset: 8, bytes: marketPk.toBase58() } }]);
+  for (const { account: p } of positions) {
+    console.log(`  position ${p.bettor.toBase58()} yes=${Number(p.yes) / LAMPORTS_PER_SOL} no=${Number(p.no) / LAMPORTS_PER_SOL} claimed=${p.claimed}`);
+  }
+}
+
 // ------------------------------------------------------------------ cli glue
 
 export async function chainMain(cmd: string[], args: Args) {
@@ -281,11 +388,31 @@ export async function chainMain(cmd: string[], args: Args) {
     const run = loadJson(String(args.run)) as RunArtifact;
     const ctx = setup();
     const authority = args.authority ? new PublicKey(String(args.authority)) : ctx.wallet.publicKey;
-    await score(bank, run, authority, ctx);
+    const idx = args["run-index"] !== undefined ? BigInt(String(args["run-index"])) : undefined;
+    await score(bank, run, authority, Boolean(args["create-only"]), idx, ctx);
     return;
   }
   if (sub === "status") {
     await status(new PublicKey(String(args.benchmark)));
+    return;
+  }
+  if (sub === "market") {
+    const [m0] = cmd.slice(1);
+    const bettor = args.bettor as string | undefined;
+    if (m0 === "open") {
+      const run = new PublicKey(String(args.run));
+      await marketOpen(run, Number(args.threshold), bettor);
+    } else if (m0 === "bet") {
+      const side = String(args.side);
+      if (side !== "yes" && side !== "no") throw new Error("--side yes|no");
+      await marketBet(new PublicKey(String(args.market)), side, BigInt(String(args.lamports)), bettor);
+    } else if (m0 === "resolve") {
+      await marketResolve(new PublicKey(String(args.market)), bettor);
+    } else if (m0 === "claim") {
+      await marketClaim(new PublicKey(String(args.market)), bettor);
+    } else if (m0 === "show") {
+      await marketShow(new PublicKey(String(args.market)));
+    } else throw new Error(`unknown market command: ${m0}`);
     return;
   }
   throw new Error(`unknown chain command: ${sub}`);

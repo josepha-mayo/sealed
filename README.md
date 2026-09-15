@@ -38,6 +38,21 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 - **Chunks** are 32 items, stored as 4 parts of 8. Sealing is per part because an MPC callback must fit in one Solana transaction (8 ciphertexts = 256 B; 32 would not). Scoring reads all 4 parts in one computation, so a run over a 10-chunk (320-item) bank is 10 MPC computations.
 - **Fee**: `create_run` pays `Benchmark.fee_lamports` to the benchmark authority. That is the business.
 
+### Markets (`programs/market`)
+
+A second Anchor program hosts parimutuel YES/NO markets whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes.
+
+```
+create_market(run, threshold)   open while run is pending and unscored (scored_mask == 0)
+bet(side, lamports)             stake YES or NO; one position PDA per (market, bettor)
+resolve()                       permissionless once run.status == FINALIZED:
+                                outcome = run.correct >= threshold
+claim()                         winners split the whole pot pro-rata; one-sided or
+                                voided markets refund
+```
+
+The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and deserialized inside `resolve`, so the settlement source is the MPC-scored field itself. Betting closes the moment the first chunk is scored — before that, all a bettor can see is the model id and the committed `outputs_root`.
+
 ### Trust model (honest version)
 
 - The item author knows the answers to the items they wrote. Sealing means no one *else* can read them from chain, including the author later or an operator who did not write them. Independent authors and in-MPC item generation (planned: arithmetic families generated from `ArcisRNG` so *no one* knows the answer) shrink this further.
@@ -49,9 +64,11 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 ```
 encrypted-ixs/          Arcis circuits: seal_chunk, score_chunk
 programs/sealed/        Anchor program (Arcium MXE): registry, chunks, runs, callbacks
+programs/market/        Anchor program: parimutuel markets resolving on Run.correct
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
+web/index.html          leaderboard + proof explorer (single file, web3.js via CDN, reads any RPC)
 tests/                  end-to-end test on Arcium localnet
-scripts/                setup-wsl.sh (toolchain), install-solana-cdn.sh
+scripts/                setup-wsl.sh (toolchain), install-solana-cdn.sh, run-model.sh, zen-*.sh
 ```
 
 ## Develop
@@ -74,8 +91,18 @@ sealed run         --bank bank/1.json --model mock/oracle-0.6        # offline s
 sealed chain init                                                    # comp defs + circuit upload, once per deployment
 sealed chain seal  --bank bank/1.json --fee-lamports 1000000         # create_benchmark, stage + seal every part
 sealed chain score --bank bank/1.json --run runs/….json              # create_run + score every chunk in MPC
+sealed chain score --bank bank/1.json --run runs/….json --create-only  # park the run pending (for a market)
+sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score an existing run
 sealed chain status --benchmark <pubkey>                             # leaderboard from chain state
+
+sealed chain market open    --run <pubkey> --threshold 55            # "will this run score >= 55?"
+sealed chain market bet     --market <pk> --side yes --lamports 500000000 [--bettor kp.json]
+sealed chain market resolve --market <pk>                            # settles off Run.correct
+sealed chain market claim   --market <pk> [--bettor kp.json]
+sealed chain market show    --market <pk>
 ```
+
+Explorer: serve `web/` (`python3 -m http.server -d web 8788`) and open `?rpc=<url>` — defaults to localnet `http://127.0.0.1:8899`; on devnet it links out to explorer.solana.com.
 
 Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `ARCIUM_CLUSTER_OFFSET` (localnet: 0). `scripts/smoke-localnet.sh` runs the whole pipeline against a running `arcium localnet`.
 
@@ -87,8 +114,9 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Harness: generators, canonicalization, hashing, model client, run pipeline (tests green)
 - [x] Localnet end-to-end: `arcium test` seals 2 chunks, scores a run (45/64 planted), finalizes
 - [x] CLI pipeline on localnet: generated bank -> mock run -> MPC score 40/64, equal to the local pre-score
-- [ ] Devnet deployment + first public leaderboard over real model APIs
-- [ ] Web: leaderboard + proof explorer
-- [ ] Market that resolves on `Run.correct`
+- [x] Real models through OpenCode Zen (free tier, `x-opencode-session` header): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
+- [x] Market program: parimutuel market resolved on `Run.correct` end-to-end on localnet (open -> YES/NO bets -> MPC score 59/64 -> resolve YES -> claim pays out)
+- [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
+- [ ] Devnet deployment + first public leaderboard over real model APIs (cluster offset 456; needs devnet SOL — public faucet is rate-limited)
 
 MIT.

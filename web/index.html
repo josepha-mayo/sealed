@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sealed — benchmark oracle &amp; markets</title>
+<script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
+<style>
+  :root { --bg:#0a0e0f; --fg:#c8e6d5; --dim:#5f7a6b; --acc:#4ef0a8; --warn:#f0b84e; --err:#f06e5a; --card:#101715; --line:#1d2a24; }
+  * { box-sizing: border-box; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; margin:0; padding:24px; max-width:1100px; margin:0 auto; }
+  h1 { color:var(--acc); font-size:22px; letter-spacing:2px; margin:0 0 4px; }
+  h2 { color:var(--acc); font-size:15px; letter-spacing:1px; margin:28px 0 10px; text-transform:uppercase; }
+  .sub { color:var(--dim); margin-bottom:20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:16px; }
+  .row { display:flex; gap:16px; flex-wrap:wrap; align-items:baseline; }
+  .kv { color:var(--dim); } .kv b { color:var(--fg); font-weight:normal; }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; color:var(--dim); font-weight:normal; padding:6px 10px; border-bottom:1px solid var(--line); font-size:12px; }
+  td { padding:7px 10px; border-bottom:1px solid var(--line); }
+  tr:last-child td { border-bottom:none; }
+  .mono { font-family:inherit; word-break:break-all; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:11px; border:1px solid var(--line); }
+  .live { color:var(--acc); border-color:var(--acc); } .draft { color:var(--warn); border-color:var(--warn); }
+  .resolved { color:var(--acc); border-color:var(--acc);} .open { color:var(--warn); border-color:var(--warn);}
+  .cancelled { color:var(--dim); } .pending { color:var(--warn); border-color:var(--warn);}
+  a { color:var(--acc); text-decoration:none; } a:hover { text-decoration:underline; }
+  .score { color:var(--acc); font-size:16px; }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:4px; }
+  .bar i { display:block; height:100%; background:var(--acc); }
+  #err { color:var(--err); }
+  .cfg { margin-bottom:16px; } .cfg input { background:var(--card); border:1px solid var(--line); color:var(--fg); padding:6px 10px; border-radius:6px; width:340px; font:inherit; }
+  .cfg button { background:var(--acc); color:#062015; border:0; padding:6px 14px; border-radius:6px; font:inherit; cursor:pointer; }
+  .footer { color:var(--dim); font-size:12px; margin-top:28px; }
+  .proof { color:var(--dim); font-size:12px; margin-top:8px; }
+</style>
+</head>
+<body>
+<h1>SEALED</h1>
+<div class="sub">sealed benchmark oracle &middot; answers encrypted in Arcium MPC &middot; scores posted by the cluster &middot; markets resolve on <code>Run.correct</code></div>
+
+<div class="cfg">
+  <input id="rpc" size="42"> <button onclick="load()">connect</button>
+  <span id="net" class="kv"></span>
+</div>
+<div id="err"></div>
+<div id="out"></div>
+<div class="footer">benchmark items are committed by Merkle root at creation; model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
+
+<script>
+const SEALED_PID = new solanaWeb3.PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
+const MARKET_PID = new solanaWeb3.PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
+const DISC = {
+  benchmark: "39fc2136718de9f7",
+  run: "c7369b56eb73f6bd",
+  market: "dbbed53700e3c69a",
+  position: "aabc8fe47a40f7d0",
+};
+const hex = (u8) => [...u8].map(b => b.toString(16).padStart(2, "0")).join("");
+const b58 = (u8) => new solanaWeb3.PublicKey(u8).toBase58();
+const sol = (l) => (Number(l) / 1e9).toFixed(3);
+
+const params = new URLSearchParams(location.search);
+const rpcIn = document.getElementById("rpc");
+rpcIn.value = params.get("rpc") || "http://127.0.0.1:8899";
+
+function parseBenchmark(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const authority = d.slice(o, o + 32); o += 32;
+  const id = v.getUint32(o, true); o += 4;
+  const bump = d[o++]; const status = d[o++];
+  const chunkCount = v.getUint16(o, true); o += 2;
+  const chunksSealed = v.getUint16(o, true); o += 2;
+  const itemsRoot = d.slice(o, o + 32); o += 32;
+  const feeLamports = v.getBigUint64(o, true); o += 8;
+  const runCount = v.getBigUint64(o, true); o += 8;
+  const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const nl = v.getUint32(o, true); o += 4;
+  const name = new TextDecoder().decode(d.slice(o, o + nl));
+  return { authority: b58(authority), id, status, chunkCount, chunksSealed, itemsRoot: hex(itemsRoot), feeLamports, runCount, createdAt, name };
+}
+function parseRun(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const benchmark = d.slice(o, o + 32); o += 32;
+  const runner = d.slice(o, o + 32); o += 32;
+  const index = v.getBigUint64(o, true); o += 8;
+  const bump = d[o++]; const status = d[o++];
+  const chunkCount = v.getUint16(o, true); o += 2;
+  const pendingMask = v.getBigUint64(o, true); o += 8;
+  const scoredMask = v.getBigUint64(o, true); o += 8;
+  const correct = v.getUint32(o, true); o += 4;
+  const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const finalizedAt = Number(v.getBigInt64(o, true)); o += 8;
+  const harnessHash = d.slice(o, o + 32); o += 32;
+  const outputsRoot = d.slice(o, o + 32); o += 32;
+  const ml = v.getUint32(o, true); o += 4;
+  const modelId = new TextDecoder().decode(d.slice(o, o + ml));
+  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId };
+}
+function parseMarket(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const authority = d.slice(o, o + 32); o += 32;
+  const run = d.slice(o, o + 32); o += 32;
+  const benchmark = d.slice(o, o + 32); o += 32;
+  const runIndex = v.getBigUint64(o, true); o += 8;
+  const threshold = v.getUint32(o, true); o += 4;
+  const bump = d[o++]; const status = d[o++]; const outcome = d[o++];
+  const yesTotal = v.getBigUint64(o, true); o += 8;
+  const noTotal = v.getBigUint64(o, true); o += 8;
+  const resolvedScore = v.getUint32(o, true); o += 4;
+  const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const resolvedAt = Number(v.getBigInt64(o, true)); o += 8;
+  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, threshold, status, outcome, yesTotal, noTotal, resolvedScore, createdAt, resolvedAt };
+}
+function parsePosition(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const market = d.slice(o, o + 32); o += 32;
+  const bettor = d.slice(o, o + 32); o += 32;
+  const bump = d[o++];
+  const yes = v.getBigUint64(o, true); o += 8;
+  const no = v.getBigUint64(o, true); o += 8;
+  const claimed = d[o++];
+  return { market: b58(market), bettor: b58(bettor), yes, no, claimed };
+}
+
+const short = (s) => s.slice(0, 6) + "…" + s.slice(-4);
+let isDevnet = false;
+const link = (pk) => isDevnet
+  ? `<a href="https://explorer.solana.com/address/${pk}?cluster=devnet" target="_blank">${short(pk)}</a>`
+  : `<span class="mono">${short(pk)}</span>`;
+
+const BSTATUS = ["DRAFT", "LIVE", "RETIRED"];
+const MSTATUS = ["open", "resolved", "cancelled"];
+const OUTCOME = ["—", "YES", "NO"];
+
+async function load() {
+  const url = rpcIn.value.trim();
+  document.getElementById("err").textContent = "";
+  const conn = new solanaWeb3.Connection(url, "confirmed");
+  isDevnet = /devnet|testnet|mainnet/.test(url);
+  document.getElementById("net").textContent = " " + url;
+  let sealedAccs, marketAccs;
+  try {
+    [sealedAccs, marketAccs] = await Promise.all([
+      conn.getProgramAccounts(SEALED_PID),
+      conn.getProgramAccounts(MARKET_PID).catch(() => []),
+    ]);
+  } catch (e) {
+    document.getElementById("err").textContent = "RPC error: " + e.message + " (localnet? try `arcium localnet`; CORS? serve this file: python3 -m http.server -d web)";
+    return;
+  }
+  const benches = [], runs = [], markets = [], positions = [];
+  for (const { pubkey, account } of sealedAccs) {
+    const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
+    if (disc === DISC.benchmark) benches.push({ pk: pubkey.toBase58(), ...parseBenchmark(d) });
+    else if (disc === DISC.run) runs.push({ pk: pubkey.toBase58(), ...parseRun(d) });
+  }
+  for (const { pubkey, account } of marketAccs) {
+    const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
+    if (disc === DISC.market) markets.push({ pk: pubkey.toBase58(), ...parseMarket(d) });
+    else if (disc === DISC.position) positions.push(parsePosition(d));
+  }
+
+  let h = "";
+  for (const b of benches.sort((a, b2) => a.id - b2.id)) {
+    const items = b.chunkCount * 32;
+    const brs = runs.filter(r => r.benchmark === b.pk).sort((a, b2) => b2.correct - a.correct);
+    h += `<div class="card"><div class="row">
+      <b class="score">${b.name}</b>
+      <span class="pill ${BSTATUS[b.status].toLowerCase()}">${BSTATUS[b.status]}</span>
+      <span class="kv">id <b>${b.id}</b></span><span class="kv">items <b>${items}</b></span>
+      <span class="kv">chunks sealed <b>${b.chunksSealed}/${b.chunkCount}</b></span>
+      <span class="kv">acct ${link(b.pk)}</span></div>
+      <div class="proof">items_root ${b.itemsRoot} &middot; fee ${sol(b.feeLamports)} SOL</div>`;
+    if (brs.length) {
+      h += `<table><tr><th>rank</th><th>model</th><th>score</th><th></th><th>run</th><th>status</th><th>outputs_root</th></tr>`;
+      brs.forEach((r, i) => {
+        const pct = (100 * r.correct) / items;
+        h += `<tr><td>#${i + 1}</td><td>${r.modelId}</td>
+          <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
+          <td>${link(r.pk)}</td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "pending " + popcount(r.scoredMask) + "/" + r.chunkCount}</span></td>
+          <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;
+      });
+      h += `</table>`;
+    } else h += `<div class="kv" style="margin-top:8px">no runs yet</div>`;
+    h += `</div>`;
+  }
+  if (!benches.length) h = `<div class="card kv">no benchmarks on ${url} — seal one: <code>sealed chain seal --bank …</code></div>`;
+
+  if (markets.length) {
+    h += `<h2>markets</h2>`;
+    for (const m of markets.sort((a, b) => b.createdAt - a.createdAt)) {
+      const run = runs.find(r => r.pk === m.run);
+      const pot = Number(m.yesTotal + m.noTotal) / 1e9;
+      const mpos = positions.filter(p => p.market === m.pk);
+      const yesPct = Number(m.yesTotal) + Number(m.noTotal) ? (100 * Number(m.yesTotal)) / (Number(m.yesTotal) + Number(m.noTotal)) : 50;
+      h += `<div class="card"><div class="row">
+        <b>will <span class="mono">${run ? run.modelId : short(m.run)}</span> score ≥ ${m.threshold}?</b>
+        <span class="pill ${MSTATUS[m.status]}">${MSTATUS[m.status]}</span>
+        <span class="kv">pot <b>${pot.toFixed(3)} SOL</b></span>
+        <span class="kv">implied YES <b>${yesPct.toFixed(0)}%</b></span>
+        <span class="kv">acct ${link(m.pk)}</span></div>
+        <div class="proof">run ${m.run} &middot; resolved score ${m.resolvedScore || "—"} &middot; outcome ${OUTCOME[m.outcome]}</div>`;
+      if (mpos.length) {
+        h += `<table><tr><th>bettor</th><th>YES</th><th>NO</th><th>claimed</th></tr>`;
+        for (const p of mpos) h += `<tr><td class="mono">${short(p.bettor)}</td><td>${sol(p.yes)}</td><td>${sol(p.no)}</td><td>${p.claimed ? "✓" : "—"}</td></tr>`;
+        h += `</table>`;
+      }
+      h += `</div>`;
+    }
+  }
+  document.getElementById("out").innerHTML = h;
+}
+function popcount(b) { let n = 0, x = BigInt(b); while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
+load();
+setInterval(load, 15000);
+</script>
+</body>
+</html>
