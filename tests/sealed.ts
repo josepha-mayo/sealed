@@ -73,7 +73,7 @@ describe("Sealed", () => {
   }
 
   it("seals a bank, scores a run in MPC, and finalizes", async () => {
-    console.log("init comp defs");
+    console.log(`init comp defs (cluster offset ${arciumEnv.arciumClusterOffset}, program ${program.programId.toBase58()})`);
     await initCompDef("seal_part", () => program.methods.initSealPartCompDef());
     await initCompDef("score_chunk", () => program.methods.initScoreChunkCompDef());
     const mxePublicKey = await getMXEPublicKeyWithRetry(provider, program.programId);

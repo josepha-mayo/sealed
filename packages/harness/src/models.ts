@@ -128,3 +128,35 @@ export class ModelClient {
 export class FatalHttpError extends Error {}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Offline stand-in for demos and smoke tests: `mock/oracle-0.6` answers 60% of items
+ * correctly (deterministically per prompt) with deliberately sloppy formatting, the
+ * rest wrong. Needs the bank to look up reference answers, so it is constructed by
+ * the run pipeline, never by end users.
+ */
+export class MockModelClient extends ModelClient {
+  constructor(private readonly answers: Map<string, string>) {
+    super({ apiKey: "mock", fetchImpl: (async () => new Response("unused")) as typeof fetch });
+  }
+
+  static isMock(model: string) {
+    return model.startsWith("mock/");
+  }
+
+  async complete(model: string, prompt: string): Promise<Completion> {
+    const m = /^mock\/oracle-(0(?:\.\d+)?|1(?:\.0+)?)$/.exec(model);
+    if (!m) throw new Error(`unknown mock model ${model}; use mock/oracle-<p> with p in [0,1]`);
+    const p = Number(m[1]);
+    const ref = this.answers.get(prompt);
+    if (ref === undefined) throw new Error("mock model asked a prompt that is not in the bank");
+    // Deterministic coin per prompt so re-runs reproduce the same score.
+    let h = 2166136261;
+    for (const ch of prompt) h = (h ^ ch.charCodeAt(0)) * 16777619 >>> 0;
+    const correct = (h % 10_000) / 10_000 < p;
+    const text = correct
+      ? `Let me work through this.\n\n**ANSWER:**  ${ref.toUpperCase()} .`
+      : `I think it is\nANSWER: ${ref}x`;
+    return { text, latencyMs: 0 };
+  }
+}

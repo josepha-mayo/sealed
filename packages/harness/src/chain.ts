@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import * as anchor from "@anchor-lang/core";
+import type * as AnchorTypes from "@anchor-lang/core";
 import { Keypair, PublicKey, Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   awaitComputationFinalization,
@@ -25,6 +25,11 @@ import {
   getComputationAccAddress,
   getMXEPublicKey,
   getClusterAccAddress,
+  getArciumAccountBaseSeed,
+  getArciumProgramId,
+  getArciumProgram,
+  getLookupTableAddress,
+  uploadCircuit,
   RescueCipher,
   deserializeLE,
 } from "@arcium-hq/client";
@@ -33,13 +38,16 @@ import { type Bank, CHUNK, PART, chunkHashes } from "./bank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
 
 const require = createRequire(import.meta.url);
+// @anchor-lang/core is CommonJS; loading it through require keeps `BN`, `Program`, etc.
+// as real constructors under ESM loaders.
+const anchor: typeof AnchorTypes = require("@anchor-lang/core");
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 type Args = Record<string, string | boolean>;
 
 interface Ctx {
-  provider: anchor.AnchorProvider;
-  program: anchor.Program;
+  provider: AnchorTypes.AnchorProvider;
+  program: AnchorTypes.Program;
   wallet: Keypair;
   clusterOffset: number;
 }
@@ -77,7 +85,7 @@ function pdas(ctx: Ctx, authority: PublicKey, benchmarkId: number) {
   return { benchmark, chunk, run };
 }
 
-function arciumAccounts(ctx: Ctx, offset: anchor.BN, ix: string) {
+function arciumAccounts(ctx: Ctx, offset: AnchorTypes.BN, ix: string) {
   return {
     computationAccount: getComputationAccAddress(ctx.clusterOffset, offset),
     clusterAccount: getClusterAccAddress(ctx.clusterOffset),
@@ -96,6 +104,36 @@ async function fetchOrNull<T>(p: Promise<T>): Promise<T | null> {
   }
 }
 
+// ------------------------------------------------------------------ init
+
+/** Initialize both computation definitions and upload the compiled circuits. Once per deployment. */
+export async function init(ctx = setup()) {
+  const { program, provider, wallet } = ctx;
+  const arciumProgram = getArciumProgram(provider);
+  const mxeAccount = getMXEAccAddress(program.programId);
+  const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);
+  const lut = getLookupTableAddress(program.programId, mxeAcc.lutOffsetSlot);
+  for (const [name, method] of [
+    ["seal_part", "initSealPartCompDef"],
+    ["score_chunk", "initScoreChunkCompDef"],
+  ] as const) {
+    const compDef = PublicKey.findProgramAddressSync(
+      [getArciumAccountBaseSeed("ComputationDefinitionAccount"), program.programId.toBuffer(), getCompDefAccOffset(name)],
+      getArciumProgramId(),
+    )[0];
+    if (await provider.connection.getAccountInfo(compDef)) {
+      console.log(`${name}: comp def exists (${compDef.toBase58()})`);
+      continue;
+    }
+    const sig = await (program.methods as any)[method]()
+      .accounts({ compDefAccount: compDef, payer: wallet.publicKey, mxeAccount, addressLookupTable: lut })
+      .rpc({ commitment: "confirmed" });
+    console.log(`${name}: comp def initialized ${sig}`);
+    await uploadCircuit(provider, name, program.programId, readFileSync(join(ROOT, "build", `${name}.arcis`)), true);
+    console.log(`${name}: circuit uploaded`);
+  }
+}
+
 // ------------------------------------------------------------------ seal
 
 export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
@@ -103,7 +141,7 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
   const { benchmark, chunk } = pdas(ctx, wallet.publicKey, bank.benchmarkId);
   const acct = program.account as any;
 
-  let b = await fetchOrNull(acct.benchmark.fetch(benchmark));
+  let b: any = await fetchOrNull(acct.benchmark.fetch(benchmark));
   if (!b) {
     console.log(`create_benchmark id=${bank.benchmarkId} chunks=${bank.chunkCount} root=${bank.itemsRoot}`);
     await program.methods
@@ -126,7 +164,7 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
   const ALL = (1 << PARTS) - 1;
   for (let i = 0; i < bank.chunkCount; i++) {
     const c = chunk(i);
-    let state = await fetchOrNull(acct.answerChunk.fetch(c));
+    let state: any = await fetchOrNull(acct.answerChunk.fetch(c));
     if (state?.partsSealed === ALL) {
       console.log(`chunk ${i}: already sealed`);
       continue;
@@ -228,6 +266,10 @@ export async function status(benchmark: PublicKey, ctx = setup()) {
 export async function chainMain(cmd: string[], args: Args) {
   const loadJson = (p: string) => JSON.parse(readFileSync(p, "utf8"));
   const [sub] = cmd;
+  if (sub === "init") {
+    await init();
+    return;
+  }
   if (sub === "seal") {
     const bank = loadJson(String(args.bank)) as Bank;
     const fee = BigInt(String(args["fee-lamports"] ?? 0));

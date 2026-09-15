@@ -9,7 +9,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { buildBank, publicSummary, type Bank } from "./bank.js";
-import { ModelClient, DEFAULT_CONFIG } from "./models.js";
+import { ModelClient, MockModelClient, DEFAULT_CONFIG } from "./models.js";
 import { runModel } from "./run.js";
 
 type Args = Record<string, string | boolean>;
@@ -72,10 +72,12 @@ async function main() {
   if (c0 === "run") {
     const bank = loadBank(need(args, "bank"));
     const model = need(args, "model");
-    const client = new ModelClient({
-      concurrency: args.concurrency ? Number(args.concurrency) : undefined,
-      apiBase: args["api-base"] as string | undefined,
-    });
+    const client = MockModelClient.isMock(model)
+      ? new MockModelClient(new Map(bank.items.map((it) => [it.prompt, it.answer])))
+      : new ModelClient({
+          concurrency: args.concurrency ? Number(args.concurrency) : undefined,
+          apiBase: args["api-base"] as string | undefined,
+        });
     const cfg = { ...DEFAULT_CONFIG, maxTokens: args["max-tokens"] ? Number(args["max-tokens"]) : DEFAULT_CONFIG.maxTokens };
     const t0 = Date.now();
     const artifact = await runModel(bank, model, client, cfg, (done, total) => {
@@ -114,6 +116,8 @@ async function main() {
   sealed bank build --seed <s> --id <n> [--chunks 10] [--out bank/<id>.json]
   sealed bank show  --bank <file>
   sealed run        --bank <file> --model <id> [--concurrency 6] [--max-tokens 4096] [--out file]
+                    (model "mock/oracle-<p>" answers a fraction p correctly, offline)
+  sealed chain init                                   init comp defs + upload circuits (once per deployment)
   sealed chain seal  --bank <file> [--fee-lamports n]
   sealed chain score --bank <file> --run <file>
   sealed chain status --benchmark <pubkey>`);
