@@ -76,6 +76,7 @@ async function main() {
       ? new MockModelClient(new Map(bank.items.map((it) => [it.prompt, it.answer])))
       : new ModelClient({
           concurrency: args.concurrency ? Number(args.concurrency) : undefined,
+          retries: args.retries ? Number(args.retries) : undefined,
           apiBase: args["api-base"] as string | undefined,
         });
     const cfg = { ...DEFAULT_CONFIG, maxTokens: args["max-tokens"] ? Number(args["max-tokens"]) : DEFAULT_CONFIG.maxTokens };
@@ -115,7 +116,7 @@ async function main() {
   console.error(`usage:
   sealed bank build --seed <s> --id <n> [--chunks 10] [--out bank/<id>.json]
   sealed bank show  --bank <file>
-  sealed run        --bank <file> --model <id> [--concurrency 6] [--max-tokens 4096] [--out file]
+  sealed run        --bank <file> --model <id> [--concurrency 6] [--retries 4] [--max-tokens 4096] [--out file]
                     (model "mock/oracle-<p>" answers a fraction p correctly, offline)
   sealed chain init                                   init comp defs + upload circuits (once per deployment)
   sealed chain seal  --bank <file> [--fee-lamports n]

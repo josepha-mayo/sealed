@@ -39,6 +39,8 @@ export interface ModelClientOptions {
   concurrency?: number;
   retries?: number;
   fetchImpl?: typeof fetch;
+  /** Stable session id sent as x-opencode-session (Zen free tier requires it). */
+  sessionId?: string;
 }
 
 export interface Completion {
@@ -53,6 +55,7 @@ export class ModelClient {
   private readonly concurrency: number;
   private readonly retries: number;
   private readonly fetchImpl: typeof fetch;
+  private readonly sessionId: string;
 
   constructor(opts: ModelClientOptions = {}) {
     this.apiBase = (opts.apiBase ?? process.env.SEALED_API_BASE ?? "https://openrouter.ai/api/v1").replace(/\/$/, "");
@@ -60,6 +63,7 @@ export class ModelClient {
     this.concurrency = opts.concurrency ?? 6;
     this.retries = opts.retries ?? 4;
     this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.sessionId = opts.sessionId ?? process.env.SEALED_SESSION_ID ?? `sealed-${Date.now().toString(36)}`;
     if (!this.apiKey) throw new Error("no API key: set SEALED_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY)");
   }
 
@@ -74,6 +78,8 @@ export class ModelClient {
             "content-type": "application/json",
             authorization: `Bearer ${this.apiKey}`,
             "x-title": "sealed-harness",
+            // OpenCode Zen routes/caches by a per-session id; required for its free tier.
+            "x-opencode-session": this.sessionId,
           },
           body: JSON.stringify({
             model,
@@ -85,7 +91,8 @@ export class ModelClient {
             ],
           }),
         });
-        if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        if (res.status === 429) throw new RateLimitError(`HTTP 429: ${await res.text()}`);
+        if (res.status >= 500) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
         if (!res.ok) throw new FatalHttpError(`HTTP ${res.status}: ${await res.text()}`);
         const json = (await res.json()) as {
           choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
@@ -97,7 +104,10 @@ export class ModelClient {
       } catch (e) {
         if (e instanceof FatalHttpError) throw e;
         lastErr = e;
-        await sleep(500 * 2 ** attempt + Math.random() * 250);
+        // Free-tier gateways (e.g. Zen) rate-limit per ~minute window; 429 needs a long wait.
+        const base = e instanceof RateLimitError ? 15_000 : 500;
+        const mult = e instanceof RateLimitError ? attempt + 1 : 2 ** attempt;
+        await sleep(base * mult + Math.random() * 250);
       }
     }
     throw new Error(`model call failed after ${this.retries + 1} attempts: ${String(lastErr)}`);
@@ -126,6 +136,7 @@ export class ModelClient {
 }
 
 export class FatalHttpError extends Error {}
+export class RateLimitError extends Error {}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
