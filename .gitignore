@@ -1,0 +1,27 @@
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+test-ledger
+.yarn
+.surfpool
+encrypted-ixs/arcis_temp_target
+build
+encrypted-ixs/src/main.rs
+artifacts/
+# toolchain output
+target/
+build/
+.anchor/
+node_modules/
+dist/
+*.log
+test-ledger/
+
+# private: prompts, answers, raw model replies, seeds, keys
+bank/
+runs/
+.env
+*.key
+*-keypair.json
