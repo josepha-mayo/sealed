@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# One-shot devnet deployment. Needs >= ~8 SOL on ~/.config/solana/id.json (devnet).
+# One-shot devnet deployment. Needs ~13 SOL on ~/.config/solana/id.json (devnet):
+# sealed.so 665KB ≈ 4.6 + market.so 229KB ≈ 1.6 + circuits ~890KB ≈ 6.2 + MXE/comp-defs.
 # Usage: scripts/deploy-devnet.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -11,7 +12,7 @@ export NODE_NO_WARNINGS=1
 
 BAL=$(solana balance --url "$RPC" | awk '{print $1}')
 echo "deployer balance: $BAL SOL"
-awk -v b="$BAL" 'BEGIN{exit !(b+0>=2)}' || { echo "need >= 2 SOL; airdrop first"; exit 1; }
+awk -v b="$BAL" 'BEGIN{exit !(b+0>=13)}' || { echo "need ~13 SOL (have $BAL); keep claiming the faucet"; exit 1; }
 
 echo "== arcium deploy (program + MXE init, cluster offset 456)"
 arcium deploy --cluster-offset 456 --recovery-set-size 4 -n sealed \

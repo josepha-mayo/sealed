@@ -9,6 +9,7 @@ import * as anchor from "@anchor-lang/core";
 import { Program } from "@anchor-lang/core";
 import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Sealed } from "../target/types/sealed";
+import { Market } from "../target/types/market";
 import { randomBytes } from "crypto";
 import {
   awaitComputationFinalization,
@@ -45,6 +46,8 @@ describe("Sealed", () => {
   const arciumEnv = getArciumEnv();
   const clusterAccount = getClusterAccAddress(arciumEnv.arciumClusterOffset);
   const owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
+  // The staged answer bank: chunk i holds CHUNK random u64 "answer hashes".
+  const answers: bigint[][] = Array.from({ length: 2 }, () => Array.from({ length: CHUNK }, randomU64));
 
   const arciumAccounts = (offset: anchor.BN, ix: string) => ({
     computationAccount: getComputationAccAddress(arciumEnv.arciumClusterOffset, offset),
@@ -60,6 +63,10 @@ describe("Sealed", () => {
       [getArciumAccountBaseSeed("ComputationDefinitionAccount"), program.programId.toBuffer(), getCompDefAccOffset(name)],
       getArciumProgramId(),
     )[0];
+    if (await provider.connection.getAccountInfo(compDefPDA)) {
+      console.log(`${name}: comp def already initialized`);
+      return "existing";
+    }
     const arciumProgram = getArciumProgram(provider);
     const mxeAccount = getMXEAccAddress(program.programId);
     const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);
@@ -97,7 +104,6 @@ describe("Sealed", () => {
     expect(Buffer.from(b.itemsRoot)).to.deep.equal(itemsRoot);
 
     // ---------------------------------------------------------------- stage + seal
-    const answers: bigint[][] = Array.from({ length: CHUNKS }, () => Array.from({ length: CHUNK }, randomU64));
     const authorPriv = x25519.utils.randomSecretKey();
     const authorPub = x25519.getPublicKey(authorPriv);
     const cipher = new RescueCipher(x25519.getSharedSecret(authorPriv, mxePublicKey));
@@ -216,6 +222,131 @@ describe("Sealed", () => {
         .rpc(),
       "RunAlreadyFinalized",
     );
+  });
+
+  it("settles a parimutuel market on an MPC-scored run", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(1)],
+      program.programId,
+    );
+    const chunkPdas = [0, 1].map(
+      (i) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], program.programId)[0],
+    );
+    const mktPda = (run: PublicKey) =>
+      PublicKey.findProgramAddressSync([Buffer.from("market"), run.toBuffer()], marketProgram.programId)[0];
+    const posPda = (mkt: PublicKey, bettor: PublicKey) =>
+      PublicKey.findProgramAddressSync([Buffer.from("position"), mkt.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
+
+    // A market cannot be opened on the already-finalized run #0.
+    const [run0] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(30)
+        .accounts({ authority: owner.publicKey, run: run0, market: mktPda(run0) })
+        .signers([owner])
+        .rpc(),
+      "RunNotPending",
+    );
+
+    // Run #1 is created pending; the market opens on it while unscored.
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.5 * LAMPORTS_PER_SOL);
+    const [run1] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(1n)], program.programId);
+    await program.methods
+      .createRun("test/market-run", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: run1 })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+
+    const THRESHOLD = 30;
+    const mkt = mktPda(run1);
+    await marketProgram.methods
+      .createMarket(THRESHOLD)
+      .accounts({ authority: owner.publicKey, run: run1, market: mkt })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    let m = await marketProgram.account.market.fetch(mkt);
+    expect(m.status).to.equal(0);
+    expect(m.threshold).to.equal(THRESHOLD);
+
+    // Two bettors: YES 0.3 SOL vs NO 0.5 SOL.
+    const yes = Keypair.generate();
+    const no = Keypair.generate();
+    await fund(provider, owner, yes.publicKey, 0.5 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, no.publicKey, 0.6 * LAMPORTS_PER_SOL);
+    const noBefore = await provider.connection.getBalance(no.publicKey);
+    await marketProgram.methods
+      .bet(1, new anchor.BN(0.3 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: yes.publicKey, run: run1, market: mkt, position: posPda(mkt, yes.publicKey) })
+      .signers([yes])
+      .rpc({ commitment: "confirmed" });
+    await marketProgram.methods
+      .bet(2, new anchor.BN(0.5 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: no.publicKey, run: run1, market: mkt, position: posPda(mkt, no.publicKey) })
+      .signers([no])
+      .rpc({ commitment: "confirmed" });
+    m = await marketProgram.account.market.fetch(mkt);
+    expect(m.yesTotal.toNumber()).to.equal(0.3 * LAMPORTS_PER_SOL);
+    expect(m.noTotal.toNumber()).to.equal(0.5 * LAMPORTS_PER_SOL);
+
+    // MPC-score run #1 with 10+0 planted correct answers -> 10 < 30 -> NO wins.
+    const planted = [10, 0];
+    let total = 0;
+    for (let i = 0; i < 2; i++) {
+      const outputs = Array.from({ length: CHUNK }, (_, j) => new anchor.BN((j < planted[i] ? answers[i][j] : randomU64()).toString()));
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(1), i, outputs)
+        .accountsPartial({ payer: runner.publicKey, run: run1, runner: runner.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
+        .signers([runner])
+        .rpc({ commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+      total += planted[i];
+    }
+    const r1 = await program.account.run.fetch(run1);
+    expect(r1.status).to.equal(1);
+    expect(r1.correct).to.equal(total);
+
+    // Betting is closed once the run is finalized.
+    await expectAnchorError(
+      marketProgram.methods
+        .bet(1, new anchor.BN(1000))
+        .accounts({ bettor: yes.publicKey, run: run1, market: mkt, position: posPda(mkt, yes.publicKey) })
+        .signers([yes])
+        .rpc(),
+      "RunNotPending",
+    );
+
+    // Permissionless resolve: outcome = run.correct >= threshold.
+    await marketProgram.methods
+      .resolve()
+      .accounts({ run: run1, market: mkt })
+      .rpc({ commitment: "confirmed" });
+    m = await marketProgram.account.market.fetch(mkt);
+    expect(m.status).to.equal(1, "resolved");
+    expect(m.outcome).to.equal(2, "NO wins");
+    expect(m.resolvedScore).to.equal(total);
+
+    // Loser has nothing to claim.
+    await expectAnchorError(
+      marketProgram.methods
+        .claim()
+        .accounts({ bettor: yes.publicKey, market: mkt, position: posPda(mkt, yes.publicKey) })
+        .signers([yes])
+        .rpc(),
+      "NothingToClaim",
+    );
+
+    // Winner takes the whole pot (0.8 SOL) plus the position's rent back.
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: no.publicKey, market: mkt, position: posPda(mkt, no.publicKey) })
+      .signers([no])
+      .rpc({ commitment: "confirmed" });
+    const noAfter = await provider.connection.getBalance(no.publicKey);
+    expect(noAfter - noBefore).to.be.greaterThan(0.29 * LAMPORTS_PER_SOL, "NO bettor profited");
+    console.log(`market settled: NO bettor ${noBefore / LAMPORTS_PER_SOL} -> ${noAfter / LAMPORTS_PER_SOL} SOL`);
   });
 });
 
