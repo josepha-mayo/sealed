@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Prng } from "../src/prng.js";
 import { canonicalAnswer, normalize } from "../src/canonical.js";
-import { answerHash, itemLeaf, merkleRoot, merkleProof, verifyProof, harnessHash, hex } from "../src/hash.js";
+import { answerHash, itemLeaf, outputLeaf, merkleRoot, merkleProof, verifyProof, harnessHash, hex } from "../src/hash.js";
 import { FAMILIES } from "../src/items.js";
 import { buildBank, chunkHashes, CHUNK } from "../src/bank.js";
 import { runModel, runChunkOutputs } from "../src/run.js";
@@ -92,4 +92,36 @@ test("run pipeline hashes model output the same way as the bank", async () => {
   const matches = outs.filter((h, i) => h === refs[i]).length;
   assert.equal(matches, CHUNK / 2);
   assert.equal(run.outputsRoot.length, 64);
+});
+
+test("output proofs verify against the committed outputs_root (prover/verifier split)", async () => {
+  const bank = buildBank("master", 4, 1);
+  const client = new ModelClient({
+    apiKey: "test",
+    fetchImpl: (async (_u: string | URL | Request, init?: RequestInit) => {
+      const prompt: string = JSON.parse(String(init?.body)).messages[1].content;
+      const item = bank.items.find((it) => it.prompt === prompt)!;
+      return new Response(JSON.stringify({ choices: [{ message: { content: `ANSWER: ${item.answer}` } }] }), { status: 200 });
+    }) as typeof fetch,
+  });
+  const run = await runModel(bank, "oracle/all", client);
+
+  // Prover side: what `sealed prove --item i` emits.
+  const i = 5;
+  const leaves = run.items.map((r) => outputLeaf(r.index, BigInt(r.outputHash)));
+  const proofJson = {
+    leaf: Buffer.from(leaves[i]).toString("hex"),
+    proof: merkleProof(leaves, i).map((p) => Buffer.from(p).toString("hex")),
+    outputsRoot: run.outputsRoot,
+  };
+
+  // Verifier side: only sees the JSON (what web/index.html does).
+  const leaf = new Uint8Array(Buffer.from(proofJson.leaf, "hex"));
+  const proof = proofJson.proof.map((p: string) => new Uint8Array(Buffer.from(p, "hex")));
+  assert.ok(verifyProof(leaf, i, proof, new Uint8Array(Buffer.from(proofJson.outputsRoot, "hex"))));
+
+  // Tampered hash or wrong index must fail.
+  const bad = new Uint8Array(leaves[i]); bad[0] ^= 1;
+  assert.ok(!verifyProof(bad, i, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
+  assert.ok(!verifyProof(leaf, i + 1, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
 });
