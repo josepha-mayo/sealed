@@ -323,8 +323,9 @@ export async function status(benchmark: PublicKey, ctx = setup()) {
 
 // ------------------------------------------------------------------ market
 
-/** Parimutuel YES/NO markets that resolve on a finalized Run's `correct` field. */
+/** N-way parimutuel bucket markets that resolve on a finalized Run's `correct`. */
 const MARKET_PROGRAM_ID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
+const MAX_OUTCOMES = 8;
 
 function loadKeypair(path: string): Keypair {
   return Keypair.fromSecretKey(new Uint8Array(JSON.parse(readFileSync(path, "utf8"))));
@@ -339,31 +340,40 @@ function marketProgram(kpPath?: string) {
   return { market: new anchor.Program(idl, provider), kp };
 }
 
-const marketPda = (run: PublicKey, pid = MARKET_PROGRAM_ID) =>
-  PublicKey.findProgramAddressSync([Buffer.from("market"), run.toBuffer()], pid)[0];
+const marketPda = (run: PublicKey, salt = 0n, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync([Buffer.from("market"), run.toBuffer(), Buffer.from(new anchor.BN(salt.toString()).toArray("le", 8))], pid)[0];
 const positionPda = (market: PublicKey, bettor: PublicKey, pid = MARKET_PROGRAM_ID) =>
   PublicKey.findProgramAddressSync([Buffer.from("position"), market.toBuffer(), bettor.toBuffer()], pid)[0];
 
-async function marketOpen(run: PublicKey, threshold: number, kpPath?: string) {
+/** Human-readable label for outcome i given a market's edges/n_outcomes. */
+export function outcomeLabel(nOutcomes: number, edges: number[] | bigint[], i: number): string {
+  const lo = i === 0 ? 0 : Number(edges[i - 1]);
+  const hi = i === nOutcomes - 1 ? null : Number(edges[i]);
+  return hi === null ? `>= ${lo}` : lo === 0 ? `< ${hi}` : `${lo}–${hi - 1}`;
+}
+
+async function marketOpen(run: PublicKey, edges: number[], salt: bigint, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
-  const m = marketPda(run, market.programId);
+  const m = marketPda(run, salt, market.programId);
   await (market.methods as any)
-    .createMarket(threshold)
+    .createMarket(new anchor.BN(salt.toString()), edges)
     .accounts({ authority: kp.publicKey, run, market: m })
     .rpc({ commitment: "confirmed" });
-  console.log(`market ${m.toBase58()} opened: run ${run.toBase58()} threshold=${threshold}`);
+  const labels = Array.from({ length: edges.length + 1 }, (_, i) => outcomeLabel(edges.length + 1, edges, i)).join(" | ");
+  console.log(`market ${m.toBase58()} opened: run ${run.toBase58()} outcomes: ${labels}`);
   return m;
 }
 
-async function marketBet(marketPk: PublicKey, side: "yes" | "no", lamports: bigint, kpPath?: string) {
+async function marketBet(marketPk: PublicKey, outcome: number, lamports: bigint, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const m: any = await (market.account as any).market.fetch(marketPk);
   const position = positionPda(marketPk, kp.publicKey, market.programId);
+  const label = outcomeLabel(m.nOutcomes, m.edges, outcome);
   const sig = await (market.methods as any)
-    .bet(side === "yes" ? 1 : 2, new anchor.BN(lamports.toString()))
+    .bet(outcome, new anchor.BN(lamports.toString()))
     .accounts({ bettor: kp.publicKey, run: m.run, market: marketPk, position })
     .rpc({ commitment: "confirmed" });
-  console.log(`bet ${side.toUpperCase()} ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
+  console.log(`bet [${label}] ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
 }
 
 async function marketResolve(marketPk: PublicKey, kpPath?: string) {
@@ -374,8 +384,8 @@ async function marketResolve(marketPk: PublicKey, kpPath?: string) {
     .accounts({ run: m.run, market: marketPk })
     .rpc({ commitment: "confirmed" });
   const after: any = await (market.account as any).market.fetch(marketPk);
-  const oc = after.status === 2 ? "CANCELLED" : after.outcome === 1 ? "YES" : "NO";
-  console.log(`market resolved (${sig}): score=${after.resolvedScore} threshold=${after.threshold} outcome=${oc}`);
+  const oc = after.status === 2 ? "CANCELLED" : `outcome ${after.outcome} [${outcomeLabel(after.nOutcomes, after.edges, after.outcome)}]`;
+  console.log(`market resolved (${sig}): score=${after.resolvedScore} outcome=${oc}`);
 }
 
 async function marketClaim(marketPk: PublicKey, kpPath?: string) {
@@ -399,14 +409,18 @@ async function marketShow(marketPk: PublicKey) {
   const { market } = marketProgram();
   const m: any = await (market.account as any).market.fetch(marketPk);
   const status = ["OPEN", "RESOLVED", "CANCELLED"][m.status as number];
-  const outcome = ["-", "YES", "NO"][m.outcome as number];
   console.log(`market ${marketPk.toBase58()} status=${status}`);
   console.log(`  run=${m.run.toBase58()} benchmark=${m.benchmark.toBase58()} run_index=${m.runIndex}`);
-  console.log(`  question: will run.correct >= ${m.threshold}?  resolved_score=${m.resolvedScore} outcome=${outcome}`);
-  console.log(`  pot: yes=${Number(m.yesTotal) / LAMPORTS_PER_SOL} SOL no=${Number(m.noTotal) / LAMPORTS_PER_SOL} SOL`);
+  const n = m.nOutcomes as number;
+  for (let i = 0; i < n; i++) {
+    const win = m.status === 1 && m.outcome === i ? "  <- WINNER" : "";
+    console.log(`  [${i}] ${outcomeLabel(n, m.edges, i)}: ${Number(m.totals[i]) / LAMPORTS_PER_SOL} SOL${win}`);
+  }
+  console.log(`  resolved_score=${m.resolvedScore} outcome=${m.status === 1 ? m.outcome : "-"}`);
   const positions = await (market.account as any).position.all([{ memcmp: { offset: 8, bytes: marketPk.toBase58() } }]);
   for (const { account: p } of positions) {
-    console.log(`  position ${p.bettor.toBase58()} yes=${Number(p.yes) / LAMPORTS_PER_SOL} no=${Number(p.no) / LAMPORTS_PER_SOL} claimed=${p.claimed}`);
+    const bets = p.amounts.slice(0, n).map((a: bigint, i: number) => `${outcomeLabel(n, m.edges, i)}=${Number(a) / LAMPORTS_PER_SOL}`).filter((s: string) => !s.endsWith("=0")).join(" ");
+    console.log(`  position ${p.bettor.toBase58()} ${bets} claimed=${p.claimed}`);
   }
 }
 
@@ -447,11 +461,20 @@ export async function chainMain(cmd: string[], args: Args) {
     const bettor = args.bettor as string | undefined;
     if (m0 === "open") {
       const run = new PublicKey(String(args.run));
-      await marketOpen(run, Number(args.threshold), bettor);
+      // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.
+      const edges = args.edges ? String(args.edges).split(",").map(Number) : [Number(args.threshold)];
+      if (edges.some((e) => !Number.isFinite(e))) throw new Error("--edges 40,55[,64..] or --threshold n");
+      await marketOpen(run, edges, BigInt(String(args.salt ?? "0")), bettor);
     } else if (m0 === "bet") {
-      const side = String(args.side);
-      if (side !== "yes" && side !== "no") throw new Error("--side yes|no");
-      await marketBet(new PublicKey(String(args.market)), side, BigInt(String(args.lamports)), bettor);
+      const marketPk = new PublicKey(String(args.market));
+      // --outcome i is canonical; --side yes|no maps onto binary markets (no=0, yes=1).
+      let outcome = args.outcome !== undefined ? Number(args.outcome) : -1;
+      if (outcome < 0) {
+        const side = String(args.side);
+        if (side !== "yes" && side !== "no") throw new Error("--outcome <i> or --side yes|no");
+        outcome = side === "yes" ? 1 : 0;
+      }
+      await marketBet(marketPk, outcome, BigInt(String(args.lamports)), bettor);
     } else if (m0 === "resolve") {
       await marketResolve(new PublicKey(String(args.market)), bettor);
     } else if (m0 === "claim") {

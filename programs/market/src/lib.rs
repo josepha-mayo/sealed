@@ -1,12 +1,16 @@
-//! Sealed Market: parimutuel YES/NO markets that resolve on a Sealed run's score.
+//! Sealed Market: N-way parimutuel markets that resolve on a Sealed run's score.
 //!
-//! A market asks "will run.correct >= threshold once the run finalizes?" and is
-//! settled entirely onchain: `resolve` reads the Sealed program's `Run` account,
+//! A market defines `n_outcomes` score buckets via `edges`: outcome `i` wins iff
+//! `edges[i-1] <= run.correct < edges[i]` (edges[i-1] treated as 0 when i==0 and
+//! u32::MAX when i is the last outcome). A 2-outcome market with edges=[t] is the
+//! classic "correct >= t?" binary.
+//!
+//! Settled entirely onchain: `resolve` reads the Sealed program's `Run` account,
 //! so the resolution source is the MPC-scored result, not an operator.
 //!
 //! Lifecycle
-//!   create_market  pick a pending, unscored run + a threshold
-//!   bet            deposit lamports on YES or NO while the run stays unscored
+//!   create_market  pick a pending, unscored run + bucket edges
+//!   bet            deposit lamports on an outcome while the run stays unscored
 //!                  (once MPC scoring starts, late information could leak)
 //!   resolve        anyone settles once run.status == FINALIZED
 //!   claim          winners split the whole pot pro-rata; cancelled markets refund
@@ -26,8 +30,7 @@ pub const MARKET_OPEN: u8 = 0;
 pub const MARKET_RESOLVED: u8 = 1;
 pub const MARKET_CANCELLED: u8 = 2;
 
-pub const SIDE_YES: u8 = 1;
-pub const SIDE_NO: u8 = 2;
+pub const MAX_OUTCOMES: usize = 8;
 
 declare_id!("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 
@@ -41,12 +44,29 @@ fn load_run(info: &AccountInfo) -> Result<Run> {
     Ok(run)
 }
 
+/// Bucket index that `score` falls into: count of edges <= score.
+/// edges are nondecreasing upper bounds; outcome i covers [edges[i-1], edges[i]).
+fn outcome_of(edges: &[u32; MAX_OUTCOMES - 1], n: u8, score: u32) -> u8 {
+    let mut i = 0u8;
+    while i < n - 1 && score >= edges[i as usize] {
+        i += 1;
+    }
+    i
+}
+
 #[program]
 pub mod market {
     use super::*;
 
     /// Open a market on a run that exists but has not started scoring.
-    pub fn create_market(ctx: Context<CreateMarket>, threshold: u32) -> Result<()> {
+    /// `salt` lets multiple markets reference the same run.
+    /// `edges` (len = n_outcomes - 1, nondecreasing) splits the score range.
+    pub fn create_market(ctx: Context<CreateMarket>, salt: u64, edges: Vec<u32>) -> Result<()> {
+        let n = edges.len() + 1;
+        require!(n >= 2 && n <= MAX_OUTCOMES, ErrorCode::InvalidEdges);
+        for w in edges.windows(2) {
+            require!(w[0] <= w[1], ErrorCode::InvalidEdges);
+        }
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(run.scored_mask == 0, ErrorCode::ScoringStarted);
@@ -55,12 +75,14 @@ pub mod market {
         m.run = ctx.accounts.run.key();
         m.benchmark = run.benchmark;
         m.run_index = run.index;
-        m.threshold = threshold;
+        m.salt = salt;
+        m.n_outcomes = n as u8;
+        m.edges = [0u32; MAX_OUTCOMES - 1];
+        m.edges[..edges.len()].copy_from_slice(&edges);
         m.bump = ctx.bumps.market;
         m.status = MARKET_OPEN;
-        m.outcome = 0;
-        m.yes_total = 0;
-        m.no_total = 0;
+        m.outcome = u8::MAX;
+        m.totals = [0u64; MAX_OUTCOMES];
         m.resolved_score = 0;
         m.created_at = Clock::get()?.unix_timestamp;
         m.resolved_at = 0;
@@ -68,21 +90,21 @@ pub mod market {
             market: m.key(),
             run: m.run,
             benchmark: run.benchmark,
-            threshold,
+            edges,
         });
         Ok(())
     }
 
-    /// Stake `lamports` on `side` (1 = YES, 2 = NO). Re-betting adds to the same
-    /// position; a bettor may hold both sides.
-    pub fn bet(ctx: Context<Bet>, side: u8, lamports: u64) -> Result<()> {
-        require!(side == SIDE_YES || side == SIDE_NO, ErrorCode::InvalidSide);
+    /// Stake `lamports` on `outcome` (0..n_outcomes). Re-betting adds to the same
+    /// position; a bettor may back several outcomes.
+    pub fn bet(ctx: Context<Bet>, outcome: u8, lamports: u64) -> Result<()> {
         require!(lamports > 0, ErrorCode::ZeroAmount);
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(run.scored_mask == 0, ErrorCode::ScoringStarted);
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(outcome < m.n_outcomes, ErrorCode::InvalidOutcome);
 
         system_program::transfer(
             CpiContext::new(
@@ -98,25 +120,23 @@ pub mod market {
         let p = &mut ctx.accounts.position;
         p.market = m.key();
         p.bettor = ctx.accounts.bettor.key();
-        p.bump = ctx.bumps.position;
-        if side == SIDE_YES {
-            p.yes += lamports;
-            m.yes_total += lamports;
-        } else {
-            p.no += lamports;
-            m.no_total += lamports;
+        if p.bump == 0 {
+            p.bump = ctx.bumps.position;
+            p.amounts = [0u64; MAX_OUTCOMES];
         }
+        p.amounts[outcome as usize] += lamports;
+        m.totals[outcome as usize] += lamports;
         emit!(BetPlaced {
             market: m.key(),
             bettor: p.bettor,
-            side,
+            outcome,
             lamports,
         });
         Ok(())
     }
 
-    /// Settle the market from the finalized run. If one side attracted no stake,
-    /// the market is cancelled and everyone is refunded instead.
+    /// Settle the market from the finalized run. If any outcome attracted no
+    /// stake the market is cancelled and everyone is refunded instead.
     pub fn resolve(ctx: Context<Resolve>) -> Result<()> {
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
@@ -125,17 +145,17 @@ pub mod market {
 
         m.resolved_score = run.correct;
         m.resolved_at = Clock::get()?.unix_timestamp;
-        if m.yes_total == 0 || m.no_total == 0 {
-            m.status = MARKET_CANCELLED;
-        } else {
+        let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
+        if all_backed {
             m.status = MARKET_RESOLVED;
-            m.outcome = if run.correct >= m.threshold { SIDE_YES } else { SIDE_NO };
+            m.outcome = outcome_of(&m.edges, m.n_outcomes, run.correct);
+        } else {
+            m.status = MARKET_CANCELLED;
         }
         emit!(MarketResolved {
             market: m.key(),
             run: ctx.accounts.run.key(),
             correct: run.correct,
-            threshold: m.threshold,
             outcome: m.outcome,
             cancelled: m.status == MARKET_CANCELLED,
         });
@@ -150,8 +170,8 @@ pub mod market {
         Ok(())
     }
 
-    /// Pay out a winning position (or refund both sides after a cancellation) and
-    /// close the position account.
+    /// Pay out a winning position (or refund everything after a cancellation)
+    /// and close the position account.
     pub fn claim(ctx: Context<Claim>) -> Result<()> {
         let m = &ctx.accounts.market;
         let p = &mut ctx.accounts.position;
@@ -161,16 +181,14 @@ pub mod market {
         );
         require!(!p.claimed, ErrorCode::AlreadyClaimed);
 
+        let pot: u64 = m.totals.iter().sum();
         let payout = if m.status == MARKET_CANCELLED {
-            p.yes + p.no
+            p.amounts.iter().sum()
         } else {
-            let (win_amt, win_total) = if m.outcome == SIDE_YES {
-                (p.yes, m.yes_total)
-            } else {
-                (p.no, m.no_total)
-            };
+            let win_amt = p.amounts[m.outcome as usize];
+            let win_total = m.totals[m.outcome as usize];
             (win_amt as u128)
-                .checked_mul((m.yes_total + m.no_total) as u128)
+                .checked_mul(pot as u128)
                 .unwrap()
                 .checked_div(win_total as u128)
                 .unwrap() as u64
@@ -220,12 +238,17 @@ pub struct Market {
     pub run: Pubkey,
     pub benchmark: Pubkey,
     pub run_index: u64,
-    pub threshold: u32,
+    /// Distinguishes markets on the same run (PDA seed).
+    pub salt: u64,
+    /// Number of score buckets (2..=8); edges[i] is the upper bound of bucket i.
+    pub n_outcomes: u8,
+    pub edges: [u32; MAX_OUTCOMES - 1],
     pub bump: u8,
     pub status: u8,
+    /// Winning bucket index once resolved (u8::MAX while open).
     pub outcome: u8,
-    pub yes_total: u64,
-    pub no_total: u64,
+    /// Lamports staked on each outcome.
+    pub totals: [u64; MAX_OUTCOMES],
     pub resolved_score: u32,
     pub created_at: i64,
     pub resolved_at: i64,
@@ -237,12 +260,13 @@ pub struct Position {
     pub market: Pubkey,
     pub bettor: Pubkey,
     pub bump: u8,
-    pub yes: u64,
-    pub no: u64,
+    /// Lamports staked per outcome.
+    pub amounts: [u64; MAX_OUTCOMES],
     pub claimed: bool,
 }
 
 #[derive(Accounts)]
+#[instruction(salt: u64)]
 pub struct CreateMarket<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -252,7 +276,7 @@ pub struct CreateMarket<'info> {
         init,
         payer = authority,
         space = 8 + Market::INIT_SPACE,
-        seeds = [b"market", run.key().as_ref()],
+        seeds = [b"market", run.key().as_ref(), salt.to_le_bytes().as_ref()],
         bump,
     )]
     pub market: Account<'info, Market>,
@@ -268,7 +292,7 @@ pub struct Bet<'info> {
     pub run: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [b"market", run.key().as_ref()],
+        seeds = [b"market", run.key().as_ref(), market.salt.to_le_bytes().as_ref()],
         bump = market.bump,
     )]
     pub market: Account<'info, Market>,
@@ -290,7 +314,7 @@ pub struct Resolve<'info> {
     pub run: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [b"market", run.key().as_ref()],
+        seeds = [b"market", run.key().as_ref(), market.salt.to_le_bytes().as_ref()],
         bump = market.bump,
     )]
     pub market: Account<'info, Market>,
@@ -327,14 +351,14 @@ pub struct MarketCreated {
     pub market: Pubkey,
     pub run: Pubkey,
     pub benchmark: Pubkey,
-    pub threshold: u32,
+    pub edges: Vec<u32>,
 }
 
 #[event]
 pub struct BetPlaced {
     pub market: Pubkey,
     pub bettor: Pubkey,
-    pub side: u8,
+    pub outcome: u8,
     pub lamports: u64,
 }
 
@@ -343,7 +367,6 @@ pub struct MarketResolved {
     pub market: Pubkey,
     pub run: Pubkey,
     pub correct: u32,
-    pub threshold: u32,
     pub outcome: u8,
     pub cancelled: bool,
 }
@@ -377,8 +400,10 @@ pub enum ErrorCode {
     NotBettor,
     #[msg("Position belongs to another market")]
     WrongMarket,
-    #[msg("Side must be 1 (YES) or 2 (NO)")]
-    InvalidSide,
+    #[msg("Outcome index out of range")]
+    InvalidOutcome,
+    #[msg("Edges must be nondecreasing with 1..=7 entries")]
+    InvalidEdges,
     #[msg("Bet amount must be positive")]
     ZeroAmount,
     #[msg("Position already claimed")]

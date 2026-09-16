@@ -10,7 +10,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { buildBank, publicSummary, type Bank } from "./bank.js";
 import { ModelClient, MockModelClient, DEFAULT_CONFIG } from "./models.js";
-import { runModel } from "./run.js";
+import { runModel, type RunArtifact } from "./run.js";
+import { merkleProof, outputLeaf } from "./hash.js";
 
 type Args = Record<string, string | boolean>;
 
@@ -107,6 +108,22 @@ async function main() {
     return;
   }
 
+  if (c0 === "prove") {
+    const run = JSON.parse(readFileSync(need(args, "run"), "utf8")) as RunArtifact;
+    const i = Number(need(args, "item"));
+    const rec = run.items[i];
+    if (!rec) throw new Error(`no item ${i}`);
+    const leaves = run.items.map((r) => outputLeaf(r.index, BigInt(r.outputHash)));
+    console.log(JSON.stringify({
+      model: run.model, itemIndex: i,
+      canonical: rec.canonical, outputHash: rec.outputHash,
+      leaf: Buffer.from(leaves[i]).toString("hex"),
+      proof: merkleProof(leaves, i).map((p) => Buffer.from(p).toString("hex")),
+      outputsRoot: run.outputsRoot,
+    }, null, 2));
+    return;
+  }
+
   if (c0 === "chain") {
     const { chainMain } = await import("./chain.js");
     await chainMain(cmd.slice(1), args);
@@ -122,11 +139,12 @@ async function main() {
   sealed chain seal  --bank <file> [--fee-lamports n]
   sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
   sealed chain status --benchmark <pubkey>
-  sealed chain market open    --run <pubkey> --threshold <n>   market: will run.correct >= n?
-  sealed chain market bet     --market <pk> --side yes|no --lamports <n> [--bettor keypair.json]
+  sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
+  sealed chain market bet     --market <pk> --outcome <i> --lamports <n> [--bettor keypair.json]   (--side yes|no for binary)
   sealed chain market resolve --market <pk>
   sealed chain market claim   --market <pk> [--bettor keypair.json]
-  sealed chain market show    --market <pk>`);
+  sealed chain market show    --market <pk>
+  sealed prove  --run <file> --item <i>               Merkle proof that output i was committed`);
   process.exit(2);
 }
 

@@ -233,8 +233,8 @@ describe("Sealed", () => {
     const chunkPdas = [0, 1].map(
       (i) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], program.programId)[0],
     );
-    const mktPda = (run: PublicKey) =>
-      PublicKey.findProgramAddressSync([Buffer.from("market"), run.toBuffer()], marketProgram.programId)[0];
+    const mktPda = (run: PublicKey, salt = 0n) =>
+      PublicKey.findProgramAddressSync([Buffer.from("market"), run.toBuffer(), u64le(salt)], marketProgram.programId)[0];
     const posPda = (mkt: PublicKey, bettor: PublicKey) =>
       PublicKey.findProgramAddressSync([Buffer.from("position"), mkt.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
 
@@ -242,7 +242,7 @@ describe("Sealed", () => {
     const [run0] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(30)
+        .createMarket(new anchor.BN(0), [30])
         .accounts({ authority: owner.publicKey, run: run0, market: mktPda(run0) })
         .signers([owner])
         .rpc(),
@@ -262,15 +262,24 @@ describe("Sealed", () => {
     const THRESHOLD = 30;
     const mkt = mktPda(run1);
     await marketProgram.methods
-      .createMarket(THRESHOLD)
+      .createMarket(new anchor.BN(0), [THRESHOLD])
       .accounts({ authority: owner.publicKey, run: run1, market: mkt })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
     let m = await marketProgram.account.market.fetch(mkt);
     expect(m.status).to.equal(0);
-    expect(m.threshold).to.equal(THRESHOLD);
+    expect(m.nOutcomes).to.equal(2);
+    expect(m.edges[0]).to.equal(THRESHOLD);
 
-    // Two bettors: YES 0.3 SOL vs NO 0.5 SOL.
+    // Second market on the same run, different salt + 3-way score bands.
+    const mkt3 = mktPda(run1, 1n);
+    await marketProgram.methods
+      .createMarket(new anchor.BN(1), [10, 20])
+      .accounts({ authority: owner.publicKey, run: run1, market: mkt3 })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+
+    // Binary market: YES(outcome1) 0.3 SOL vs NO(outcome0) 0.5 SOL.
     const yes = Keypair.generate();
     const no = Keypair.generate();
     await fund(provider, owner, yes.publicKey, 0.5 * LAMPORTS_PER_SOL);
@@ -282,13 +291,22 @@ describe("Sealed", () => {
       .signers([yes])
       .rpc({ commitment: "confirmed" });
     await marketProgram.methods
-      .bet(2, new anchor.BN(0.5 * LAMPORTS_PER_SOL))
+      .bet(0, new anchor.BN(0.5 * LAMPORTS_PER_SOL))
       .accounts({ bettor: no.publicKey, run: run1, market: mkt, position: posPda(mkt, no.publicKey) })
       .signers([no])
       .rpc({ commitment: "confirmed" });
     m = await marketProgram.account.market.fetch(mkt);
-    expect(m.yesTotal.toNumber()).to.equal(0.3 * LAMPORTS_PER_SOL);
-    expect(m.noTotal.toNumber()).to.equal(0.5 * LAMPORTS_PER_SOL);
+    expect(m.totals[0].toNumber()).to.equal(0.5 * LAMPORTS_PER_SOL);
+    expect(m.totals[1].toNumber()).to.equal(0.3 * LAMPORTS_PER_SOL);
+
+    // 3-way market needs stake on every outcome to resolve; `yes` covers all bands.
+    for (let i = 0; i < 3; i++) {
+      await marketProgram.methods
+        .bet(i, new anchor.BN(0.01 * LAMPORTS_PER_SOL))
+        .accounts({ bettor: yes.publicKey, run: run1, market: mkt3, position: posPda(mkt3, yes.publicKey) })
+        .signers([yes])
+        .rpc({ commitment: "confirmed" });
+    }
 
     // MPC-score run #1 with 10+0 planted correct answers -> 10 < 30 -> NO wins.
     const planted = [10, 0];
@@ -311,22 +329,31 @@ describe("Sealed", () => {
     // Betting is closed once the run is finalized.
     await expectAnchorError(
       marketProgram.methods
-        .bet(1, new anchor.BN(1000))
+        .bet(0, new anchor.BN(1000))
         .accounts({ bettor: yes.publicKey, run: run1, market: mkt, position: posPda(mkt, yes.publicKey) })
         .signers([yes])
         .rpc(),
       "RunNotPending",
     );
 
-    // Permissionless resolve: outcome = run.correct >= threshold.
+    // Permissionless resolve: score 10 < 30 -> outcome 0 (the "<30" bucket).
     await marketProgram.methods
       .resolve()
       .accounts({ run: run1, market: mkt })
       .rpc({ commitment: "confirmed" });
     m = await marketProgram.account.market.fetch(mkt);
     expect(m.status).to.equal(1, "resolved");
-    expect(m.outcome).to.equal(2, "NO wins");
+    expect(m.outcome).to.equal(0, "score < threshold wins");
     expect(m.resolvedScore).to.equal(total);
+
+    // The 3-way market resolves on the same run: score 10 lands in bucket [10,20).
+    await marketProgram.methods
+      .resolve()
+      .accounts({ run: run1, market: mkt3 })
+      .rpc({ commitment: "confirmed" });
+    const m3 = await marketProgram.account.market.fetch(mkt3);
+    expect(m3.status).to.equal(1);
+    expect(m3.outcome).to.equal(1, "10 lands in the 10..19 band");
 
     // Loser has nothing to claim.
     await expectAnchorError(

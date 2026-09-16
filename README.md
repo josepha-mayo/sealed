@@ -100,7 +100,11 @@ sealed chain market bet     --market <pk> --side yes --lamports 500000000 [--bet
 sealed chain market resolve --market <pk>                            # settles off Run.correct
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market show    --market <pk>
+sealed chain reset-sealing  --bank-id <n> --chunk <i>                # clear a part stuck by a dropped MPC computation
+sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring
 ```
+
+The explorer's **verify-an-output** widget recomputes the Merkle path in-browser and checks it against the run's onchain `outputs_root` — cryptographic evidence that a model's claimed answer was in the committed set.
 
 Explorer: serve `web/` (`python3 -m http.server -d web 8788`) and open `?rpc=<url>` — defaults to localnet `http://127.0.0.1:8899`; on devnet it links out to explorer.solana.com.
 
@@ -117,6 +121,8 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Real models through OpenCode Zen (free tier, `x-opencode-session` header): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
 - [x] Market program: parimutuel market resolved on `Run.correct` end-to-end on localnet (open -> YES/NO bets -> MPC score 59/64 -> resolve YES -> claim pays out)
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
-- [ ] Devnet deployment + first public leaderboard over real model APIs (cluster offset 456; needs devnet SOL — public faucet is rate-limited)
+- [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
+- [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
+- [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 
 MIT.

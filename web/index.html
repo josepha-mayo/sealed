@@ -45,6 +45,14 @@
 </div>
 <div id="err"></div>
 <div id="out"></div>
+
+<h2>verify an output</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">proof that a model's output was committed <i>before</i> scoring — paste <code>sealed prove --run … --item …</code> output</div>
+  <input id="vrun" size="44" placeholder="run account pubkey"> <button onclick="verify()">verify</button>
+  <div><textarea id="vproof" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"itemIndex":0,"outputHash":"…","proof":["…"],"outputsRoot":"…"}'></textarea></div>
+  <div id="vres"></div>
+</div>
 <div class="footer">benchmark items are committed by Merkle root at creation; model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
 
 <script>
@@ -98,20 +106,30 @@ function parseRun(d) {
   const modelId = new TextDecoder().decode(d.slice(o, o + ml));
   return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId };
 }
+// Market: disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
+// + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
+// + resolvedScore u32 + createdAt i64 + resolvedAt i64
 function parseMarket(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const authority = d.slice(o, o + 32); o += 32;
   const run = d.slice(o, o + 32); o += 32;
   const benchmark = d.slice(o, o + 32); o += 32;
   const runIndex = v.getBigUint64(o, true); o += 8;
-  const threshold = v.getUint32(o, true); o += 4;
+  const salt = v.getBigUint64(o, true); o += 8;
+  const nOutcomes = d[o++];
+  const edges = []; for (let i = 0; i < 7; i++) { edges.push(v.getUint32(o, true)); o += 4; }
   const bump = d[o++]; const status = d[o++]; const outcome = d[o++];
-  const yesTotal = v.getBigUint64(o, true); o += 8;
-  const noTotal = v.getBigUint64(o, true); o += 8;
+  const totals = []; for (let i = 0; i < 8; i++) { totals.push(v.getBigUint64(o, true)); o += 8; }
   const resolvedScore = v.getUint32(o, true); o += 4;
   const createdAt = Number(v.getBigInt64(o, true)); o += 8;
   const resolvedAt = Number(v.getBigInt64(o, true)); o += 8;
-  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, threshold, status, outcome, yesTotal, noTotal, resolvedScore, createdAt, resolvedAt };
+  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges, status, outcome, totals, resolvedScore, createdAt, resolvedAt };
+}
+// bucket i covers [edges[i-1], edges[i]); last bucket is >= edges[n-2]
+function outcomeLabel(n, edges, i) {
+  const lo = i === 0 ? 0 : Number(edges[i - 1]);
+  const hi = i === n - 1 ? null : Number(edges[i]);
+  return hi === null ? `≥ ${lo}` : lo === 0 ? `< ${hi}` : `${lo}–${hi - 1}`;
 }
 // AnswerChunk: disc8 + benchmark32 + index u16 + bump + parts_staged + parts_sealed
 // + sealing_part + author_pubkey32 + nonces[4][16] + ciphertexts[32][32]
@@ -123,15 +141,15 @@ function parseChunk(d) {
   };
 }
 
+// Position: disc8 + market32 + bettor32 + bump + amounts[8]u64 + claimed
 function parsePosition(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const market = d.slice(o, o + 32); o += 32;
   const bettor = d.slice(o, o + 32); o += 32;
   const bump = d[o++];
-  const yes = v.getBigUint64(o, true); o += 8;
-  const no = v.getBigUint64(o, true); o += 8;
+  const amounts = []; for (let i = 0; i < 8; i++) { amounts.push(v.getBigUint64(o, true)); o += 8; }
   const claimed = d[o++];
-  return { market: b58(market), bettor: b58(bettor), yes, no, claimed };
+  return { market: b58(market), bettor: b58(bettor), amounts, claimed };
 }
 
 const short = (s) => s.slice(0, 6) + "…" + s.slice(-4);
@@ -211,19 +229,36 @@ async function load() {
     h += `<h2>markets</h2>`;
     for (const m of markets.sort((a, b) => b.createdAt - a.createdAt)) {
       const run = runs.find(r => r.pk === m.run);
-      const pot = Number(m.yesTotal + m.noTotal) / 1e9;
+      const pot = m.totals.reduce((s, t) => s + Number(t), 0) / 1e9;
       const mpos = positions.filter(p => p.market === m.pk);
-      const yesPct = Number(m.yesTotal) + Number(m.noTotal) ? (100 * Number(m.yesTotal)) / (Number(m.yesTotal) + Number(m.noTotal)) : 50;
+      const n = m.nOutcomes;
+      const q = n === 2
+        ? `will <span class="mono">${run ? run.modelId : short(m.run)}</span> score ≥ ${Number(m.edges[0])}?`
+        : `which band does <span class="mono">${run ? run.modelId : short(m.run)}</span> land in?`;
       h += `<div class="card"><div class="row">
-        <b>will <span class="mono">${run ? run.modelId : short(m.run)}</span> score ≥ ${m.threshold}?</b>
+        <b>${q}</b>
         <span class="pill ${MSTATUS[m.status]}">${MSTATUS[m.status]}</span>
         <span class="kv">pot <b>${pot.toFixed(3)} SOL</b></span>
-        <span class="kv">implied YES <b>${yesPct.toFixed(0)}%</b></span>
         <span class="kv">acct ${link(m.pk)}</span></div>
-        <div class="proof">run ${m.run} &middot; resolved score ${m.resolvedScore || "—"} &middot; outcome ${OUTCOME[m.outcome]}</div>`;
+        <div class="proof">run ${m.run} &middot; resolved score ${m.resolvedScore || "—"}</div>
+        <table><tr>`;
+      for (let i = 0; i < n; i++) {
+        const t = Number(m.totals[i]), share = pot ? (100 * t) / (pot * 1e9) : 0;
+        const win = m.status === 1 && m.outcome === i;
+        h += `<th>${outcomeLabel(n, m.edges, i)}${win ? " ✓" : ""}</th>`;
+      }
+      h += `</tr><tr>`;
+      for (let i = 0; i < n; i++) h += `<td>${sol(m.totals[i])} (${pot ? (100 * Number(m.totals[i]) / (pot * 1e9)).toFixed(0) : 0}%)</td>`;
+      h += `</tr></table>`;
       if (mpos.length) {
-        h += `<table><tr><th>bettor</th><th>YES</th><th>NO</th><th>claimed</th></tr>`;
-        for (const p of mpos) h += `<tr><td class="mono">${short(p.bettor)}</td><td>${sol(p.yes)}</td><td>${sol(p.no)}</td><td>${p.claimed ? "✓" : "—"}</td></tr>`;
+        h += `<table><tr><th>bettor</th>`;
+        for (let i = 0; i < n; i++) h += `<th>${outcomeLabel(n, m.edges, i)}</th>`;
+        h += `<th>claimed</th></tr>`;
+        for (const p of mpos) {
+          h += `<tr><td class="mono">${short(p.bettor)}</td>`;
+          for (let i = 0; i < n; i++) h += `<td>${Number(p.amounts[i]) ? sol(p.amounts[i]) : "—"}</td>`;
+          h += `<td>${p.claimed ? "✓" : "—"}</td></tr>`;
+        }
         h += `</table>`;
       }
       h += `</div>`;
@@ -232,6 +267,44 @@ async function load() {
   document.getElementById("out").innerHTML = h;
 }
 function popcount(b) { let n = 0, x = BigInt(b); while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
+
+// ---- output-proof verification (same hashing as packages/harness/src/hash.ts) ----
+const utf8 = (s) => new TextEncoder().encode(s);
+const cat = (...a) => { const n = a.reduce((s, x) => s + x.length, 0), o = new Uint8Array(n); let p = 0; for (const x of a) { o.set(x, p); p += x.length; } return o; };
+const u32le = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
+const u64le = (n) => { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b; };
+const unhex = (s) => new Uint8Array(s.match(/../g).map((x) => parseInt(x, 16)));
+async function sha(b) { return new Uint8Array(await crypto.subtle.digest("SHA-256", b)); }
+const D_OUT = utf8("sealed/v1/output\0"), D_NODE = new Uint8Array([1]);
+
+async function verify() {
+  const res = document.getElementById("vres");
+  try {
+    const p = JSON.parse(document.getElementById("vproof").value);
+    let h = await sha(cat(D_OUT, u32le(p.itemIndex), u64le(p.outputHash)));
+    let i = p.itemIndex;
+    for (const s of p.proof.map(unhex)) { h = await sha(cat(D_NODE, i % 2 === 0 ? h : s, i % 2 === 0 ? s : h)); i >>= 1; }
+    const root = hex(h);
+    const runPk = document.getElementById("vrun").value.trim();
+    let onchain = null;
+    if (runPk) {
+      const conn = new solanaWeb3.Connection(rpcIn.value.trim(), "confirmed");
+      const info = await conn.getAccountInfo(new solanaWeb3.PublicKey(runPk));
+      if (!info) throw new Error("run account not found");
+      const r = parseRun(new Uint8Array(info.data));
+      onchain = r.outputsRoot;
+    }
+    const want = onchain || p.outputsRoot;
+    const ok = root === want;
+    res.innerHTML = `<div class="proof" style="margin-top:8px">
+      <span class="pill ${ok ? "resolved" : "open"}" style="font-size:13px">${ok ? "VERIFIED" : "MISMATCH"}</span>
+      model <b>${p.model || "?"}</b> · item ${p.itemIndex} · output hash <span class="mono">${String(p.outputHash)}</span>
+      <br>recomputed root <span class="mono">${root.slice(0, 16)}…</span> ${onchain ? "vs on-chain" : "vs supplied"} <span class="mono">${String(want).slice(0, 16)}…</span>
+      ${ok ? "" : `<br><span style="color:var(--err)">the proof does not reach the committed root — output was not part of this run</span>`}
+    </div>`;
+  } catch (e) { res.innerHTML = `<div class="proof" style="color:var(--err)">${e.message}</div>`; }
+}
+
 load();
 setInterval(load, 15000);
 </script>
