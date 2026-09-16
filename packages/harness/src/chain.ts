@@ -96,6 +96,17 @@ function arciumAccounts(ctx: Ctx, offset: AnchorTypes.BN, ix: string) {
   };
 }
 
+/** Poll an account until `done` (default cap 10 min) — devnet MPC callbacks lag finalization. */
+async function waitFor(account: any, addr: PublicKey, done: (s: any) => boolean, timeoutMs = 10 * 60_000) {
+  const t0 = Date.now();
+  let s: any = await account.fetch(addr);
+  while (!done(s) && Date.now() - t0 < timeoutMs) {
+    await new Promise((r) => setTimeout(r, 5000));
+    s = await account.fetch(addr);
+  }
+  return s;
+}
+
 async function fetchOrNull<T>(p: Promise<T>): Promise<T | null> {
   try {
     return await p;
@@ -122,7 +133,13 @@ export async function init(ctx = setup()) {
       getArciumProgramId(),
     )[0];
     if (await provider.connection.getAccountInfo(compDef)) {
-      console.log(`${name}: comp def exists (${compDef.toBase58()})`);
+      const arciumProgram = getArciumProgram(provider);
+      const def: any = await arciumProgram.account.computationDefinitionAccount.fetch(compDef);
+      const uploaded = def.circuitSource?.onChain?.[0]?.isCompleted === true;
+      console.log(`${name}: comp def exists (${compDef.toBase58()})${uploaded ? "" : " — circuit incomplete, resuming upload"}`);
+      if (uploaded) continue;
+      await uploadCircuit(provider, name, program.programId, readFileSync(join(ROOT, "build", `${name}.arcis`)), true);
+      console.log(`${name}: circuit uploaded`);
       continue;
     }
     const sig = await (program.methods as any)[method]()
@@ -176,20 +193,28 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
     const hashes = chunkHashes(bank, i);
     for (let p = 0; p < PARTS; p++) {
       if (state.partsSealed & (1 << p)) continue;
-      const nonce = randomBytes(16);
-      const cts = cipher.encrypt(hashes.slice(p * PART, (p + 1) * PART), nonce);
-      await program.methods
-        .stagePart(i, p, Array.from(pub), new anchor.BN(deserializeLE(nonce).toString()), cts.map((x) => Array.from(x)))
-        .accounts({ authority: wallet.publicKey, benchmark, chunk: c })
-        .rpc({ commitment: "confirmed" });
+      if (state.sealingPart === p) {
+        // A seal computation is already queued; its offset is unknown, so poll the account.
+        process.stdout.write(`chunk ${i} part ${p}: seal in flight, waiting...`);
+        state = await waitFor(acct.answerChunk, c, (s) => (s.partsSealed & (1 << p)) !== 0);
+        console.log(state.partsSealed & (1 << p) ? " sealed" : " STILL PENDING");
+        continue;
+      }
+      if (!(state.partsStaged & (1 << p))) {
+        const nonce = randomBytes(16);
+        const cts = cipher.encrypt(hashes.slice(p * PART, (p + 1) * PART), nonce);
+        await program.methods
+          .stagePart(i, p, Array.from(pub), new anchor.BN(deserializeLE(nonce).toString()), cts.map((x) => Array.from(x)))
+          .accounts({ authority: wallet.publicKey, benchmark, chunk: c })
+          .rpc({ commitment: "confirmed" });
+      }
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
         .sealPart(offset, i, p)
         .accountsPartial({ payer: wallet.publicKey, benchmark, chunk: c, ...arciumAccounts(ctx, offset, "seal_part") })
         .rpc({ commitment: "confirmed" });
       process.stdout.write(`chunk ${i} part ${p}: staged, sealing in MPC...`);
-      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
-      state = await acct.answerChunk.fetch(c);
+      state = await waitFor(acct.answerChunk, c, (s) => (s.partsSealed & (1 << p)) !== 0);
       console.log(state.partsSealed & (1 << p) ? " sealed" : " NOT sealed?!");
     }
   }
@@ -233,23 +258,26 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   let correct = Number(state.correct);
   for (let i = 0; i < bank.chunkCount; i++) {
     state = await acct.run.fetch(r);
-    const mask = BigInt(state.scoredMask.toString()) | BigInt(state.pendingMask.toString());
-    if (mask & (1n << BigInt(i))) {
-      console.log(`chunk ${i}: already scored or pending`);
+    const bit = 1n << BigInt(i);
+    const scored = BigInt(state.scoredMask.toString()) & bit;
+    const pending = BigInt(state.pendingMask.toString()) & bit;
+    if (scored) {
+      console.log(`chunk ${i}: already scored`);
       continue;
     }
-    const outputs = runChunkOutputs(run, i).map((h) => new anchor.BN(h.toString()));
-    const offset = new anchor.BN(randomBytes(8), "hex");
-    await program.methods
-      .scoreChunk(offset, new anchor.BN(runIndex.toString()), i, outputs)
-      .accountsPartial({ payer: wallet.publicKey, run: r, runner: wallet.publicKey, chunk: chunk(i), ...arciumAccounts(ctx, offset, "score_chunk") })
-      .rpc({ commitment: "confirmed" });
-    process.stdout.write(`chunk ${i}: scoring in MPC...`);
-    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
-    state = await acct.run.fetch(r);
+    if (!pending) {
+      const outputs = runChunkOutputs(run, i).map((h) => new anchor.BN(h.toString()));
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(runIndex.toString()), i, outputs)
+        .accountsPartial({ payer: wallet.publicKey, run: r, runner: wallet.publicKey, chunk: chunk(i), ...arciumAccounts(ctx, offset, "score_chunk") })
+        .rpc({ commitment: "confirmed" });
+    }
+    process.stdout.write(`chunk ${i}: ${pending ? "scoring already in flight" : "scoring in MPC"}...`);
+    state = await waitFor(acct.run, r, (s) => (BigInt(s.scoredMask.toString()) & bit) !== 0n);
     const delta = Number(state.correct) - correct;
     correct = Number(state.correct);
-    console.log(` +${delta} (total ${correct})`);
+    console.log(scored || (BigInt(state.scoredMask.toString()) & bit) ? ` +${delta} (total ${correct})` : " STILL PENDING");
   }
   const final = await acct.run.fetch(r);
   const items = bank.chunkCount * CHUNK;
@@ -258,6 +286,20 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
       (run.localCorrect !== Number(final.correct) ? `  (local pre-score ${run.localCorrect} DIFFERS)` : "  (matches local pre-score)"),
   );
   return r;
+}
+
+/** Clear a stuck sealing_part flag after a dropped/expired MPC computation. */
+export async function resetSealing(benchmarkId: number, chunkIndex: number, ctx = setup()) {
+  const { program, wallet } = ctx;
+  const { benchmark, chunk } = pdas(ctx, wallet.publicKey, benchmarkId);
+  const acct = program.account as any;
+  const state: any = await acct.answerChunk.fetch(chunk(chunkIndex));
+  console.log(`chunk ${chunkIndex}: sealingPart=${state.sealingPart} -> clearing`);
+  const sig = await program.methods
+    .resetSealing(chunkIndex)
+    .accounts({ authority: wallet.publicKey, benchmark, chunk: chunk(chunkIndex) })
+    .rpc({ commitment: "confirmed" });
+  console.log(`reset_sealing ${sig}`);
 }
 
 // ------------------------------------------------------------------ status
@@ -375,6 +417,10 @@ export async function chainMain(cmd: string[], args: Args) {
   const [sub] = cmd;
   if (sub === "init") {
     await init();
+    return;
+  }
+  if (sub === "reset-sealing") {
+    await resetSealing(Number(args["bank-id"]), Number(args.chunk));
     return;
   }
   if (sub === "seal") {
