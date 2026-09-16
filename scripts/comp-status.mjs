@@ -4,7 +4,7 @@ const require = createRequire(import.meta.url);
 const { Connection, PublicKey } = require("@solana/web3.js");
 const arcium = require("@arcium-hq/client");
 
-const conn = new Connection("https://api.devnet.solana.com", "confirmed");
+const conn = new Connection(process.env.RPC || "http://127.0.0.1:8899", "confirmed");
 const provider = {
   connection: conn,
   wallet: { publicKey: PublicKey.default, signTransaction: async (t) => t, signAllTransactions: async (t) => t },

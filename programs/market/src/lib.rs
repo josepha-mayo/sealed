@@ -242,7 +242,8 @@ pub struct Market {
     pub salt: u64,
     /// Number of score buckets (2..=8); edges[i] is the upper bound of bucket i.
     pub n_outcomes: u8,
-    pub edges: [u32; MAX_OUTCOMES - 1],
+    // Literal size: InitSpace can't evaluate `MAX_OUTCOMES - 1` and under-allocates.
+    pub edges: [u32; 7],
     pub bump: u8,
     pub status: u8,
     /// Winning bucket index once resolved (u8::MAX while open).
