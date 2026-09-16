@@ -53,6 +53,7 @@ const MARKET_PID = new solanaWeb3.PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPX
 const DISC = {
   benchmark: "39fc2136718de9f7",
   run: "c7369b56eb73f6bd",
+  answerChunk: "9f457cb5a547c35a",
   market: "dbbed53700e3c69a",
   position: "aabc8fe47a40f7d0",
 };
@@ -112,6 +113,16 @@ function parseMarket(d) {
   const resolvedAt = Number(v.getBigInt64(o, true)); o += 8;
   return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, threshold, status, outcome, yesTotal, noTotal, resolvedScore, createdAt, resolvedAt };
 }
+// AnswerChunk: disc8 + benchmark32 + index u16 + bump + parts_staged + parts_sealed
+// + sealing_part + author_pubkey32 + nonces[4][16] + ciphertexts[32][32]
+function parseChunk(d) {
+  return {
+    partsStaged: d[43], partsSealed: d[44], sealingPart: d[45],
+    authorPub: hex(d.slice(46, 78)),
+    cts: d.slice(142),
+  };
+}
+
 function parsePosition(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const market = d.slice(o, o + 32); o += 32;
@@ -149,11 +160,12 @@ async function load() {
     document.getElementById("err").textContent = "RPC error: " + e.message + " (localnet? try `arcium localnet`; CORS? serve this file: python3 -m http.server -d web)";
     return;
   }
-  const benches = [], runs = [], markets = [], positions = [];
+  const benches = [], runs = [], markets = [], positions = [], chunks = [];
   for (const { pubkey, account } of sealedAccs) {
     const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
     if (disc === DISC.benchmark) benches.push({ pk: pubkey.toBase58(), ...parseBenchmark(d) });
     else if (disc === DISC.run) runs.push({ pk: pubkey.toBase58(), ...parseRun(d) });
+    else if (disc === DISC.answerChunk) chunks.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), idx: new DataView(d.buffer, d.byteOffset).getUint16(40, true), ...parseChunk(d) });
   }
   for (const { pubkey, account } of marketAccs) {
     const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
@@ -172,6 +184,14 @@ async function load() {
       <span class="kv">chunks sealed <b>${b.chunksSealed}/${b.chunkCount}</b></span>
       <span class="kv">acct ${link(b.pk)}</span></div>
       <div class="proof">items_root ${b.itemsRoot} &middot; fee ${sol(b.feeLamports)} SOL</div>`;
+    const bcs = chunks.filter(c => c.bench === b.pk).sort((a, b2) => a.idx - b2.idx);
+    if (bcs.length) {
+      const sealedCts = bcs.filter(c => c.partsSealed === 15);
+      const sample = sealedCts.length ? hex(sealedCts[0].cts.slice(0, 24)) : null;
+      h += `<div class="proof">answer chunks: ${sealedCts.length}/${bcs.length} fully sealed` +
+        (sample ? ` &middot; stored answers are ciphertext only — chunk ${sealedCts[0].idx} begins <span class="mono">${sample}…</span> (Rescue-encrypted to the MXE key)` : ` &middot; sealing in progress`) +
+        `</div>`;
+    }
     if (brs.length) {
       h += `<table><tr><th>rank</th><th>model</th><th>score</th><th></th><th>run</th><th>status</th><th>outputs_root</th></tr>`;
       brs.forEach((r, i) => {
