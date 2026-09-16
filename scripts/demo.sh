@@ -9,7 +9,7 @@ export ANCHOR_PROVIDER_URL="${ANCHOR_PROVIDER_URL:-http://127.0.0.1:8899}"
 SEALED="yarn -s --cwd packages/harness cli"
 SEED="${1:-demo}"
 BANK="bank/demo-$SEED.json"
-ID=42
+ID=$(node -e "console.log(require('crypto').createHash('sha256').update(process.argv[1]).digest().readUInt32LE(0) % 100000)" "$SEED")
 
 say() { printf '\n=== %s ===\n' "$*"; }
 
@@ -55,7 +55,7 @@ $SEALED chain market bet --market "$MKT_BIN" --outcome 1 --lamports 300000000
 for oc in 0 1 2; do $SEALED chain market bet --market "$MKT_3WAY" --outcome "$oc" --lamports 10000000; done
 
 say "5/7 score run 0 through MPC"
-$SEALED chain score --bank "$BANK" --run /tmp/run-good.json
+$SEALED chain score --bank "$BANK" --run /tmp/run-good.json --run-index 0
 
 say "6/7 resolve markets + claim"
 $SEALED chain market resolve --market "$MKT_BIN"

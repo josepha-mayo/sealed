@@ -7,7 +7,7 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | Program | Devnet address | Status |
 |---|---|---|
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded |
-| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed (upgraded to bucketed outcomes at slot 499411157) |
+| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed (bucketed outcomes at slot 499411157; InitSpace fix redeployed `2MTjU2pH…`) |
 
 Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRGc…`/`2KEQqnjZ…`.
 

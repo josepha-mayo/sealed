@@ -38,18 +38,22 @@ function parseRun(d) {
   const modelId = new TextDecoder().decode(d.slice(o, o + ml));
   return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, correct, outputsRoot: hex(outputsRoot), modelId };
 }
+// disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
+// + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
+// + resolvedScore u32 + createdAt i64 + resolvedAt i64  (same layout as web/index.html)
 function parseMarket(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   o += 32;
   const run = d.slice(o, o + 32); o += 32;
   const benchmark = d.slice(o, o + 32); o += 32;
   const runIndex = v.getBigUint64(o, true); o += 8;
-  const threshold = v.getUint32(o, true); o += 4;
+  const salt = v.getBigUint64(o, true); o += 8;
+  const nOutcomes = d[o++];
+  const edges = []; for (let i = 0; i < 7; i++) { edges.push(v.getUint32(o, true)); o += 4; }
   o += 1; const status = d[o++]; const outcome = d[o++];
-  const yesTotal = v.getBigUint64(o, true); o += 8;
-  const noTotal = v.getBigUint64(o, true); o += 8;
+  const totals = []; for (let i = 0; i < 8; i++) { totals.push(v.getBigUint64(o, true)); o += 8; }
   const resolvedScore = v.getUint32(o, true); o += 4;
-  return { run: b58(run), benchmark: b58(benchmark), runIndex, threshold, status, outcome, yesTotal, noTotal, resolvedScore };
+  return { run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges: edges.slice(0, Math.max(0, nOutcomes - 1)), status, outcome, totals: totals.slice(0, nOutcomes), resolvedScore };
 }
 
 const url = process.argv[2] || "http://127.0.0.1:8899";

@@ -40,15 +40,17 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 
 ### Markets (`programs/market`)
 
-A second Anchor program hosts parimutuel YES/NO markets whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes.
+A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes.
 
 ```
-create_market(run, threshold)   open while run is pending and unscored (scored_mask == 0)
-bet(side, lamports)             stake YES or NO; one position PDA per (market, bettor)
-resolve()                       permissionless once run.status == FINALIZED:
-                                outcome = run.correct >= threshold
-claim()                         winners split the whole pot pro-rata; one-sided or
-                                voided markets refund
+create_market(run, salt, edges)   open while run is pending and unscored (scored_mask == 0)
+                                  edges=[t] is a binary market; edges=[10,20,40] makes 4
+                                  score buckets; salt allows multiple markets per run
+bet(outcome, lamports)            stake on one bucket; one position PDA per (market, bettor)
+resolve()                         permissionless once run.status == FINALIZED:
+                                  outcome = the bucket containing run.correct
+claim()                           winners split the whole pot pro-rata; one-sided or
+                                  voided markets refund
 ```
 
 The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and deserialized inside `resolve`, so the settlement source is the MPC-scored field itself. Betting closes the moment the first chunk is scored — before that, all a bettor can see is the model id and the committed `outputs_root`.
@@ -95,8 +97,10 @@ sealed chain score --bank bank/1.json --run runs/….json --create-only  # park 
 sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score an existing run
 sealed chain status --benchmark <pubkey>                             # leaderboard from chain state
 
-sealed chain market open    --run <pubkey> --threshold 55            # "will this run score >= 55?"
-sealed chain market bet     --market <pk> --side yes --lamports 500000000 [--bettor kp.json]
+sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"
+sealed chain market open    --run <pubkey> --edges 40,55 --salt 1    # 3-way score bands, 2nd market
+sealed chain market bet     --market <pk> --outcome 1 --lamports 500000000 [--bettor kp.json]
+sealed chain market bet     --market <pk> --side yes --lamports 500000000   # binary shorthand
 sealed chain market resolve --market <pk>                            # settles off Run.correct
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market show    --market <pk>
@@ -119,7 +123,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Localnet end-to-end: `arcium test` seals 2 chunks, scores a run (45/64 planted), finalizes
 - [x] CLI pipeline on localnet: generated bank -> mock run -> MPC score 40/64, equal to the local pre-score
 - [x] Real models through OpenCode Zen (free tier, `x-opencode-session` header): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
-- [x] Market program: parimutuel market resolved on `Run.correct` end-to-end on localnet (open -> YES/NO bets -> MPC score 59/64 -> resolve YES -> claim pays out)
+- [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
