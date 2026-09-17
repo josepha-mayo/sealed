@@ -121,6 +121,12 @@ describe("Sealed", () => {
   const arciumEnv = getArciumEnv();
   const clusterAccount = getClusterAccAddress(arciumEnv.arciumClusterOffset);
   const owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
+  // Per-run bank ids: every suite run mints fresh banks, so the suite is
+  // re-runnable on any ledger state. Pin a run with SEALED_TEST_SALT=<n>.
+  const ID_SALT = Number(process.env.SEALED_TEST_SALT ?? Date.now() % 100000);
+  const AUTH_ID = 1000 + ID_SALT;   // authored bank (tests 1-3 share it)
+  const GEN_ID = 2000 + ID_SALT;    // public generated bank
+  const PRIV_ID = 3000 + ID_SALT;   // private generated bank (tests 5-7 share it)
   // The staged answer bank: chunk i holds CHUNK random u64 "answer hashes".
   const answers: bigint[][] = Array.from({ length: 2 }, () => Array.from({ length: CHUNK }, randomU64));
 
@@ -161,7 +167,7 @@ describe("Sealed", () => {
     const mxePublicKey = await getMXEPublicKeyWithRetry(provider, program.programId);
 
     // ---------------------------------------------------------------- benchmark
-    const BENCH_ID = 1;
+    const BENCH_ID = AUTH_ID;
     const CHUNKS = 2;
     const FEE = 0.01 * LAMPORTS_PER_SOL;
     const [benchmark] = PublicKey.findProgramAddressSync(
@@ -301,7 +307,7 @@ describe("Sealed", () => {
 
   it("declassifies one part's fingerprints for a spot-check audit", async () => {
     await initCompDef("reveal_part", () => program.methods.initRevealPartCompDef());
-    const BENCH_ID = 1;
+    const BENCH_ID = AUTH_ID;
     const [benchmark] = PublicKey.findProgramAddressSync(
       [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(BENCH_ID)],
       program.programId,
@@ -367,7 +373,7 @@ describe("Sealed", () => {
   it("settles a parimutuel market on an MPC-scored run", async () => {
     const marketProgram = anchor.workspace.Market as Program<Market>;
     const [benchmark] = PublicKey.findProgramAddressSync(
-      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(1)],
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(AUTH_ID)],
       program.programId,
     );
     const chunkPdas = [0, 1].map(
@@ -519,25 +525,31 @@ describe("Sealed", () => {
   it("mints a generated bank inside MPC and scores a run against it", async () => {
     await initCompDef("gen_part", () => program.methods.initGenPartCompDef());
 
-    const GEN_ID = 2;
     const GCHUNKS = 1;
     const [benchmark] = PublicKey.findProgramAddressSync(
       [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
       program.programId,
     );
     // Generated banks start items_root at zero; each gen_part callback folds its specs in.
-    await program.methods
-      .createBenchmark(GEN_ID, "sealed-gen", GCHUNKS, Array.from(new Uint8Array(32)), new anchor.BN(0), 1)
-      .accounts({ authority: owner.publicKey })
-      .signers([owner])
-      .rpc({ commitment: "confirmed" });
-    let b = await program.account.benchmark.fetch(benchmark);
+    let b: any = await program.account.benchmark.fetchNullable(benchmark);
+    if (!b) {
+      await program.methods
+        .createBenchmark(GEN_ID, "sealed-gen", GCHUNKS, Array.from(new Uint8Array(32)), new anchor.BN(0), 1)
+        .accounts({ authority: owner.publicKey })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" });
+      b = await program.account.benchmark.fetch(benchmark);
+    }
     expect(b.kind).to.equal(1);
 
     const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
     const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
-    await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ commitment: "confirmed" });
-    await program.methods.initItems(0).accounts({ authority: owner.publicKey, benchmark, items: itemsPda }).signers([owner]).rpc({ commitment: "confirmed" });
+    if (!(await program.account.answerChunk.fetchNullable(chunk))) {
+      await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ commitment: "confirmed" });
+    }
+    if (!(await program.account.itemChunk.fetchNullable(itemsPda))) {
+      await program.methods.initItems(0).accounts({ authority: owner.publicKey, benchmark, items: itemsPda }).signers([owner]).rpc({ commitment: "confirmed" });
+    }
 
     // Authored-only paths must reject a generated bank.
     const authorPub = x25519.getPublicKey(x25519.utils.randomSecretKey());
@@ -553,6 +565,8 @@ describe("Sealed", () => {
     // Mint all four parts: item specs land public in the ItemChunk, the answer
     // fingerprints land sealed in the AnswerChunk — no plaintext key ever existed.
     for (let p = 0; p < PARTS; p++) {
+      let state: any = await program.account.answerChunk.fetch(chunk);
+      if (state.partsSealed & (1 << p)) continue;
       console.log(`gen_part chunk 0 part ${p}`);
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
@@ -561,7 +575,7 @@ describe("Sealed", () => {
         .signers([owner])
         .rpc({ commitment: "confirmed" });
       const finalizeSig = await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
-      const state = await program.account.answerChunk.fetch(chunk);
+      state = await program.account.answerChunk.fetch(chunk);
       if (!(state.partsSealed & (1 << p))) await dumpTx(provider, finalizeSig);
       expect(state.partsSealed & (1 << p)).to.not.equal(0, `part ${p} minted`);
     }
@@ -580,7 +594,8 @@ describe("Sealed", () => {
     // A run that answers the first PLANTED items correctly, garbage elsewhere.
     const runner = Keypair.generate();
     await fund(provider, owner, runner.publicKey, 0.3 * LAMPORTS_PER_SOL);
-    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
+    const runIndex = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(runIndex)], program.programId);
     await program.methods
       .createRun("test/gen-oracle", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
@@ -591,7 +606,7 @@ describe("Sealed", () => {
     const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(GEN_ID, j, v) : randomU64()).toString()));
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
-      .scoreChunk(offset, new anchor.BN(0), 0, outputs)
+      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs)
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
@@ -605,7 +620,6 @@ describe("Sealed", () => {
   it("mints a PRIVATE bank: ciphertext-only on chain, decryptable by the authority", async () => {
     await initCompDef("gen_part_private", () => program.methods.initGenPartPrivateCompDef());
 
-    const PRIV_ID = 3;
     const PCHUNKS = 1;
     const [benchmark] = PublicKey.findProgramAddressSync(
       [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(PRIV_ID)],
@@ -643,7 +657,6 @@ describe("Sealed", () => {
     );
     // And a private-mint ix against the PUBLIC bank is rejected at the seeds
     // constraint (its PrivItemChunk PDA can never exist for kind!=2).
-    const GEN_ID = 2;
     const [genBench] = PublicKey.findProgramAddressSync(
       [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
       program.programId,
@@ -729,7 +742,8 @@ describe("Sealed", () => {
     // Score against it exactly like a public generated bank.
     const runner = Keypair.generate();
     await fund(provider, owner, runner.publicKey, 0.3 * LAMPORTS_PER_SOL);
-    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
+    const runIndex = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(runIndex)], program.programId);
     await program.methods
       .createRun("test/priv-oracle", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
@@ -740,7 +754,7 @@ describe("Sealed", () => {
     const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(PRIV_ID, j, v) : randomU64()).toString()));
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
-      .scoreChunk(offset, new anchor.BN(0), 0, outputs)
+      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs)
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
@@ -755,7 +769,6 @@ describe("Sealed", () => {
     await initCompDef("reshare_part", () => program.methods.initResharePartCompDef());
 
     // Reuse the private bank from the previous test (id 3, kind 2, live).
-    const PRIV_ID = 3;
     const [benchmark] = PublicKey.findProgramAddressSync(
       [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(PRIV_ID)],
       program.programId,
@@ -841,6 +854,79 @@ describe("Sealed", () => {
       "already in use",
     );
     console.log(`reshare verified: delegate decrypted ${specs.length} items identical to the authority's`);
+  });
+
+  it("lets a delegated runner rebuild the bank and get scored — confidential eval end-to-end", async () => {
+    // The complete product flow: authority grants all parts to a runner's
+    // key, the runner rebuilds the bank from grants alone, runs its model,
+    // and gets MPC-scored — while the questions were never public and the
+    // answers were never plaintext anywhere.
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(PRIV_ID)],
+      program.programId,
+    );
+    const [pitemsPda] = PublicKey.findProgramAddressSync([Buffer.from("pitems"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.5 * LAMPORTS_PER_SOL);
+    const runnerPub = ed25519.utils.toMontgomery(runner.publicKey.toBytes());
+
+    // Authority grants every part to the runner (skip any already granted).
+    for (let p = 0; p < PARTS; p++) {
+      const [g] = PublicKey.findProgramAddressSync(
+        [Buffer.from("grant"), benchmark.toBuffer(), u16le(0), Uint8Array.of(p), runnerPub],
+        program.programId,
+      );
+      if (await program.account.shareGrant.fetchNullable(g)) continue;
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .resharePart(offset, 0, p, Array.from(runnerPub))
+        .accountsPartial({ payer: owner.publicKey, benchmark, items: pitemsPda, grant: g, ...arciumAccounts(offset, "reshare_part") })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    }
+
+    // The runner rebuilds the bank from ITS grants alone — same decode path
+    // `delegate-bank` uses, mirrored independently here.
+    const mxePublicKey = await getMXEPublicKeyWithRetry(provider, program.programId);
+    const runnerPriv = ed25519.utils.toMontgomerySecret(runner.secretKey.subarray(0, 32));
+    const cipher = new RescueCipher(x25519.getSharedSecret(runnerPriv, mxePublicKey));
+    const specs: ItemSpec[] = [];
+    for (let p = 0; p < PARTS; p++) {
+      const [g] = PublicKey.findProgramAddressSync(
+        [Buffer.from("grant"), benchmark.toBuffer(), u16le(0), Uint8Array.of(p), runnerPub],
+        program.programId,
+      );
+      const grant: any = await program.account.shareGrant.fetch(g);
+      specs.push(...unpackSpecs(cipher.decrypt(grant.ciphertexts.map((x: number[]) => Array.from(x)), u128le(BigInt(grant.nonce.toString())))));
+    }
+    expect(specs.length).to.equal(CHUNK, "bank rebuilt entirely from grants");
+    const truth = specs.map(evalSpec);
+
+    // The runner's "model" answers PLANTED of them right; MPC counts the rest.
+    const runIndex = (await program.account.benchmark.fetch(benchmark)).runCount;
+    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(BigInt(runIndex.toString()))], program.programId);
+    await program.methods
+      .createRun("delegate/runner-1", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+
+    const PLANTED = 19;
+    const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(PRIV_ID, j, v) : randomU64()).toString()));
+    const offset = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs)
+      .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    const r = await program.account.run.fetch(run);
+    expect(r.status).to.equal(1, "finalized");
+    expect(r.correct).to.equal(PLANTED);
+    console.log(`delegated runner scored: ${r.correct}/${CHUNK} — exam granted by MPC, questions never public, answers never plaintext`);
   });
 });
 
