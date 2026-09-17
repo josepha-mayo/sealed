@@ -26,6 +26,7 @@ const COMP_DEF_OFFSET_SEAL_PART: u32 = comp_def_offset("seal_part");
 const COMP_DEF_OFFSET_SCORE_CHUNK: u32 = comp_def_offset("score_chunk");
 const COMP_DEF_OFFSET_GEN_PART: u32 = comp_def_offset("gen_part");
 const COMP_DEF_OFFSET_REVEAL_PART: u32 = comp_def_offset("reveal_part");
+const COMP_DEF_OFFSET_GEN_PART_PRIVATE: u32 = comp_def_offset("gen_part_private");
 
 /// Items per chunk (one scoring computation). Must equal `CHUNK` in encrypted-ixs.
 pub const CHUNK: usize = 32;
@@ -50,6 +51,11 @@ pub const RUN_FINALIZED: u8 = 1;
 pub const KIND_AUTHORED: u8 = 0;
 /// MPC-generated bank: items minted inside `gen_part`; no answer key ever exists.
 pub const KIND_GENERATED: u8 = 1;
+/// Private MPC-generated bank: same mint, but specs come back `Enc<Shared>` to
+/// the authority's x25519 key — confidential prompts AND no answer key.
+pub const KIND_PRIVATE: u8 = 2;
+/// Packed spec ciphertexts per minted part (`Pack<GenPart>` = 40 u8 -> 2 fields).
+pub const PRIV_CTS_PER_PART: usize = 2;
 /// Bytes per onchain item spec (a, b, c, op0, op1). Mirrored in the harness.
 pub const ITEM_SPEC_LEN: usize = 5;
 
@@ -86,6 +92,11 @@ pub mod sealed {
         Ok(())
     }
 
+    pub fn init_gen_part_private_comp_def(ctx: Context<InitGenPartPrivateCompDef>) -> Result<()> {
+        init_computation_def(ctx.accounts, None)?;
+        Ok(())
+    }
+
     // ------------------------------------------------------------ benchmark
 
     pub fn create_benchmark(
@@ -102,7 +113,7 @@ pub mod sealed {
             ErrorCode::InvalidChunkCount
         );
         require!(name.len() <= 32, ErrorCode::NameTooLong);
-        require!(kind <= KIND_GENERATED, ErrorCode::WrongBankKind);
+        require!(kind <= KIND_PRIVATE, ErrorCode::WrongBankKind);
         let b = &mut ctx.accounts.benchmark;
         b.authority = ctx.accounts.authority.key();
         b.id = id;
@@ -131,6 +142,20 @@ pub mod sealed {
     pub fn init_items(ctx: Context<InitItems>, index: u16) -> Result<()> {
         let b = &ctx.accounts.benchmark;
         require!(b.kind == KIND_GENERATED, ErrorCode::WrongBankKind);
+        require!(index < b.chunk_count, ErrorCode::InvalidChunkIndex);
+        let c = &mut ctx.accounts.items;
+        c.benchmark = b.key();
+        c.index = index;
+        c.bump = ctx.bumps.items;
+        Ok(())
+    }
+
+    /// For private generated banks: create the account that receives the minted
+    /// spec *ciphertexts* (`Enc<Shared, Pack<GenPart>>` per part) — only the
+    /// authority's x25519 key can decrypt them off-chain.
+    pub fn init_items_private(ctx: Context<InitItemsPrivate>, index: u16) -> Result<()> {
+        let b = &ctx.accounts.benchmark;
+        require!(b.kind == KIND_PRIVATE, ErrorCode::WrongBankKind);
         require!(index < b.chunk_count, ErrorCode::InvalidChunkIndex);
         let c = &mut ctx.accounts.items;
         c.benchmark = b.key();
@@ -371,6 +396,129 @@ pub mod sealed {
         let b = &mut ctx.accounts.benchmark;
         b.items_root = solana_sha256_hasher::hashv(&[
             &b"sealed/v1/genitems\0"[..],
+            &b.items_root[..],
+            &c.index.to_le_bytes()[..],
+            &[part][..],
+            &spec_bytes[..],
+        ])
+        .to_bytes();
+
+        let chunk_sealed = c.parts_sealed == ALL_PARTS;
+        if chunk_sealed {
+            b.chunks_sealed += 1;
+            if b.chunks_sealed == b.chunk_count {
+                b.status = STATUS_LIVE;
+            }
+        }
+        emit!(PartSealed {
+            benchmark: b.key(),
+            chunk_index: c.index,
+            part,
+            chunk_sealed,
+            live: b.status == STATUS_LIVE,
+        });
+        Ok(())
+    }
+
+    /// Queue the MPC minting of one part of a PRIVATE generated bank: identical
+    /// to `gen_part`, but the item specs come back `Enc<Shared, Pack<GenPart>>`
+    /// to `viewer` (the authority's x25519 key) instead of public. The prompts
+    /// are confidential to the authority; the answers are born `Enc<Mxe>` — a
+    /// bank where neither the questions nor any answer key exists in plaintext.
+    pub fn gen_part_private(
+        ctx: Context<GenPartPrivate>,
+        computation_offset: u64,
+        _index: u16,
+        part: u8,
+        viewer: [u8; 32],
+    ) -> Result<()> {
+        let b = &ctx.accounts.benchmark;
+        require!(b.kind == KIND_PRIVATE, ErrorCode::WrongBankKind);
+        let c = &mut ctx.accounts.chunk;
+        let items = &ctx.accounts.items;
+        require!((part as usize) < PARTS, ErrorCode::InvalidPart);
+        let bit = 1u8 << part;
+        require!(c.parts_sealed & bit == 0, ErrorCode::PartAlreadySealed);
+        require!(items.parts_written & bit == 0, ErrorCode::PartAlreadySealed);
+        require!(c.sealing_part == NO_PART, ErrorCode::PartSealPending);
+        c.sealing_part = part;
+
+        let base_index = c.index as u32 * CHUNK as u32 + part as u32 * PART as u32;
+        let args = ArgBuilder::new()
+            .plaintext_u32(b.id)
+            .plaintext_u32(base_index)
+            .x25519_pubkey(viewer)
+            .build();
+
+        ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
+        queue_computation(
+            ctx.accounts,
+            computation_offset,
+            args,
+            vec![GenPartPrivateCallback::callback_ix(
+                computation_offset,
+                &ctx.accounts.mxe_account,
+                &[
+                    CallbackAccount { pubkey: ctx.accounts.chunk.key(), is_writable: true },
+                    CallbackAccount { pubkey: ctx.accounts.items.key(), is_writable: true },
+                    CallbackAccount { pubkey: ctx.accounts.benchmark.key(), is_writable: true },
+                ],
+            )?],
+            1,
+            0,
+            0,
+        )?;
+        Ok(())
+    }
+
+    #[arcium_callback(encrypted_ix = "gen_part_private")]
+    pub fn gen_part_private_callback(
+        ctx: Context<GenPartPrivateCallback>,
+        output: SignedComputationOutputs<GenPartPrivateOutput>,
+    ) -> Result<()> {
+        let o = match output.verify_output(
+            &ctx.accounts.cluster_account,
+            &ctx.accounts.computation_account,
+        ) {
+            Ok(GenPartPrivateOutput { field_0 }) => field_0,
+            Err(e) => {
+                msg!("gen_part_private aborted: {}", e);
+                return Err(ErrorCode::AbortedComputation.into());
+            }
+        };
+        // Tuple output: `field_0.field_0` = Enc<Shared, Pack<GenPart>>
+        // (SharedEncryptedStruct<2>: ciphertexts + nonce), `field_0.field_1` =
+        // Enc<Mxe, AnswerPart> (MXEEncryptedStruct<8>).
+        let enc_specs = o.field_0;
+        let enc = o.field_1;
+        let c = &mut ctx.accounts.chunk;
+        let part = c.sealing_part;
+        require!(part != NO_PART, ErrorCode::PartSealNotPending);
+        let bit = 1u8 << part;
+        require!(c.parts_sealed & bit == 0, ErrorCode::PartAlreadySealed);
+        let start = part as usize * PART;
+        c.ciphertexts[start..start + PART].copy_from_slice(&enc.ciphertexts);
+        c.nonces[part as usize] = enc.nonce;
+        c.parts_sealed |= bit;
+        c.sealing_part = NO_PART;
+
+        let items = &mut ctx.accounts.items;
+        let cs = part as usize * PRIV_CTS_PER_PART;
+        items.ciphertexts[cs..cs + PRIV_CTS_PER_PART].copy_from_slice(&enc_specs.ciphertexts);
+        items.nonces[part as usize] = enc_specs.nonce;
+        items.encryption_key = enc_specs.encryption_key;
+        items.parts_written |= bit;
+
+        // items_root folds the *ciphertext* bytes: a running commitment to the
+        // encrypted spec stream (auditable without being able to decrypt it).
+        let mut spec_bytes = Vec::with_capacity(PRIV_CTS_PER_PART * 32 + 16);
+        for ct in enc_specs.ciphertexts.iter() {
+            spec_bytes.extend_from_slice(ct);
+        }
+        spec_bytes.extend_from_slice(&enc_specs.nonce.to_le_bytes());
+        let b = &mut ctx.accounts.benchmark;
+        b.items_root = solana_sha256_hasher::hashv(&[
+            &b"sealed/v1/privitems\0"[..],
             &b.items_root[..],
             &c.index.to_le_bytes()[..],
             &[part][..],
@@ -701,6 +849,25 @@ pub struct AnswerChunk {
     pub ciphertexts: [[u8; 32]; CHUNK],
 }
 
+/// Spec ciphertexts for one chunk of a PRIVATE generated bank, written by
+/// `gen_part_private` callbacks. Each part is `Enc<Shared, Pack<GenPart>>` —
+/// 2 ciphertexts + a nonce — decryptable only by the authority's x25519 key.
+#[account]
+#[derive(InitSpace)]
+pub struct PrivItemChunk {
+    pub benchmark: Pubkey,
+    pub index: u16,
+    pub bump: u8,
+    /// Bitmask of parts written so far.
+    pub parts_written: u8,
+    /// x25519 key the specs are encrypted to (the authority's, by convention).
+    pub encryption_key: [u8; 32],
+    /// Per-part nonce of the Shared encryption.
+    pub nonces: [u128; PARTS],
+    /// Packed spec ciphertexts: PRIV_CTS_PER_PART per part (2 * 4 = 8).
+    pub ciphertexts: [[u8; 32]; 8],
+}
+
 /// Answer fingerprints for one part, declassified by a `reveal_part` computation
 /// at the benchmark authority's request. These are hash commitments — the audit
 /// primitive, not the answer key.
@@ -786,6 +953,24 @@ pub struct InitItems<'info> {
         bump,
     )]
     pub items: Box<Account<'info, ItemChunk>>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(index: u16)]
+pub struct InitItemsPrivate<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(has_one = authority @ ErrorCode::NotAuthority)]
+    pub benchmark: Account<'info, Benchmark>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + PrivItemChunk::INIT_SPACE,
+        seeds = [b"pitems", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub items: Box<Account<'info, PrivItemChunk>>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1081,6 +1266,105 @@ pub struct GenPartCallback<'info> {
         bump = items.bump,
     )]
     pub items: Box<Account<'info, ItemChunk>>,
+    #[account(mut)]
+    pub benchmark: Box<Account<'info, Benchmark>>,
+}
+
+#[init_computation_definition_accounts("gen_part_private", payer)]
+#[derive(Accounts)]
+pub struct InitGenPartPrivateCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    #[account(mut)]
+    /// CHECK: comp_def_account, checked by arcium program. Not initialized yet.
+    pub comp_def_account: UncheckedAccount<'info>,
+    #[account(mut, address = derive_mxe_lut_pda!(mxe_account.lut_offset_slot))]
+    /// CHECK: address_lookup_table, checked by arcium program.
+    pub address_lookup_table: UncheckedAccount<'info>,
+    #[account(address = LUT_PROGRAM_ID)]
+    /// CHECK: lut_program is the Address Lookup Table program.
+    pub lut_program: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
+#[queue_computation_accounts("gen_part_private", payer)]
+#[derive(Accounts)]
+#[instruction(computation_offset: u64, index: u16)]
+pub struct GenPartPrivate<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
+    pub benchmark: Box<Account<'info, Benchmark>>,
+    #[account(
+        mut,
+        seeds = [b"chunk", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
+        bump = chunk.bump,
+    )]
+    pub chunk: Box<Account<'info, AnswerChunk>>,
+    #[account(
+        mut,
+        seeds = [b"pitems", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
+        bump = items.bump,
+    )]
+    pub items: Box<Account<'info, PrivItemChunk>>,
+    #[account(
+        init_if_needed,
+        space = 9,
+        payer = payer,
+        seeds = [&SIGN_PDA_SEED],
+        bump,
+        address = derive_sign_pda!(),
+    )]
+    pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    #[account(mut, address = derive_mempool_pda!(mxe_account))]
+    /// CHECK: mempool_account, checked by arcium program.
+    pub mempool_account: UncheckedAccount<'info>,
+    #[account(mut, address = derive_execpool_pda!(mxe_account))]
+    /// CHECK: executing_pool, checked by arcium program.
+    pub executing_pool: UncheckedAccount<'info>,
+    #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account))]
+    /// CHECK: computation_account, checked by the arcium program.
+    pub computation_account: UncheckedAccount<'info>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_GEN_PART_PRIVATE))]
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
+    #[account(mut, address = derive_cluster_pda!(mxe_account))]
+    pub cluster_account: Box<Account<'info, Cluster>>,
+    #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
+    pub pool_account: Box<Account<'info, FeePool>>,
+    #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
+    pub clock_account: Box<Account<'info, ClockAccount>>,
+    pub system_program: Program<'info, System>,
+    pub arcium_program: Program<'info, Arcium>,
+}
+
+#[callback_accounts("gen_part_private")]
+#[derive(Accounts)]
+pub struct GenPartPrivateCallback<'info> {
+    pub arcium_program: Program<'info, Arcium>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_GEN_PART_PRIVATE))]
+    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Account<'info, MXEAccount>,
+    /// CHECK: address is validated by the Arcium program; verify_output reads slot data from it.
+    pub computation_account: UncheckedAccount<'info>,
+    #[account(address = derive_cluster_pda!(mxe_account))]
+    pub cluster_account: Account<'info, Cluster>,
+    #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
+    /// CHECK: instructions_sysvar, checked by the account constraint
+    pub instructions_sysvar: UncheckedAccount<'info>,
+    #[account(mut, constraint = chunk.benchmark == benchmark.key() @ ErrorCode::ChunkBenchmarkMismatch)]
+    pub chunk: Box<Account<'info, AnswerChunk>>,
+    #[account(
+        mut,
+        seeds = [b"pitems", benchmark.key().as_ref(), chunk.index.to_le_bytes().as_ref()],
+        bump = items.bump,
+    )]
+    pub items: Box<Account<'info, PrivItemChunk>>,
     #[account(mut)]
     pub benchmark: Box<Account<'info, Benchmark>>,
 }

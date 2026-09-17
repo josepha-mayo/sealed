@@ -139,6 +139,8 @@ async function main() {
   sealed chain seal  --bank <file> [--fee-lamports n]
   sealed chain gen   --id <n> [--chunks 2] [--fee-lamports n] [--out file]   MPC-minted bank: no answer key exists
   sealed chain items --benchmark <pubkey> [--out file]                      render a generated bank from on-chain specs
+  sealed chain gen-private --id <n> [--chunks 2] [--fee-lamports n] [--out f] MPC-minted bank: items encrypted to YOU
+  sealed chain pitems --benchmark <pubkey> [--out file]                     decrypt a private bank (authority only)
   sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
   sealed chain reveal --benchmark <pk> --chunk <i> --part <0..3>   authority declassifies 8 answer hashes
   sealed chain verify --benchmark <pk> --run <file> [--run-index n]  audit revealed hashes vs committed outputs

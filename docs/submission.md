@@ -37,6 +37,18 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   went LIVE, `mock/oracle-0.75` scored **24/32 on-chain == local pre-score**
   (`run 2e7CfDW3…`). The anchor test also proves `stage_part` on a generated
   bank is rejected `WrongBankKind`.
+- **Private generated banks — nothing onchain but ciphertext.** `chain
+  gen-private` runs `gen_part_private`: the same in-MPC mint, but the item
+  specs come back `Enc<Shared, Pack<GenPart>>` to the authority's x25519 key
+  (derived from the Solana keypair — no extra key management). `PrivItemChunk`
+  accounts store ciphertexts + nonce + recipient key only — **the questions
+  never appear onchain in plaintext**, and neither do the answers. The
+  `items_root` fold commits to the ciphertext stream (`sealed/v1/privitems`
+  over cts‖nonce) so the mint transcript is auditable without the key.
+  Verified E2E: 4 MPC computations minted a private 32-item bank → LIVE →
+  `mock/oracle-0.75` scored **23/32 == local pre-score**; the anchor test
+  proves the public-items path is rejected `WrongBankKind`, a private mint on
+  a public bank fails, and a wrong-key decrypt yields out-of-range garbage.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
   that output `i` was in the committed `outputs_root`; the web explorer
   verifies it in-browser.
@@ -48,9 +60,10 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 4/4 passing (seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 5/5 passing (seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim; generated-bank
-  mint→live→score). `yarn harness:test` — 12/12.
+  mint→live→score; private-bank mint→decrypt→score + privacy negatives).
+  `yarn harness:test` — 12/12.
 
 ## Reproduce
 

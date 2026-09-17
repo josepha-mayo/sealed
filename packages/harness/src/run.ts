@@ -40,7 +40,7 @@ export async function runModel(
 ): Promise<RunArtifact> {
   const startedAt = new Date().toISOString();
   const completions = await client.completeAll(model, bank.items.map((it) => it.prompt), cfg, onProgress);
-  const gen = bank.kind === "generated";
+  const gen = bank.kind === "generated" || bank.kind === "generated-private";
   const items: RunItemRecord[] = bank.items.map((it, i) => {
     const canonical = canonicalAnswer(completions[i].text);
     const h = gen

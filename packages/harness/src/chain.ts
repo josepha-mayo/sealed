@@ -35,8 +35,19 @@ import {
 } from "@arcium-hq/client";
 import { randomBytes } from "node:crypto";
 import { type Bank, CHUNK, PART, chunkHashes } from "./bank.js";
-import { bankFromChunks, decodeItemChunk, type ItemChunkState } from "./genbank.js";
+import {
+  bankFromChunks,
+  decodeItemChunk,
+  decodePrivItemChunk,
+  privBankFromSpecs,
+  privItemsRoot,
+  unpackSpecs,
+  type ItemChunkState,
+  type ItemSpec,
+  type PrivItemChunkState,
+} from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
+import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
 // @anchor-lang/core is CommonJS; loading it through require keeps `BN`, `Program`, etc.
@@ -83,10 +94,11 @@ function pdas(ctx: Ctx, authority: PublicKey, benchmarkId: number) {
   const [benchmark] = PublicKey.findProgramAddressSync([Buffer.from("benchmark"), authority.toBuffer(), u32le(benchmarkId)], pid);
   const chunk = (i: number) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], pid)[0];
   const items = (i: number) => PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(i)], pid)[0];
+  const pitems = (i: number) => PublicKey.findProgramAddressSync([Buffer.from("pitems"), benchmark.toBuffer(), u16le(i)], pid)[0];
   const run = (i: bigint) => PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(i)], pid)[0];
   const reveal = (i: number, p: number) =>
     PublicKey.findProgramAddressSync([Buffer.from("reveal"), benchmark.toBuffer(), u16le(i), Uint8Array.of(p)], pid)[0];
-  return { benchmark, chunk, items, run, reveal };
+  return { benchmark, chunk, items, pitems, run, reveal };
 }
 
 function arciumAccounts(ctx: Ctx, offset: AnchorTypes.BN, ix: string) {
@@ -132,6 +144,7 @@ export async function init(ctx = setup()) {
     ["seal_part", "initSealPartCompDef"],
     ["score_chunk", "initScoreChunkCompDef"],
     ["gen_part", "initGenPartCompDef"],
+    ["gen_part_private", "initGenPartPrivateCompDef"],
     ["reveal_part", "initRevealPartCompDef"],
   ] as const) {
     const compDef = PublicKey.findProgramAddressSync(
@@ -318,6 +331,129 @@ export async function fetchGenBank(benchmark: PublicKey, chunkCount: number, ctx
     throw new Error(`items_root mismatch: local fold ${bank.itemsRoot} != on-chain ${onchain}`);
   }
   return bank;
+}
+
+// ------------------------------------------------- private generated banks
+
+/**
+ * The authority's x25519 key material, derived from their Solana keypair —
+ * no extra key management: whoever holds the authority wallet can decrypt the
+ * private bank, and only them.
+ */
+function viewerKeys(ctx: Ctx) {
+  const seed = ctx.wallet.secretKey.subarray(0, 32);
+  const priv = ed25519.utils.toMontgomerySecret(seed);
+  const pub = ed25519.utils.toMontgomery(ctx.wallet.publicKey.toBytes());
+  return { priv, pub };
+}
+
+/**
+ * Mint a PRIVATE generated bank: `gen_part_private` draws item specs from MPC
+ * randomness and returns them `Enc<Shared, Pack<GenPart>>` to the authority's
+ * x25519 key. On-chain `PrivItemChunk` accounts hold ciphertext only — a public
+ * RPC reader sees encrypted bytes. The items_root fold commits to
+ * (cts || nonce), so anyone can verify the mint transcript but only the
+ * authority can render the prompts.
+ */
+export async function genPrivate(benchmarkId: number, chunkCount: number, feeLamports: bigint, ctx = setup()) {
+  const { program, provider, wallet } = ctx;
+  const { benchmark, chunk, pitems } = pdas(ctx, wallet.publicKey, benchmarkId);
+  const acct = program.account as any;
+
+  let b: any = await fetchOrNull(acct.benchmark.fetch(benchmark));
+  if (!b) {
+    console.log(`create_benchmark id=${benchmarkId} chunks=${chunkCount} kind=private-generated`);
+    await program.methods
+      .createBenchmark(benchmarkId, `sealed-pgen-v${benchmarkId}`, chunkCount, Array.from(new Uint8Array(32)), new anchor.BN(feeLamports.toString()), 2)
+      .accounts({ authority: wallet.publicKey })
+      .rpc({ commitment: "confirmed" });
+    b = await acct.benchmark.fetch(benchmark);
+  } else if (b.kind !== 2) {
+    throw new Error(`benchmark ${benchmark.toBase58()} exists with kind=${b.kind}; bump the id`);
+  }
+  console.log(`benchmark ${benchmark.toBase58()} status=${b.status} minted=${b.chunksSealed}/${b.chunkCount}`);
+
+  if (!(await getMXEPublicKey(provider, program.programId))) throw new Error("MXE public key unavailable");
+  const viewer = viewerKeys(ctx);
+
+  const PARTS = CHUNK / PART;
+  const ALL = (1 << PARTS) - 1;
+  for (let i = 0; i < b.chunkCount; i++) {
+    const c = chunk(i);
+    const it = pitems(i);
+    let state: any = await fetchOrNull(acct.answerChunk.fetch(c));
+    if (state?.partsSealed === ALL) {
+      console.log(`chunk ${i}: already minted`);
+      continue;
+    }
+    if (!state) {
+      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ commitment: "confirmed" });
+      state = await acct.answerChunk.fetch(c);
+    }
+    if (!(await fetchOrNull(acct.privItemChunk.fetch(it)))) {
+      await program.methods.initItemsPrivate(i).accounts({ authority: wallet.publicKey, benchmark, items: it }).rpc({ commitment: "confirmed" });
+    }
+    for (let p = 0; p < PARTS; p++) {
+      if (state.partsSealed & (1 << p)) continue;
+      if (state.sealingPart !== p) {
+        const offset = new anchor.BN(randomBytes(8), "hex");
+        await program.methods
+          .genPartPrivate(offset, i, p, Array.from(viewer.pub))
+          .accountsPartial({ payer: wallet.publicKey, benchmark, chunk: c, items: it, ...arciumAccounts(ctx, offset, "gen_part_private") })
+          .rpc({ commitment: "confirmed" });
+      }
+      process.stdout.write(`chunk ${i} part ${p}: minting privately in MPC...`);
+      state = await waitFor(acct.answerChunk, c, (s) => (s.partsSealed & (1 << p)) !== 0);
+      console.log(state.partsSealed & (1 << p) ? " minted" : " STILL PENDING");
+    }
+  }
+  b = await acct.benchmark.fetch(benchmark);
+  console.log(`benchmark ${benchmark.toBase58()} status=${b.status === 1 ? "LIVE" : b.status} minted=${b.chunksSealed}/${b.chunkCount}`);
+
+  const bank = await fetchPrivBank(benchmark, b.chunkCount, ctx);
+  console.log(`items_root ${bank.itemsRoot} (${bank.items.length} private items — ciphertext-only on chain)`);
+  return { benchmark, bank };
+}
+
+/**
+ * Fetch a private bank's PrivItemChunks, verify the ciphertext transcript
+ * against the on-chain items_root, then decrypt specs with the authority's
+ * wallet-derived x25519 key and render the Bank.
+ */
+export async function fetchPrivBank(benchmark: PublicKey, chunkCount: number, ctx = setup()): Promise<Bank> {
+  const { program, provider } = ctx;
+  const acct = program.account as any;
+  const b: any = await acct.benchmark.fetch(benchmark);
+  if (b.kind !== 2) throw new Error(`benchmark ${benchmark.toBase58()} is not a private generated bank`);
+  const pd = pdas(ctx, b.authority, b.id);
+
+  const chunks: PrivItemChunkState[] = [];
+  for (let i = 0; i < chunkCount; i++) {
+    const info = await provider.connection.getAccountInfo(pd.pitems(i));
+    if (!info) throw new Error(`PrivItemChunk ${i} missing — bank not fully minted`);
+    chunks.push(decodePrivItemChunk(Buffer.from(info.data)));
+  }
+  const root = privItemsRoot(chunks);
+  const onchain = Buffer.from(b.itemsRoot).toString("hex");
+  if (b.status === 1 && root !== onchain) {
+    throw new Error(`items_root mismatch: ciphertext fold ${root} != on-chain ${onchain}`);
+  }
+
+  const mxePublicKey = await getMXEPublicKey(provider, program.programId);
+  if (!mxePublicKey) throw new Error("MXE public key unavailable");
+  const viewer = viewerKeys(ctx);
+  const cipher = new RescueCipher(x25519.getSharedSecret(viewer.priv, mxePublicKey));
+
+  const parts: ItemSpec[][][] = chunks.map((c) =>
+    c.nonces.map((nonce, part) => {
+      const ct = c.ciphertexts.slice(part * 2, part * 2 + 2).map((x) => Array.from(x));
+      const nb = new Uint8Array(16);
+      let n = nonce;
+      for (let k = 0; k < 16; k++) { nb[k] = Number(n & 0xffn); n >>= 8n; }
+      return unpackSpecs(cipher.decrypt(ct, nb));
+    }),
+  );
+  return privBankFromSpecs(b.id, chunkCount, parts, root);
 }
 
 // ------------------------------------------------------------------ score
@@ -635,6 +771,29 @@ export async function chainMain(cmd: string[], args: Args) {
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");
     console.log(`wrote ${out} (${bank.items.length} items)`);
+    return;
+  }
+  if (sub === "gen-private") {
+    const id = Number(args.id);
+    if (!Number.isFinite(id)) throw new Error("--id <n>");
+    const chunks = Number(args.chunks ?? 2);
+    const fee = BigInt(String(args["fee-lamports"] ?? 0));
+    const { bank } = await genPrivate(id, chunks, fee);
+    const out = String(args.out ?? join("bank", `pgen-${id}.json`));
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");
+    console.log(`wrote ${out} — KEEP IT PRIVATE: this file contains decrypted items`);
+    return;
+  }
+  if (sub === "pitems") {
+    const ctx = setup();
+    const acct = ctx.program.account as any;
+    const b: any = await acct.benchmark.fetch(new PublicKey(String(args.benchmark)));
+    const bank = await fetchPrivBank(new PublicKey(String(args.benchmark)), b.chunkCount, ctx);
+    const out = String(args.out ?? join("bank", `pgen-${b.id}.json`));
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");
+    console.log(`wrote ${out} (${bank.items.length} items) — KEEP IT PRIVATE`);
     return;
   }
   if (sub === "score") {

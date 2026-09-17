@@ -35,7 +35,9 @@ import * as fs from "fs";
 import * as os from "os";
 import { expect } from "chai";
 import { sha3_256 } from "@noble/hashes/sha3.js";
+import { sha256 } from "@noble/hashes/sha256.js";
 import { concatBytes, utf8ToBytes } from "@noble/hashes/utils.js";
+import { ed25519 } from "@noble/curves/ed25519";
 
 // Mirrors of packages/harness/src/genbank.ts, kept independent so the test
 // detects client/circuit drift rather than sharing a bug with the client.
@@ -63,6 +65,49 @@ function decodeItemChunk(data: Buffer): { index: number; partsWritten: number; s
     specs.push({ a: data[o], b: data[o + 1], c: data[o + 2], op0: data[o + 3], op1: data[o + 4] });
   }
   return { index: data.readUInt16LE(40), partsWritten: data[43], specs };
+}
+
+// Private-bank mirrors (PrivItemChunk: ciphertexts only — the test must be able
+// to verify the ciphertext commitment and decrypt with the authority's key).
+const DOMAIN_PRIV_ITEMS = utf8ToBytes("sealed/v1/privitems\0");
+function privItemsFold(root: Uint8Array, chunkIndex: number, part: number, encBytes: Uint8Array): Uint8Array {
+  const ix = Buffer.alloc(4); ix.writeUInt32LE(chunkIndex);
+  return sha256(concatBytes(DOMAIN_PRIV_ITEMS, root, ix.subarray(0, 2), Uint8Array.of(part), encBytes));
+}
+function u128le(n: bigint): Uint8Array {
+  const b = new Uint8Array(16);
+  let v = n;
+  for (let i = 0; i < 16; i++) { b[i] = Number(v & 0xffn); v >>= 8n; }
+  return b;
+}
+function decodePrivItemChunk(data: Buffer) {
+  const nonces: bigint[] = [];
+  for (let p = 0; p < PARTS; p++) {
+    let v = 0n;
+    for (let i = 15; i >= 0; i--) v = (v << 8n) | BigInt(data[76 + p * 16 + i]);
+    nonces.push(v);
+  }
+  const ciphertexts: Uint8Array[] = [];
+  for (let i = 0; i < 8; i++) ciphertexts.push(new Uint8Array(data.subarray(140 + i * 32, 172 + i * 32)));
+  return {
+    index: data.readUInt16LE(40),
+    partsWritten: data[43],
+    encryptionKey: new Uint8Array(data.subarray(44, 76)),
+    ciphertexts,
+    nonces,
+  };
+}
+function unpackSpecs(fields: bigint[]): ItemSpec[] {
+  expect(fields.length).to.equal(2);
+  const bytes = new Array<number>(40);
+  for (let i = 0; i < 40; i++) {
+    const f = i < 26 ? 0 : 1;
+    bytes[i] = Number((fields[f] >> BigInt(8 * (i - f * 26))) & 0xffn);
+  }
+  return Array.from({ length: 8 }, (_, k) => {
+    const o = k * 5;
+    return { a: bytes[o], b: bytes[o + 1], c: bytes[o + 2], op0: bytes[o + 3], op1: bytes[o + 4] };
+  });
 }
 
 const CHUNK = 32;
@@ -555,6 +600,155 @@ describe("Sealed", () => {
     expect(r.status).to.equal(1, "finalized");
     expect(r.correct).to.equal(PLANTED);
     console.log(`generated bank scored: ${r.correct}/${CHUNK} correct, answers never existed in plaintext`);
+  });
+
+  it("mints a PRIVATE bank: ciphertext-only on chain, decryptable by the authority", async () => {
+    await initCompDef("gen_part_private", () => program.methods.initGenPartPrivateCompDef());
+
+    const PRIV_ID = 3;
+    const PCHUNKS = 1;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(PRIV_ID)],
+      program.programId,
+    );
+    let b: any = await program.account.benchmark.fetchNullable(benchmark);
+    if (!b) {
+      await program.methods
+        .createBenchmark(PRIV_ID, "sealed-priv", PCHUNKS, Array.from(new Uint8Array(32)), new anchor.BN(0), 2)
+        .accounts({ authority: owner.publicKey })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" });
+      b = await program.account.benchmark.fetch(benchmark);
+    }
+    expect(b.kind).to.equal(2);
+
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [pitemsPda] = PublicKey.findProgramAddressSync([Buffer.from("pitems"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [pubItemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
+    if (!(await program.account.answerChunk.fetchNullable(chunk))) {
+      await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ commitment: "confirmed" });
+    }
+    if (!(await program.account.privItemChunk.fetchNullable(pitemsPda))) {
+      await program.methods.initItemsPrivate(0).accounts({ authority: owner.publicKey, benchmark, items: pitemsPda }).signers([owner]).rpc({ commitment: "confirmed" });
+    }
+
+    // The public-items path must reject a private bank (would publish its specs).
+    await expectAnchorError(
+      program.methods
+        .initItems(0)
+        .accounts({ authority: owner.publicKey, benchmark, items: pubItemsPda })
+        .signers([owner])
+        .rpc(),
+      "WrongBankKind",
+    );
+    // And a private-mint ix against the PUBLIC bank is rejected at the seeds
+    // constraint (its PrivItemChunk PDA can never exist for kind!=2).
+    const GEN_ID = 2;
+    const [genBench] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
+      program.programId,
+    );
+    const [genChunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), genBench.toBuffer(), u16le(0)], program.programId);
+    const [genPitems] = PublicKey.findProgramAddressSync([Buffer.from("pitems"), genBench.toBuffer(), u16le(0)], program.programId);
+    const stray = new anchor.BN(randomBytes(8), "hex");
+    await expectAnchorError(
+      program.methods
+        .genPartPrivate(stray, 0, 0, Array.from(new Uint8Array(32)))
+        .accountsPartial({ payer: owner.publicKey, benchmark: genBench, chunk: genChunk, items: genPitems, ...arciumAccounts(stray, "gen_part_private") })
+        .signers([owner])
+        .rpc(),
+      "AccountNotInitialized",
+    );
+
+    // Mint all four parts; specs return Enc<Shared, Pack<GenPart>> to the
+    // authority's x25519 key (derived from its Solana keypair).
+    const viewerPriv = ed25519.utils.toMontgomerySecret(owner.secretKey.subarray(0, 32));
+    const viewerPub = ed25519.utils.toMontgomery(owner.publicKey.toBytes());
+    for (let p = 0; p < PARTS; p++) {
+      let state: any = await program.account.answerChunk.fetch(chunk);
+      if (state.partsSealed & (1 << p)) continue;
+      console.log(`gen_part_private chunk 0 part ${p}`);
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .genPartPrivate(offset, 0, p, Array.from(viewerPub))
+        .accountsPartial({ payer: owner.publicKey, benchmark, chunk, items: pitemsPda, ...arciumAccounts(offset, "gen_part_private") })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" });
+      const finalizeSig = await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+      state = await program.account.answerChunk.fetch(chunk);
+      if (!(state.partsSealed & (1 << p))) await dumpTx(provider, finalizeSig);
+      expect(state.partsSealed & (1 << p)).to.not.equal(0, `part ${p} minted`);
+    }
+    b = await program.account.benchmark.fetch(benchmark);
+    expect(b.status).to.equal(1, "private bank live");
+
+    // A public RPC reader sees ONLY ciphertext — the account layout has no
+    // plaintext spec field, and bytes are indistinguishable from random.
+    const info = await provider.connection.getAccountInfo(pitemsPda);
+    const st = decodePrivItemChunk(Buffer.from(info!.data));
+    expect(st.partsWritten).to.equal((1 << PARTS) - 1);
+    expect(Buffer.from(st.encryptionKey).equals(Buffer.from(viewerPub))).to.equal(true, "encrypted to the authority");
+
+    // The items_root commits to the ciphertext stream — verifiable without keys.
+    let root: Uint8Array = new Uint8Array(32);
+    for (let p = 0; p < PARTS; p++) {
+      const enc = concatBytes(st.ciphertexts[p * 2], st.ciphertexts[p * 2 + 1], u128le(st.nonces[p]));
+      root = privItemsFold(root, 0, p, enc);
+    }
+    expect(Buffer.from(root).equals(Buffer.from(b.itemsRoot))).to.equal(true, "ciphertext transcript committed on-chain");
+
+    // The authority decrypts: shared secret = DH(viewer_priv, mxe_pub).
+    const mxePublicKey = await getMXEPublicKeyWithRetry(provider, program.programId);
+    const cipher = new RescueCipher(x25519.getSharedSecret(viewerPriv, mxePublicKey));
+    const specs: ItemSpec[] = [];
+    for (let p = 0; p < PARTS; p++) {
+      const cts = st.ciphertexts.slice(p * 2, p * 2 + 2).map((x) => Array.from(x));
+      specs.push(...unpackSpecs(cipher.decrypt(cts, u128le(st.nonces[p]))));
+    }
+    expect(specs.length).to.equal(CHUNK);
+    for (const s of specs) {
+      expect(s.a).to.be.lessThan(64); expect(s.b).to.be.lessThan(64); expect(s.c).to.be.lessThan(64);
+      expect(s.op0).to.be.lessThan(3); expect(s.op1).to.be.lessThan(3);
+    }
+    const prompts = specs.map(renderPrompt);
+    expect(new Set(prompts).size).to.equal(CHUNK, "all private prompts distinct");
+    const truth = specs.map(evalSpec);
+
+    // Wrong-key decryption must NOT yield valid specs (range check catches it).
+    const stranger = Keypair.generate();
+    const wrongPriv = ed25519.utils.toMontgomerySecret(stranger.secretKey.subarray(0, 32));
+    const wrongCipher = new RescueCipher(x25519.getSharedSecret(wrongPriv, mxePublicKey));
+    const garbage = wrongCipher.decrypt(st.ciphertexts.slice(0, 2).map((x) => Array.from(x)), u128le(st.nonces[0]));
+    const gbytes = Array.from({ length: 40 }, (_, i) => {
+      const f = i < 26 ? 0 : 1;
+      return Number((garbage[f] >> BigInt(8 * (i - f * 26))) & 0xffn);
+    });
+    const plausible = gbytes.every((v, i) => (i % 5 < 3 ? v < 64 : v < 3));
+    expect(plausible).to.equal(false, "wrong key must not decode plausible specs");
+
+    // Score against it exactly like a public generated bank.
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.3 * LAMPORTS_PER_SOL);
+    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
+    await program.methods
+      .createRun("test/priv-oracle", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+
+    const PLANTED = 21;
+    const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(PRIV_ID, j, v) : randomU64()).toString()));
+    const offset = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .scoreChunk(offset, new anchor.BN(0), 0, outputs)
+      .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    const r = await program.account.run.fetch(run);
+    expect(r.status).to.equal(1, "finalized");
+    expect(r.correct).to.equal(PLANTED);
+    console.log(`private bank scored: ${r.correct}/${CHUNK} correct — specs never appeared on-chain`);
   });
 });
 

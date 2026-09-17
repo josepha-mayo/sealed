@@ -94,11 +94,9 @@ mod circuits {
         h
     }
 
-    /// Mint one part of a generated bank: 8 items drawn from MPC randomness and
-    /// their answer fingerprints, born encrypted to the MXE key. The item specs
-    /// come back public; the answers never exist in plaintext anywhere.
-    #[instruction]
-    pub fn gen_part(benchmark_id: u32, base_index: u32) -> (GenPart, Enc<Mxe, AnswerPart>) {
+    /// Shared mint loop: 8 item specs drawn from MPC randomness plus their
+    /// answer fingerprints. Used by both the public and private gen variants.
+    fn mint_part(benchmark_id: u32, base_index: u32) -> (GenPart, AnswerPart) {
         let mut specs = [ItemSpec { a: 0, b: 0, c: 0, op0: 0, op1: 0 }; PART];
         let mut hashes = [0u64; PART];
         for i in 0..PART {
@@ -111,7 +109,34 @@ mod circuits {
             specs[i] = ItemSpec { a, b, c, op0, op1 };
             hashes[i] = gen_answer_hash(benchmark_id, base_index + i as u32, ans);
         }
-        (GenPart { items: specs }, Mxe::get().from_arcis(AnswerPart { hashes }))
+        (GenPart { items: specs }, AnswerPart { hashes })
+    }
+
+    /// Mint one part of a generated bank: 8 items drawn from MPC randomness and
+    /// their answer fingerprints, born encrypted to the MXE key. The item specs
+    /// come back public; the answers never exist in plaintext anywhere.
+    #[instruction]
+    pub fn gen_part(benchmark_id: u32, base_index: u32) -> (GenPart, Enc<Mxe, AnswerPart>) {
+        let (gen, answers) = mint_part(benchmark_id, base_index);
+        (gen, Mxe::get().from_arcis(answers))
+    }
+
+    /// Mint one part of a PRIVATE generated bank: same mint, but the specs come
+    /// back packed and encrypted to the viewer's x25519 key (`Shared`). Only the
+    /// designated viewer — in practice the benchmark authority — can render the
+    /// prompts; the answers are still born `Enc<Mxe>`. Result: a bank where the
+    /// questions are confidential *and* no answer key exists anywhere.
+    #[instruction]
+    pub fn gen_part_private(
+        benchmark_id: u32,
+        base_index: u32,
+        viewer: ArcisX25519Pubkey,
+    ) -> (Enc<Shared, Pack<GenPart>>, Enc<Mxe, AnswerPart>) {
+        let (gen, answers) = mint_part(benchmark_id, base_index);
+        (
+            Shared::new(viewer).from_arcis(Pack::new(gen)),
+            Mxe::get().from_arcis(answers),
+        )
     }
 
     /// Declassify one part's answer fingerprints (not the answers — the hashes).

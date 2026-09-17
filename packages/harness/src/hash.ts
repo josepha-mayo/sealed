@@ -7,6 +7,7 @@ const DOMAIN_ITEM = utf8ToBytes("sealed/v1/item\0");
 const DOMAIN_OUTPUT = utf8ToBytes("sealed/v1/output\0");
 const DOMAIN_GEN_ANSWER = utf8ToBytes("sealed/v1/genanswer\0");
 const DOMAIN_GEN_ITEMS = utf8ToBytes("sealed/v1/genitems\0");
+const DOMAIN_PRIV_ITEMS = utf8ToBytes("sealed/v1/privitems\0");
 const DOMAIN_NODE = new Uint8Array([0x01]);
 
 export function u32le(n: number): Uint8Array {
@@ -54,6 +55,11 @@ export function genAnswerHash(benchmarkId: number, itemIndex: number, answer: bi
 /** One step of the on-chain items_root fold for generated banks (see gen_part_callback). */
 export function genItemsFold(root: Uint8Array, chunkIndex: number, part: number, specBytes: Uint8Array): Uint8Array {
   return sha256(concatBytes(DOMAIN_GEN_ITEMS, root, u32le(chunkIndex).subarray(0, 2), new Uint8Array([part]), specBytes));
+}
+
+/** Same fold for PRIVATE banks: commits to the encrypted spec stream (cts + nonce). */
+export function privItemsFold(root: Uint8Array, chunkIndex: number, part: number, encBytes: Uint8Array): Uint8Array {
+  return sha256(concatBytes(DOMAIN_PRIV_ITEMS, root, u32le(chunkIndex).subarray(0, 2), new Uint8Array([part]), encBytes));
 }
 
 /** Merkle leaf committing to a question without revealing it (salted). */
