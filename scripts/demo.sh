@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# Full Sealed demo on the running localnet: seal a benchmark, create a run,
-# open binary + 3-way markets while it's pending, bet, then score through
-# real MPC and resolve + claim. Requires: `arcium localnet` already up.
-# Usage: scripts/demo.sh [bank-seed]
+# Full Sealed demo on the running localnet.
+#
+# Part A (the headline): mint a benchmark INSIDE MPC — item specs drawn from
+#   ArcisRNG, answers computed + fingerprinted in-circuit, born encrypted to
+#   the MXE key. No answer key ever exists in plaintext.
+# Then: run a mock model, score through real MPC, and settle markets on the
+# finalized score.
+#
+# Requires: `arcium localnet` already up. Usage: scripts/demo.sh [bank-id-seed]
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export ANCHOR_PROVIDER_URL="${ANCHOR_PROVIDER_URL:-http://127.0.0.1:8899}"
+export SEALED_CLUSTER_OFFSET="${SEALED_CLUSTER_OFFSET:-0}"
 SEALED="yarn -s --cwd packages/harness cli"
 SEED="${1:-demo}"
-BANK="bank/demo-$SEED.json"
-ID=$(node -e "console.log(require('crypto').createHash('sha256').update(process.argv[1]).digest().readUInt32LE(0) % 100000)" "$SEED")
+ID=$(node -e "console.log(require('crypto').createHash('sha256').update('gen/' + process.argv[1]).digest().readUInt32LE(0) % 100000)" "$SEED")
 
 say() { printf '\n=== %s ===\n' "$*"; }
 
@@ -32,39 +37,39 @@ console.log(pda[0].toBase58());
 EOF
 }
 
-say "1/7 build benchmark bank (seed=$SEED, id=$ID, 64 items)"
-$SEALED bank build --seed "$SEED" --id "$ID" --chunks 2 --out "$BANK"
+say "1/6 comp defs + circuits (once per deployment)"
+$SEALED chain init
+
+say "2/6 mint a generated benchmark inside MPC (id=$ID, 64 items, NO answer key)"
+$SEALED chain gen --id "$ID" --chunks 2
 BENCH=$(PDA benchmark "$ID")
 echo "benchmark PDA: $BENCH"
 
-say "2/7 seal answers into Arcium MPC ciphertext"
-$SEALED chain seal --bank "$BANK"
-
-say "3/7 create run 0 (mock model, 80% correct) — PENDING, outputs committed"
-$SEALED run --bank "$BANK" --model mock/oracle-0.8 --out /tmp/run-good.json
-$SEALED chain score --bank "$BANK" --run /tmp/run-good.json --create-only
+say "3/6 create run 0 (mock model, 75% correct) — PENDING, outputs committed"
+$SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.75 --out /tmp/run-gen.json
+$SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --create-only
 RUN0=$(PDA run "$BENCH" 0)
 echo "run PDA: $RUN0"
 
-say "4/7 open markets on the pending run + place bets"
-$SEALED chain market open --run "$RUN0" --threshold 50
+say "4/6 open markets on the pending run + place bets"
+$SEALED chain market open --run "$RUN0" --threshold 48
 MKT_BIN=$(PDA market "$RUN0" 0)
 $SEALED chain market open --run "$RUN0" --edges 32,48 --salt 1
 MKT_3WAY=$(PDA market "$RUN0" 1)
 $SEALED chain market bet --market "$MKT_BIN" --outcome 1 --lamports 300000000
 for oc in 0 1 2; do $SEALED chain market bet --market "$MKT_3WAY" --outcome "$oc" --lamports 10000000; done
 
-say "5/7 score run 0 through MPC"
-$SEALED chain score --bank "$BANK" --run /tmp/run-good.json --run-index 0
+say "5/6 score run 0 through MPC (hash-compare vs answers born encrypted)"
+$SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --run-index 0
 
-say "6/7 resolve markets + claim"
+say "6/6 resolve markets + claim, then leaderboard"
 $SEALED chain market resolve --market "$MKT_BIN"
 $SEALED chain market resolve --market "$MKT_3WAY"
 $SEALED chain market claim --market "$MKT_BIN" || true
 $SEALED chain market claim --market "$MKT_3WAY" || true
-
-say "7/7 leaderboard"
 $SEALED chain status --benchmark "$BENCH"
 
 echo
-echo "explorer: python3 -m http.server -d web 8890  →  http://localhost:8890  (rpc: $ANCHOR_PROVIDER_URL)"
+echo "the minted item specs are public — see them rendered in the explorer:"
+echo "  python3 -m http.server -d web 8788  →  http://localhost:8788/?rpc=$ANCHOR_PROVIDER_URL"
+echo "or:  $SEALED chain items --benchmark $BENCH"
