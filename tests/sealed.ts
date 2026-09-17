@@ -34,6 +34,36 @@ import {
 import * as fs from "fs";
 import * as os from "os";
 import { expect } from "chai";
+import { sha3_256 } from "@noble/hashes/sha3.js";
+import { concatBytes, utf8ToBytes } from "@noble/hashes/utils.js";
+
+// Mirrors of packages/harness/src/genbank.ts, kept independent so the test
+// detects client/circuit drift rather than sharing a bug with the client.
+const DOMAIN_GEN_ANSWER = utf8ToBytes("sealed/v1/genanswer\0");
+function genAnswerHash(benchmarkId: number, itemIndex: number, answer: bigint): bigint {
+  const id = Buffer.alloc(4); id.writeUInt32LE(benchmarkId);
+  const ix = Buffer.alloc(4); ix.writeUInt32LE(itemIndex);
+  const a = Buffer.alloc(8); a.writeBigInt64LE(answer);
+  const d = sha3_256(concatBytes(DOMAIN_GEN_ANSWER, id, ix, a));
+  return new DataView(d.buffer, 0, 8).getBigUint64(0, true);
+}
+interface ItemSpec { a: number; b: number; c: number; op0: number; op1: number; }
+function evalSpec(s: ItemSpec): bigint {
+  const ap = (x: bigint, op: number, y: bigint) => (op === 0 ? x + y : op === 1 ? x - y : x * y);
+  return ap(ap(BigInt(s.a), s.op0, BigInt(s.b)), s.op1, BigInt(s.c));
+}
+function renderPrompt(s: ItemSpec): string {
+  const OPS = ["+", "-", "*"];
+  return `Evaluate (((${s.a} ${OPS[s.op0]} ${s.b}) ${OPS[s.op1]} ${s.c})). Reply with only the integer.\nANSWER:`;
+}
+function decodeItemChunk(data: Buffer): { index: number; partsWritten: number; specs: ItemSpec[] } {
+  const specs: ItemSpec[] = [];
+  for (let i = 0; i < CHUNK; i++) {
+    const o = 44 + i * 5;
+    specs.push({ a: data[o], b: data[o + 1], c: data[o + 2], op0: data[o + 3], op1: data[o + 4] });
+  }
+  return { index: data.readUInt16LE(40), partsWritten: data[43], specs };
+}
 
 const CHUNK = 32;
 const PART = 8;
@@ -95,7 +125,7 @@ describe("Sealed", () => {
     );
     const itemsRoot = randomBytes(32);
     await program.methods
-      .createBenchmark(BENCH_ID, "sealed-test", CHUNKS, Array.from(itemsRoot), new anchor.BN(FEE))
+      .createBenchmark(BENCH_ID, "sealed-test", CHUNKS, Array.from(itemsRoot), new anchor.BN(FEE), 0)
       .accounts({ authority: owner.publicKey })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -374,6 +404,92 @@ describe("Sealed", () => {
     const noAfter = await provider.connection.getBalance(no.publicKey);
     expect(noAfter - noBefore).to.be.greaterThan(0.29 * LAMPORTS_PER_SOL, "NO bettor profited");
     console.log(`market settled: NO bettor ${noBefore / LAMPORTS_PER_SOL} -> ${noAfter / LAMPORTS_PER_SOL} SOL`);
+  });
+
+  it("mints a generated bank inside MPC and scores a run against it", async () => {
+    await initCompDef("gen_part", () => program.methods.initGenPartCompDef());
+
+    const GEN_ID = 2;
+    const GCHUNKS = 1;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
+      program.programId,
+    );
+    // Generated banks start items_root at zero; each gen_part callback folds its specs in.
+    await program.methods
+      .createBenchmark(GEN_ID, "sealed-gen", GCHUNKS, Array.from(new Uint8Array(32)), new anchor.BN(0), 1)
+      .accounts({ authority: owner.publicKey })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    let b = await program.account.benchmark.fetch(benchmark);
+    expect(b.kind).to.equal(1);
+
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
+    await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ commitment: "confirmed" });
+    await program.methods.initItems(0).accounts({ authority: owner.publicKey, benchmark, items: itemsPda }).signers([owner]).rpc({ commitment: "confirmed" });
+
+    // Authored-only paths must reject a generated bank.
+    const authorPub = x25519.getPublicKey(x25519.utils.randomSecretKey());
+    await expectAnchorError(
+      program.methods
+        .stagePart(0, 0, Array.from(authorPub), new anchor.BN(1), Array.from({ length: PART }, () => Array.from(randomBytes(32))))
+        .accounts({ authority: owner.publicKey, benchmark, chunk })
+        .signers([owner])
+        .rpc(),
+      "WrongBankKind",
+    );
+
+    // Mint all four parts: item specs land public in the ItemChunk, the answer
+    // fingerprints land sealed in the AnswerChunk — no plaintext key ever existed.
+    for (let p = 0; p < PARTS; p++) {
+      console.log(`gen_part chunk 0 part ${p}`);
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .genPart(offset, 0, p)
+        .accountsPartial({ payer: owner.publicKey, benchmark, chunk, items: itemsPda, ...arciumAccounts(offset, "gen_part") })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" });
+      const finalizeSig = await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+      const state = await program.account.answerChunk.fetch(chunk);
+      if (!(state.partsSealed & (1 << p))) await dumpTx(provider, finalizeSig);
+      expect(state.partsSealed & (1 << p)).to.not.equal(0, `part ${p} minted`);
+    }
+    const itemsAcc = await provider.connection.getAccountInfo(itemsPda);
+    const st = decodeItemChunk(Buffer.from(itemsAcc!.data));
+    expect(st.partsWritten).to.equal((1 << PARTS) - 1);
+    b = await program.account.benchmark.fetch(benchmark);
+    expect(b.status).to.equal(1, "generated bank live");
+    expect(Buffer.from(b.itemsRoot).equals(Buffer.alloc(32))).to.equal(false, "items_root folded");
+
+    // Specs are public: render the prompts and derive the true values locally.
+    const prompts = st.specs.map(renderPrompt);
+    expect(new Set(prompts).size).to.equal(CHUNK, "all prompts distinct");
+    const truth = st.specs.map(evalSpec);
+
+    // A run that answers the first PLANTED items correctly, garbage elsewhere.
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.3 * LAMPORTS_PER_SOL);
+    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
+    await program.methods
+      .createRun("test/gen-oracle", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+
+    const PLANTED = 17;
+    const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(GEN_ID, j, v) : randomU64()).toString()));
+    const offset = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .scoreChunk(offset, new anchor.BN(0), 0, outputs)
+      .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    const r = await program.account.run.fetch(run);
+    expect(r.status).to.equal(1, "finalized");
+    expect(r.correct).to.equal(PLANTED);
+    console.log(`generated bank scored: ${r.correct}/${CHUNK} correct, answers never existed in plaintext`);
   });
 });
 

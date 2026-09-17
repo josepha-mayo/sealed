@@ -3,7 +3,8 @@
  * The chain half (create_run / score_chunk) consumes `RunArtifact`.
  */
 import { canonicalAnswer } from "./canonical.js";
-import { answerHash, outputLeaf, merkleRoot, hex } from "./hash.js";
+import { answerHash, genAnswerHash, outputLeaf, merkleRoot, hex } from "./hash.js";
+import { parseCanonicalInt } from "./genbank.js";
 import { type Bank, CHUNK } from "./bank.js";
 import { type HarnessConfig, DEFAULT_CONFIG, ModelClient, configHash } from "./models.js";
 
@@ -39,9 +40,12 @@ export async function runModel(
 ): Promise<RunArtifact> {
   const startedAt = new Date().toISOString();
   const completions = await client.completeAll(model, bank.items.map((it) => it.prompt), cfg, onProgress);
+  const gen = bank.kind === "generated";
   const items: RunItemRecord[] = bank.items.map((it, i) => {
     const canonical = canonicalAnswer(completions[i].text);
-    const h = answerHash(bank.benchmarkId, it.index, canonical);
+    const h = gen
+      ? genAnswerHash(bank.benchmarkId, it.index, parseCanonicalInt(canonical))
+      : answerHash(bank.benchmarkId, it.index, canonical);
     return {
       index: it.index,
       raw: completions[i].text,

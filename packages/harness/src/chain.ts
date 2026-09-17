@@ -6,7 +6,7 @@
  *      (default ~/.config/solana/id.json), SEALED_CLUSTER_OFFSET (Arcium cluster
  *      offset; localnet value comes from `arcium` env, devnet is 456).
  */
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -35,6 +35,7 @@ import {
 } from "@arcium-hq/client";
 import { randomBytes } from "node:crypto";
 import { type Bank, CHUNK, PART, chunkHashes } from "./bank.js";
+import { bankFromChunks, decodeItemChunk, type ItemChunkState } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
 
 const require = createRequire(import.meta.url);
@@ -81,8 +82,9 @@ function pdas(ctx: Ctx, authority: PublicKey, benchmarkId: number) {
   const pid = ctx.program.programId;
   const [benchmark] = PublicKey.findProgramAddressSync([Buffer.from("benchmark"), authority.toBuffer(), u32le(benchmarkId)], pid);
   const chunk = (i: number) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], pid)[0];
+  const items = (i: number) => PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(i)], pid)[0];
   const run = (i: bigint) => PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(i)], pid)[0];
-  return { benchmark, chunk, run };
+  return { benchmark, chunk, items, run };
 }
 
 function arciumAccounts(ctx: Ctx, offset: AnchorTypes.BN, ix: string) {
@@ -127,6 +129,7 @@ export async function init(ctx = setup()) {
   for (const [name, method] of [
     ["seal_part", "initSealPartCompDef"],
     ["score_chunk", "initScoreChunkCompDef"],
+    ["gen_part", "initGenPartCompDef"],
   ] as const) {
     const compDef = PublicKey.findProgramAddressSync(
       [getArciumAccountBaseSeed("ComputationDefinitionAccount"), program.programId.toBuffer(), getCompDefAccOffset(name)],
@@ -162,10 +165,12 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
   if (!b) {
     console.log(`create_benchmark id=${bank.benchmarkId} chunks=${bank.chunkCount} root=${bank.itemsRoot}`);
     await program.methods
-      .createBenchmark(bank.benchmarkId, `sealed-v${bank.benchmarkId}`, bank.chunkCount, Array.from(Buffer.from(bank.itemsRoot, "hex")), new anchor.BN(feeLamports.toString()))
+      .createBenchmark(bank.benchmarkId, `sealed-v${bank.benchmarkId}`, bank.chunkCount, Array.from(Buffer.from(bank.itemsRoot, "hex")), new anchor.BN(feeLamports.toString()), 0)
       .accounts({ authority: wallet.publicKey })
       .rpc({ commitment: "confirmed" });
     b = await acct.benchmark.fetch(benchmark);
+  } else if (b.kind !== 0) {
+    throw new Error(`benchmark ${benchmark.toBase58()} is a generated bank; use 'chain gen'`);
   } else if (Buffer.from(b.itemsRoot).toString("hex") !== bank.itemsRoot) {
     throw new Error(`benchmark ${benchmark.toBase58()} exists with a different items_root; bump the id`);
   }
@@ -223,6 +228,93 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
   b = await acct.benchmark.fetch(benchmark);
   console.log(`benchmark ${benchmark.toBase58()} status=${b.status === 1 ? "LIVE" : b.status} sealed=${b.chunksSealed}/${b.chunkCount}`);
   return benchmark;
+}
+
+// ------------------------------------------------------------------ generated banks
+
+/**
+ * Mint a generated bank: the items are drawn from MPC randomness by `gen_part`,
+ * the answer fingerprints are born encrypted to the MXE key, and only the public
+ * item specs land on-chain (in `ItemChunk` accounts). There is no answer key —
+ * nothing to stage, seal, or leak. Returns the rendered Bank (prompts anyone
+ * can regenerate; `answer`/`answerHash` fields are derived locally only).
+ */
+export async function gen(benchmarkId: number, chunkCount: number, feeLamports: bigint, ctx = setup()) {
+  const { program, wallet } = ctx;
+  const { benchmark, chunk, items } = pdas(ctx, wallet.publicKey, benchmarkId);
+  const acct = program.account as any;
+
+  let b: any = await fetchOrNull(acct.benchmark.fetch(benchmark));
+  if (!b) {
+    console.log(`create_benchmark id=${benchmarkId} chunks=${chunkCount} kind=generated`);
+    await program.methods
+      .createBenchmark(benchmarkId, `sealed-gen-v${benchmarkId}`, chunkCount, Array.from(new Uint8Array(32)), new anchor.BN(feeLamports.toString()), 1)
+      .accounts({ authority: wallet.publicKey })
+      .rpc({ commitment: "confirmed" });
+    b = await acct.benchmark.fetch(benchmark);
+  } else if (b.kind !== 1) {
+    throw new Error(`benchmark ${benchmark.toBase58()} exists as an authored bank; bump the id`);
+  }
+  console.log(`benchmark ${benchmark.toBase58()} status=${b.status} sealed=${b.chunksSealed}/${b.chunkCount}`);
+
+  const PARTS = CHUNK / PART;
+  const ALL = (1 << PARTS) - 1;
+  for (let i = 0; i < b.chunkCount; i++) {
+    const c = chunk(i);
+    const it = items(i);
+    let state: any = await fetchOrNull(acct.answerChunk.fetch(c));
+    if (state?.partsSealed === ALL) {
+      console.log(`chunk ${i}: already minted`);
+      continue;
+    }
+    if (!state) {
+      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ commitment: "confirmed" });
+      state = await acct.answerChunk.fetch(c);
+    }
+    if (!(await fetchOrNull(acct.itemChunk.fetch(it)))) {
+      await program.methods.initItems(i).accounts({ authority: wallet.publicKey, benchmark, items: it }).rpc({ commitment: "confirmed" });
+    }
+    for (let p = 0; p < PARTS; p++) {
+      if (state.partsSealed & (1 << p)) continue;
+      if (state.sealingPart !== p) {
+        const offset = new anchor.BN(randomBytes(8), "hex");
+        await program.methods
+          .genPart(offset, i, p)
+          .accountsPartial({ payer: wallet.publicKey, benchmark, chunk: c, items: it, ...arciumAccounts(ctx, offset, "gen_part") })
+          .rpc({ commitment: "confirmed" });
+      }
+      process.stdout.write(`chunk ${i} part ${p}: minting in MPC...`);
+      state = await waitFor(acct.answerChunk, c, (s) => (s.partsSealed & (1 << p)) !== 0);
+      console.log(state.partsSealed & (1 << p) ? " minted" : " STILL PENDING");
+    }
+  }
+  b = await acct.benchmark.fetch(benchmark);
+  console.log(`benchmark ${benchmark.toBase58()} status=${b.status === 1 ? "LIVE" : b.status} minted=${b.chunksSealed}/${b.chunkCount}`);
+
+  const bank = await fetchGenBank(benchmark, b.chunkCount, ctx);
+  console.log(`items_root ${bank.itemsRoot} (${bank.items.length} minted items, answers never existed in plaintext)`);
+  return { benchmark, bank };
+}
+
+/** Fetch all ItemChunk accounts for a generated bank and render the Bank file. */
+export async function fetchGenBank(benchmark: PublicKey, chunkCount: number, ctx = setup()): Promise<Bank> {
+  const { program } = ctx;
+  const acct = program.account as any;
+  const b: any = await acct.benchmark.fetch(benchmark);
+  if (b.kind !== 1) throw new Error(`benchmark ${benchmark.toBase58()} is not a generated bank`);
+  const pd = pdas(ctx, b.authority, b.id);
+  const chunks: ItemChunkState[] = [];
+  for (let i = 0; i < chunkCount; i++) {
+    const info = await ctx.provider.connection.getAccountInfo(pd.items(i));
+    if (!info) throw new Error(`ItemChunk ${i} missing — bank not fully minted`);
+    chunks.push(decodeItemChunk(Buffer.from(info.data)));
+  }
+  const bank = bankFromChunks(b.id, chunks);
+  const onchain = Buffer.from(b.itemsRoot).toString("hex");
+  if (b.status === 1 && bank.itemsRoot !== onchain) {
+    throw new Error(`items_root mismatch: local fold ${bank.itemsRoot} != on-chain ${onchain}`);
+  }
+  return bank;
 }
 
 // ------------------------------------------------------------------ score
@@ -441,6 +533,29 @@ export async function chainMain(cmd: string[], args: Args) {
     const bank = loadJson(String(args.bank)) as Bank;
     const fee = BigInt(String(args["fee-lamports"] ?? 0));
     await seal(bank, fee);
+    return;
+  }
+  if (sub === "gen") {
+    const id = Number(args.id);
+    if (!Number.isFinite(id)) throw new Error("--id <n>");
+    const chunks = Number(args.chunks ?? 2);
+    const fee = BigInt(String(args["fee-lamports"] ?? 0));
+    const { bank } = await gen(id, chunks, fee);
+    const out = String(args.out ?? join("bank", `gen-${id}.json`));
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");
+    console.log(`wrote ${out}`);
+    return;
+  }
+  if (sub === "items") {
+    const ctx = setup();
+    const acct = ctx.program.account as any;
+    const b: any = await acct.benchmark.fetch(new PublicKey(String(args.benchmark)));
+    const bank = await fetchGenBank(new PublicKey(String(args.benchmark)), b.chunkCount, ctx);
+    const out = String(args.out ?? join("bank", `gen-${b.id}.json`));
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");
+    console.log(`wrote ${out} (${bank.items.length} items)`);
     return;
   }
   if (sub === "score") {

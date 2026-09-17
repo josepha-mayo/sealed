@@ -16,6 +16,8 @@ export interface BankItem extends Item {
 
 export interface Bank {
   schema: "sealed.bank/1";
+  /** "authored" (default) | "generated" — rendered from on-chain MPC-minted specs. */
+  kind?: string;
   benchmarkId: number;
   chunkCount: number;
   chunk: number;

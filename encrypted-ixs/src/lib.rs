@@ -37,6 +37,83 @@ mod circuits {
         Mxe::get().from_arcis(part)
     }
 
+    /// A generated arithmetic item: evaluate `((a op0 b) op1 c)`; ops 0=+ 1=- 2=*.
+    /// All fields are public — the prompt is rendered from the spec off-circuit.
+    /// Drawn from ArcisRNG inside MPC, so no human ever held this item.
+    #[derive(Copy, Clone)]
+    pub struct ItemSpec {
+        pub a: u8,
+        pub b: u8,
+        pub c: u8,
+        pub op0: u8,
+        pub op1: u8,
+    }
+
+    /// Public half of `gen_part`: the 8 item specs minted in this computation.
+    pub struct GenPart {
+        pub items: [ItemSpec; PART],
+    }
+
+    const OP_ADD: u8 = 0;
+    const OP_SUB: u8 = 1;
+    const OP_MUL: u8 = 2;
+
+    fn apply_op(x: i64, op: u8, y: i64) -> i64 {
+        if op == OP_ADD {
+            x + y
+        } else if op == OP_SUB {
+            x - y
+        } else {
+            x * y
+        }
+    }
+
+    /// Answer fingerprint for generated banks:
+    /// u64le(SHA3-256("sealed/v1/genanswer\0" || u32le(id) || u32le(item) || le8(ans))[0..8]).
+    /// The payload is the answer as 8 little-endian bytes (two's complement); the
+    /// harness derives it from the model's canonical reply by parsing it as an
+    /// integer, so no decimal rendering happens inside MPC.
+    fn gen_answer_hash(benchmark_id: u32, item_index: u32, ans: i64) -> u64 {
+        let mut msg = [0u8; 36];
+        let domain = *b"sealed/v1/genanswer\0";
+        for i in 0..20 {
+            msg[i] = domain[i];
+        }
+        for i in 0..4 {
+            msg[20 + i] = ((benchmark_id >> (8 * i)) & 0xff) as u8;
+            msg[24 + i] = ((item_index >> (8 * i)) & 0xff) as u8;
+        }
+        for i in 0..8 {
+            msg[28 + i] = ((ans >> (8 * i)) & 0xff) as u8;
+        }
+        let digest = SHA3_256::new().digest(&msg);
+        let mut h: u64 = 0;
+        for i in 0..8 {
+            h |= (digest[i] as u64) << (8 * i);
+        }
+        h
+    }
+
+    /// Mint one part of a generated bank: 8 items drawn from MPC randomness and
+    /// their answer fingerprints, born encrypted to the MXE key. The item specs
+    /// come back public; the answers never exist in plaintext anywhere.
+    #[instruction]
+    pub fn gen_part(benchmark_id: u32, base_index: u32) -> (GenPart, Enc<Mxe, AnswerPart>) {
+        let mut specs = [ItemSpec { a: 0, b: 0, c: 0, op0: 0, op1: 0 }; PART];
+        let mut hashes = [0u64; PART];
+        for i in 0..PART {
+            let a = ArcisRNG::gen_public_integer_from_width(6) as u8; // 0..63
+            let b = ArcisRNG::gen_public_integer_from_width(6) as u8;
+            let c = ArcisRNG::gen_public_integer_from_width(6) as u8;
+            let op0 = (ArcisRNG::gen_public_integer_from_width(2) as u8) % 3;
+            let op1 = (ArcisRNG::gen_public_integer_from_width(2) as u8) % 3;
+            let ans = apply_op(apply_op(a as i64, op0, b as i64), op1, c as i64);
+            specs[i] = ItemSpec { a, b, c, op0, op1 };
+            hashes[i] = gen_answer_hash(benchmark_id, base_index + i as u32, ans);
+        }
+        (GenPart { items: specs }, Mxe::get().from_arcis(AnswerPart { hashes }))
+    }
+
     /// Count positions where the run's output hash equals the sealed answer hash.
     /// `outputs` is public (it is the run's permanent commitment to what the model
     /// said); the per-item match bits are never revealed, only their sum.

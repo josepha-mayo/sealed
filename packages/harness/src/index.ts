@@ -3,5 +3,6 @@ export * from "./canonical.js";
 export * from "./hash.js";
 export * from "./items.js";
 export * from "./bank.js";
+export * from "./genbank.js";
 export * from "./models.js";
 export * from "./run.js";

@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { PublicKey } from "@solana/web3.js";
 import { Prng } from "../src/prng.js";
 import { canonicalAnswer, normalize } from "../src/canonical.js";
-import { answerHash, itemLeaf, outputLeaf, merkleRoot, merkleProof, verifyProof, harnessHash, hex } from "../src/hash.js";
+import { answerHash, genAnswerHash, itemLeaf, outputLeaf, merkleRoot, merkleProof, verifyProof, harnessHash, hex } from "../src/hash.js";
 import { FAMILIES } from "../src/items.js";
-import { buildBank, chunkHashes, CHUNK } from "../src/bank.js";
+import { buildBank, chunkHashes, CHUNK, PART } from "../src/bank.js";
+import { bankFromChunks, decodeItemChunk, evalSpec, parseCanonicalInt, renderPrompt, specBytes, UNPARSEABLE, type ItemChunkState, type ItemSpec } from "../src/genbank.js";
 import { runModel, runChunkOutputs } from "../src/run.js";
 import { ModelClient } from "../src/models.js";
 
@@ -124,4 +126,84 @@ test("output proofs verify against the committed outputs_root (prover/verifier s
   const bad = new Uint8Array(leaves[i]); bad[0] ^= 1;
   assert.ok(!verifyProof(bad, i, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
   assert.ok(!verifyProof(leaf, i + 1, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
+});
+
+// ------------------------------------------------- generated (MPC-minted) banks
+
+test("evalSpec matches the circuit: ((a op0 b) op1 c), ops +,-,*", () => {
+  const s = (a: number, b: number, c: number, op0: number, op1: number): ItemSpec => ({ a, b, c, op0, op1 });
+  assert.equal(evalSpec(s(2, 3, 4, 0, 0)), 9n);      // (2+3)+4
+  assert.equal(evalSpec(s(2, 3, 4, 0, 1)), 1n);      // (2+3)-4
+  assert.equal(evalSpec(s(2, 3, 4, 0, 2)), 20n);     // (2+3)*4
+  assert.equal(evalSpec(s(2, 3, 4, 1, 0)), 3n);      // (2-3)+4
+  assert.equal(evalSpec(s(2, 3, 4, 2, 1)), 2n);      // (2*3)-4
+  assert.equal(evalSpec(s(2, 3, 4, 2, 2)), 24n);     // (2*3)*4
+  assert.equal(evalSpec(s(0, 63, 63, 1, 2)), -3969n); // min corner
+  assert.equal(evalSpec(s(63, 63, 63, 2, 2)), 250047n); // max corner
+});
+
+test("generated spec -> prompt -> model reply -> genAnswerHash round-trips", () => {
+  const spec: ItemSpec = { a: 17, b: 29, c: 41, op0: 0, op1: 2 };
+  const prompt = renderPrompt(spec);
+  assert.ok(prompt.includes("17") && prompt.includes("29") && prompt.includes("41"));
+  // The oracle replies with the true value in sloppy format; the pipeline must still match.
+  const canonical = canonicalAnswer(`reasoning...\n**ANSWER:** ${evalSpec(spec)} .`);
+  assert.equal(genAnswerHash(9, 3, parseCanonicalInt(canonical)), genAnswerHash(9, 3, evalSpec(spec)));
+  // Binding: benchmark id and index both matter.
+  assert.notEqual(genAnswerHash(9, 3, evalSpec(spec)), genAnswerHash(9, 4, evalSpec(spec)));
+  assert.notEqual(genAnswerHash(9, 3, evalSpec(spec)), genAnswerHash(10, 3, evalSpec(spec)));
+  // Non-integer replies get the unmatchable sentinel.
+  assert.equal(parseCanonicalInt("no idea"), UNPARSEABLE);
+  assert.equal(parseCanonicalInt("-3969"), -3969n);
+  assert.equal(parseCanonicalInt("250047"), 250047n);
+});
+
+test("ItemChunk decode and items_root fold are deterministic and lossless", () => {
+  const rng = new Prng("t", "genchunk");
+  const specs: ItemSpec[] = Array.from({ length: CHUNK }, () => ({
+    a: rng.int(0, 63), b: rng.int(0, 63), c: rng.int(0, 63), op0: rng.int(0, 2), op1: rng.int(0, 2),
+  }));
+  const data = Buffer.alloc(8 + 32 + 2 + 1 + 1 + CHUNK * 5);
+  new PublicKey("11111111111111111111111111111112").toBuffer().copy(data, 8);
+  data.writeUInt16LE(1, 40);
+  data[42] = 254;
+  data[43] = 0b1111;
+  specs.forEach((s, i) => Buffer.from(specBytes(s)).copy(data, 44 + i * 5));
+  const st = decodeItemChunk(data);
+  assert.equal(st.index, 1);
+  assert.equal(st.partsWritten, 0b1111);
+  assert.deepEqual(st.specs, specs);
+
+  const bank = bankFromChunks(5, [st]);
+  assert.equal(bank.kind, "generated");
+  assert.equal(bank.items.length, CHUNK);
+  assert.equal(bank.items[0].index, CHUNK); // chunk 1 -> indices 32..63
+  assert.equal(bank.items[0].answer, evalSpec(specs[0]).toString());
+  assert.equal(BigInt(bank.items[0].answerHash), genAnswerHash(5, CHUNK, evalSpec(specs[0])));
+  assert.equal(bank.itemsRoot.length, 64);
+  // Every spec occupies a distinct slot in the fold: same specs, different chunk -> different root.
+  const st2 = { ...st, index: 0 };
+  assert.notEqual(bankFromChunks(5, [st2]).itemsRoot, bank.itemsRoot);
+});
+
+test("generated bank scores model outputs through the same pipeline", async () => {
+  const specs: ItemSpec[] = Array.from({ length: CHUNK }, (_, i) => ({
+    a: (i * 7) % 64, b: (i * 11) % 64, c: (i * 13) % 64, op0: i % 3, op1: (i * 2) % 3,
+  }));
+  const st: ItemChunkState = { benchmark: new PublicKey("11111111111111111111111111111112"), index: 0, partsWritten: (1 << (CHUNK / PART)) - 1, specs };
+  const bank = bankFromChunks(6, [st]);
+  const client = new ModelClient({
+    apiKey: "test",
+    fetchImpl: (async (_u: string | URL | Request, init?: RequestInit) => {
+      const prompt: string = JSON.parse(String(init?.body)).messages[1].content;
+      const item = bank.items.find((it) => it.prompt === prompt)!;
+      const right = item.index % 4 !== 3;
+      return new Response(JSON.stringify({ choices: [{ message: { content: `ANSWER: ${right ? item.answer : "?"}` } }] }), { status: 200 });
+    }) as typeof fetch,
+  });
+  const run = await runModel(bank, "oracle/three-quarter", client);
+  assert.equal(run.localCorrect, (CHUNK / 4) * 3);
+  const refs = bank.items.map((it) => BigInt(it.answerHash));
+  const matches = runChunkOutputs(run, 0).filter((h, i) => h === refs[i]).length;
+  assert.equal(matches, (CHUNK / 4) * 3);
 });

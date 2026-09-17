@@ -137,6 +137,8 @@ async function main() {
                     (model "mock/oracle-<p>" answers a fraction p correctly, offline)
   sealed chain init                                   init comp defs + upload circuits (once per deployment)
   sealed chain seal  --bank <file> [--fee-lamports n]
+  sealed chain gen   --id <n> [--chunks 2] [--fee-lamports n] [--out file]   MPC-minted bank: no answer key exists
+  sealed chain items --benchmark <pubkey> [--out file]                      render a generated bank from on-chain specs
   sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
   sealed chain status --benchmark <pubkey>
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary

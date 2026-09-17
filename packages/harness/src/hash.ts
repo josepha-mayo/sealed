@@ -1,9 +1,12 @@
 import { sha256 } from "@noble/hashes/sha2.js";
+import { sha3_256 } from "@noble/hashes/sha3.js";
 import { utf8ToBytes, concatBytes } from "@noble/hashes/utils.js";
 
 const DOMAIN_ANSWER = utf8ToBytes("sealed/v1/answer\0");
 const DOMAIN_ITEM = utf8ToBytes("sealed/v1/item\0");
 const DOMAIN_OUTPUT = utf8ToBytes("sealed/v1/output\0");
+const DOMAIN_GEN_ANSWER = utf8ToBytes("sealed/v1/genanswer\0");
+const DOMAIN_GEN_ITEMS = utf8ToBytes("sealed/v1/genitems\0");
 const DOMAIN_NODE = new Uint8Array([0x01]);
 
 export function u32le(n: number): Uint8Array {
@@ -18,6 +21,13 @@ export function u64le(n: bigint): Uint8Array {
   return b;
 }
 
+/** Signed 64-bit little-endian — the circuit encodes answers as two's-complement i64. */
+export function i64le(n: bigint): Uint8Array {
+  const b = new Uint8Array(8);
+  new DataView(b.buffer).setBigInt64(0, n, true);
+  return b;
+}
+
 /** First 8 bytes of SHA-256 as a little-endian u64. This is what the circuit compares. */
 export function truncate64(digest: Uint8Array): bigint {
   return new DataView(digest.buffer, digest.byteOffset, 8).getBigUint64(0, true);
@@ -28,6 +38,22 @@ export function answerHash(benchmarkId: number, itemIndex: number, canonical: st
   return truncate64(
     sha256(concatBytes(DOMAIN_ANSWER, u32le(benchmarkId), u32le(itemIndex), utf8ToBytes(canonical))),
   );
+}
+
+/**
+ * Generated-bank answer fingerprint. The circuit hashes the answer as 8 raw
+ * two's-complement bytes (SHA3-256), so the runner must parse the model's
+ * canonical reply as an integer rather than hashing the string.
+ */
+export function genAnswerHash(benchmarkId: number, itemIndex: number, answer: bigint): bigint {
+  return truncate64(
+    sha3_256(concatBytes(DOMAIN_GEN_ANSWER, u32le(benchmarkId), u32le(itemIndex), i64le(answer))),
+  );
+}
+
+/** One step of the on-chain items_root fold for generated banks (see gen_part_callback). */
+export function genItemsFold(root: Uint8Array, chunkIndex: number, part: number, specBytes: Uint8Array): Uint8Array {
+  return sha256(concatBytes(DOMAIN_GEN_ITEMS, root, u32le(chunkIndex).subarray(0, 2), new Uint8Array([part]), specBytes));
 }
 
 /** Merkle leaf committing to a question without revealing it (salted). */
