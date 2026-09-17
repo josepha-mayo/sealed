@@ -56,7 +56,8 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   `items_root` fold commits to the ciphertext stream (`sealed/v1/privitems`
   over cts‖nonce) so the mint transcript is auditable without the key.
   Verified E2E: 4 MPC computations minted a private 32-item bank → LIVE →
-  `mock/oracle-0.75` scored **23/32 == local pre-score**; the anchor test
+  CLI `mock/oracle-0.75` scored **23/32 == local pre-score** (the anchor
+  suite plants 21/32); the anchor test
   proves the public-items path is rejected `WrongBankKind`, a private mint on
   a public bank fails, and a wrong-key decrypt yields out-of-range garbage.
 - **Selective question disclosure (reshare_part):** the `reshare_part` circuit

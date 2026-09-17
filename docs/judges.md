@@ -25,10 +25,16 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 
 ## 3-minute reproduction
 
+Prereqs: `yarn install && arcium build` once (compiles circuits + IDL).
+
 ```bash
+# 0. chain env (localnet cluster offset)
+export SEALED_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
+
 # 1. see the whole thing work on localnet (MPC mint -> private bank -> delegate
 #    -> model -> score -> markets)
-arcium localnet &              # or scripts/localnet-up.sh if already bootstrapped
+arcium localnet &              # first bootstrap; if it times out on backup
+                               # nodes, re-run it or use scripts/localnet-up.sh
 scripts/demo.sh
 
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
@@ -43,9 +49,10 @@ yarn harness:test              # 12/12 unit
 
 ## The 30-second wow moment
 
-`chain pitems` on a private benchmark prints **only ciphertext** — the
-questions do not exist in plaintext on-chain. Then `chain reshare --to
-<judge-pubkey>` + (as the judge) `chain delegate-bank` rebuilds the exam
-**entirely from grants** — byte-identical to the authority's decryption, and
-nobody else on the network ever saw a single question. That is an evaluation
-the exam's own author can't leak, because there is no author.
+On-chain, a private benchmark holds **only ciphertext** — see it in the
+explorer's private-bank card, or `solana account <priv-item-chunk-pda>`;
+`chain pitems` is the only thing that can read it (authority key only). Then
+`chain reshare --to <judge-pubkey>` + (as the judge) `chain delegate-bank`
+rebuilds the exam **entirely from grants** — byte-identical to the authority's
+decryption, and nobody else on the network ever saw a single question. That is
+an evaluation the exam's own author can't leak, because there is no author.

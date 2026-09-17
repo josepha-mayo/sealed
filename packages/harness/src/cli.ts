@@ -134,7 +134,7 @@ async function main() {
   console.error(`usage:
   sealed bank build --seed <s> --id <n> [--chunks 10] [--out bank/<id>.json]
   sealed bank show  --bank <file>
-  sealed run        --bank <file> --model <id> [--concurrency 6] [--retries 4] [--max-tokens 4096] [--out file]
+  sealed run        --bank <file> --model <id> [--concurrency 6] [--retries 4] [--timeout 90000] [--max-tokens 4096] [--out file]
                     (model "mock/oracle-<p>" answers a fraction p correctly, offline)
   sealed chain init                                   init comp defs + upload circuits (once per deployment)
   sealed chain seal  --bank <file> [--fee-lamports n]
@@ -143,6 +143,7 @@ async function main() {
   sealed chain gen-private --id <n> [--chunks 2] [--fee-lamports n] [--out f] MPC-minted bank: items encrypted to YOU
   sealed chain pitems --benchmark <pubkey> [--out file]                     decrypt a private bank (authority only)
   sealed chain reshare --benchmark <pk> --chunk <i> --part <0..3> --to <viewer-pubkey>   grant a delegate the questions
+  sealed chain grant  --benchmark <pk> --chunk <i> --part <0..3>             fetch + decrypt YOUR grant (delegate)
   sealed chain grants --benchmark <pubkey>                                 list ShareGrant PDAs (who can see which parts)
   sealed chain delegate-bank --benchmark <pubkey> [--out file]             rebuild a bank from YOUR grants (delegate)
   sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
@@ -155,6 +156,7 @@ async function main() {
   sealed chain market resolve --market <pk>
   sealed chain market claim   --market <pk> [--bettor keypair.json]
   sealed chain market show    --market <pk>
+  sealed chain reset-sealing  --bank-id <n> --chunk <i>          clear a part stuck by a dropped MPC computation
   sealed prove  --run <file> --item <i>               Merkle proof that output i was committed`);
   process.exit(2);
 }

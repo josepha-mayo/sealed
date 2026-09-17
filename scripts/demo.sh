@@ -42,7 +42,8 @@ console.log(pda[0].toBase58());
 EOF
 }
 
-say "1/6 comp defs + circuits (once per deployment)"
+say "1/6 wait for MXE keygen, then comp defs + circuits (once per deployment)"
+scripts/wait-mxe.sh
 $SEALED chain init
 
 say "2/6 mint a generated benchmark inside MPC (id=$ID, 64 items, NO answer key)"
@@ -81,6 +82,11 @@ MKT_BIN=$(PDA market "$RUN0" 0)
 $SEALED chain market open --run "$RUN0" --edges 32,48 --salt 1
 MKT_3WAY=$(PDA market "$RUN0" 1)
 $SEALED chain market bet --market "$MKT_BIN" --outcome 1 --lamports 300000000
+# The judge takes the other side: a market with an unbacked bucket cancels +
+# refunds instead of paying a winner. One position PDA per (market, bettor),
+# so the second side must come from a different wallet.
+solana airdrop 1 "$JUDGE" --url "$ANCHOR_PROVIDER_URL" >/dev/null 2>&1 || true
+$SEALED chain market bet --market "$MKT_BIN" --outcome 0 --lamports 100000000 --bettor /tmp/judge-kp.json
 for oc in 0 1 2; do $SEALED chain market bet --market "$MKT_3WAY" --outcome "$oc" --lamports 10000000; done
 # The head-to-head: does run0 outscore run1? Bets close once EITHER starts
 # scoring, so nobody trades on leaked information. All three buckets backed.

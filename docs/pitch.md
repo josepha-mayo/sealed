@@ -48,8 +48,8 @@ parimutuel market resolves on that number. The leaderboard is the oracle.
 5. **Market close (0:30)** — "Prediction markets on AI progress already exist
    and settle on vibes. Sealed turns 'will model X clear threshold T' into a
    contract that resolves itself. Fees: every run pays the benchmark authority;
-   markets add take-rate on settlement. The surface area is every future claim
-   about what a model can do."
+   market take-rate on settlement is a one-line `claim` extension. The surface
+   area is every future claim about what a model can do."
 
 ## Demo shot list (~3 min)
 
@@ -58,7 +58,7 @@ not the commands.
 
 | Shot | Command | Say |
 |---|---|---|
-| 1. Mint a bank | `sealed chain gen --id 8 --chunks 10` | "320 items minted inside MPC, 8 per computation. The questions are public; the answers were computed in the enclave and never left it." |
+| 1. Mint a bank | `sealed chain gen --id 8 --chunks 2` | "64 items minted inside MPC, 8 per computation. The questions are public; the answers were computed in the enclave and never left it." |
 | 2. Show the items | `sealed chain items --benchmark <pk>` | "Anyone can render the specs into prompts — the specs are plaintext. The answers exist only as MXE ciphertext." |
 | 3. Run a real model | `sealed run --bank bank/gen-8.json --model <model>` | "A real model API, normalized to canonical answers, hashed publicly." |
 | 4. Park the run | `sealed chain score ... --create-only` | "The run commits its output root before scoring. Now the market opens." |
@@ -71,7 +71,7 @@ not the commands.
 ## One-pager for the submission form
 
 - **Name:** Sealed
-- **Tagline:** A benchmark nobody can read, scored by nobody in particular.
+- **Tagline:** A benchmark no one can leak, scored by nobody in particular.
 - **Problem:** AI capability claims are unverifiable: labs self-report, public
   benchmarks leak into training data, and prediction markets have no neutral
   resolution source.
@@ -89,8 +89,26 @@ not the commands.
   grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
   binary + N-way markets resolved and paid out, fingerprint reveal audits,
   mocha suite 8/8 + 12/12 unit tests green. Authored banks work too (seal+score).
-- **Business:** per-run fee to the benchmark authority; take rate on market
-  settlement; sell sealed-eval as a service to labs, markets, and insurers.
+- **Business:** per-run fee to the benchmark authority (live on-chain); market
+  take-rate on settlement is a one-line `claim` extension; sealed-eval as a
+  service to labs, markets, and insurers.
 - **Moat:** for generated banks the answer key never exists — not encrypted
   at rest, not held by a committee, not in the author's head. A benchmark
   with no secret to leak is a rotation policy, not a trust request.
+
+## vs. the alternatives
+
+| Approach | Who holds the truth | Can it leak? | Settles markets? |
+|---|---|---|---|
+| Lab self-report (SWE-bench, FrontierMath) | The lab being measured | Already in training data | Polymarket resolves on Epoch AI — a single conflicted party |
+| Leaderboard operator (LMArena) | The operator | Operator sees votes + tests | No settlement layer |
+| Trusted oracle / committee | The committee | Any member can leak | Yes, but trust-permissioned |
+| TEE harness (Phala, NVIDIA CC) | Enclave + hardware vendor | One SGX break away | Attestation ≠ resolution |
+| zkML / opML | Proves "M(x)=y", not the eval | Operator still holds the key | Inference proofs only |
+| **Sealed** | **No one — the key never exists outside the MPC** | **Nothing to leak: mint, key, and scoring stay inside the cluster** | **Yes — `Run.correct` written by MPC callback, markets resolve permissionlessly** |
+
+Melee hides your position; Bench hides your stake; **Sealed hides the truth
+itself** — the market settles on an answer no human ever possessed. The
+private-bank path keeps questions ciphertext-only; `reshare_part` hands a
+judge the exam without publishing it; betting closes before scoring starts,
+so nobody trades on leaked information.

@@ -219,7 +219,6 @@ const link = (pk) => isDevnet
 
 const BSTATUS = ["DRAFT", "LIVE", "RETIRED"];
 const MSTATUS = ["open", "resolved", "cancelled"];
-const OUTCOME = ["—", "YES", "NO"];
 
 async function load() {
   const url = rpcIn.value.trim();
@@ -384,14 +383,16 @@ async function load() {
         : n === 2
           ? `will ${model(run, m.run)} score ≥ ${Number(m.edges[0])}?`
           : `which band does ${model(run, m.run)} land in?`;
-      const rs = m.duel ? `${m.resolvedScore >> 16}–${m.resolvedScore & 0xffff}` : (m.resolvedScore || "—");
+      const rs = m.status === 1
+        ? m.duel ? `${m.resolvedScore >> 16}–${m.resolvedScore & 0xffff}` : String(m.resolvedScore)
+        : "—";
       h += `<div class="card"><div class="row">
         <b>${q}</b>
         ${m.duel ? `<span class="pill live">duel</span>` : ``}
         <span class="pill ${MSTATUS[m.status]}">${MSTATUS[m.status]}</span>
         <span class="kv">pot <b>${pot.toFixed(3)} SOL</b></span>
         <span class="kv">acct ${link(m.pk)}</span></div>
-        <div class="proof">run ${m.run}${m.duel ? ` vs ${m.runB}` : ""} &middot; resolved score ${rs}</div>
+        <div class="proof">run ${link(m.run)}${m.duel ? ` vs ${link(m.runB)}` : ""} &middot; resolved score ${rs}</div>
         <table><tr>`;
       for (let i = 0; i < n; i++) {
         const t = Number(m.totals[i]), share = pot ? (100 * t) / (pot * 1e9) : 0;

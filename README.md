@@ -6,6 +6,8 @@ Sealed is a referee for AI-capability claims. Benchmark items can be **minted in
 
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
+> **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. `scripts/demo.sh` runs the whole flow end-to-end on a fresh localnet; `web/index.html` is the public explorer (leaderboard, proof verification, market board, ciphertext + grant views).
+
 ## Why
 
 Prediction markets on AI progress settle against leaderboards run by single companies, and lab-reported benchmark numbers are unverifiable and increasingly contaminated by training data. There is no neutral referee. Sealed makes the referee a protocol:
@@ -98,7 +100,7 @@ programs/market/        Anchor program: parimutuel markets resolving on Run.corr
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
 web/index.html          leaderboard + proof explorer (single file, web3.js via CDN, reads any RPC)
 tests/                  end-to-end test on Arcium localnet
-scripts/                setup-wsl.sh (toolchain), install-solana-cdn.sh, run-model.sh, zen-*.sh
+scripts/                demo.sh (full judge demo), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), run-model.sh, zen-*.sh
 ```
 
 ## Develop
@@ -151,7 +153,7 @@ The explorer's **verify-an-output** widget recomputes the Merkle path in-browser
 
 Explorer: serve `web/` (`python3 -m http.server -d web 8788`) and open `?rpc=<url>` — defaults to localnet `http://127.0.0.1:8899`; on devnet it links out to explorer.solana.com.
 
-Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `ARCIUM_CLUSTER_OFFSET` (localnet: 0). `scripts/smoke-localnet.sh` runs the whole pipeline against a running `arcium localnet`.
+Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `SEALED_CLUSTER_OFFSET` (localnet: 0, devnet: 456; `ARCIUM_CLUSTER_OFFSET` works as a fallback when running inside the `arcium` env). `scripts/smoke-localnet.sh` runs the whole pipeline against a running `arcium localnet`.
 
 Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALED_API_KEY`; defaults to OpenRouter).
 
