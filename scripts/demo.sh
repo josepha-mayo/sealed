@@ -13,7 +13,9 @@ cd "$(dirname "$0")/.."
 export ANCHOR_PROVIDER_URL="${ANCHOR_PROVIDER_URL:-http://127.0.0.1:8899}"
 export SEALED_CLUSTER_OFFSET="${SEALED_CLUSTER_OFFSET:-0}"
 SEALED="yarn -s --cwd packages/harness cli"
-SEED="${1:-demo}"
+# Unique bank ids per run so the demo is re-runnable on the same ledger;
+# pass a seed arg for a deterministic id.
+SEED="${1:-demo-$(date +%s)}"
 ID=$(node -e "console.log(require('crypto').createHash('sha256').update('gen/' + process.argv[1]).digest().readUInt32LE(0) % 100000)" "$SEED")
 
 say() { printf '\n=== %s ===\n' "$*"; }
@@ -56,7 +58,7 @@ say "2c selective disclosure — hand a 'judge' key the questions, onchain"
 # specs to their key. Grant PDAs record WHO can see WHICH parts — the answers
 # never move. The delegate then rebuilds the whole bank from grants alone.
 JUDGE=$(node -e 'const {Keypair}=require("@solana/web3.js");const k=Keypair.generate();require("fs").writeFileSync("/tmp/judge-kp.json",JSON.stringify([...k.secretKey]));console.log(k.publicKey.toBase58())')
-for p in 0 1 2 3; do $SEALED chain reshare --benchmark "$PBENCH" --chunk 0 --part "$p" --to "$JUDGE"; done
+for p in 0 1 2 3; do $SEALED chain reshare --benchmark "$PBENCH" --chunk 0 --part "$p" --to "$JUDGE"; sleep 2; done
 echo "grant trail:"; $SEALED chain grants --benchmark "$PBENCH"
 echo "the delegate rebuilds the bank from its grants alone:"
 ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain delegate-bank --benchmark "$PBENCH" --out "/tmp/judge-$PID.json"
