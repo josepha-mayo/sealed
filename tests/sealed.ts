@@ -750,6 +750,98 @@ describe("Sealed", () => {
     expect(r.correct).to.equal(PLANTED);
     console.log(`private bank scored: ${r.correct}/${CHUNK} correct — specs never appeared on-chain`);
   });
+
+  it("reshares private specs to a delegate key — selective question disclosure", async () => {
+    await initCompDef("reshare_part", () => program.methods.initResharePartCompDef());
+
+    // Reuse the private bank from the previous test (id 3, kind 2, live).
+    const PRIV_ID = 3;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(PRIV_ID)],
+      program.programId,
+    );
+    const b: any = await program.account.benchmark.fetch(benchmark);
+    expect(b.kind).to.equal(2);
+    expect(b.status).to.equal(1, "private bank live");
+    const [pitemsPda] = PublicKey.findProgramAddressSync([Buffer.from("pitems"), benchmark.toBuffer(), u16le(0)], program.programId);
+
+    // The delegate is a fresh keypair — a "judge" the authority wants to show
+    // the exam questions to, without publishing them.
+    const delegate = Keypair.generate();
+    const delegatePub = ed25519.utils.toMontgomery(delegate.publicKey.toBytes());
+    const [grant] = PublicKey.findProgramAddressSync(
+      [Buffer.from("grant"), benchmark.toBuffer(), u16le(0), Uint8Array.of(0), delegatePub],
+      program.programId,
+    );
+
+    // A stranger cannot queue a reshare — the ix is authority-gated.
+    const stranger = Keypair.generate();
+    await fund(provider, owner, stranger.publicKey, 0.1 * LAMPORTS_PER_SOL);
+    const stray = new anchor.BN(randomBytes(8), "hex");
+    await expectAnchorError(
+      program.methods
+        .resharePart(stray, 0, 0, Array.from(delegatePub))
+        .accountsPartial({ payer: stranger.publicKey, benchmark, items: pitemsPda, grant, ...arciumAccounts(stray, "reshare_part") })
+        .signers([stranger])
+        .rpc(),
+      "NotAuthority",
+    );
+
+    // Authority reshares part 0 of chunk 0 to the delegate.
+    const offset = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .resharePart(offset, 0, 0, Array.from(delegatePub))
+      .accountsPartial({ payer: owner.publicKey, benchmark, items: pitemsPda, grant, ...arciumAccounts(offset, "reshare_part") })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    const g: any = await program.account.shareGrant.fetch(grant);
+    expect(g.chunkIndex).to.equal(0);
+    expect(g.part).to.equal(0);
+    expect(Buffer.from(g.viewer).equals(Buffer.from(delegatePub))).to.equal(true, "grant addressed to the delegate");
+    expect(Buffer.from(g.encryptionKey).equals(Buffer.from(delegatePub))).to.equal(true, "circuit echoed the delegate key");
+    expect(g.sharedAt.toNumber()).to.be.greaterThan(0);
+
+    // The delegate decrypts the grant with its own wallet-derived key — the
+    // Shared-encryption scheme is DH(viewer_priv, mxe_pub), same as the
+    // authority's. What comes out must be the SAME specs the authority sees.
+    const mxePublicKey = await getMXEPublicKeyWithRetry(provider, program.programId);
+    const delegatePriv = ed25519.utils.toMontgomerySecret(delegate.secretKey.subarray(0, 32));
+    const delegateCipher = new RescueCipher(x25519.getSharedSecret(delegatePriv, mxePublicKey));
+    const gnonce = BigInt(g.nonce.toString());
+    const specs = unpackSpecs(delegateCipher.decrypt(g.ciphertexts.map((x: number[]) => Array.from(x)), u128le(gnonce)));
+    expect(specs.length).to.equal(PART);
+    for (const s of specs) {
+      expect(s.a).to.be.lessThan(64); expect(s.b).to.be.lessThan(64); expect(s.c).to.be.lessThan(64);
+      expect(s.op0).to.be.lessThan(3); expect(s.op1).to.be.lessThan(3);
+    }
+
+    const info = await provider.connection.getAccountInfo(pitemsPda);
+    const st = decodePrivItemChunk(Buffer.from(info!.data));
+    const authPriv = ed25519.utils.toMontgomerySecret(owner.secretKey.subarray(0, 32));
+    const authCipher = new RescueCipher(x25519.getSharedSecret(authPriv, mxePublicKey));
+    const authSpecs = unpackSpecs(authCipher.decrypt(st.ciphertexts.slice(0, 2).map((x) => Array.from(x)), u128le(st.nonces[0])));
+    expect(specs).to.deep.equal(authSpecs, "delegate sees exactly the authority's items");
+
+    // The grant is fresh randomness: the authority's own key must NOT open it
+    // (selective disclosure is one-directional — only the delegate can read it).
+    const leak = authCipher.decrypt(g.ciphertexts.map((x: number[]) => Array.from(x)), u128le(gnonce));
+    const leakBytes = Array.from({ length: 40 }, (_, i) => Number((leak[i < 26 ? 0 : 1] >> BigInt(8 * (i - (i < 26 ? 0 : 1) * 26))) & 0xffn));
+    const plausible = leakBytes.every((v, i) => (i % 5 < 3 ? v < 64 : v < 3));
+    expect(plausible).to.equal(false, "authority key must not open the delegate's grant");
+
+    // Re-resharing to the same viewer hits the grant PDA's init constraint.
+    const again = new anchor.BN(randomBytes(8), "hex");
+    await expectAnchorError(
+      program.methods
+        .resharePart(again, 0, 0, Array.from(delegatePub))
+        .accountsPartial({ payer: owner.publicKey, benchmark, items: pitemsPda, grant, ...arciumAccounts(again, "reshare_part") })
+        .signers([owner])
+        .rpc(),
+      "already in use",
+    );
+    console.log(`reshare verified: delegate decrypted ${specs.length} items identical to the authority's`);
+  });
 });
 
 // ------------------------------------------------------------------ helpers

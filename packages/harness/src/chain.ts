@@ -41,6 +41,7 @@ import {
   decodePrivItemChunk,
   privBankFromSpecs,
   privItemsRoot,
+  renderPrompt,
   unpackSpecs,
   type ItemChunkState,
   type ItemSpec,
@@ -98,7 +99,12 @@ function pdas(ctx: Ctx, authority: PublicKey, benchmarkId: number) {
   const run = (i: bigint) => PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(i)], pid)[0];
   const reveal = (i: number, p: number) =>
     PublicKey.findProgramAddressSync([Buffer.from("reveal"), benchmark.toBuffer(), u16le(i), Uint8Array.of(p)], pid)[0];
-  return { benchmark, chunk, items, pitems, run, reveal };
+  const grant = (i: number, p: number, viewer: Uint8Array) =>
+    PublicKey.findProgramAddressSync(
+      [Buffer.from("grant"), benchmark.toBuffer(), u16le(i), Uint8Array.of(p), viewer],
+      pid,
+    )[0];
+  return { benchmark, chunk, items, pitems, run, reveal, grant };
 }
 
 function arciumAccounts(ctx: Ctx, offset: AnchorTypes.BN, ix: string) {
@@ -146,6 +152,7 @@ export async function init(ctx = setup()) {
     ["gen_part", "initGenPartCompDef"],
     ["gen_part_private", "initGenPartPrivateCompDef"],
     ["reveal_part", "initRevealPartCompDef"],
+    ["reshare_part", "initResharePartCompDef"],
   ] as const) {
     const compDef = PublicKey.findProgramAddressSync(
       [getArciumAccountBaseSeed("ComputationDefinitionAccount"), program.programId.toBuffer(), getCompDefAccOffset(name)],
@@ -454,6 +461,86 @@ export async function fetchPrivBank(benchmark: PublicKey, chunkCount: number, ct
     }),
   );
   return privBankFromSpecs(b.id, chunkCount, parts, root);
+}
+
+// ------------------------------------------------------------------ reshare
+
+/**
+ * Re-encrypt one private-bank part to a delegate's key. `delegate` is the
+ * delegate's *Solana* pubkey — converted to x25519 the same way the authority's
+ * viewer key is. The MPC cluster decrypts the stored specs inside the enclave
+ * and re-encrypts to the delegate; the ShareGrant PDA records the ciphertext.
+ * The answers never move — only the questions.
+ */
+export async function resharePart(
+  benchmarkPk: PublicKey,
+  chunkIndex: number,
+  part: number,
+  delegate: PublicKey,
+  ctx = setup(),
+) {
+  const { program, provider, wallet } = ctx;
+  const acct = program.account as any;
+  const b: any = await acct.benchmark.fetch(benchmarkPk);
+  if (b.kind !== 2) throw new Error(`benchmark ${benchmarkPk.toBase58()} is not a private generated bank`);
+  const pd = pdas(ctx, b.authority, b.id);
+  const viewer = ed25519.utils.toMontgomery(delegate.toBytes());
+  const g = pd.grant(chunkIndex, part, viewer);
+
+  const offset = new anchor.BN(randomBytes(8), "hex");
+  console.log(`reshare_part chunk=${chunkIndex} part=${part} → ${delegate.toBase58()} (grant ${g.toBase58()})`);
+  await program.methods
+    .resharePart(offset, chunkIndex, part, Array.from(viewer))
+    .accountsPartial({
+      payer: wallet.publicKey,
+      benchmark: benchmarkPk,
+      items: pd.pitems(chunkIndex),
+      grant: g,
+      ...arciumAccounts(ctx, offset, "reshare_part"),
+    })
+    .rpc({ commitment: "confirmed" });
+
+  process.stdout.write("waiting for MPC re-encryption...");
+  const grant = await waitFor(acct.shareGrant, g, (s) => !s.sharedAt.isZero());
+  console.log(grant.sharedAt.isZero() ? " STILL PENDING" : ` shared at ${grant.sharedAt}`);
+  return { grant: g, viewer };
+}
+
+/** Fetch + decrypt a ShareGrant for the local wallet (the delegate's). */
+export async function fetchGrant(benchmarkPk: PublicKey, chunkIndex: number, part: number, ctx = setup()) {
+  const { program, provider } = ctx;
+  const acct = program.account as any;
+  const b: any = await acct.benchmark.fetch(benchmarkPk);
+  const viewer = viewerKeys(ctx);
+  const pd = pdas(ctx, b.authority, b.id);
+  const g = pd.grant(chunkIndex, part, viewer.pub);
+  const grant: any = await fetchOrNull(acct.shareGrant.fetch(g));
+  if (!grant) throw new Error(`no ShareGrant for this wallet at ${g.toBase58()}`);
+
+  const mxePublicKey = await getMXEPublicKey(provider, program.programId);
+  if (!mxePublicKey) throw new Error("MXE public key unavailable");
+  const cipher = new RescueCipher(x25519.getSharedSecret(viewer.priv, mxePublicKey));
+  const nb = new Uint8Array(16);
+  let n = BigInt(grant.nonce.toString());
+  for (let k = 0; k < 16; k++) { nb[k] = Number(n & 0xffn); n >>= 8n; }
+  const specs = unpackSpecs(cipher.decrypt(grant.ciphertexts.map((x: number[]) => Array.from(x)), nb));
+  return { grant: g, specs, sharedAt: grant.sharedAt };
+}
+
+/** List every ShareGrant for a private benchmark (explorer: who can see what). */
+export async function listGrants(benchmarkPk: PublicKey, ctx = setup()) {
+  const { program } = ctx;
+  const acct = program.account as any;
+  const all: any[] = await acct.shareGrant.all([
+    { memcmp: { offset: 8, bytes: benchmarkPk.toBase58() } },
+  ]);
+  return all.map((a) => ({
+    address: a.publicKey as PublicKey,
+    chunkIndex: a.account.chunkIndex as number,
+    part: a.account.part as number,
+    viewer: Buffer.from(a.account.viewer).toString("hex"),
+    sharedAt: a.account.sharedAt,
+  }));
 }
 
 // ------------------------------------------------------------------ score
@@ -794,6 +881,26 @@ export async function chainMain(cmd: string[], args: Args) {
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");
     console.log(`wrote ${out} (${bank.items.length} items) — KEEP IT PRIVATE`);
+    return;
+  }
+  if (sub === "reshare") {
+    // Delegate a private bank's questions to a second key (judge, runner, panel).
+    const to = args.to ? new PublicKey(String(args.to)) : undefined;
+    if (!to) throw new Error("--to <solana-pubkey>");
+    await resharePart(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part), to);
+    return;
+  }
+  if (sub === "grant") {
+    // Fetch + decrypt a ShareGrant addressed to the local wallet.
+    const g = await fetchGrant(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part));
+    console.log(`grant ${g.grant.toBase58()} shared_at=${g.sharedAt}`);
+    for (const [i, s] of g.specs.entries()) console.log(`  item ${i}: ${renderPrompt(s)}`);
+    return;
+  }
+  if (sub === "grants") {
+    const list = await listGrants(new PublicKey(String(args.benchmark)));
+    if (!list.length) console.log("no grants");
+    for (const g of list) console.log(`chunk ${g.chunkIndex} part ${g.part} → viewer ${g.viewer.slice(0, 16)}… at ${g.sharedAt} (${g.address.toBase58()})`);
     return;
   }
   if (sub === "score") {

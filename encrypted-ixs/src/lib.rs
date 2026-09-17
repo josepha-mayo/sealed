@@ -139,6 +139,19 @@ mod circuits {
         )
     }
 
+    /// Re-encrypt a private bank's part to a SECOND viewer key. The authority
+    /// submits the stored `Enc<Shared, Pack<GenPart>>` (theirs), MPC decrypts
+    /// inside the enclave and re-encrypts to `viewer` — selective disclosure of
+    /// the questions themselves, to a delegate, without ever publishing them.
+    /// The answer fingerprints stay `Enc<Mxe>`; only the specs move.
+    #[instruction]
+    pub fn reshare_part(
+        specs: Enc<Shared, Pack<GenPart>>,
+        viewer: ArcisX25519Pubkey,
+    ) -> Enc<Shared, Pack<GenPart>> {
+        Shared::new(viewer).from_arcis(specs.to_arcis())
+    }
+
     /// Declassify one part's answer fingerprints (not the answers — the hashes).
     /// The on-chain program gates this on the benchmark authority's signature;
     /// MPC mediates the decryption, so even the authority only ever receives

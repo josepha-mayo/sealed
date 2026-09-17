@@ -27,6 +27,7 @@ const COMP_DEF_OFFSET_SCORE_CHUNK: u32 = comp_def_offset("score_chunk");
 const COMP_DEF_OFFSET_GEN_PART: u32 = comp_def_offset("gen_part");
 const COMP_DEF_OFFSET_REVEAL_PART: u32 = comp_def_offset("reveal_part");
 const COMP_DEF_OFFSET_GEN_PART_PRIVATE: u32 = comp_def_offset("gen_part_private");
+const COMP_DEF_OFFSET_RESHARE_PART: u32 = comp_def_offset("reshare_part");
 
 /// Items per chunk (one scoring computation). Must equal `CHUNK` in encrypted-ixs.
 pub const CHUNK: usize = 32;
@@ -56,6 +57,15 @@ pub const KIND_GENERATED: u8 = 1;
 pub const KIND_PRIVATE: u8 = 2;
 /// Packed spec ciphertexts per minted part (`Pack<GenPart>` = 40 u8 -> 2 fields).
 pub const PRIV_CTS_PER_PART: usize = 2;
+
+/// Offset of `PrivItemChunk.ciphertexts` inside the account (incl. discriminator):
+/// 8 + 32 (benchmark) + 2 (index) + 1 (bump) + 1 (parts_written) + 32 (key) + 64 (nonces).
+pub const PRIV_CIPHERTEXTS_OFFSET: u32 = 8 + 32 + 2 + 1 + 1 + 32 + (16 * PARTS as u32);
+pub const PRIV_CIPHERTEXTS_LEN: u32 = (32 * PRIV_CTS_PER_PART) as u32;
+
+fn priv_ct_offset(part: u8) -> u32 {
+    PRIV_CIPHERTEXTS_OFFSET + part as u32 * PRIV_CIPHERTEXTS_LEN
+}
 /// Bytes per onchain item spec (a, b, c, op0, op1). Mirrored in the harness.
 pub const ITEM_SPEC_LEN: usize = 5;
 
@@ -93,6 +103,11 @@ pub mod sealed {
     }
 
     pub fn init_gen_part_private_comp_def(ctx: Context<InitGenPartPrivateCompDef>) -> Result<()> {
+        init_computation_def(ctx.accounts, None)?;
+        Ok(())
+    }
+
+    pub fn init_reshare_part_comp_def(ctx: Context<InitResharePartCompDef>) -> Result<()> {
         init_computation_def(ctx.accounts, None)?;
         Ok(())
     }
@@ -616,6 +631,92 @@ pub mod sealed {
         Ok(())
     }
 
+    /// Re-encrypt one private-bank part to a SECOND viewer key. The authority
+    /// points the MPC at the stored `Enc<Shared, Pack<GenPart>>` (encrypted to
+    /// `items.encryption_key`); the cluster decrypts inside the enclave and
+    /// re-encrypts to `viewer`. The grant lands in a per-(part, viewer) PDA —
+    /// selective disclosure of the questions themselves, never of the answers.
+    /// Use cases: hand a judge the exam, delegate a runner, publish to a
+    /// committee — all without a plaintext item ever touching the chain.
+    pub fn reshare_part(
+        ctx: Context<ResharePart>,
+        computation_offset: u64,
+        index: u16,
+        part: u8,
+        viewer: [u8; 32],
+    ) -> Result<()> {
+        let b = &ctx.accounts.benchmark;
+        require!(b.kind == KIND_PRIVATE, ErrorCode::WrongBankKind);
+        let items = &ctx.accounts.items;
+        require!((part as usize) < PARTS, ErrorCode::InvalidPart);
+        require!(
+            items.parts_written & (1u8 << part) != 0,
+            ErrorCode::PartNotSealed
+        );
+
+        let grant = &mut ctx.accounts.grant;
+        grant.benchmark = b.key();
+        grant.chunk_index = index;
+        grant.part = part;
+        grant.viewer = viewer;
+        grant.bump = ctx.bumps.grant;
+
+        // Enc<Shared, Pack<GenPart>> input: pubkey + nonce + the two packed
+        // ciphertexts, read straight from the PrivItemChunk account — the same
+        // account-slice encoding seal_part uses.
+        let args = ArgBuilder::new()
+            .x25519_pubkey(items.encryption_key)
+            .plaintext_u128(items.nonces[part as usize])
+            .account(items.key(), priv_ct_offset(part), PRIV_CIPHERTEXTS_LEN)
+            .x25519_pubkey(viewer)
+            .build();
+
+        ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
+        queue_computation(
+            ctx.accounts,
+            computation_offset,
+            args,
+            vec![ResharePartCallback::callback_ix(
+                computation_offset,
+                &ctx.accounts.mxe_account,
+                &[CallbackAccount { pubkey: ctx.accounts.grant.key(), is_writable: true }],
+            )?],
+            1,
+            0,
+            0,
+        )?;
+        Ok(())
+    }
+
+    #[arcium_callback(encrypted_ix = "reshare_part")]
+    pub fn reshare_part_callback(
+        ctx: Context<ResharePartCallback>,
+        output: SignedComputationOutputs<ResharePartOutput>,
+    ) -> Result<()> {
+        let enc = match output.verify_output(
+            &ctx.accounts.cluster_account,
+            &ctx.accounts.computation_account,
+        ) {
+            Ok(ResharePartOutput { field_0 }) => field_0,
+            Err(e) => {
+                msg!("reshare_part aborted: {}", e);
+                return Err(ErrorCode::AbortedComputation.into());
+            }
+        };
+        let grant = &mut ctx.accounts.grant;
+        grant.encryption_key = enc.encryption_key;
+        grant.nonce = enc.nonce;
+        grant.ciphertexts.copy_from_slice(&enc.ciphertexts);
+        grant.shared_at = Clock::get()?.unix_timestamp;
+        emit!(PartReshared {
+            benchmark: grant.benchmark,
+            chunk_index: grant.chunk_index,
+            part: grant.part,
+            viewer: grant.viewer,
+        });
+        Ok(())
+    }
+
     /// If a seal computation aborts, its callback never lands. The authority clears
     /// the flag so the part can be staged/sealed again.
     pub fn reset_sealing(ctx: Context<ResetSealing>, _index: u16) -> Result<()> {
@@ -871,6 +972,26 @@ pub struct PrivItemChunk {
 /// Answer fingerprints for one part, declassified by a `reveal_part` computation
 /// at the benchmark authority's request. These are hash commitments — the audit
 /// primitive, not the answer key.
+/// A re-encryption of one private-bank part to a delegate's x25519 key, written
+/// by `reshare_part` callbacks. One PDA per (chunk, part, viewer) — the delegate
+/// fetches this account and decrypts the specs with their own wallet key.
+/// Answers are never part of a grant; only the questions move.
+#[account]
+#[derive(InitSpace)]
+pub struct ShareGrant {
+    pub benchmark: Pubkey,
+    pub chunk_index: u16,
+    pub part: u8,
+    pub bump: u8,
+    /// x25519 key this grant was requested for (the delegate's).
+    pub viewer: [u8; 32],
+    /// Key echoed by the circuit output — equals `viewer`.
+    pub encryption_key: [u8; 32],
+    pub nonce: u128,
+    pub ciphertexts: [[u8; 32]; 2],
+    pub shared_at: i64,
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Reveal {
@@ -1290,6 +1411,26 @@ pub struct InitGenPartPrivateCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[init_computation_definition_accounts("reshare_part", payer)]
+#[derive(Accounts)]
+pub struct InitResharePartCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    #[account(mut)]
+    /// CHECK: comp_def_account, checked by arcium program. Not initialized yet.
+    pub comp_def_account: UncheckedAccount<'info>,
+    #[account(mut, address = derive_mxe_lut_pda!(mxe_account.lut_offset_slot))]
+    /// CHECK: address_lookup_table, checked by arcium program.
+    pub address_lookup_table: UncheckedAccount<'info>,
+    #[account(address = LUT_PROGRAM_ID)]
+    /// CHECK: lut_program is the Address Lookup Table program.
+    pub lut_program: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
 #[queue_computation_accounts("gen_part_private", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, index: u16)]
@@ -1441,6 +1582,78 @@ pub struct RevealPartCallback<'info> {
     pub reveal: Box<Account<'info, Reveal>>,
 }
 
+#[queue_computation_accounts("reshare_part", payer)]
+#[derive(Accounts)]
+#[instruction(computation_offset: u64, index: u16, part: u8, viewer: [u8; 32])]
+pub struct ResharePart<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
+    pub benchmark: Box<Account<'info, Benchmark>>,
+    #[account(
+        seeds = [b"pitems", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
+        bump = items.bump,
+    )]
+    pub items: Box<Account<'info, PrivItemChunk>>,
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + ShareGrant::INIT_SPACE,
+        seeds = [b"grant", benchmark.key().as_ref(), index.to_le_bytes().as_ref(), part.to_le_bytes().as_ref(), viewer.as_ref()],
+        bump,
+    )]
+    pub grant: Box<Account<'info, ShareGrant>>,
+    #[account(
+        init_if_needed,
+        space = 9,
+        payer = payer,
+        seeds = [&SIGN_PDA_SEED],
+        bump,
+        address = derive_sign_pda!(),
+    )]
+    pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    #[account(mut, address = derive_mempool_pda!(mxe_account))]
+    /// CHECK: mempool_account, checked by arcium program.
+    pub mempool_account: UncheckedAccount<'info>,
+    #[account(mut, address = derive_execpool_pda!(mxe_account))]
+    /// CHECK: executing_pool, checked by the arcium program.
+    pub executing_pool: UncheckedAccount<'info>,
+    #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account))]
+    /// CHECK: computation_account, checked by the arcium program.
+    pub computation_account: UncheckedAccount<'info>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_RESHARE_PART))]
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
+    #[account(mut, address = derive_cluster_pda!(mxe_account))]
+    pub cluster_account: Box<Account<'info, Cluster>>,
+    #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
+    pub pool_account: Box<Account<'info, FeePool>>,
+    #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
+    pub clock_account: Box<Account<'info, ClockAccount>>,
+    pub system_program: Program<'info, System>,
+    pub arcium_program: Program<'info, Arcium>,
+}
+
+#[callback_accounts("reshare_part")]
+#[derive(Accounts)]
+pub struct ResharePartCallback<'info> {
+    pub arcium_program: Program<'info, Arcium>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_RESHARE_PART))]
+    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Account<'info, MXEAccount>,
+    /// CHECK: address is validated by the Arcium program; verify_output reads slot data from it.
+    pub computation_account: UncheckedAccount<'info>,
+    #[account(address = derive_cluster_pda!(mxe_account))]
+    pub cluster_account: Account<'info, Cluster>,
+    #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
+    /// CHECK: instructions_sysvar, checked by the account constraint
+    pub instructions_sysvar: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub grant: Box<Account<'info, ShareGrant>>,
+}
+
 #[queue_computation_accounts("score_chunk", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, run_index: u64, chunk_index: u16)]
@@ -1537,6 +1750,14 @@ pub struct PartRevealed {
     pub benchmark: Pubkey,
     pub chunk_index: u16,
     pub part: u8,
+}
+
+#[event]
+pub struct PartReshared {
+    pub benchmark: Pubkey,
+    pub chunk_index: u16,
+    pub part: u8,
+    pub viewer: [u8; 32],
 }
 
 #[event]
