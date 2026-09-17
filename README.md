@@ -171,7 +171,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected
-- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and 6/6 localnet tests pass
+- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 8/8 tests pass on any ledger
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 

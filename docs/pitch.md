@@ -88,7 +88,7 @@ not the commands.
   question disclosure to delegate keys (`reshare_part` — one-directional,
   grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
   binary + N-way markets resolved and paid out, fingerprint reveal audits,
-  mocha suite 6/6 + 12/12 unit tests green. Authored banks work too (seal+score).
+  mocha suite 8/8 + 12/12 unit tests green. Authored banks work too (seal+score).
 - **Business:** per-run fee to the benchmark authority; take rate on market
   settlement; sell sealed-eval as a service to labs, markets, and insurers.
 - **Moat:** for generated banks the answer key never exists — not encrypted
