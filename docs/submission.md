@@ -72,9 +72,11 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   private bank entirely from a wallet's grants — verified byte-identical to
   the authority's own decryption (prompts, answer hashes, items_root).
 - **Real model through a minted bank:** `gpt-oss-20b` (Pollinations free
-  OpenAI endpoint) answered all 32 items of an MPC-generated bank; the run
-  committed its output root, scored inside MPC, and finalized **32/32 —
-  on-chain score identical to the local pre-score** (run `FRWixfmP…`).
+  OpenAI endpoint) answered all 32 items of an MPC-generated bank (id 99001);
+  the run committed its output root (`3a75a0a8…`), scored inside MPC, and
+  finalized **32/32 — on-chain score identical to the local pre-score**
+  (run `G5X7Ly4rA7Za4yvCYYfFasbRVZn1ypBDf1pY86RWyiCn`, on the current
+  localnet ledger).
   Earlier real-model evidence through OpenCode Zen: ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
