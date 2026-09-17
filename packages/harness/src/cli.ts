@@ -141,11 +141,15 @@ async function main() {
   sealed chain items --benchmark <pubkey> [--out file]                      render a generated bank from on-chain specs
   sealed chain gen-private --id <n> [--chunks 2] [--fee-lamports n] [--out f] MPC-minted bank: items encrypted to YOU
   sealed chain pitems --benchmark <pubkey> [--out file]                     decrypt a private bank (authority only)
+  sealed chain reshare --benchmark <pk> --chunk <i> --part <0..3> --to <viewer-pubkey>   grant a delegate the questions
+  sealed chain grants --benchmark <pubkey>                                 list ShareGrant PDAs (who can see which parts)
+  sealed chain delegate-bank --benchmark <pubkey> [--out file]             rebuild a bank from YOUR grants (delegate)
   sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
   sealed chain reveal --benchmark <pk> --chunk <i> --part <0..3>   authority declassifies 8 answer hashes
   sealed chain verify --benchmark <pk> --run <file> [--run-index n]  audit revealed hashes vs committed outputs
   sealed chain status --benchmark <pubkey>
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
+  sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]         head-to-head: does A outscore B? (A/B/tie)
   sealed chain market bet     --market <pk> --outcome <i> --lamports <n> [--bettor keypair.json]   (--side yes|no for binary)
   sealed chain market resolve --market <pk>
   sealed chain market claim   --market <pk> [--bettor keypair.json]
