@@ -29,7 +29,11 @@ parimutuel market resolves on that number. The leaderboard is the oracle.
    computations that draw item specs from `ArcisRNG`, evaluate the answer
    in-circuit, fingerprint it (SHA3-256), and return it encrypted to the MXE
    key. Only the specs come back public — anyone can render the questions,
-   nobody can read the answers. → a model's outputs are committed by hash root
+   nobody can read the answers. Then the escalation: `chain gen-private`
+   mints the same items but returns them `Enc<Shared>` to the authority —
+   **the questions never touch the chain in plaintext either**. The account
+   holds ciphertext; `items_root` commits to the ciphertext, so the mint is
+   auditable but unreadable. → a model's outputs are committed by hash root
    before scoring → the cluster counts matches inside the encryption boundary
    and reveals only the count → the callback writes `Run.correct` onchain.
    (Authored banks still work: `seal` re-encrypts a staged answer to the MXE
@@ -73,10 +77,13 @@ not the commands.
 - **Stack:** Solana (commitments, fees, settlement) + Arcium MPC (confidential
   scoring) + a TypeScript harness driving real model APIs (OpenRouter /
   OpenCode Zen compatible).
-- **Status:** localnet end-to-end verified — generated banks minted in MPC
-  (specs public, answers born encrypted), on-chain MPC scores matching local
-  pre-scores exactly, binary + N-way markets resolved and paid out, mocha
-  suite 3/3 + 12/12 unit tests green. Authored banks work too (seal+score).
+- **Status:** localnet end-to-end verified — public generated banks minted in
+  MPC (specs public, answers born encrypted), **private generated banks whose
+  specs are ciphertext-only onchain** (`Enc<Shared, Pack<GenPart>>` to the
+  authority — questions AND answers both absent from public state), on-chain
+  MPC scores matching local pre-scores exactly, binary + N-way markets
+  resolved and paid out, fingerprint reveal audits, mocha suite 5/5 + 12/12
+  unit tests green. Authored banks work too (seal+score).
 - **Business:** per-run fee to the benchmark authority; take rate on market
   settlement; sell sealed-eval as a service to labs, markets, and insurers.
 - **Moat:** for generated banks the answer key never exists — not encrypted

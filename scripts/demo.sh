@@ -45,6 +45,12 @@ $SEALED chain gen --id "$ID" --chunks 2
 BENCH=$(PDA benchmark "$ID")
 echo "benchmark PDA: $BENCH"
 
+PID=$((ID + 1))
+say "2b mint a PRIVATE bank (id=$PID) — specs stay encrypted to the authority"
+$SEALED chain gen-private --id "$PID" --chunks 1 --out "/tmp/priv-$PID.json"
+PBENCH=$(PDA benchmark "$PID")
+echo "private benchmark PDA: $PBENCH — onchain it holds ONLY ciphertext (see explorer)"
+
 say "3/6 create run 0 (mock model, 75% correct) — PENDING, outputs committed"
 $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.75 --out /tmp/run-gen.json
 $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --create-only
@@ -73,3 +79,5 @@ echo
 echo "the minted item specs are public — see them rendered in the explorer:"
 echo "  python3 -m http.server -d web 8788  →  http://localhost:8788/?rpc=$ANCHOR_PROVIDER_URL"
 echo "or:  $SEALED chain items --benchmark $BENCH"
+echo "the private bank's specs are ciphertext-only onchain; only the authority can render them:"
+echo "  $SEALED chain pitems --benchmark $PBENCH"
