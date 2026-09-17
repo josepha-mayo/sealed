@@ -4,8 +4,9 @@
 # Part A (the headline): mint a benchmark INSIDE MPC — item specs drawn from
 #   ArcisRNG, answers computed + fingerprinted in-circuit, born encrypted to
 #   the MXE key. No answer key ever exists in plaintext.
-# Then: run a mock model, score through real MPC, and settle markets on the
-# finalized score.
+# Then: two mock models race through real MPC scoring, and THREE market types
+#   settle on the finalized scores — binary threshold, score bands, and a
+#   head-to-head duel (who outscores whom).
 #
 # Requires: `arcium localnet` already up. Usage: scripts/demo.sh [bank-id-seed]
 set -uo pipefail
@@ -29,11 +30,13 @@ const SEALED = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 const MARKET = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 const le = (n, w) => { const b = Buffer.alloc(w); w === 4 ? b.writeUInt32LE(Number(n)) : b.writeBigUInt64LE(BigInt(n)); return b; };
 const wallet = () => Keypair.fromSecretKey(new Uint8Array(JSON.parse(readFileSync(process.env.ANCHOR_WALLET ?? `${homedir()}/.config/solana/id.json`, "utf8")))).publicKey;
-const [kind, a, i] = process.argv.slice(2);
+const [kind, a, i, j] = process.argv.slice(2);
 const pda = kind === "benchmark"
   ? PublicKey.findProgramAddressSync([Buffer.from("benchmark"), wallet().toBuffer(), le(a, 4)], SEALED)
   : kind === "run"
   ? PublicKey.findProgramAddressSync([Buffer.from("run"), new PublicKey(a).toBuffer(), le(i, 8)], SEALED)
+  : kind === "duel"
+  ? PublicKey.findProgramAddressSync([Buffer.from("duel"), new PublicKey(a).toBuffer(), new PublicKey(i).toBuffer(), le(j ?? 0, 8)], MARKET)
   : PublicKey.findProgramAddressSync([Buffer.from("market"), new PublicKey(a).toBuffer(), le(i ?? 0, 8)], MARKET);
 console.log(pda[0].toBase58());
 EOF
@@ -63,28 +66,39 @@ echo "grant trail:"; $SEALED chain grants --benchmark "$PBENCH"
 echo "the delegate rebuilds the bank from its grants alone:"
 ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain delegate-bank --benchmark "$PBENCH" --out "/tmp/judge-$PID.json"
 
-say "3/6 create run 0 (mock model, 75% correct) — PENDING, outputs committed"
+say "3/6 create runs 0+1 (mock models 75% vs 50%) — PENDING, outputs committed"
 $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.75 --out /tmp/run-gen.json
 $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --create-only
+$SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.50 --out /tmp/run-gen1.json
+$SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --create-only
 RUN0=$(PDA run "$BENCH" 0)
-echo "run PDA: $RUN0"
+RUN1=$(PDA run "$BENCH" 1)
+echo "run PDAs: $RUN0 (model-a) vs $RUN1 (model-b)"
 
-say "4/6 open markets on the pending run + place bets"
+say "4/6 open markets on the pending runs + place bets"
 $SEALED chain market open --run "$RUN0" --threshold 48
 MKT_BIN=$(PDA market "$RUN0" 0)
 $SEALED chain market open --run "$RUN0" --edges 32,48 --salt 1
 MKT_3WAY=$(PDA market "$RUN0" 1)
 $SEALED chain market bet --market "$MKT_BIN" --outcome 1 --lamports 300000000
 for oc in 0 1 2; do $SEALED chain market bet --market "$MKT_3WAY" --outcome "$oc" --lamports 10000000; done
+# The head-to-head: does run0 outscore run1? Bets close once EITHER starts
+# scoring, so nobody trades on leaked information. All three buckets backed.
+$SEALED chain market duel --run-a "$RUN0" --run-b "$RUN1"
+DUEL=$(PDA duel "$RUN0" "$RUN1" 0)
+for oc in 0 1 2; do $SEALED chain market bet --market "$DUEL" --outcome "$oc" --lamports 20000000; done
 
-say "5/6 score run 0 through MPC (hash-compare vs answers born encrypted)"
+say "5/6 score both runs through MPC (hash-compare vs answers born encrypted)"
 $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --run-index 0
+$SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --run-index 1
 
 say "6/6 resolve markets + claim, then leaderboard"
 $SEALED chain market resolve --market "$MKT_BIN"
 $SEALED chain market resolve --market "$MKT_3WAY"
+$SEALED chain market resolve --market "$DUEL"
 $SEALED chain market claim --market "$MKT_BIN" || true
 $SEALED chain market claim --market "$MKT_3WAY" || true
+$SEALED chain market claim --market "$DUEL" || true
 $SEALED chain status --benchmark "$BENCH"
 
 echo

@@ -787,6 +787,10 @@ const marketPda = (run: PublicKey, salt = 0n, pid = MARKET_PROGRAM_ID) =>
   PublicKey.findProgramAddressSync([Buffer.from("market"), run.toBuffer(), Buffer.from(new anchor.BN(salt.toString()).toArray("le", 8))], pid)[0];
 const positionPda = (market: PublicKey, bettor: PublicKey, pid = MARKET_PROGRAM_ID) =>
   PublicKey.findProgramAddressSync([Buffer.from("position"), market.toBuffer(), bettor.toBuffer()], pid)[0];
+const duelPda = (runA: PublicKey, runB: PublicKey, salt = 0n, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync([Buffer.from("duel"), runA.toBuffer(), runB.toBuffer(), Buffer.from(new anchor.BN(salt.toString()).toArray("le", 8))], pid)[0];
+const isDuel = (m: any) => m.runB && !(m.runB as PublicKey).equals(PublicKey.default);
+const DUEL_LABELS = ["A wins", "B wins", "tie"];
 
 /** Human-readable label for outcome i given a market's edges/n_outcomes. */
 export function outcomeLabel(nOutcomes: number, edges: number[] | bigint[], i: number): string {
@@ -807,28 +811,54 @@ async function marketOpen(run: PublicKey, edges: number[], salt: bigint, kpPath?
   return m;
 }
 
+async function marketOpenDuel(runA: PublicKey, runB: PublicKey, salt: bigint, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const m = duelPda(runA, runB, salt, market.programId);
+  await (market.methods as any)
+    .createDuel(new anchor.BN(salt.toString()))
+    .accounts({ authority: kp.publicKey, runA, runB, market: m })
+    .rpc({ commitment: "confirmed" });
+  console.log(`duel market ${m.toBase58()} opened: run ${runA.toBase58()} vs ${runB.toBase58()} — outcomes: A wins | B wins | tie`);
+  return m;
+}
+
 async function marketBet(marketPk: PublicKey, outcome: number, lamports: bigint, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const m: any = await (market.account as any).market.fetch(marketPk);
   const position = positionPda(marketPk, kp.publicKey, market.programId);
-  const label = outcomeLabel(m.nOutcomes, m.edges, outcome);
-  const sig = await (market.methods as any)
-    .bet(outcome, new anchor.BN(lamports.toString()))
-    .accounts({ bettor: kp.publicKey, run: m.run, market: marketPk, position })
-    .rpc({ commitment: "confirmed" });
+  const duel = isDuel(m);
+  const label = duel ? DUEL_LABELS[outcome] : outcomeLabel(m.nOutcomes, m.edges, outcome);
+  const sig = duel
+    ? await (market.methods as any)
+        .betDuel(outcome, new anchor.BN(lamports.toString()))
+        .accounts({ bettor: kp.publicKey, runA: m.run, runB: m.runB, market: marketPk, position })
+        .rpc({ commitment: "confirmed" })
+    : await (market.methods as any)
+        .bet(outcome, new anchor.BN(lamports.toString()))
+        .accounts({ bettor: kp.publicKey, run: m.run, market: marketPk, position })
+        .rpc({ commitment: "confirmed" });
   console.log(`bet [${label}] ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
 }
 
 async function marketResolve(marketPk: PublicKey, kpPath?: string) {
   const { market } = marketProgram(kpPath);
   const m: any = await (market.account as any).market.fetch(marketPk);
-  const sig = await (market.methods as any)
-    .resolve()
-    .accounts({ run: m.run, market: marketPk })
-    .rpc({ commitment: "confirmed" });
+  const sig = isDuel(m)
+    ? await (market.methods as any)
+        .resolveDuel()
+        .accounts({ runA: m.run, runB: m.runB, market: marketPk })
+        .rpc({ commitment: "confirmed" })
+    : await (market.methods as any)
+        .resolve()
+        .accounts({ run: m.run, market: marketPk })
+        .rpc({ commitment: "confirmed" });
   const after: any = await (market.account as any).market.fetch(marketPk);
-  const oc = after.status === 2 ? "CANCELLED" : `outcome ${after.outcome} [${outcomeLabel(after.nOutcomes, after.edges, after.outcome)}]`;
-  console.log(`market resolved (${sig}): score=${after.resolvedScore} outcome=${oc}`);
+  const oc = after.status === 2
+    ? "CANCELLED"
+    : isDuel(after)
+      ? `outcome ${after.outcome} [${DUEL_LABELS[after.outcome]}] a=${after.resolvedScore >> 16} b=${after.resolvedScore & 0xffff}`
+      : `outcome ${after.outcome} [${outcomeLabel(after.nOutcomes, after.edges, after.outcome)}]`;
+  console.log(`market resolved (${sig}): score=${after.resolvedScore} ${oc}`);
 }
 
 async function marketClaim(marketPk: PublicKey, kpPath?: string) {
@@ -852,17 +882,20 @@ async function marketShow(marketPk: PublicKey) {
   const { market } = marketProgram();
   const m: any = await (market.account as any).market.fetch(marketPk);
   const status = ["OPEN", "RESOLVED", "CANCELLED"][m.status as number];
-  console.log(`market ${marketPk.toBase58()} status=${status}`);
-  console.log(`  run=${m.run.toBase58()} benchmark=${m.benchmark.toBase58()} run_index=${m.runIndex}`);
+  const duel = isDuel(m);
+  console.log(`market ${marketPk.toBase58()} status=${status}${duel ? " (duel)" : ""}`);
+  console.log(`  run=${m.run.toBase58()}${duel ? ` vs=${m.runB.toBase58()}` : ""} benchmark=${m.benchmark.toBase58()} run_index=${m.runIndex}`);
   const n = m.nOutcomes as number;
+  const lbl = (i: number) => (duel ? DUEL_LABELS[i] : outcomeLabel(n, m.edges, i));
   for (let i = 0; i < n; i++) {
     const win = m.status === 1 && m.outcome === i ? "  <- WINNER" : "";
-    console.log(`  [${i}] ${outcomeLabel(n, m.edges, i)}: ${Number(m.totals[i]) / LAMPORTS_PER_SOL} SOL${win}`);
+    console.log(`  [${i}] ${lbl(i)}: ${Number(m.totals[i]) / LAMPORTS_PER_SOL} SOL${win}`);
   }
-  console.log(`  resolved_score=${m.resolvedScore} outcome=${m.status === 1 ? m.outcome : "-"}`);
+  const rs = duel ? `${m.resolvedScore >> 16}-${m.resolvedScore & 0xffff}` : `${m.resolvedScore}`;
+  console.log(`  resolved_score=${rs} outcome=${m.status === 1 ? m.outcome : "-"}`);
   const positions = await (market.account as any).position.all([{ memcmp: { offset: 8, bytes: marketPk.toBase58() } }]);
   for (const { account: p } of positions) {
-    const bets = p.amounts.slice(0, n).map((a: bigint, i: number) => `${outcomeLabel(n, m.edges, i)}=${Number(a) / LAMPORTS_PER_SOL}`).filter((s: string) => !s.endsWith("=0")).join(" ");
+    const bets = p.amounts.slice(0, n).map((a: bigint, i: number) => `${lbl(i)}=${Number(a) / LAMPORTS_PER_SOL}`).filter((s: string) => !s.endsWith("=0")).join(" ");
     console.log(`  position ${p.bettor.toBase58()} ${bets} claimed=${p.claimed}`);
   }
 }
@@ -994,6 +1027,9 @@ export async function chainMain(cmd: string[], args: Args) {
       const edges = args.edges ? String(args.edges).split(",").map(Number) : [Number(args.threshold)];
       if (edges.some((e) => !Number.isFinite(e))) throw new Error("--edges 40,55[,64..] or --threshold n");
       await marketOpen(run, edges, BigInt(String(args.salt ?? "0")), bettor);
+    } else if (m0 === "duel") {
+      // Head-to-head: does run A outscore run B on the same benchmark?
+      await marketOpenDuel(new PublicKey(String(args["run-a"])), new PublicKey(String(args["run-b"])), BigInt(String(args.salt ?? "0")), bettor);
     } else if (m0 === "bet") {
       const marketPk = new PublicKey(String(args.market));
       // --outcome i is canonical; --side yes|no maps onto binary markets (no=0, yes=1).

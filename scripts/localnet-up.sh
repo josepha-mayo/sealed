@@ -20,7 +20,7 @@ if ! pgrep -f "solana-test-validator.*test-ledger" >/dev/null; then
   args=(
     --ledger .anchor/test-ledger
     --mint 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
-    --bpf-program 8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN "$PWD/target/deploy/market.so"
+    --upgradeable-program 8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN "$PWD/target/deploy/market.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
     --bpf-program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ "$PWD/target/deploy/sealed.so"
     --upgradeable-program Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ "$PWD/$ART/arcium_program_0.14.1.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
     --upgradeable-program ArcStnN9zZZVB5WjgPhLHjYpY7Gb29mzb96ySsb1kxgq "$PWD/$ART/arcium_staking_program_0.14.1.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc

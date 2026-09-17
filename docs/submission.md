@@ -26,6 +26,16 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
 - **N-way markets:** `create_market(salt, edges)` opens bucketed parimutuels
   (e.g. edges `[32,48]` = bands `<32`/`32–47`/`≥48`); multiple markets per run
   via `salt`. Covered by the anchor test (binary + 3-way on one MPC-scored run).
+- **Duel markets — "who mogs whom":** `create_duel(run_a, run_b, salt)` opens a
+  head-to-head on two pending runs of the SAME benchmark (outcomes: A wins /
+  B wins / tie). `bet_duel` closes the book once EITHER run starts scoring, so
+  no one trades on a half-known result; `resolve_duel` reads both finalized
+  `Run.correct` fields and pays the winner bucket (ties refund via the tie
+  bucket); `resolved_score` packs both scores `(a << 16) | b`. Verified E2E:
+  duel `9QteJLVr…` between `duel/model-a` and `duel/model-b` on a generated
+  bank → MPC-scored 25–19 → outcome A-wins → winner claimed pro-rata
+  (0.098 → 0.65 SOL). Negative paths proven: self-duel rejected
+  `RunsMustDiffer`, post-scoring bet rejected `RunNotPending`.
 - **Generated banks — the headline feature.** `chain gen` mints a benchmark
   *inside* MPC: the `gen_part` Arcis instruction draws item specs from
   `ArcisRNG`, computes answers in-circuit, fingerprints them (SHA3-256 over
@@ -78,10 +88,13 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 6/6 passing (seal+score+finalize; reveal
-  declassify+audit; market open→bet→score→resolve→claim; generated-bank
-  mint→live→score; private-bank mint→decrypt→score + privacy negatives;
-  reshare delegate-decrypt + one-directional disclosure + gates).
+- **Test suite:** `yarn test` — 8/8 passing (seal+score+finalize; reveal
+  declassify+audit; market open→bet→score→resolve→claim; duel market
+  open→bet→score-both→resolve→claim + gates; generated-bank mint→live→score;
+  private-bank mint→decrypt→score + privacy negatives; reshare
+  delegate-decrypt + one-directional disclosure + gates; delegated-runner
+  rebuild-from-grants + MPC score). The suite salts bank ids per run so it's
+  re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a run).
   `yarn harness:test` — 12/12.
 
 ## Reproduce

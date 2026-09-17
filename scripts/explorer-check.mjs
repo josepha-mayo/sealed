@@ -73,7 +73,11 @@ function parseMarket(d) {
   o += 1; const status = d[o++]; const outcome = d[o++];
   const totals = []; for (let i = 0; i < 8; i++) { totals.push(v.getBigUint64(o, true)); o += 8; }
   const resolvedScore = v.getUint32(o, true); o += 4;
-  return { run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges: edges.slice(0, Math.max(0, nOutcomes - 1)), status, outcome, totals: totals.slice(0, nOutcomes), resolvedScore };
+  o += 16; // created_at + resolved_at
+  // run_b appended for duel markets; absent on pre-duel accounts.
+  const runB = o + 32 <= d.length ? b58(d.slice(o, o + 32)) : null;
+  const duel = runB && runB !== "11111111111111111111111111111111";
+  return { run: b58(run), runB: duel ? runB : undefined, benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges: edges.slice(0, Math.max(0, nOutcomes - 1)), status, outcome, totals: totals.slice(0, nOutcomes), resolvedScore: duel ? `${resolvedScore >> 16}-${resolvedScore & 0xffff}` : resolvedScore };
 }
 
 const url = process.argv[2] || "http://127.0.0.1:8899";

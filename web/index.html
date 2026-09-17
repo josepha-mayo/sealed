@@ -178,7 +178,10 @@ function parseMarket(d) {
   const resolvedScore = v.getUint32(o, true); o += 4;
   const createdAt = Number(v.getBigInt64(o, true)); o += 8;
   const resolvedAt = Number(v.getBigInt64(o, true)); o += 8;
-  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges, status, outcome, totals, resolvedScore, createdAt, resolvedAt };
+  // run_b appended for duel markets; absent on pre-duel accounts.
+  const runB = o + 32 <= d.length ? b58(d.slice(o, o + 32)) : null;
+  const duel = runB && runB !== "11111111111111111111111111111111";
+  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges, status, outcome, totals, resolvedScore, createdAt, resolvedAt, runB, duel };
 }
 // bucket i covers [edges[i-1], edges[i]); last bucket is >= edges[n-2]
 function outcomeLabel(n, edges, i) {
@@ -368,30 +371,39 @@ async function load() {
     h += `<h2>markets</h2>`;
     for (const m of markets.sort((a, b) => b.createdAt - a.createdAt)) {
       const run = runs.find(r => r.pk === m.run);
+      const runB = m.duel ? runs.find(r => r.pk === m.runB) : null;
       const pot = m.totals.reduce((s, t) => s + Number(t), 0) / 1e9;
       const mpos = positions.filter(p => p.market === m.pk);
       const n = m.nOutcomes;
-      const q = n === 2
-        ? `will <span class="mono">${run ? run.modelId : short(m.run)}</span> score ≥ ${Number(m.edges[0])}?`
-        : `which band does <span class="mono">${run ? run.modelId : short(m.run)}</span> land in?`;
+      const model = (r, pk) => r ? `<span class="mono">${r.modelId}</span>` : `<span class="mono">${short(pk)}</span>`;
+      const lbl = m.duel
+        ? (i) => i === 0 ? `${run ? run.modelId : "A"} wins` : i === 1 ? `${runB ? runB.modelId : "B"} wins` : "tie"
+        : (i) => outcomeLabel(n, m.edges, i);
+      const q = m.duel
+        ? `${model(run, m.run)} vs ${model(runB, m.runB)} — who scores higher?`
+        : n === 2
+          ? `will ${model(run, m.run)} score ≥ ${Number(m.edges[0])}?`
+          : `which band does ${model(run, m.run)} land in?`;
+      const rs = m.duel ? `${m.resolvedScore >> 16}–${m.resolvedScore & 0xffff}` : (m.resolvedScore || "—");
       h += `<div class="card"><div class="row">
         <b>${q}</b>
+        ${m.duel ? `<span class="pill live">duel</span>` : ``}
         <span class="pill ${MSTATUS[m.status]}">${MSTATUS[m.status]}</span>
         <span class="kv">pot <b>${pot.toFixed(3)} SOL</b></span>
         <span class="kv">acct ${link(m.pk)}</span></div>
-        <div class="proof">run ${m.run} &middot; resolved score ${m.resolvedScore || "—"}</div>
+        <div class="proof">run ${m.run}${m.duel ? ` vs ${m.runB}` : ""} &middot; resolved score ${rs}</div>
         <table><tr>`;
       for (let i = 0; i < n; i++) {
         const t = Number(m.totals[i]), share = pot ? (100 * t) / (pot * 1e9) : 0;
         const win = m.status === 1 && m.outcome === i;
-        h += `<th>${outcomeLabel(n, m.edges, i)}${win ? " ✓" : ""}</th>`;
+        h += `<th>${lbl(i)}${win ? " ✓" : ""}</th>`;
       }
       h += `</tr><tr>`;
       for (let i = 0; i < n; i++) h += `<td>${sol(m.totals[i])} (${pot ? (100 * Number(m.totals[i]) / (pot * 1e9)).toFixed(0) : 0}%)</td>`;
       h += `</tr></table>`;
       if (mpos.length) {
         h += `<table><tr><th>bettor</th>`;
-        for (let i = 0; i < n; i++) h += `<th>${outcomeLabel(n, m.edges, i)}</th>`;
+        for (let i = 0; i < n; i++) h += `<th>${lbl(i)}</th>`;
         h += `<th>claimed</th></tr>`;
         for (const p of mpos) {
           h += `<tr><td class="mono">${short(p.bettor)}</td>`;

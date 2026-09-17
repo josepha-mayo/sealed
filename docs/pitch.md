@@ -66,6 +66,7 @@ not the commands.
 | 6. Score in MPC | `sealed chain score --bank … --run … --run-index N` | "Each chunk is one MPC computation comparing output hashes to answers born encrypted. Only the count leaves the circuit." |
 | 7. Explorer | open `web/index.html` | "Leaderboard from raw chain state — minted specs, items root, outputs root, MPC score." |
 | 8. Resolve + claim | `chain market resolve` / `claim` | "The market read `Run.correct` itself. Winner withdraws; the loser has nothing to claim." |
+| 9. Duel (optional beat) | `sealed chain market duel --run-a <pk> --run-b <pk>` | "Two runs, one sealed bank: 'who outscores whom?' — bets close once either side starts scoring, so nobody trades on a half-known result." |
 
 ## One-pager for the submission form
 

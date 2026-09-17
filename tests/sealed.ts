@@ -928,6 +928,123 @@ describe("Sealed", () => {
     expect(r.correct).to.equal(PLANTED);
     console.log(`delegated runner scored: ${r.correct}/${CHUNK} — exam granted by MPC, questions never public, answers never plaintext`);
   });
+
+  it("settles a head-to-head duel market between two MPC-scored runs", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
+      program.programId,
+    );
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
+
+    // Same bank, two different runners — the "who mogs whom" primitive.
+    const truth = decodeItemChunk(Buffer.from((await provider.connection.getAccountInfo(itemsPda))!.data)).specs.map(evalSpec);
+    const runnerA = Keypair.generate();
+    const runnerB = Keypair.generate();
+    await fund(provider, owner, runnerA.publicKey, 0.4 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, runnerB.publicKey, 0.4 * LAMPORTS_PER_SOL);
+
+    const idx0 = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const mkRun = async (kp: Keypair, model: string, idx: bigint) => {
+      const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx)], program.programId);
+      await program.methods
+        .createRun(model, Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+        .accountsPartial({ runner: kp.publicKey, authority: owner.publicKey, benchmark, run })
+        .signers([kp])
+        .rpc({ commitment: "confirmed" });
+      return run;
+    };
+    const runA = await mkRun(runnerA, "duel/model-a", idx0);
+    const runB = await mkRun(runnerB, "duel/model-b", idx0 + 1n);
+
+    const duelPda = (a: PublicKey, b: PublicKey, salt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("duel"), a.toBuffer(), b.toBuffer(), u64le(salt)], marketProgram.programId)[0];
+    const posPda = (mkt: PublicKey, bettor: PublicKey) =>
+      PublicKey.findProgramAddressSync([Buffer.from("position"), mkt.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
+
+    // A duel between a run and itself is nonsense.
+    await expectAnchorError(
+      marketProgram.methods
+        .createDuel(new anchor.BN(7))
+        .accounts({ authority: owner.publicKey, runA, runB: runA, market: duelPda(runA, runA, 7n) })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "RunsMustDiffer",
+    );
+
+    const mkt = duelPda(runA, runB, 0n);
+    await marketProgram.methods
+      .createDuel(new anchor.BN(0))
+      .accounts({ authority: owner.publicKey, runA, runB, market: mkt })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    let m = await marketProgram.account.market.fetch(mkt);
+    expect(m.nOutcomes).to.equal(3);
+    expect(m.runB.toBase58()).to.equal(runB.toBase58());
+
+    // All three buckets must be backed or the duel cancels on resolve.
+    const betA = Keypair.generate(), betB = Keypair.generate(), betTie = Keypair.generate();
+    await fund(provider, owner, betA.publicKey, 0.4 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, betB.publicKey, 0.3 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, betTie.publicKey, 0.1 * LAMPORTS_PER_SOL);
+    await marketProgram.methods.betDuel(0, new anchor.BN(0.30 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: betA.publicKey, runA, runB, market: mkt, position: posPda(mkt, betA.publicKey) })
+      .signers([betA]).rpc({ commitment: "confirmed" });
+    await marketProgram.methods.betDuel(1, new anchor.BN(0.20 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: betB.publicKey, runA, runB, market: mkt, position: posPda(mkt, betB.publicKey) })
+      .signers([betB]).rpc({ commitment: "confirmed" });
+    await marketProgram.methods.betDuel(2, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: betTie.publicKey, runA, runB, market: mkt, position: posPda(mkt, betTie.publicKey) })
+      .signers([betTie]).rpc({ commitment: "confirmed" });
+    m = await marketProgram.account.market.fetch(mkt);
+    expect(Number(m.totals[0]) + Number(m.totals[1]) + Number(m.totals[2])).to.equal(0.55 * LAMPORTS_PER_SOL);
+
+    // MPC-score run A (25 right); once it finalizes, duel bets must close —
+    // half the outcome is already known.
+    const score = async (kp: Keypair, run: PublicKey, idx: bigint, planted: number) => {
+      const outputs = truth.map((v, j) => new anchor.BN((j < planted ? genAnswerHash(GEN_ID, j, v) : randomU64()).toString()));
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs)
+        .accountsPartial({ payer: kp.publicKey, run, runner: kp.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
+        .signers([kp])
+        .rpc({ commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    };
+    await score(runnerA, runA, idx0, 25);
+    expect((await program.account.run.fetch(runA)).correct).to.equal(25);
+
+    await expectAnchorError(
+      marketProgram.methods.betDuel(1, new anchor.BN(1000))
+        .accounts({ bettor: betB.publicKey, runA, runB, market: mkt, position: posPda(mkt, betB.publicKey) })
+        .signers([betB]).rpc({ commitment: "confirmed" }),
+      "RunNotPending",
+    );
+
+    await score(runnerB, runB, idx0 + 1n, 19);
+    expect((await program.account.run.fetch(runB)).correct).to.equal(19);
+
+    // Permissionless settle from the two finalized runs.
+    await marketProgram.methods
+      .resolveDuel()
+      .accounts({ runA, runB, market: mkt })
+      .rpc({ commitment: "confirmed" });
+    m = await marketProgram.account.market.fetch(mkt);
+    expect(m.status).to.equal(1, "resolved");
+    expect(m.outcome).to.equal(0, "model A wins 25-19");
+    expect(m.resolvedScore).to.equal((25 << 16) | 19);
+
+    const before = await provider.connection.getBalance(betA.publicKey);
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: betA.publicKey, market: mkt, position: posPda(mkt, betA.publicKey) })
+      .signers([betA])
+      .rpc({ commitment: "confirmed" });
+    const after = await provider.connection.getBalance(betA.publicKey);
+    expect(after).to.be.greaterThan(before, "winner paid pro-rata");
+    console.log(`duel settled: model-a ${25} vs model-b ${19} — A bettor ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+  });
 });
 
 // ------------------------------------------------------------------ helpers

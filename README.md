@@ -68,9 +68,15 @@ A second Anchor program hosts N-way parimutuel markets on a run's final score, w
 create_market(run, salt, edges)   open while run is pending and unscored (scored_mask == 0)
                                   edges=[t] is a binary market; edges=[10,20,40] makes 4
                                   score buckets; salt allows multiple markets per run
+create_duel(run_a, run_b, salt)   head-to-head on the same benchmark: does A
+                                  outscore B? 3 outcomes — A wins / B wins / tie
 bet(outcome, lamports)            stake on one bucket; one position PDA per (market, bettor)
+bet_duel(outcome, lamports)       same, but closes once EITHER run starts scoring
 resolve()                         permissionless once run.status == FINALIZED:
                                   outcome = the bucket containing run.correct
+resolve_duel()                    permissionless once BOTH runs are FINALIZED:
+                                  outcome = larger correct (ties pay the tie bucket);
+                                  resolved_score packs (a << 16) | b
 claim()                           winners split the whole pot pro-rata; one-sided or
                                   voided markets refund
 ```
@@ -129,6 +135,7 @@ sealed chain status --benchmark <pubkey>                             # leaderboa
 
 sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"
 sealed chain market open    --run <pubkey> --edges 40,55 --salt 1    # 3-way score bands, 2nd market
+sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]     # head-to-head: A outscores B?
 sealed chain market bet     --market <pk> --outcome 1 --lamports 500000000 [--bettor kp.json]
 sealed chain market bet     --market <pk> --side yes --lamports 500000000   # binary shorthand
 sealed chain market resolve --market <pk>                            # settles off Run.correct
@@ -160,6 +167,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] **Real model on an MPC-minted bank**: gpt-oss-20b (Pollinations anonymous tier) answered all 32 minted items; MPC finalized **32/32 == local pre-score** — a real model answering questions born inside the enclave
 - [x] **Delegated runner**: `chain delegate-bank` rebuilds a private bank entirely from a wallet's ShareGrants — verified byte-identical to the authority's decryption (prompts, answer hashes, items_root); a model provider can be granted the exam, run it, and get scored without the questions ever being public
 - [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
+- [x] **Duel markets**: `create_duel`/`bet_duel`/`resolve_duel` — head-to-head "does run A outscore run B on the same bank?" with A-wins/B-wins/tie buckets; bets close once EITHER run starts scoring, settle reads both finalized `Run.correct`, E2E proves 25–19 resolution + pro-rata claim
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected

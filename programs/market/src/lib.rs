@@ -135,6 +135,115 @@ pub mod market {
         Ok(())
     }
 
+    /// Open a head-to-head market: does run A outscore run B on the same
+    /// benchmark? Outcomes: 0 = A wins, 1 = B wins, 2 = tie. Both runs must be
+    /// pending and unscored so no one bets on leaked information.
+    pub fn create_duel(ctx: Context<CreateDuel>, salt: u64) -> Result<()> {
+        let ra = load_run(&ctx.accounts.run_a)?;
+        let rb = load_run(&ctx.accounts.run_b)?;
+        require!(ra.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(rb.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(ra.scored_mask == 0 && rb.scored_mask == 0, ErrorCode::ScoringStarted);
+        require!(ra.benchmark == rb.benchmark, ErrorCode::BenchmarkMismatch);
+        require!(ctx.accounts.run_a.key() != ctx.accounts.run_b.key(), ErrorCode::RunsMustDiffer);
+        let m = &mut ctx.accounts.market;
+        m.authority = ctx.accounts.authority.key();
+        m.run = ctx.accounts.run_a.key();
+        m.run_b = ctx.accounts.run_b.key();
+        m.benchmark = ra.benchmark;
+        m.run_index = ra.index;
+        m.salt = salt;
+        m.n_outcomes = 3;
+        m.edges = [0u32; MAX_OUTCOMES - 1];
+        m.bump = ctx.bumps.market;
+        m.status = MARKET_OPEN;
+        m.outcome = u8::MAX;
+        m.totals = [0u64; MAX_OUTCOMES];
+        m.resolved_score = 0;
+        m.created_at = Clock::get()?.unix_timestamp;
+        m.resolved_at = 0;
+        emit!(DuelCreated {
+            market: m.key(),
+            run_a: m.run,
+            run_b: m.run_b,
+            benchmark: ra.benchmark,
+        });
+        Ok(())
+    }
+
+    /// Bet on a duel outcome. Unlike score markets, bets close once EITHER run
+    /// starts scoring — otherwise a finalized half leaks information.
+    pub fn bet_duel(ctx: Context<BetDuel>, outcome: u8, lamports: u64) -> Result<()> {
+        require!(lamports > 0, ErrorCode::ZeroAmount);
+        let ra = load_run(&ctx.accounts.run_a)?;
+        let rb = load_run(&ctx.accounts.run_b)?;
+        require!(ra.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(rb.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(ra.scored_mask == 0 && rb.scored_mask == 0, ErrorCode::ScoringStarted);
+        let m = &mut ctx.accounts.market;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(outcome < m.n_outcomes, ErrorCode::InvalidOutcome);
+
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.key(),
+                system_program::Transfer {
+                    from: ctx.accounts.bettor.to_account_info(),
+                    to: m.to_account_info(),
+                },
+            ),
+            lamports,
+        )?;
+
+        let p = &mut ctx.accounts.position;
+        p.market = m.key();
+        p.bettor = ctx.accounts.bettor.key();
+        if p.bump == 0 {
+            p.bump = ctx.bumps.position;
+            p.amounts = [0u64; MAX_OUTCOMES];
+        }
+        p.amounts[outcome as usize] += lamports;
+        m.totals[outcome as usize] += lamports;
+        emit!(BetPlaced {
+            market: m.key(),
+            bettor: p.bettor,
+            outcome,
+            lamports,
+        });
+        Ok(())
+    }
+
+    /// Settle the duel once both runs are finalized. The winning outcome is the
+    /// larger `correct`; equal scores pay the tie bucket. `resolved_score`
+    /// packs both scores as (a << 16) | b for a compact onchain record.
+    pub fn resolve_duel(ctx: Context<ResolveDuel>) -> Result<()> {
+        let ra = load_run(&ctx.accounts.run_a)?;
+        let rb = load_run(&ctx.accounts.run_b)?;
+        require!(ra.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
+        require!(rb.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
+        let m = &mut ctx.accounts.market;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(ra.correct <= 0xffff && rb.correct <= 0xffff, ErrorCode::ScoreOverflow);
+
+        m.resolved_score = (ra.correct << 16) | rb.correct;
+        m.resolved_at = Clock::get()?.unix_timestamp;
+        let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
+        if all_backed {
+            m.status = MARKET_RESOLVED;
+            m.outcome = if ra.correct > rb.correct { 0 } else if rb.correct > ra.correct { 1 } else { 2 };
+        } else {
+            m.status = MARKET_CANCELLED;
+        }
+        emit!(DuelResolved {
+            market: m.key(),
+            a_correct: ra.correct,
+            b_correct: rb.correct,
+            outcome: m.outcome,
+            cancelled: m.status == MARKET_CANCELLED,
+        });
+        Ok(())
+    }
+
     /// Settle the market from the finalized run. If any outcome attracted no
     /// stake the market is cancelled and everyone is refunded instead.
     pub fn resolve(ctx: Context<Resolve>) -> Result<()> {
@@ -250,9 +359,12 @@ pub struct Market {
     pub outcome: u8,
     /// Lamports staked on each outcome.
     pub totals: [u64; MAX_OUTCOMES],
+    /// For score markets: the run's `correct`. For duels: (a << 16) | b.
     pub resolved_score: u32,
     pub created_at: i64,
     pub resolved_at: i64,
+    /// Second run for head-to-head markets; Pubkey::default() on score markets.
+    pub run_b: Pubkey,
 }
 
 #[account]
@@ -322,6 +434,69 @@ pub struct Resolve<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(salt: u64)]
+pub struct CreateDuel<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    pub run_a: UncheckedAccount<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    pub run_b: UncheckedAccount<'info>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + Market::INIT_SPACE,
+        seeds = [b"duel", run_a.key().as_ref(), run_b.key().as_ref(), salt.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub market: Account<'info, Market>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct BetDuel<'info> {
+    #[account(mut)]
+    pub bettor: Signer<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run @ ErrorCode::WrongRun)]
+    pub run_a: UncheckedAccount<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run_b @ ErrorCode::WrongRun)]
+    pub run_b: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"duel", run_a.key().as_ref(), run_b.key().as_ref(), market.salt.to_le_bytes().as_ref()],
+        bump = market.bump,
+    )]
+    pub market: Account<'info, Market>,
+    #[account(
+        init_if_needed,
+        payer = bettor,
+        space = 8 + Position::INIT_SPACE,
+        seeds = [b"position", market.key().as_ref(), bettor.key().as_ref()],
+        bump,
+    )]
+    pub position: Account<'info, Position>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveDuel<'info> {
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run @ ErrorCode::WrongRun)]
+    pub run_a: UncheckedAccount<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run_b @ ErrorCode::WrongRun)]
+    pub run_b: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"duel", run_a.key().as_ref(), run_b.key().as_ref(), market.salt.to_le_bytes().as_ref()],
+        bump = market.bump,
+    )]
+    pub market: Account<'info, Market>,
+}
+
+#[derive(Accounts)]
 pub struct VoidMarket<'info> {
     pub authority: Signer<'info>,
     #[account(mut, has_one = authority @ ErrorCode::NotAuthority)]
@@ -373,6 +548,23 @@ pub struct MarketResolved {
 }
 
 #[event]
+pub struct DuelCreated {
+    pub market: Pubkey,
+    pub run_a: Pubkey,
+    pub run_b: Pubkey,
+    pub benchmark: Pubkey,
+}
+
+#[event]
+pub struct DuelResolved {
+    pub market: Pubkey,
+    pub a_correct: u32,
+    pub b_correct: u32,
+    pub outcome: u8,
+    pub cancelled: bool,
+}
+
+#[event]
 pub struct Claimed {
     pub market: Pubkey,
     pub bettor: Pubkey,
@@ -411,4 +603,10 @@ pub enum ErrorCode {
     AlreadyClaimed,
     #[msg("Nothing to claim on this position")]
     NothingToClaim,
+    #[msg("Duel runs must be on the same benchmark")]
+    BenchmarkMismatch,
+    #[msg("Duel needs two different runs")]
+    RunsMustDiffer,
+    #[msg("Score too large to pack into resolved_score")]
+    ScoreOverflow,
 }
