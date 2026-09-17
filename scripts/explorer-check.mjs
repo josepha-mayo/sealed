@@ -6,7 +6,7 @@ const { Connection, PublicKey } = require("@solana/web3.js");
 
 const SEALED_PID = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 const MARKET_PID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
-const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", market: "dbbed53700e3c69a", position: "aabc8fe47a40f7d0" };
+const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", position: "aabc8fe47a40f7d0" };
 const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
 const b58 = (u8) => new PublicKey(u8).toBase58();
 
@@ -52,6 +52,12 @@ function parseReveal(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
   return { chunk: v.getUint16(40, true), part: d[42], revealedAt: v.getBigInt64(44, true).toString(), hashes: Array.from({ length: 8 }, (_, i) => v.getBigUint64(52 + i * 8, true).toString(16)) };
 }
+// ShareGrant: disc8 + benchmark32 + chunk u16 + part u8 + bump + viewer32
+// + encryption_key32 + nonce16 + ciphertexts[2][32] + shared_at i64.
+function parseShareGrant(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
+  return { chunk: v.getUint16(40, true), part: d[42], viewer: b58(d.slice(44, 76)), encKey: b58(d.slice(76, 108)), cts: hex(d.slice(124, 188)), sharedAt: v.getBigInt64(188, true).toString() };
+}
 // disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
 // + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
 // + resolvedScore u32 + createdAt i64 + resolvedAt i64  (same layout as web/index.html)
@@ -83,6 +89,7 @@ for (const { pubkey, account } of sealed) {
   else if (disc === DISC.itemChunk) console.log("itmchunk", pubkey.toBase58(), J(parseItemChunk(d)));
   else if (disc === DISC.privItemChunk) console.log("privitm ", pubkey.toBase58(), J(parsePrivItemChunk(d)));
   else if (disc === DISC.reveal) console.log("reveal  ", pubkey.toBase58(), J(parseReveal(d)));
+  else if (disc === DISC.shareGrant) console.log("grant   ", pubkey.toBase58(), J(parseShareGrant(d)));
 }
 for (const { pubkey, account } of mkt) {
   const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));

@@ -49,6 +49,15 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   `mock/oracle-0.75` scored **23/32 == local pre-score**; the anchor test
   proves the public-items path is rejected `WrongBankKind`, a private mint on
   a public bank fails, and a wrong-key decrypt yields out-of-range garbage.
+- **Selective question disclosure (reshare_part):** the `reshare_part` circuit
+  decrypts a private bank's specs inside MPC and re-encrypts them to a
+  *delegate's* x25519 key — the authority can hand a judge or runner the exam
+  questions without publishing them, and the `ShareGrant` PDA records
+  who-can-see-which-parts onchain. The answers never move. Verified E2E: the
+  delegate decrypts 8 items **identical** to the authority's view; the
+  authority's own key cannot open the delegate's grant (disclosure is
+  one-directional); a non-authority reshare is rejected `NotAuthority`; a
+  repeat grant to the same viewer is rejected. Explorer shows the grant trail.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
   that output `i` was in the committed `outputs_root`; the web explorer
   verifies it in-browser.
@@ -60,9 +69,10 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 5/5 passing (seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 6/6 passing (seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim; generated-bank
-  mint→live→score; private-bank mint→decrypt→score + privacy negatives).
+  mint→live→score; private-bank mint→decrypt→score + privacy negatives;
+  reshare delegate-decrypt + one-directional disclosure + gates).
   `yarn harness:test` — 12/12.
 
 ## Reproduce

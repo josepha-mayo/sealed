@@ -36,6 +36,7 @@ after sealing, and nobody can fabricate a score.
 | Generated items can't be planted or pre-leaked | Specs are drawn at mint time from cluster randomness — after the benchmark is created, after models trained. No operator authored them, so nothing was cherry-picked for a favored model. |
 | Generated specs are auditable | Every spec lands publicly in an `ItemChunk` account; the benchmark's `items_root` is a running SHA-256 fold over the exact spec bytes — anyone can re-render prompts and re-fold to verify. |
 | A score can be spot-checked without a key | `reveal_part` declassifies one part's eight answer *fingerprints* at the authority's request — the circuit decrypts inside MPC and returns hashes, never plaintext. `chain verify` compares them to a run's committed output hashes, so anyone can recompute what `score_chunk` counted on the revealed positions. The authority chooses what to declassify; MPC mediates so even it never receives answers. |
+| Questions can be disclosed selectively without publishing | `reshare_part` decrypts a private bank part inside MPC and re-encrypts the specs to a *delegate's* x25519 key — the grant lands in a per-(chunk, part, viewer) `ShareGrant` PDA, so who-can-see-what is onchain evidence. Disclosure is one-directional: the delegate decrypts with their own wallet (`DH(delegate_priv, mxe_pub)`) while the authority's key cannot open the delegate's grant, and a stranger cannot queue a reshare (`NotAuthority`). Answers never move — only the questions. The chain records *that* disclosure happened, not *what* was disclosed. |
 
 ## Trust assumptions
 
@@ -71,8 +72,11 @@ after sealing, and nobody can fabricate a score.
   reveal (e.g. after a market resolves, or multi-sig) are small extensions.
 - **Private-bank prompt custody** — the authority wallet decrypts private
   specs; key compromise leaks the prompts (but never answer plaintext, which
-  stays MXE-sealed). Multi-viewer minting (`Enc<Shared>` to n keys) and
-  threshold release are small extensions.
+  stays MXE-sealed). `reshare_part` already narrows exposure — the authority
+  can delegate individual parts to a judge's key rather than handing over its
+  own — and the `ShareGrant` trail makes every disclosure auditable. A true
+  multi-viewer mint (`Enc<Shared>` to n keys at once) and threshold release
+  remain small extensions.
 - **Generated item families** — the mint circuit currently covers arithmetic
   expressions only. The construction generalizes to any family where the
   answer is a pure function of public spec fields; richer families are

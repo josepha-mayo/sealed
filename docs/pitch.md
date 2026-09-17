@@ -33,7 +33,10 @@ parimutuel market resolves on that number. The leaderboard is the oracle.
    mints the same items but returns them `Enc<Shared>` to the authority —
    **the questions never touch the chain in plaintext either**. The account
    holds ciphertext; `items_root` commits to the ciphertext, so the mint is
-   auditable but unreadable. → a model's outputs are committed by hash root
+   auditable but unreadable. And disclosure is selective, not binary:
+   `reshare_part` re-encrypts a private bank's specs *to a second key* inside
+   MPC — hand the judge the exam without publishing it, while the
+   `ShareGrant` trail proves who can see what. → a model's outputs are committed by hash root
    before scoring → the cluster counts matches inside the encryption boundary
    and reveals only the count → the callback writes `Run.correct` onchain.
    (Authored banks still work: `seal` re-encrypts a staged answer to the MXE
@@ -80,10 +83,11 @@ not the commands.
 - **Status:** localnet end-to-end verified — public generated banks minted in
   MPC (specs public, answers born encrypted), **private generated banks whose
   specs are ciphertext-only onchain** (`Enc<Shared, Pack<GenPart>>` to the
-  authority — questions AND answers both absent from public state), on-chain
-  MPC scores matching local pre-scores exactly, binary + N-way markets
-  resolved and paid out, fingerprint reveal audits, mocha suite 5/5 + 12/12
-  unit tests green. Authored banks work too (seal+score).
+  authority — questions AND answers both absent from public state), selective
+  question disclosure to delegate keys (`reshare_part` — one-directional,
+  grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
+  binary + N-way markets resolved and paid out, fingerprint reveal audits,
+  mocha suite 6/6 + 12/12 unit tests green. Authored banks work too (seal+score).
 - **Business:** per-run fee to the benchmark authority; take rate on market
   settlement; sell sealed-eval as a service to labs, markets, and insurers.
 - **Moat:** for generated banks the answer key never exists — not encrypted

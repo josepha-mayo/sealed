@@ -18,6 +18,7 @@ Prediction markets on AI progress settle against leaderboards run by single comp
 | **No questions OR answers onchain** | Private generated banks (`chain gen-private`) go further: `gen_part_private` returns the specs as `Enc<Shared, Pack<GenPart>>` to the authority's x25519 key (derived from their Solana keypair — no extra key management). `PrivItemChunk` accounts hold ciphertext only; `items_root` commits to the ciphertext itself, so the mint transcript is auditable by anyone while the questions stay confidential to the authority. Neither the questions nor any answer key exists in plaintext. |
 | Scores are not posted by the operator | `score_chunk` compares a run's public output hashes with the sealed answers in MPC and reveals only the count. The Arcium callback writes it to the `Run` account. |
 | Scores are auditable without a key | `reveal_part` lets the benchmark authority declassify one part's answer *fingerprints* (hashes, never plaintext). `chain verify` then checks them against a run's committed output hashes — a spot-check of what `score_chunk` counted, mediated by MPC so even the authority only ever sees hash commitments. |
+| Questions are shareable without publishing | `reshare_part` re-encrypts a private bank's specs to a *second* viewer key inside MPC — the authority can hand a judge, runner, or panel the exam questions without ever putting them onchain. Grants land in per-(chunk, part, viewer) PDAs; disclosure is one-directional (the authority's own key cannot open the delegate's grant), and answers never move. |
 | Runs are commitments | A run commits to the Merkle root of all its output hashes before any chunk is scored, and every scored chunk's hashes are permanently in the transaction record. A bad run cannot be retracted. |
 | Per-item results stay hidden | Only aggregate counts leave the circuit, so a run cannot be used to leak the answer to a specific item. |
 
@@ -44,6 +45,9 @@ private bank (kind=2):                 create_benchmark(kind, root=0)
   specs land as ciphertext in             gen_part_private_callback <--    Enc<Shared, Pack<GenPart>>
   PrivItemChunk; items_root folds the     (ciphertext stored; only the
   ciphertext itself                        authority can decrypt)
+                                       reshare_part(viewer_pub) ------->  reshare_part: decrypt specs in
+  ShareGrant PDA <- delegate decrypts      reshare_part_callback <-----    enclave, re-encrypt to delegate
+  with their own wallet key              (selective question disclosure)
 
 runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
   canonicalAnswer -> hash            --> score_chunk(outputs[32]) ------>  score_chunk: count(outputs == 4 sealed parts)
@@ -82,7 +86,7 @@ The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and de
 ## Repo layout
 
 ```
-encrypted-ixs/          Arcis circuits: seal_part, score_chunk, gen_part, gen_part_private, reveal_part
+encrypted-ixs/          Arcis circuits: seal_part, score_chunk, gen_part, gen_part_private, reveal_part, reshare_part
 programs/sealed/        Anchor program (Arcium MXE): registry, chunks, runs, callbacks
 programs/market/        Anchor program: parimutuel markets resolving on Run.correct
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
@@ -114,6 +118,9 @@ sealed chain gen   --id 7 --chunks 2 --fee-lamports 1000000          # generated
 sealed chain items --benchmark <pubkey>                              # re-render a generated bank from onchain specs
 sealed chain gen-private --id 8 --chunks 2 --fee-lamports 1000000    # private bank: specs encrypted to YOUR key
 sealed chain pitems --benchmark <pubkey>                             # decrypt + render a private bank (authority only)
+sealed chain reshare --benchmark <pk> --chunk <i> --part <p> --to <solana-pubkey>  # delegate the questions to a second key
+sealed chain grant   --benchmark <pk> --chunk <i> --part <p>           # delegate-side: fetch + decrypt your grant
+sealed chain grants  --benchmark <pk>                                  # list who can see which parts
 sealed chain score --bank bank/1.json --run runs/….json              # create_run + score every chunk in MPC
 sealed chain score --bank bank/1.json --run runs/….json --create-only  # park the run pending (for a market)
 sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score an existing run
@@ -153,6 +160,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected
+- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and 6/6 localnet tests pass
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 

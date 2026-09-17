@@ -65,6 +65,7 @@ const DISC = {
   itemChunk: "3ad5949e8388e23d",
   privItemChunk: "73f0ae62d80297f4",
   reveal: "fbaa9323ea6c0e95",
+  shareGrant: "a47067c1839cb4c0",
   market: "dbbed53700e3c69a",
   position: "aabc8fe47a40f7d0",
 };
@@ -117,6 +118,19 @@ function parseReveal(d) {
   const hashes = [];
   for (let i = 0; i < 8; i++) hashes.push(v.getBigUint64(52 + i * 8, true).toString(16));
   return { chunk: v.getUint16(40, true), part: d[42], revealedAt: Number(v.getBigInt64(44, true)), hashes };
+}
+// ShareGrant: disc8 + benchmark32 + chunk u16 + part u8 + bump + viewer32
+// + encryption_key32 + nonce16 + ciphertexts[2][32] + shared_at i64.
+// A reshare_part re-encryption of the specs to a delegate's x25519 key —
+// who can see the questions, without ever seeing the answers.
+function parseShareGrant(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
+  return {
+    chunk: v.getUint16(40, true), part: d[42],
+    viewer: b58(d.slice(44, 76)), encKey: b58(d.slice(76, 108)),
+    cts: hex(d.slice(124, 188)),
+    sharedAt: Number(v.getBigInt64(188, true)),
+  };
 }
 const OPS = ["+", "-", "*"];
 const specExpr = (s) => `((${s.a} ${OPS[s.op0]} ${s.b}) ${OPS[s.op1]} ${s.c})`;
@@ -214,7 +228,7 @@ async function load() {
     document.getElementById("err").textContent = "RPC error: " + e.message + " (localnet? try `arcium localnet`; CORS? serve this file: python3 -m http.server -d web)";
     return;
   }
-  const benches = [], runs = [], markets = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [];
+  const benches = [], runs = [], markets = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [];
   for (const { pubkey, account } of sealedAccs) {
     const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
     if (disc === DISC.benchmark) benches.push({ pk: pubkey.toBase58(), ...parseBenchmark(d) });
@@ -223,6 +237,7 @@ async function load() {
     else if (disc === DISC.itemChunk) itemChunks.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseItemChunk(d) });
     else if (disc === DISC.privItemChunk) privChunks.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parsePrivItemChunk(d) });
     else if (disc === DISC.reveal) reveals.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseReveal(d) });
+    else if (disc === DISC.shareGrant) grants.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseShareGrant(d) });
   }
   for (const { pubkey, account } of marketAccs) {
     const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
@@ -270,6 +285,16 @@ async function load() {
       h += `<div class="proof" style="margin-top:6px">${minted} item specs minted inside MPC — <b>encrypted to the authority's key, never published</b>.
         This chain holds only ciphertext: <span class="mono">${bpcs[0].cts0.slice(0, 48)}…</span> (Rescue/x25519).
         items_root commits to the ciphertext itself, so the mint transcript is auditable without decryption.</div>`;
+    }
+    const bgs = grants.filter(g => g.bench === b.pk).sort((a, b2) => a.chunk - b2.chunk || a.part - b2.part);
+    if (bgs.length) {
+      h += `<div class="proof" style="margin-top:6px">selective disclosure — specs re-encrypted inside MPC to delegate keys
+        (they can read the questions; the answers stay MXE-sealed):`;
+      for (const g of bgs) {
+        h += `<div class="mono" style="font-size:11px;margin-top:2px">chunk ${g.chunk} part ${g.part} → viewer <span title="${g.viewer}">${g.viewer.slice(0, 12)}…</span>
+          at ${g.sharedAt} &middot; grant <span class="mono">${g.cts.slice(0, 32)}…</span></div>`;
+      }
+      h += `</div>`;
     }
     const brv = reveals.filter(r => r.bench === b.pk).sort((a, b2) => a.chunk - b2.chunk || a.part - b2.part);
     if (brv.length) {
