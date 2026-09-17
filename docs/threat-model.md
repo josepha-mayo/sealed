@@ -6,13 +6,15 @@ after sealing, and nobody can fabricate a score.
 
 ## Actors
 
-- **Benchmark author** — holds the plaintext bank and the shared encryption key
-  until the last `seal_part` lands. After that the key can be discarded; the
-  onchain state only carries MXE-encrypted ciphertexts.
+- **Benchmark author** (authored banks only) — holds the plaintext bank and the
+  shared encryption key until the last `seal_part` lands. After that the key can
+  be discarded; the onchain state only carries MXE-encrypted ciphertexts.
+  **Generated banks have no author at all** — items are minted inside MPC and
+  the answer fingerprints are born as MXE ciphertext.
 - **Runner** — submits a model's outputs as public hashes (`outputs_root` +
   per-chunk hashes), pays the run fee.
-- **Arcium MPC cluster** — executes `seal_part` / `score_chunk` under MPC and
-  posts results back via callback transactions.
+- **Arcium MPC cluster** — executes `seal_part` / `gen_part` / `score_chunk` /
+  `reveal_part` under MPC and posts results back via callback transactions.
 - **Market participants** — bet on `run.correct` outcomes.
 - **Anyone** — can call `resolve` on a market once the run finalizes, can
   verify output proofs against `outputs_root`, can read every account.
@@ -28,16 +30,29 @@ after sealing, and nobody can fabricate a score.
 | An operator cannot steal the pot | Parimutuel payout is pro-rata of `amounts`/`totals`; the market account only pays `position` PDAs belonging to real bettors; no admin withdraw |
 | Bets are placed without leaked score info | `bet`/`create_market` reject runs where `scored_mask != 0` — once MPC scoring starts, partial scores could leak information |
 | Judges can audit a run without trusting us | `sealed prove --item i` emits a Merkle proof against the onchain `outputs_root`; the web verifier recomputes it in-browser |
+| A generated bank has no answer key to leak | `gen_part` draws item specs from `ArcisRNG` inside MPC, computes answers in-circuit, fingerprints them (SHA3-256 over raw i64 bytes), and returns them `Enc<Mxe>`. Plaintext answers never exist on any machine. |
+| Generated items can't be planted or pre-leaked | Specs are drawn at mint time from cluster randomness — after the benchmark is created, after models trained. No operator authored them, so nothing was cherry-picked for a favored model. |
+| Generated specs are auditable | Every spec lands publicly in an `ItemChunk` account; the benchmark's `items_root` is a running SHA-256 fold over the exact spec bytes — anyone can re-render prompts and re-fold to verify. |
+| A score can be spot-checked without a key | `reveal_part` declassifies one part's eight answer *fingerprints* at the authority's request — the circuit decrypts inside MPC and returns hashes, never plaintext. `chain verify` compares them to a run's committed output hashes, so anyone can recompute what `score_chunk` counted on the revealed positions. The authority chooses what to declassify; MPC mediates so even it never receives answers. |
 
 ## Trust assumptions
 
 - **Arcium MPC honesty model** — Sealed inherits Arcium's security assumptions
   (t-of-n honest nodes for the executing cluster). A fully-malicious cluster
   could forge `correct`; that's the same trust model every Arcium app inherits.
-- **Benchmark author honesty** — the author chooses the questions and answers.
-  Sealed prevents *leakage* and *score forgery*, not a bad-faith bank (e.g.
-  ambiguous questions). Reputation + published `items_root` are the mitigation;
-  a public item bank can be audited out-of-band against the committed root.
+- **Benchmark author honesty** — *authored banks only*. The author chooses the
+  questions and answers; Sealed prevents *leakage* and *score forgery*, not a
+  bad-faith bank. Reputation + published `items_root` are the mitigation.
+  **Generated banks have no author**: the residual trust is in `ArcisRNG` — a
+  malicious-but-below-threshold cluster cannot bias the draw without the
+  honest nodes aborting the computation.
+- **Generated-item derivability** — a *deliberate* trade-off: generated specs
+  are public, so anyone can render an item and compute its answer. What the
+  construction buys is *provable freshness and zero key custody*, not answer
+  secrecy at inference time (a "model" that evaluates specs is a calculator —
+  markets can price that). For authored banks, prompts stay private. The
+  natural extension is `Enc<Shared, GenPart>` (specs sealed to a designated
+  runner) over harder item families where computing the answer *is* the task.
 - **Cluster liveness** — sealing and scoring depend on the MPC cluster
   executing computations and submitting callbacks. If the cluster stalls, runs
   stay pending; `void_market` lets the authority refund bettors on dead runs
@@ -46,7 +61,14 @@ after sealing, and nobody can fabricate a score.
 
 ## What is *not* protected (yet)
 
-- **Selective answer disclosure** — no mechanism to reveal a single contested
-  item after a run. Planned: `reveal_item` circuit for dispute resolution.
+- **Granular answer disclosure** — `reveal_part` declassifies 8 fingerprints at
+  a time at the authority's discretion. A per-item variant and threshold-gated
+  reveal (e.g. after a market resolves, or multi-sig) are small extensions.
+- **Generated-bank prompt secrecy** — specs are public; see the derivability
+  note above. `Enc<Shared, GenPart>` to a runner key is the upgrade path.
+- **Generated item families** — the mint circuit currently covers arithmetic
+  expressions only. The construction generalizes to any family where the
+  answer is a pure function of public spec fields; richer families are
+  circuit work, not new trust assumptions.
 - **Fee/griefing economics** — run fees are collected but not yet distributed.
 - **Multi-authority benchmarks** — the bank has a single authority today.

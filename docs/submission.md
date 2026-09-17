@@ -26,11 +26,31 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
 - **N-way markets:** `create_market(salt, edges)` opens bucketed parimutuels
   (e.g. edges `[32,48]` = bands `<32`/`32–47`/`≥48`); multiple markets per run
   via `salt`. Covered by the anchor test (binary + 3-way on one MPC-scored run).
+- **Generated banks — the headline feature.** `chain gen` mints a benchmark
+  *inside* MPC: the `gen_part` Arcis instruction draws item specs from
+  `ArcisRNG`, computes answers in-circuit, fingerprints them (SHA3-256 over
+  raw i64 bytes), and returns them `Enc<Mxe>`. **The answer key never exists
+  in plaintext on any machine** — nothing to stage, seal, leak, or sell.
+  Specs land publicly in `ItemChunk` accounts and are folded into a running
+  `items_root` commitment; anyone can re-render prompts and re-fold to verify.
+  Verified E2E on localnet: 4 MPC computations minted a 32-item bank, bank
+  went LIVE, `mock/oracle-0.75` scored **24/32 on-chain == local pre-score**
+  (`run 2e7CfDW3…`). The anchor test also proves `stage_part` on a generated
+  bank is rejected `WrongBankKind`.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
   that output `i` was in the committed `outputs_root`; the web explorer
   verifies it in-browser.
-- **Test suite:** `yarn test` — 2/2 passing (seal+score+finalize; market
-  open→bet→score→resolve→claim, plus negative paths). `yarn harness:test` — 8/8.
+- **Spot-check audit (reveal_part):** the `reveal_part` circuit lets the
+  benchmark authority declassify one part's eight answer *fingerprints* — the
+  MPC decrypts inside the enclave and the callback writes hashes to a `Reveal`
+  PDA, never plaintext answers. `chain verify` then compares them against a
+  run's committed output hashes so anyone can recompute what `score_chunk`
+  counted on the revealed positions. Verified E2E: 8 declassified fingerprints
+  equal the planted answers exactly; a non-authority reveal is rejected
+  `NotAuthority`; a repeat reveal is rejected.
+- **Test suite:** `yarn test` — 4/4 passing (seal+score+finalize; reveal
+  declassify+audit; market open→bet→score→resolve→claim; generated-bank
+  mint→live→score). `yarn harness:test` — 12/12.
 
 ## Reproduce
 

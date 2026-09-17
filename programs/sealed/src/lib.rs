@@ -25,6 +25,7 @@ use arcium_client::idl::arcium::types::CallbackAccount;
 const COMP_DEF_OFFSET_SEAL_PART: u32 = comp_def_offset("seal_part");
 const COMP_DEF_OFFSET_SCORE_CHUNK: u32 = comp_def_offset("score_chunk");
 const COMP_DEF_OFFSET_GEN_PART: u32 = comp_def_offset("gen_part");
+const COMP_DEF_OFFSET_REVEAL_PART: u32 = comp_def_offset("reveal_part");
 
 /// Items per chunk (one scoring computation). Must equal `CHUNK` in encrypted-ixs.
 pub const CHUNK: usize = 32;
@@ -76,6 +77,11 @@ pub mod sealed {
     }
 
     pub fn init_gen_part_comp_def(ctx: Context<InitGenPartCompDef>) -> Result<()> {
+        init_computation_def(ctx.accounts, None)?;
+        Ok(())
+    }
+
+    pub fn init_reveal_part_comp_def(ctx: Context<InitRevealPartCompDef>) -> Result<()> {
         init_computation_def(ctx.accounts, None)?;
         Ok(())
     }
@@ -389,6 +395,79 @@ pub mod sealed {
         Ok(())
     }
 
+    /// Declassify one part's answer *fingerprints* for a spot-check audit. Only
+    /// the benchmark authority can queue this; the MPC cluster decrypts the part
+    /// inside the enclave and returns the eight hash commitments publicly. What
+    /// comes out is hashes — never plaintext answers — so even a malicious or
+    /// compelled authority cannot leak the answer key itself.
+    pub fn reveal_part(
+        ctx: Context<RevealPart>,
+        computation_offset: u64,
+        index: u16,
+        part: u8,
+    ) -> Result<()> {
+        let c = &ctx.accounts.chunk;
+        require!((part as usize) < PARTS, ErrorCode::InvalidPart);
+        require!(c.parts_sealed & (1u8 << part) != 0, ErrorCode::PartNotSealed);
+
+        let reveal = &mut ctx.accounts.reveal;
+        reveal.benchmark = ctx.accounts.benchmark.key();
+        reveal.chunk_index = index;
+        reveal.part = part;
+        reveal.bump = ctx.bumps.reveal;
+
+        // Circuit signature: (part: Enc<Mxe, AnswerPart>) — same account-slice
+        // encoding score_chunk uses.
+        let args = ArgBuilder::new()
+            .plaintext_u128(c.nonces[part as usize])
+            .account(c.key(), part_offset(part), PART_CIPHERTEXTS_LEN)
+            .build();
+
+        ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
+        queue_computation(
+            ctx.accounts,
+            computation_offset,
+            args,
+            vec![RevealPartCallback::callback_ix(
+                computation_offset,
+                &ctx.accounts.mxe_account,
+                &[CallbackAccount { pubkey: ctx.accounts.reveal.key(), is_writable: true }],
+            )?],
+            1,
+            0,
+            0,
+        )?;
+        Ok(())
+    }
+
+    #[arcium_callback(encrypted_ix = "reveal_part")]
+    pub fn reveal_part_callback(
+        ctx: Context<RevealPartCallback>,
+        output: SignedComputationOutputs<RevealPartOutput>,
+    ) -> Result<()> {
+        let part = match output.verify_output(
+            &ctx.accounts.cluster_account,
+            &ctx.accounts.computation_account,
+        ) {
+            Ok(RevealPartOutput { field_0 }) => field_0,
+            Err(e) => {
+                msg!("reveal_part aborted: {}", e);
+                return Err(ErrorCode::AbortedComputation.into());
+            }
+        };
+        let reveal = &mut ctx.accounts.reveal;
+        for (k, h) in part.field_0.iter().enumerate() {
+            reveal.hashes[k] = *h;
+        }
+        reveal.revealed_at = Clock::get()?.unix_timestamp;
+        emit!(PartRevealed {
+            benchmark: reveal.benchmark,
+            chunk_index: reveal.chunk_index,
+            part: reveal.part,
+        });
+        Ok(())
+    }
+
     /// If a seal computation aborts, its callback never lands. The authority clears
     /// the flag so the part can be staged/sealed again.
     pub fn reset_sealing(ctx: Context<ResetSealing>, _index: u16) -> Result<()> {
@@ -622,6 +701,20 @@ pub struct AnswerChunk {
     pub ciphertexts: [[u8; 32]; CHUNK],
 }
 
+/// Answer fingerprints for one part, declassified by a `reveal_part` computation
+/// at the benchmark authority's request. These are hash commitments — the audit
+/// primitive, not the answer key.
+#[account]
+#[derive(InitSpace)]
+pub struct Reveal {
+    pub benchmark: Pubkey,
+    pub chunk_index: u16,
+    pub part: u8,
+    pub bump: u8,
+    pub revealed_at: i64,
+    pub hashes: [u64; PART],
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Run {
@@ -826,6 +919,26 @@ pub struct InitGenPartCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[init_computation_definition_accounts("reveal_part", payer)]
+#[derive(Accounts)]
+pub struct InitRevealPartCompDef<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    #[account(mut)]
+    /// CHECK: comp_def_account, checked by arcium program. Not initialized yet.
+    pub comp_def_account: UncheckedAccount<'info>,
+    #[account(mut, address = derive_mxe_lut_pda!(mxe_account.lut_offset_slot))]
+    /// CHECK: address_lookup_table, checked by arcium program.
+    pub address_lookup_table: UncheckedAccount<'info>,
+    #[account(address = LUT_PROGRAM_ID)]
+    /// CHECK: lut_program is the Address Lookup Table program.
+    pub lut_program: UncheckedAccount<'info>,
+    pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
 #[queue_computation_accounts("seal_part", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, index: u16)]
@@ -972,6 +1085,78 @@ pub struct GenPartCallback<'info> {
     pub benchmark: Box<Account<'info, Benchmark>>,
 }
 
+#[queue_computation_accounts("reveal_part", payer)]
+#[derive(Accounts)]
+#[instruction(computation_offset: u64, index: u16, part: u8)]
+pub struct RevealPart<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
+    pub benchmark: Box<Account<'info, Benchmark>>,
+    #[account(
+        seeds = [b"chunk", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
+        bump = chunk.bump,
+    )]
+    pub chunk: Box<Account<'info, AnswerChunk>>,
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + Reveal::INIT_SPACE,
+        seeds = [b"reveal", benchmark.key().as_ref(), index.to_le_bytes().as_ref(), part.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub reveal: Box<Account<'info, Reveal>>,
+    #[account(
+        init_if_needed,
+        space = 9,
+        payer = payer,
+        seeds = [&SIGN_PDA_SEED],
+        bump,
+        address = derive_sign_pda!(),
+    )]
+    pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Box<Account<'info, MXEAccount>>,
+    #[account(mut, address = derive_mempool_pda!(mxe_account))]
+    /// CHECK: mempool_account, checked by arcium program.
+    pub mempool_account: UncheckedAccount<'info>,
+    #[account(mut, address = derive_execpool_pda!(mxe_account))]
+    /// CHECK: executing_pool, checked by arcium program.
+    pub executing_pool: UncheckedAccount<'info>,
+    #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account))]
+    /// CHECK: computation_account, checked by the arcium program.
+    pub computation_account: UncheckedAccount<'info>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_REVEAL_PART))]
+    pub comp_def_account: Box<Account<'info, ComputationDefinitionAccount>>,
+    #[account(mut, address = derive_cluster_pda!(mxe_account))]
+    pub cluster_account: Box<Account<'info, Cluster>>,
+    #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
+    pub pool_account: Box<Account<'info, FeePool>>,
+    #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
+    pub clock_account: Box<Account<'info, ClockAccount>>,
+    pub system_program: Program<'info, System>,
+    pub arcium_program: Program<'info, Arcium>,
+}
+
+#[callback_accounts("reveal_part")]
+#[derive(Accounts)]
+pub struct RevealPartCallback<'info> {
+    pub arcium_program: Program<'info, Arcium>,
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_REVEAL_PART))]
+    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
+    #[account(address = derive_mxe_pda!())]
+    pub mxe_account: Account<'info, MXEAccount>,
+    /// CHECK: address is validated by the Arcium program; verify_output reads slot data from it.
+    pub computation_account: UncheckedAccount<'info>,
+    #[account(address = derive_cluster_pda!(mxe_account))]
+    pub cluster_account: Account<'info, Cluster>,
+    #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
+    /// CHECK: instructions_sysvar, checked by the account constraint
+    pub instructions_sysvar: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub reveal: Box<Account<'info, Reveal>>,
+}
+
 #[queue_computation_accounts("score_chunk", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, run_index: u64, chunk_index: u16)]
@@ -1064,6 +1249,13 @@ pub struct PartSealed {
 }
 
 #[event]
+pub struct PartRevealed {
+    pub benchmark: Pubkey,
+    pub chunk_index: u16,
+    pub part: u8,
+}
+
+#[event]
 pub struct RunCreated {
     pub run: Pubkey,
     pub benchmark: Pubkey,
@@ -1119,6 +1311,8 @@ pub enum ErrorCode {
     PartSealNotPending,
     #[msg("Chunk is not fully sealed yet")]
     ChunkNotSealed,
+    #[msg("Part is not sealed yet")]
+    PartNotSealed,
     #[msg("Benchmark is not live")]
     BenchmarkNotLive,
     #[msg("Chunk already scored for this run")]

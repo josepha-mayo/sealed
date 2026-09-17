@@ -84,7 +84,9 @@ function pdas(ctx: Ctx, authority: PublicKey, benchmarkId: number) {
   const chunk = (i: number) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], pid)[0];
   const items = (i: number) => PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(i)], pid)[0];
   const run = (i: bigint) => PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(i)], pid)[0];
-  return { benchmark, chunk, items, run };
+  const reveal = (i: number, p: number) =>
+    PublicKey.findProgramAddressSync([Buffer.from("reveal"), benchmark.toBuffer(), u16le(i), Uint8Array.of(p)], pid)[0];
+  return { benchmark, chunk, items, run, reveal };
 }
 
 function arciumAccounts(ctx: Ctx, offset: AnchorTypes.BN, ix: string) {
@@ -130,6 +132,7 @@ export async function init(ctx = setup()) {
     ["seal_part", "initSealPartCompDef"],
     ["score_chunk", "initScoreChunkCompDef"],
     ["gen_part", "initGenPartCompDef"],
+    ["reveal_part", "initRevealPartCompDef"],
   ] as const) {
     const compDef = PublicKey.findProgramAddressSync(
       [getArciumAccountBaseSeed("ComputationDefinitionAccount"), program.programId.toBuffer(), getCompDefAccOffset(name)],
@@ -380,6 +383,82 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   return r;
 }
 
+// ------------------------------------------------------------------ reveal / audit
+
+/**
+ * Declassify one part's answer fingerprints (authority-only). MPC decrypts the
+ * part inside the enclave and the callback writes the eight hash commitments to
+ * a `Reveal` PDA — fingerprints, never plaintext answers. Returns the account.
+ */
+export async function revealPart(benchmarkPk: PublicKey, chunkIndex: number, part: number, ctx = setup()) {
+  const { program, wallet } = ctx;
+  const acct = program.account as any;
+  const b: any = await acct.benchmark.fetch(benchmarkPk);
+  const { chunk, reveal } = pdas(ctx, b.authority, b.id);
+  const rv = reveal(chunkIndex, part);
+  let state: any = await fetchOrNull(acct.reveal.fetch(rv));
+  if (state) {
+    console.log(`reveal ${rv.toBase58()} already exists`);
+    return state;
+  }
+  const offset = new anchor.BN(randomBytes(8), "hex");
+  await program.methods
+    .revealPart(offset, chunkIndex, part)
+    .accountsPartial({
+      payer: wallet.publicKey,
+      benchmark: benchmarkPk,
+      chunk: chunk(chunkIndex),
+      reveal: rv,
+      ...arciumAccounts(ctx, offset, "reveal_part"),
+    })
+    .rpc({ commitment: "confirmed" });
+  process.stdout.write(`chunk ${chunkIndex} part ${part}: declassifying in MPC...`);
+  state = await waitFor(acct.reveal, rv, (s) => Number(s.revealedAt) !== 0);
+  console.log(state && Number(state.revealedAt) !== 0 ? " revealed" : " STILL PENDING");
+  return state;
+}
+
+/**
+ * Spot-check audit: compare every declassified answer fingerprint against the
+ * run's committed output hashes. Anyone holding the run artifact can recompute
+ * what `score_chunk` must have seen on the revealed positions.
+ */
+export async function verifyRun(benchmarkPk: PublicKey, run: RunArtifact, runIndex?: bigint, ctx = setup()) {
+  const { program } = ctx;
+  const acct = program.account as any;
+  const b: any = await acct.benchmark.fetch(benchmarkPk);
+  const reveals: any[] = await acct.reveal.all([{ memcmp: { offset: 8, bytes: benchmarkPk.toBase58() } }]);
+  if (reveals.length === 0) {
+    console.log(`no revealed parts for ${benchmarkPk.toBase58()} — ask the authority to 'chain reveal' first`);
+    return;
+  }
+  // If the run is on-chain, prove the artifact's outputs are the committed ones.
+  if (runIndex !== undefined) {
+    const { run: runPda } = pdas(ctx, b.authority, b.id);
+    const r: any = await fetchOrNull(acct.run.fetch(runPda(runIndex)));
+    if (r && Buffer.from(r.outputsRoot).toString("hex") !== run.outputsRoot) {
+      throw new Error(`outputs_root mismatch: run artifact is not the committed run #${runIndex}`);
+    }
+    if (r) console.log(`run #${runIndex} outputs_root matches the on-chain commitment`);
+  }
+  let checked = 0;
+  let matched = 0;
+  for (const { account } of reveals.sort((x, y) => x.account.chunkIndex - y.account.chunkIndex || x.account.part - y.account.part)) {
+    const base = account.chunkIndex * CHUNK + account.part * PART;
+    for (let k = 0; k < PART; k++) {
+      const pos = base + k;
+      const rec = run.items[pos];
+      if (!rec) continue;
+      const ok = rec.outputHash === account.hashes[k].toString();
+      checked++;
+      if (ok) matched++;
+      console.log(`  item ${pos}: ${ok ? "MATCH" : "miss"}  output=${rec.outputHash} answer=${account.hashes[k].toString()}`);
+    }
+  }
+  console.log(`audit: ${matched}/${checked} revealed positions match the run's committed outputs`);
+  return { checked, matched };
+}
+
 /** Clear a stuck sealing_part flag after a dropped/expired MPC computation. */
 export async function resetSealing(benchmarkId: number, chunkIndex: number, ctx = setup()) {
   const { program, wallet } = ctx;
@@ -565,6 +644,16 @@ export async function chainMain(cmd: string[], args: Args) {
     const authority = args.authority ? new PublicKey(String(args.authority)) : ctx.wallet.publicKey;
     const idx = args["run-index"] !== undefined ? BigInt(String(args["run-index"])) : undefined;
     await score(bank, run, authority, Boolean(args["create-only"]), idx, ctx);
+    return;
+  }
+  if (sub === "reveal") {
+    await revealPart(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part));
+    return;
+  }
+  if (sub === "verify") {
+    const run = loadJson(String(args.run)) as RunArtifact;
+    const idx = args["run-index"] !== undefined ? BigInt(String(args["run-index"])) : undefined;
+    await verifyRun(new PublicKey(String(args.benchmark)), run, idx);
     return;
   }
   if (sub === "status") {

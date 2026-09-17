@@ -62,6 +62,7 @@ const DISC = {
   benchmark: "39fc2136718de9f7",
   run: "c7369b56eb73f6bd",
   answerChunk: "9f457cb5a547c35a",
+  itemChunk: "3ad5949e8388e23d",
   market: "dbbed53700e3c69a",
   position: "aabc8fe47a40f7d0",
 };
@@ -84,10 +85,26 @@ function parseBenchmark(d) {
   const feeLamports = v.getBigUint64(o, true); o += 8;
   const runCount = v.getBigUint64(o, true); o += 8;
   const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const kind = o < d.length ? d[o++] : 0; // 0 authored, 1 MPC-generated (absent on old accounts)
   const nl = v.getUint32(o, true); o += 4;
   const name = new TextDecoder().decode(d.slice(o, o + nl));
-  return { authority: b58(authority), id, status, chunkCount, chunksSealed, itemsRoot: hex(itemsRoot), feeLamports, runCount, createdAt, name };
+  return { authority: b58(authority), id, status, chunkCount, chunksSealed, itemsRoot: hex(itemsRoot), feeLamports, runCount, createdAt, kind, name };
 }
+// ItemChunk: disc8 + benchmark32 + index u16 + bump + parts_written + specs[32][5]
+function parseItemChunk(d) {
+  const specs = [];
+  for (let i = 0; i < 32; i++) {
+    const o = 44 + i * 5;
+    specs.push({ a: d[o], b: d[o + 1], c: d[o + 2], op0: d[o + 3], op1: d[o + 4] });
+  }
+  return { index: new DataView(d.buffer, d.byteOffset).getUint16(40, true), partsWritten: d[43], specs };
+}
+const OPS = ["+", "-", "*"];
+const specExpr = (s) => `((${s.a} ${OPS[s.op0]} ${s.b}) ${OPS[s.op1]} ${s.c})`;
+const specVal = (s) => {
+  const ap = (x, op, y) => (op === 0 ? x + y : op === 1 ? x - y : x * y);
+  return ap(ap(s.a, s.op0, s.b), s.op1, s.c);
+};
 function parseRun(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const benchmark = d.slice(o, o + 32); o += 32;
@@ -178,12 +195,13 @@ async function load() {
     document.getElementById("err").textContent = "RPC error: " + e.message + " (localnet? try `arcium localnet`; CORS? serve this file: python3 -m http.server -d web)";
     return;
   }
-  const benches = [], runs = [], markets = [], positions = [], chunks = [];
+  const benches = [], runs = [], markets = [], positions = [], chunks = [], itemChunks = [];
   for (const { pubkey, account } of sealedAccs) {
     const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
     if (disc === DISC.benchmark) benches.push({ pk: pubkey.toBase58(), ...parseBenchmark(d) });
     else if (disc === DISC.run) runs.push({ pk: pubkey.toBase58(), ...parseRun(d) });
     else if (disc === DISC.answerChunk) chunks.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), idx: new DataView(d.buffer, d.byteOffset).getUint16(40, true), ...parseChunk(d) });
+    else if (disc === DISC.itemChunk) itemChunks.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseItemChunk(d) });
   }
   for (const { pubkey, account } of marketAccs) {
     const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
@@ -198,6 +216,7 @@ async function load() {
     h += `<div class="card"><div class="row">
       <b class="score">${b.name}</b>
       <span class="pill ${BSTATUS[b.status].toLowerCase()}">${BSTATUS[b.status]}</span>
+      ${b.kind === 1 ? `<span class="pill live">MPC-minted</span>` : ``}
       <span class="kv">id <b>${b.id}</b></span><span class="kv">items <b>${items}</b></span>
       <span class="kv">chunks sealed <b>${b.chunksSealed}/${b.chunkCount}</b></span>
       <span class="kv">acct ${link(b.pk)}</span></div>
@@ -209,6 +228,19 @@ async function load() {
       h += `<div class="proof">answer chunks: ${sealedCts.length}/${bcs.length} fully sealed` +
         (sample ? ` &middot; stored answers are ciphertext only — chunk ${sealedCts[0].idx} begins <span class="mono">${sample}…</span> (Rescue-encrypted to the MXE key)` : ` &middot; sealing in progress`) +
         `</div>`;
+    }
+    const bics = itemChunks.filter(c => c.bench === b.pk).sort((a, b2) => a.index - b2.index);
+    if (bics.length) {
+      const minted = bics.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
+      h += `<div class="proof" style="margin-top:6px">${minted} item specs minted inside MPC — public, anyone can render them.
+        The answers were computed in-circuit and stored only as MXE ciphertext: <b>no answer key exists</b>.</div>`;
+      h += `<div style="margin-top:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px">`;
+      let shown = 0;
+      for (const c of bics) for (const s of c.specs) {
+        if (shown++ >= 16) break;
+        h += `<span class="kv mono" style="font-size:12px">${specExpr(s)}</span>`;
+      }
+      h += `</div><div class="proof" style="margin-top:4px">${items > 16 ? `+ ${items - 16} more — ` : ""}values like <span class="mono">${specExpr(bics[0].specs[0])} = ${specVal(bics[0].specs[0])}</span> were hashed inside MPC; only the count leaves the enclave.</div>`;
     }
     if (brs.length) {
       h += `<table><tr><th>rank</th><th>model</th><th>score</th><th></th><th>run</th><th>status</th><th>outputs_root</th></tr>`;

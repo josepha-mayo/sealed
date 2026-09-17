@@ -140,6 +140,8 @@ async function main() {
   sealed chain gen   --id <n> [--chunks 2] [--fee-lamports n] [--out file]   MPC-minted bank: no answer key exists
   sealed chain items --benchmark <pubkey> [--out file]                      render a generated bank from on-chain specs
   sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
+  sealed chain reveal --benchmark <pk> --chunk <i> --part <0..3>   authority declassifies 8 answer hashes
+  sealed chain verify --benchmark <pk> --run <file> [--run-index n]  audit revealed hashes vs committed outputs
   sealed chain status --benchmark <pubkey>
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
   sealed chain market bet     --market <pk> --outcome <i> --lamports <n> [--bettor keypair.json]   (--side yes|no for binary)

@@ -114,6 +114,16 @@ mod circuits {
         (GenPart { items: specs }, Mxe::get().from_arcis(AnswerPart { hashes }))
     }
 
+    /// Declassify one part's answer fingerprints (not the answers — the hashes).
+    /// The on-chain program gates this on the benchmark authority's signature;
+    /// MPC mediates the decryption, so even the authority only ever receives
+    /// hash commitments, which can be compared against a run's committed output
+    /// hashes for a spot-check audit of the scoring.
+    #[instruction]
+    pub fn reveal_part(part: Enc<Mxe, AnswerPart>) -> AnswerPart {
+        part.to_arcis().reveal()
+    }
+
     /// Count positions where the run's output hash equals the sealed answer hash.
     /// `outputs` is public (it is the run's permanent commitment to what the model
     /// said); the per-item match bits are never revealed, only their sum.

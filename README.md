@@ -1,8 +1,8 @@
 # Sealed
 
-**A benchmark nobody can read, scored by nobody in particular.**
+**A benchmark whose answer key was never written down, scored by nobody in particular.**
 
-Sealed is a referee for AI-capability claims. The answer key to a benchmark exists onchain only as ciphertext that a single party cannot decrypt; models are scored inside an [Arcium](https://arcium.com) MPC cluster; the score is written to Solana by the cluster's callback, not by us. Anyone can build a market on "does model X clear 70% on Sealed v1 by date D" and settle it without trusting a leaderboard operator.
+Sealed is a referee for AI-capability claims. Benchmark items can be **minted inside the MPC cluster itself** — drawn from `ArcisRNG`, answered and fingerprinted in-circuit, and stored encrypted to the cluster key. The answer key never exists in plaintext anywhere on Earth: there is nothing to leak, sell, or subpoena. Models are scored inside an [Arcium](https://arcium.com) MPC cluster; the score is written to Solana by the cluster's callback, not by us. Anyone can build a market on "does model X clear 70% on Sealed v1 by date D" and settle it without trusting a leaderboard operator.
 
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
@@ -13,8 +13,10 @@ Prediction markets on AI progress settle against leaderboards run by single comp
 | Property | How |
 |---|---|
 | Questions are never published | Only a Merkle root of salted question commitments goes onchain (`Benchmark.items_root`). Retired items are revealed with their salt and checked against the root. |
-| Answers are never in plaintext onchain | Answer hashes are encrypted by the author, then **re-encrypted to the MXE key inside MPC** (`seal_chunk`). After sealing, the author's key is discarded and the stored ciphertext can only be opened by the cluster acting together. |
+| Answers are never in plaintext onchain | Answer hashes are encrypted by the author, then **re-encrypted to the MXE key inside MPC** (`seal_part`). After sealing, the author's key is discarded and the stored ciphertext can only be opened by the cluster acting together. |
+| **No answer key at all** | Generated banks (`chain gen`) mint items **inside MPC**: `gen_part` draws specs from `ArcisRNG`, computes answers in-circuit, fingerprints them (SHA3-256), and returns them encrypted to the MXE key. Only the public item specs land onchain. There is no answer key — nothing to leak. |
 | Scores are not posted by the operator | `score_chunk` compares a run's public output hashes with the sealed answers in MPC and reveals only the count. The Arcium callback writes it to the `Run` account. |
+| Scores are auditable without a key | `reveal_part` lets the benchmark authority declassify one part's answer *fingerprints* (hashes, never plaintext). `chain verify` then checks them against a run's committed output hashes — a spot-check of what `score_chunk` counted, mediated by MPC so even the authority only ever sees hash commitments. |
 | Runs are commitments | A run commits to the Merkle root of all its output hashes before any chunk is scored, and every scored chunk's hashes are permanently in the transaction record. A bad run cannot be retracted. |
 | Per-item results stay hidden | Only aggregate counts leave the circuit, so a run cannot be used to leak the answer to a specific item. |
 
@@ -23,17 +25,25 @@ Prediction markets on AI progress settle against leaderboards run by single comp
 ```
 packages/harness (TypeScript)            programs/sealed (Anchor)         encrypted-ixs (Arcis, runs in MPC)
 ------------------------------            ------------------------         ----------------------------------
-buildBank(seed) -> prompts, answers  --> create_benchmark(items_root)
+authored bank (kind=0):
+buildBank(seed) -> prompts, answers  --> create_benchmark(items_root, kind)
   answerHash = SHA256(...)[0..8]     --> init_chunk / stage_part (8 items)
   encrypt(RescueCipher, x25519)      --> seal_part  -------------------->  seal_part: Enc<Shared> -> Enc<Mxe>
                                          seal_part_callback <------------  (ciphertext stored in AnswerChunk)
+
+generated bank (kind=1):               create_benchmark(kind, root=0)
+                                       init_chunk + init_items
+                                       gen_part ----------------------->  gen_part: specs <- ArcisRNG;
+  specs land public in ItemChunk          gen_part_callback <------------   answers hashed + Enc<Mxe> born
+  items_root = running spec fold                                        (no answer key ever exists)
+
 runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
-  canonicalAnswer -> answerHash      --> score_chunk(outputs[32]) ------>  score_chunk: count(outputs == 4 sealed parts)
+  canonicalAnswer -> hash            --> score_chunk(outputs[32]) ------>  score_chunk: count(outputs == 4 sealed parts)
                                          score_chunk_callback <----------  reveals only the count
                                          Run.correct += count; finalized when all chunks scored
 ```
 
-- **Items** are procedural, exact-answer tasks (arithmetic chains, stack-machine programs, list transforms, Caesar shifts, base conversion, grid walks, gcd/lcm, digit sums, calendar arithmetic, word sorting), generated from a master seed. The bank is infinite and fresh by construction; contamination is a rotation policy, not a hope.
+- **Items** are procedural, exact-answer tasks. **Authored banks** (kind 0) draw ten families (arithmetic chains, stack-machine programs, list transforms, Caesar shifts, base conversion, grid walks, gcd/lcm, digit sums, calendar arithmetic, word sorting) from a master seed — infinite and fresh by construction. **Generated banks** (kind 1) mint arithmetic-expression items inside MPC; anyone can render the prompts from the public specs, but the answer fingerprints were computed and sealed inside the enclave — *no answer key ever existed*.
 - **Canonicalization** (`canonical.ts`) is the only normalization applied to a model's reply before hashing; author and runner use the same function.
 - **Chunks** are 32 items, stored as 4 parts of 8. Sealing is per part because an MPC callback must fit in one Solana transaction (8 ciphertexts = 256 B; 32 would not). Scoring reads all 4 parts in one computation, so a run over a 10-chunk (320-item) bank is 10 MPC computations.
 - **Fee**: `create_run` pays `Benchmark.fee_lamports` to the benchmark authority. That is the business.
@@ -57,14 +67,14 @@ The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and de
 
 ### Trust model (honest version)
 
-- The item author knows the answers to the items they wrote. Sealing means no one *else* can read them from chain, including the author later or an operator who did not write them. Independent authors and in-MPC item generation (planned: arithmetic families generated from `ArcisRNG` so *no one* knows the answer) shrink this further.
+- The item author knows the answers to the items they wrote — **authored banks only**. Generated banks eliminate this role entirely: specs are drawn from `ArcisRNG` inside the cluster and the answers are born as MXE ciphertext. Honest caveat: generated specs are public, so answers are computable by anyone who renders the items — the property they buy is *provable freshness and zero key custody* (nothing to leak, no author to collude with), not answer secrecy at inference time. For authored banks, secrecy comes from the author; sealing means no one *else* can ever read them.
 - The runner controls what outputs it submits. Today the venue runs public model APIs itself; third-party runners get a TEE-attested harness or redundant runs from independent runners.
 - Aggregate-only reveal plus a per-run fee bounds adaptive probing of individual answers.
 
 ## Repo layout
 
 ```
-encrypted-ixs/          Arcis circuits: seal_chunk, score_chunk
+encrypted-ixs/          Arcis circuits: seal_part, score_chunk, gen_part, reveal_part
 programs/sealed/        Anchor program (Arcium MXE): registry, chunks, runs, callbacks
 programs/market/        Anchor program: parimutuel markets resolving on Run.correct
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
@@ -91,7 +101,9 @@ sealed bank build  --seed "$SEALED_MASTER_SEED" --id 1 --chunks 10   # -> bank/1
 sealed run         --bank bank/1.json --model openai/gpt-5.2         # -> runs/… (private: raw replies)
 sealed run         --bank bank/1.json --model mock/oracle-0.6        # offline stand-in, 60% correct
 sealed chain init                                                    # comp defs + circuit upload, once per deployment
-sealed chain seal  --bank bank/1.json --fee-lamports 1000000         # create_benchmark, stage + seal every part
+sealed chain seal  --bank bank/1.json --fee-lamports 1000000         # authored bank: create, stage + seal every part
+sealed chain gen   --id 7 --chunks 2 --fee-lamports 1000000          # generated bank: mint items inside MPC, no answer key
+sealed chain items --benchmark <pubkey>                              # re-render a generated bank from onchain specs
 sealed chain score --bank bank/1.json --run runs/….json              # create_run + score every chunk in MPC
 sealed chain score --bank bank/1.json --run runs/….json --create-only  # park the run pending (for a market)
 sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score an existing run
@@ -105,6 +117,8 @@ sealed chain market resolve --market <pk>                            # settles o
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market show    --market <pk>
 sealed chain reset-sealing  --bank-id <n> --chunk <i>                # clear a part stuck by a dropped MPC computation
+sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
+sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
 sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring
 ```
 
@@ -121,11 +135,13 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Circuits and program
 - [x] Harness: generators, canonicalization, hashing, model client, run pipeline (tests green)
 - [x] Localnet end-to-end: `arcium test` seals 2 chunks, scores a run (45/64 planted), finalizes
-- [x] CLI pipeline on localnet: generated bank -> mock run -> MPC score 40/64, equal to the local pre-score
+- [x] **Generated banks**: `gen_part` circuit mints items inside MPC — 4 comps mint a 32-item chunk, bank goes LIVE, specs public in `ItemChunk`, answers born `Enc<Mxe>`; E2E mint→live→score 17/32 planted, plus CLI `chain gen --id 77` -> mock run -> MPC score 24/32 == local pre-score
+- [x] CLI pipeline on localnet: authored bank -> mock run -> MPC score 40/64, equal to the local pre-score
 - [x] Real models through OpenCode Zen (free tier, `x-opencode-session` header): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
 - [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
+- [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 
