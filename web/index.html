@@ -33,6 +33,11 @@
   .cfg button { background:var(--acc); color:#062015; border:0; padding:6px 14px; border-radius:6px; font:inherit; cursor:pointer; }
   .footer { color:var(--dim); font-size:12px; margin-top:28px; }
   .proof { color:var(--dim); font-size:12px; margin-top:8px; }
+  .top1 td { color:var(--acc); }
+  .top1 .score { text-shadow:0 0 10px rgba(78,240,168,.45); }
+  .top2 td:first-child, .top3 td:first-child { color:var(--warn); }
+  .statcard { display:flex; gap:24px; flex-wrap:wrap; padding:12px 18px; }
+  .statcard b { font-size:17px; }
 </style>
 </head>
 <body>
@@ -203,6 +208,7 @@ function parsePosition(d) {
 }
 
 const short = (s) => s.slice(0, 6) + "…" + s.slice(-4);
+const fmtTs = (t) => { const n = Number(t); return n > 0 ? new Date(n * 1000).toISOString().slice(5, 16).replace("T", " ") : "—"; };
 let isDevnet = false;
 const link = (pk) => isDevnet
   ? `<a href="https://explorer.solana.com/address/${pk}?cluster=devnet" target="_blank">${short(pk)}</a>`
@@ -246,6 +252,45 @@ async function load() {
   }
 
   let h = "";
+
+  // ---- hero stats ----
+  const finalized = runs.filter(r => r.status === 1);
+  const mintedPub = itemChunks.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
+  const mintedPriv = privChunks.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
+  const potLamports = markets.reduce((s, m) => s + m.totals.reduce((x, t) => x + Number(t), 0), 0);
+  const stats = [
+    [benches.length, "benchmarks"],
+    [finalized.length, "MPC-scored runs"],
+    [mintedPub + mintedPriv, "items minted in MPC"],
+    [mintedPriv, "private · ciphertext-only"],
+    [grants.length, "disclosure grants"],
+    [reveals.length, "audit reveals"],
+    [sol(potLamports), "SOL in markets"],
+  ].filter(([v]) => Number(v) !== 0 || isNaN(Number(v)));
+  h += `<div class="card statcard">` + stats.map(([v, l]) => `<span class="kv"><b class="score">${v}</b> ${l}</span>`).join("") + `</div>`;
+
+  // ---- global leaderboard: finalized runs ranked across all benchmarks ----
+  if (finalized.length) {
+    const board = finalized.map(r => {
+      const b = benches.find(x => x.pk === r.benchmark);
+      const items = (b ? b.chunkCount : r.chunkCount) * 32;
+      return { r, b, items, pct: (100 * r.correct) / items };
+    }).sort((a, b2) => b2.pct - a.pct || Number(a.r.finalizedAt) - Number(b2.r.finalizedAt));
+    h += `<h2>leaderboard — every score finalized by the MPC cluster</h2><div class="card"><table>` +
+      `<tr><th>rank</th><th>model</th><th>benchmark</th><th>score</th><th>runner</th><th>run</th><th>finalized</th></tr>`;
+    board.forEach((e, i) => {
+      h += `<tr${i < 3 ? ` class="top${i + 1}"` : ""}><td>#${i + 1}</td>
+        <td class="mono">${e.r.modelId}</td>
+        <td>${e.b ? e.b.name : short(e.r.benchmark)}</td>
+        <td class="score">${e.r.correct}/${e.items} (${e.pct.toFixed(1)}%)<div class="bar"><i style="width:${e.pct}%"></i></div></td>
+        <td class="mono">${short(e.r.runner)}</td>
+        <td>${link(e.r.pk)}</td>
+        <td class="kv">${fmtTs(e.r.finalizedAt)}</td></tr>`;
+    });
+    h += `</table></div>`;
+  }
+
+  if (benches.length) h += `<h2>benchmark banks</h2>`;
   for (const b of benches.sort((a, b2) => a.id - b2.id)) {
     const items = b.chunkCount * 32;
     const brs = runs.filter(r => r.benchmark === b.pk).sort((a, b2) => b2.correct - a.correct);
@@ -292,7 +337,7 @@ async function load() {
         (they can read the questions; the answers stay MXE-sealed):`;
       for (const g of bgs) {
         h += `<div class="mono" style="font-size:11px;margin-top:2px">chunk ${g.chunk} part ${g.part} → viewer <span title="${g.viewer}">${g.viewer.slice(0, 12)}…</span>
-          at ${g.sharedAt} &middot; grant <span class="mono">${g.cts.slice(0, 32)}…</span></div>`;
+          at ${fmtTs(g.sharedAt)} &middot; grant <span class="mono">${g.cts.slice(0, 32)}…</span></div>`;
       }
       h += `</div>`;
     }
@@ -300,7 +345,7 @@ async function load() {
     if (brv.length) {
       h += `<div class="proof" style="margin-top:6px">spot-check audits — answer fingerprints declassified by the authority inside MPC:`;
       for (const r of brv) {
-        h += `<div class="mono" style="font-size:11px;margin-top:2px">chunk ${r.chunk} part ${r.part}: ${r.hashes.slice(0, 4).map(x => x.slice(0, 8)).join(" ")}… (${r.hashes.length} hashes, slot ${r.revealedAt})</div>`;
+        h += `<div class="mono" style="font-size:11px;margin-top:2px">chunk ${r.chunk} part ${r.part}: ${r.hashes.slice(0, 4).map(x => x.slice(0, 8)).join(" ")}… (${r.hashes.length} hashes, ${fmtTs(r.revealedAt)})</div>`;
       }
       h += `</div>`;
     }
