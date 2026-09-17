@@ -78,12 +78,13 @@ async function main() {
       : new ModelClient({
           concurrency: args.concurrency ? Number(args.concurrency) : undefined,
           retries: args.retries ? Number(args.retries) : undefined,
+          timeoutMs: args.timeout ? Number(args.timeout) : undefined,
           apiBase: args["api-base"] as string | undefined,
         });
     const cfg = { ...DEFAULT_CONFIG, maxTokens: args["max-tokens"] ? Number(args["max-tokens"]) : DEFAULT_CONFIG.maxTokens };
     const t0 = Date.now();
     const artifact = await runModel(bank, model, client, cfg, (done, total) => {
-      if (done % 16 === 0 || done === total) process.stderr.write(`\r${model}: ${done}/${total}`);
+      if (done % 4 === 0 || done === total) process.stderr.write(`\r${model}: ${done}/${total}`);
     });
     process.stderr.write("\n");
     const out =

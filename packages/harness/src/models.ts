@@ -39,6 +39,8 @@ export interface ModelClientOptions {
   concurrency?: number;
   retries?: number;
   fetchImpl?: typeof fetch;
+  /** Per-request timeout; a stalled gateway connection would otherwise hang a run forever. */
+  timeoutMs?: number;
   /** Stable session id sent as x-opencode-session (Zen free tier requires it). */
   sessionId?: string;
 }
@@ -55,6 +57,7 @@ export class ModelClient {
   private readonly concurrency: number;
   private readonly retries: number;
   private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
   private readonly sessionId: string;
 
   constructor(opts: ModelClientOptions = {}) {
@@ -63,6 +66,7 @@ export class ModelClient {
     this.concurrency = opts.concurrency ?? 6;
     this.retries = opts.retries ?? 4;
     this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.timeoutMs = opts.timeoutMs ?? 90_000;
     this.sessionId = opts.sessionId ?? process.env.SEALED_SESSION_ID ?? `sealed-${Date.now().toString(36)}`;
     if (!this.apiKey) throw new Error("no API key: set SEALED_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY)");
   }
@@ -74,6 +78,7 @@ export class ModelClient {
       try {
         const res = await this.fetchImpl(`${this.apiBase}/chat/completions`, {
           method: "POST",
+          signal: AbortSignal.timeout(this.timeoutMs),
           headers: {
             "content-type": "application/json",
             authorization: `Bearer ${this.apiKey}`,
