@@ -52,14 +52,14 @@ PBENCH=$(PDA benchmark "$PID")
 echo "private benchmark PDA: $PBENCH — onchain it holds ONLY ciphertext (see explorer)"
 
 say "2c selective disclosure — hand a 'judge' key the questions, onchain"
-# A delegate stands in for a judge/runner; the MPC re-encrypts part 0's specs
-# to their key. The grant PDA records WHO can see WHICH parts — the answers
-# never move. The delegate then decrypts the grant with their own wallet.
+# A delegate stands in for a judge/runner; the MPC re-encrypts every part's
+# specs to their key. Grant PDAs record WHO can see WHICH parts — the answers
+# never move. The delegate then rebuilds the whole bank from grants alone.
 JUDGE=$(node -e 'const {Keypair}=require("@solana/web3.js");const k=Keypair.generate();require("fs").writeFileSync("/tmp/judge-kp.json",JSON.stringify([...k.secretKey]));console.log(k.publicKey.toBase58())')
-$SEALED chain reshare --benchmark "$PBENCH" --chunk 0 --part 0 --to "$JUDGE"
+for p in 0 1 2 3; do $SEALED chain reshare --benchmark "$PBENCH" --chunk 0 --part "$p" --to "$JUDGE"; done
 echo "grant trail:"; $SEALED chain grants --benchmark "$PBENCH"
-echo "the delegate decrypts the same items the authority sees:"
-ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain grant --benchmark "$PBENCH" --chunk 0 --part 0
+echo "the delegate rebuilds the bank from its grants alone:"
+ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain delegate-bank --benchmark "$PBENCH" --out "/tmp/judge-$PID.json"
 
 say "3/6 create run 0 (mock model, 75% correct) — PENDING, outputs committed"
 $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.75 --out /tmp/run-gen.json

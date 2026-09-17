@@ -121,6 +121,7 @@ sealed chain pitems --benchmark <pubkey>                             # decrypt +
 sealed chain reshare --benchmark <pk> --chunk <i> --part <p> --to <solana-pubkey>  # delegate the questions to a second key
 sealed chain grant   --benchmark <pk> --chunk <i> --part <p>           # delegate-side: fetch + decrypt your grant
 sealed chain grants  --benchmark <pk>                                  # list who can see which parts
+sealed chain delegate-bank --benchmark <pk> [--out bank.json]          # rebuild the whole bank from your grants
 sealed chain score --bank bank/1.json --run runs/….json              # create_run + score every chunk in MPC
 sealed chain score --bank bank/1.json --run runs/….json --create-only  # park the run pending (for a market)
 sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score an existing run
@@ -156,6 +157,8 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] **Private generated banks**: `gen_part_private` mints the same items but returns them `Enc<Shared, Pack<GenPart>>` to the authority's x25519 key — `PrivItemChunk` holds ciphertext only, `items_root` commits to the ciphertext; E2E proves ciphertext-only onchain state, authority-side decrypt→render, wrong-key rejection, public-path `WrongBankKind`, and MPC score 21/32 planted + CLI `gen-private` → mock run → MPC score 23/32 == local pre-score
 - [x] CLI pipeline on localnet: authored bank -> mock run -> MPC score 40/64, equal to the local pre-score
 - [x] Real models through OpenCode Zen (free tier, `x-opencode-session` header): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
+- [x] **Real model on an MPC-minted bank**: gpt-oss-20b (Pollinations anonymous tier) answered all 32 minted items; MPC finalized **32/32 == local pre-score** — a real model answering questions born inside the enclave
+- [x] **Delegated runner**: `chain delegate-bank` rebuilds a private bank entirely from a wallet's ShareGrants — verified byte-identical to the authority's decryption (prompts, answer hashes, items_root); a model provider can be granted the exam, run it, and get scored without the questions ever being public
 - [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`

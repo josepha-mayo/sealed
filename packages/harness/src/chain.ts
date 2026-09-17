@@ -527,6 +527,55 @@ export async function fetchGrant(benchmarkPk: PublicKey, chunkIndex: number, par
   return { grant: g, specs, sharedAt: grant.sharedAt };
 }
 
+/**
+ * Assemble a full private bank from the ShareGrants addressed to the local
+ * wallet — the "delegated runner" path. Every chunk's every part must have a
+ * grant for this wallet; the result is the same Bank the authority renders,
+ * reconstructed entirely from per-part grants. The runner can then `sealed run`
+ * a model against questions nobody else can see, and score through the normal
+ * MPC pipeline — the answers still never appear in plaintext anywhere.
+ */
+export async function delegateBank(benchmarkPk: PublicKey, ctx = setup()): Promise<Bank> {
+  const { program, provider } = ctx;
+  const acct = program.account as any;
+  const b: any = await acct.benchmark.fetch(benchmarkPk);
+  if (b.kind !== 2) throw new Error(`benchmark ${benchmarkPk.toBase58()} is not a private generated bank`);
+  const viewer = viewerKeys(ctx);
+  const pd = pdas(ctx, b.authority, b.id);
+  const mxePublicKey = await getMXEPublicKey(provider, program.programId);
+  if (!mxePublicKey) throw new Error("MXE public key unavailable");
+  const cipher = new RescueCipher(x25519.getSharedSecret(viewer.priv, mxePublicKey));
+
+  const chunks = await Promise.all(
+    Array.from({ length: b.chunkCount }, (_, i) => provider.connection.getAccountInfo(pd.pitems(i))),
+  );
+  const decoded = chunks.map((info, i) => {
+    if (!info) throw new Error(`PrivItemChunk ${i} missing`);
+    return decodePrivItemChunk(Buffer.from(info.data));
+  });
+  const root = privItemsRoot(decoded);
+  const onchain = Buffer.from(b.itemsRoot).toString("hex");
+  if (b.status === 1 && root !== onchain) {
+    throw new Error(`items_root mismatch: ciphertext fold ${root} != on-chain ${onchain}`);
+  }
+
+  const parts: ItemSpec[][][] = [];
+  for (let i = 0; i < b.chunkCount; i++) {
+    const chunkParts: ItemSpec[][] = [];
+    for (let p = 0; p < CHUNK / PART; p++) {
+      const g = pd.grant(i, p, viewer.pub);
+      const grant: any = await fetchOrNull(acct.shareGrant.fetch(g));
+      if (!grant) throw new Error(`no ShareGrant for this wallet at chunk ${i} part ${p} — authority must reshare it first`);
+      const nb = new Uint8Array(16);
+      let n = BigInt(grant.nonce.toString());
+      for (let k = 0; k < 16; k++) { nb[k] = Number(n & 0xffn); n >>= 8n; }
+      chunkParts.push(unpackSpecs(cipher.decrypt(grant.ciphertexts.map((x: number[]) => Array.from(x)), nb)));
+    }
+    parts.push(chunkParts);
+  }
+  return privBankFromSpecs(b.id, b.chunkCount, parts, root);
+}
+
 /** List every ShareGrant for a private benchmark (explorer: who can see what). */
 export async function listGrants(benchmarkPk: PublicKey, ctx = setup()) {
   const { program } = ctx;
@@ -901,6 +950,16 @@ export async function chainMain(cmd: string[], args: Args) {
     const list = await listGrants(new PublicKey(String(args.benchmark)));
     if (!list.length) console.log("no grants");
     for (const g of list) console.log(`chunk ${g.chunkIndex} part ${g.part} → viewer ${g.viewer.slice(0, 16)}… at ${g.sharedAt} (${g.address.toBase58()})`);
+    return;
+  }
+  if (sub === "delegate-bank") {
+    // Rebuild a private bank entirely from this wallet's ShareGrants — the
+    // delegated-runner path: questions decrypted locally, never on chain.
+    const bank = await delegateBank(new PublicKey(String(args.benchmark)));
+    const out = String(args.out ?? join("bank", `delegate-${bank.benchmarkId}.json`));
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");
+    console.log(`wrote ${out} (${bank.items.length} items) — reconstructed from grants, KEEP PRIVATE`);
     return;
   }
   if (sub === "score") {
