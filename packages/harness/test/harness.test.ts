@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PublicKey } from "@solana/web3.js";
 import { Prng } from "../src/prng.js";
 import { canonicalAnswer, normalize } from "../src/canonical.js";
-import { answerHash, genAnswerHash, itemLeaf, outputLeaf, merkleRoot, merkleProof, verifyProof, harnessHash, hex } from "../src/hash.js";
+import { answerHash, genAnswerHash, itemLeaf, chunkOutLeaves, merkleRoot, merkleProof, verifyProof, harnessHash, hex } from "../src/hash.js";
 import { FAMILIES } from "../src/items.js";
 import { buildBank, chunkHashes, CHUNK, PART } from "../src/bank.js";
 import { bankFromChunks, decodeItemChunk, evalSpec, parseCanonicalInt, renderPrompt, specBytes, UNPARSEABLE, type ItemChunkState, type ItemSpec } from "../src/genbank.js";
@@ -97,7 +97,7 @@ test("run pipeline hashes model output the same way as the bank", async () => {
 });
 
 test("output proofs verify against the committed outputs_root (prover/verifier split)", async () => {
-  const bank = buildBank("master", 4, 1);
+  const bank = buildBank("master", 4, 2);
   const client = new ModelClient({
     apiKey: "test",
     fetchImpl: (async (_u: string | URL | Request, init?: RequestInit) => {
@@ -108,24 +108,26 @@ test("output proofs verify against the committed outputs_root (prover/verifier s
   });
   const run = await runModel(bank, "oracle/all", client);
 
-  // Prover side: what `sealed prove --item i` emits.
+  // Prover side: what `sealed prove --item i` emits (chunk-level commitment —
+  // the leaf is the whole 32-output chunk, the path binds it to outputs_root).
   const i = 5;
-  const leaves = run.items.map((r) => outputLeaf(r.index, BigInt(r.outputHash)));
+  const ci = Math.floor(i / CHUNK);
+  const leaves = chunkOutLeaves(run.items.map((r) => BigInt(r.outputHash)));
   const proofJson = {
-    leaf: Buffer.from(leaves[i]).toString("hex"),
-    proof: merkleProof(leaves, i).map((p) => Buffer.from(p).toString("hex")),
+    leaf: Buffer.from(leaves[ci]).toString("hex"),
+    proof: merkleProof(leaves, ci).map((p) => Buffer.from(p).toString("hex")),
     outputsRoot: run.outputsRoot,
   };
 
   // Verifier side: only sees the JSON (what web/index.html does).
   const leaf = new Uint8Array(Buffer.from(proofJson.leaf, "hex"));
   const proof = proofJson.proof.map((p: string) => new Uint8Array(Buffer.from(p, "hex")));
-  assert.ok(verifyProof(leaf, i, proof, new Uint8Array(Buffer.from(proofJson.outputsRoot, "hex"))));
+  assert.ok(verifyProof(leaf, ci, proof, new Uint8Array(Buffer.from(proofJson.outputsRoot, "hex"))));
 
   // Tampered hash or wrong index must fail.
-  const bad = new Uint8Array(leaves[i]); bad[0] ^= 1;
-  assert.ok(!verifyProof(bad, i, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
-  assert.ok(!verifyProof(leaf, i + 1, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
+  const bad = new Uint8Array(leaves[ci]); bad[0] ^= 1;
+  assert.ok(!verifyProof(bad, ci, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
+  assert.ok(!verifyProof(leaf, ci + 1, proof, new Uint8Array(Buffer.from(run.outputsRoot, "hex"))));
 });
 
 // ------------------------------------------------- generated (MPC-minted) banks

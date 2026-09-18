@@ -8,10 +8,10 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { buildBank, publicSummary, type Bank } from "./bank.js";
+import { buildBank, publicSummary, CHUNK, type Bank } from "./bank.js";
 import { ModelClient, MockModelClient, DEFAULT_CONFIG } from "./models.js";
 import { runModel, type RunArtifact } from "./run.js";
-import { merkleProof, outputLeaf } from "./hash.js";
+import { chunkOutLeaves, merkleProof } from "./hash.js";
 
 type Args = Record<string, string | boolean>;
 
@@ -114,12 +114,17 @@ async function main() {
     const i = Number(need(args, "item"));
     const rec = run.items[i];
     if (!rec) throw new Error(`no item ${i}`);
-    const leaves = run.items.map((r) => outputLeaf(r.index, BigInt(r.outputHash)));
+    // Two-level commitment: the chunk preimage proves the output's position
+    // inside the chunk; the Merkle path binds the chunk to outputs_root — the
+    // same root score_chunk enforces on-chain.
+    const ci = Math.floor(i / CHUNK);
+    const leaves = chunkOutLeaves(run.items.map((r) => BigInt(r.outputHash)));
     console.log(JSON.stringify({
       model: run.model, itemIndex: i,
       canonical: rec.canonical, outputHash: rec.outputHash,
-      leaf: Buffer.from(leaves[i]).toString("hex"),
-      proof: merkleProof(leaves, i).map((p) => Buffer.from(p).toString("hex")),
+      chunkIndex: ci,
+      chunkOutputs: run.items.slice(ci * CHUNK, (ci + 1) * CHUNK).map((r) => r.outputHash),
+      proof: merkleProof(leaves, ci).map((p) => Buffer.from(p).toString("hex")),
       outputsRoot: run.outputsRoot,
     }, null, 2));
     return;
@@ -150,11 +155,17 @@ async function main() {
   sealed chain reveal --benchmark <pk> --chunk <i> --part <0..3>   authority declassifies 8 answer hashes
   sealed chain verify --benchmark <pk> --run <file> [--run-index n]  audit revealed hashes vs committed outputs
   sealed chain status --benchmark <pubkey>
+  sealed chain attest --run <pubkey>                       authority marks a finalized run as venue-vouched
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
+                              [--fee-bps 0..1000] [--closes-at +secs|ts] [--resolve-by +secs|ts]
   sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]         head-to-head: does A outscore B? (A/B/tie)
+                              [--fee-bps 0..1000] [--closes-at +secs|ts] [--resolve-by +secs|ts]
   sealed chain market bet     --market <pk> --outcome <i> --lamports <n> [--bettor keypair.json]   (--side yes|no for binary)
-  sealed chain market resolve --market <pk>
-  sealed chain market claim   --market <pk> [--bettor keypair.json]
+  sealed chain market resolve --market <pk>                                permissionless once the run finalizes
+  sealed chain market claim   --market <pk> [--bettor keypair.json]        pays out (0 for losers) + closes position
+  sealed chain market void    --market <pk> [--bettor keypair.json]        authority cancels, only before scoring starts
+  sealed chain market expire  --market <pk>                                anyone cancels once resolve_by has passed
+  sealed chain market claim-fee --market <pk> [--bettor keypair.json]      authority collects the accrued fee
   sealed chain market show    --market <pk>
   sealed chain reset-sealing  --bank-id <n> --chunk <i>          clear a part stuck by a dropped MPC computation
   sealed prove  --run <file> --item <i>               Merkle proof that output i was committed`);

@@ -158,12 +158,15 @@ function parseRun(d) {
   const harnessHash = d.slice(o, o + 32); o += 32;
   const outputsRoot = d.slice(o, o + 32); o += 32;
   const ml = v.getUint32(o, true); o += 4;
-  const modelId = new TextDecoder().decode(d.slice(o, o + ml));
-  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId };
+  const modelId = new TextDecoder().decode(d.slice(o, o + ml)); o += ml;
+  let attested = false, attestedAt = 0;
+  if (o + 9 <= d.length) { attested = d[o++] !== 0; attestedAt = Number(v.getBigInt64(o, true)); o += 8; }
+  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId, attested, attestedAt };
 }
 // Market: disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
 // + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
-// + resolvedScore u32 + createdAt i64 + resolvedAt i64
+// + resolvedScore u32 + createdAt i64 + resolvedAt i64 + runB 32
+// + feeBps u16 + feesAccrued u64 + closesAt i64 + resolveBy i64
 function parseMarket(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const authority = d.slice(o, o + 32); o += 32;
@@ -180,8 +183,17 @@ function parseMarket(d) {
   const resolvedAt = Number(v.getBigInt64(o, true)); o += 8;
   // run_b appended for duel markets; absent on pre-duel accounts.
   const runB = o + 32 <= d.length ? b58(d.slice(o, o + 32)) : null;
+  o += 32;
   const duel = runB && runB !== "11111111111111111111111111111111";
-  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges, status, outcome, totals, resolvedScore, createdAt, resolvedAt, runB, duel };
+  // fee/deadline tail appended in the market-economics upgrade.
+  let feeBps = 0, feesAccrued = 0n, closesAt = 0, resolveBy = 0;
+  if (o + 26 <= d.length) {
+    feeBps = v.getUint16(o, true); o += 2;
+    feesAccrued = v.getBigUint64(o, true); o += 8;
+    closesAt = Number(v.getBigInt64(o, true)); o += 8;
+    resolveBy = Number(v.getBigInt64(o, true)); o += 8;
+  }
+  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges, status, outcome, totals, resolvedScore, createdAt, resolvedAt, runB, duel, feeBps, feesAccrued, closesAt, resolveBy };
 }
 // bucket i covers [edges[i-1], edges[i]); last bucket is >= edges[n-2]
 function outcomeLabel(n, edges, i) {
@@ -199,15 +211,15 @@ function parseChunk(d) {
   };
 }
 
-// Position: disc8 + market32 + bettor32 + bump + amounts[8]u64 + claimed
+// Position: disc8 + market32 + bettor32 + bump + amounts[8]u64
+// (positions close on claim — an open account is unclaimed by definition)
 function parsePosition(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const market = d.slice(o, o + 32); o += 32;
   const bettor = d.slice(o, o + 32); o += 32;
   const bump = d[o++];
   const amounts = []; for (let i = 0; i < 8; i++) { amounts.push(v.getBigUint64(o, true)); o += 8; }
-  const claimed = d[o++];
-  return { market: b58(market), bettor: b58(bettor), amounts, claimed };
+  return { market: b58(market), bettor: b58(bettor), amounts };
 }
 
 const short = (s) => s.slice(0, 6) + "…" + s.slice(-4);
@@ -392,7 +404,7 @@ async function load() {
         <span class="pill ${MSTATUS[m.status]}">${MSTATUS[m.status]}</span>
         <span class="kv">pot <b>${pot.toFixed(3)} SOL</b></span>
         <span class="kv">acct ${link(m.pk)}</span></div>
-        <div class="proof">run ${link(m.run)}${m.duel ? ` vs ${link(m.runB)}` : ""} &middot; resolved score ${rs}</div>
+        <div class="proof">run ${link(m.run)}${m.duel ? ` vs ${link(m.runB)}` : ""} &middot; resolved score ${rs}${m.feeBps ? ` &middot; fee ${(m.feeBps / 100).toFixed(1)}%${m.status === 1 ? ` (${sol(m.feesAccrued)} SOL${m.feesAccrued === 0n ? " claimed" : ""})` : ""}` : ""}${m.closesAt ? ` &middot; bets close ${fmtTs(m.closesAt)}` : ""}${m.resolveBy ? ` &middot; expires ${fmtTs(m.resolveBy)}` : ""}</div>
         <table><tr>`;
       for (let i = 0; i < n; i++) {
         const t = Number(m.totals[i]), share = pot ? (100 * t) / (pot * 1e9) : 0;
@@ -405,11 +417,11 @@ async function load() {
       if (mpos.length) {
         h += `<table><tr><th>bettor</th>`;
         for (let i = 0; i < n; i++) h += `<th>${lbl(i)}</th>`;
-        h += `<th>claimed</th></tr>`;
+        h += `</tr>`;
         for (const p of mpos) {
           h += `<tr><td class="mono">${short(p.bettor)}</td>`;
           for (let i = 0; i < n; i++) h += `<td>${Number(p.amounts[i]) ? sol(p.amounts[i]) : "—"}</td>`;
-          h += `<td>${p.claimed ? "✓" : "—"}</td></tr>`;
+          h += `</tr>`;
         }
         h += `</table>`;
       }
@@ -427,14 +439,17 @@ const u32le = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUi
 const u64le = (n) => { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b; };
 const unhex = (s) => new Uint8Array(s.match(/../g).map((x) => parseInt(x, 16)));
 async function sha(b) { return new Uint8Array(await crypto.subtle.digest("SHA-256", b)); }
-const D_OUT = utf8("sealed/v1/output\0"), D_NODE = new Uint8Array([1]);
+const D_COUT = utf8("sealed/v1/chunkout\0"), D_NODE = new Uint8Array([1]);
 
 async function verify() {
   const res = document.getElementById("vres");
   try {
     const p = JSON.parse(document.getElementById("vproof").value);
-    let h = await sha(cat(D_OUT, u32le(p.itemIndex), u64le(p.outputHash)));
-    let i = p.itemIndex;
+    // chunk leaf = sha256("sealed/v1/chunkout\0" || u16le(chunkIndex) || 32×u64le)
+    // — the same leaf score_chunk recomputes on-chain before folding the path.
+    const outs = p.chunkOutputs.slice(); while (outs.length < 32) outs.push(0);
+    let h = await sha(cat(D_COUT, u32le(p.chunkIndex).slice(0, 2), ...outs.map(u64le)));
+    let i = p.chunkIndex;
     for (const s of p.proof.map(unhex)) { h = await sha(cat(D_NODE, i % 2 === 0 ? h : s, i % 2 === 0 ? s : h)); i >>= 1; }
     const root = hex(h);
     const runPk = document.getElementById("vrun").value.trim();
@@ -450,7 +465,7 @@ async function verify() {
     const ok = root === want;
     res.innerHTML = `<div class="proof" style="margin-top:8px">
       <span class="pill ${ok ? "resolved" : "open"}" style="font-size:13px">${ok ? "VERIFIED" : "MISMATCH"}</span>
-      model <b>${p.model || "?"}</b> · item ${p.itemIndex} · output hash <span class="mono">${String(p.outputHash)}</span>
+      model <b>${p.model || "?"}</b> · item ${p.itemIndex} (chunk ${p.chunkIndex}) · output hash <span class="mono">${String(p.outputHash)}</span>
       <br>recomputed root <span class="mono">${root.slice(0, 16)}…</span> ${onchain ? "vs on-chain" : "vs supplied"} <span class="mono">${String(want).slice(0, 16)}…</span>
       ${ok ? "" : `<br><span style="color:var(--err)">the proof does not reach the committed root — output was not part of this run</span>`}
     </div>`;

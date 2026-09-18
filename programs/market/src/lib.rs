@@ -60,19 +60,34 @@ pub mod market {
 
     /// Open a market on a run that exists but has not started scoring.
     /// `salt` lets multiple markets reference the same run.
-    /// `edges` (len = n_outcomes - 1, nondecreasing) splits the score range.
-    pub fn create_market(ctx: Context<CreateMarket>, salt: u64, edges: Vec<u32>) -> Result<()> {
+    /// `edges` (len = n_outcomes - 1, strictly increasing) splits the score range.
+    /// `fee_bps` is the creator's take on resolution (max 1000 = 10%);
+    /// `closes_at` stops betting early (0 = until scoring starts);
+    /// `resolve_by` is a deadline after which anyone can expire the market.
+    pub fn create_market(
+        ctx: Context<CreateMarket>,
+        salt: u64,
+        edges: Vec<u32>,
+        fee_bps: u16,
+        closes_at: i64,
+        resolve_by: i64,
+    ) -> Result<()> {
         let n = edges.len() + 1;
         require!(n >= 2 && n <= MAX_OUTCOMES, ErrorCode::InvalidEdges);
         for w in edges.windows(2) {
-            require!(w[0] <= w[1], ErrorCode::InvalidEdges);
+            require!(w[0] < w[1], ErrorCode::InvalidEdges);
         }
+        require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
+        let now = Clock::get()?.unix_timestamp;
+        require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
+        require!(resolve_by == 0 || resolve_by > now, ErrorCode::DeadlineInPast);
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
-        require!(run.scored_mask == 0, ErrorCode::ScoringStarted);
+        require!(run.scored_mask == 0 && run.pending_mask == 0, ErrorCode::ScoringStarted);
         let m = &mut ctx.accounts.market;
         m.authority = ctx.accounts.authority.key();
         m.run = ctx.accounts.run.key();
+        m.run_b = Pubkey::default();
         m.benchmark = run.benchmark;
         m.run_index = run.index;
         m.salt = salt;
@@ -86,6 +101,10 @@ pub mod market {
         m.resolved_score = 0;
         m.created_at = Clock::get()?.unix_timestamp;
         m.resolved_at = 0;
+        m.fee_bps = fee_bps;
+        m.fees_accrued = 0;
+        m.closes_at = closes_at;
+        m.resolve_by = resolve_by;
         emit!(MarketCreated {
             market: m.key(),
             run: m.run,
@@ -101,9 +120,10 @@ pub mod market {
         require!(lamports > 0, ErrorCode::ZeroAmount);
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
-        require!(run.scored_mask == 0, ErrorCode::ScoringStarted);
+        require!(run.scored_mask == 0 && run.pending_mask == 0, ErrorCode::ScoringStarted);
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(m.closes_at == 0 || Clock::get()?.unix_timestamp < m.closes_at, ErrorCode::BettingClosed);
         require!(outcome < m.n_outcomes, ErrorCode::InvalidOutcome);
 
         system_program::transfer(
@@ -118,9 +138,11 @@ pub mod market {
         )?;
 
         let p = &mut ctx.accounts.position;
-        p.market = m.key();
-        p.bettor = ctx.accounts.bettor.key();
-        if p.bump == 0 {
+        // `p.bump == 0` is NOT an init sentinel: ~1/256 of PDAs have a
+        // canonical bump of 0, which would re-zero existing stakes.
+        if p.market == Pubkey::default() {
+            p.market = m.key();
+            p.bettor = ctx.accounts.bettor.key();
             p.bump = ctx.bumps.position;
             p.amounts = [0u64; MAX_OUTCOMES];
         }
@@ -138,14 +160,25 @@ pub mod market {
     /// Open a head-to-head market: does run A outscore run B on the same
     /// benchmark? Outcomes: 0 = A wins, 1 = B wins, 2 = tie. Both runs must be
     /// pending and unscored so no one bets on leaked information.
-    pub fn create_duel(ctx: Context<CreateDuel>, salt: u64) -> Result<()> {
+    pub fn create_duel(
+        ctx: Context<CreateDuel>,
+        salt: u64,
+        fee_bps: u16,
+        closes_at: i64,
+        resolve_by: i64,
+    ) -> Result<()> {
         let ra = load_run(&ctx.accounts.run_a)?;
         let rb = load_run(&ctx.accounts.run_b)?;
         require!(ra.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(rb.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(ra.scored_mask == 0 && rb.scored_mask == 0, ErrorCode::ScoringStarted);
+        require!(ra.pending_mask == 0 && rb.pending_mask == 0, ErrorCode::ScoringStarted);
         require!(ra.benchmark == rb.benchmark, ErrorCode::BenchmarkMismatch);
         require!(ctx.accounts.run_a.key() != ctx.accounts.run_b.key(), ErrorCode::RunsMustDiffer);
+        require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
+        let now = Clock::get()?.unix_timestamp;
+        require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
+        require!(resolve_by == 0 || resolve_by > now, ErrorCode::DeadlineInPast);
         let m = &mut ctx.accounts.market;
         m.authority = ctx.accounts.authority.key();
         m.run = ctx.accounts.run_a.key();
@@ -162,6 +195,10 @@ pub mod market {
         m.resolved_score = 0;
         m.created_at = Clock::get()?.unix_timestamp;
         m.resolved_at = 0;
+        m.fee_bps = fee_bps;
+        m.fees_accrued = 0;
+        m.closes_at = closes_at;
+        m.resolve_by = resolve_by;
         emit!(DuelCreated {
             market: m.key(),
             run_a: m.run,
@@ -180,8 +217,10 @@ pub mod market {
         require!(ra.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(rb.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(ra.scored_mask == 0 && rb.scored_mask == 0, ErrorCode::ScoringStarted);
+        require!(ra.pending_mask == 0 && rb.pending_mask == 0, ErrorCode::ScoringStarted);
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(m.closes_at == 0 || Clock::get()?.unix_timestamp < m.closes_at, ErrorCode::BettingClosed);
         require!(outcome < m.n_outcomes, ErrorCode::InvalidOutcome);
 
         system_program::transfer(
@@ -196,9 +235,9 @@ pub mod market {
         )?;
 
         let p = &mut ctx.accounts.position;
-        p.market = m.key();
-        p.bettor = ctx.accounts.bettor.key();
-        if p.bump == 0 {
+        if p.market == Pubkey::default() {
+            p.market = m.key();
+            p.bettor = ctx.accounts.bettor.key();
             p.bump = ctx.bumps.position;
             p.amounts = [0u64; MAX_OUTCOMES];
         }
@@ -225,10 +264,12 @@ pub mod market {
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
         require!(ra.correct <= 0xffff && rb.correct <= 0xffff, ErrorCode::ScoreOverflow);
 
-        m.resolved_score = (ra.correct << 16) | rb.correct;
-        m.resolved_at = Clock::get()?.unix_timestamp;
         let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
         if all_backed {
+            let pot: u64 = m.totals.iter().sum();
+            m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
+            m.resolved_score = (ra.correct << 16) | rb.correct;
+            m.resolved_at = Clock::get()?.unix_timestamp;
             m.status = MARKET_RESOLVED;
             m.outcome = if ra.correct > rb.correct { 0 } else if rb.correct > ra.correct { 1 } else { 2 };
         } else {
@@ -252,10 +293,12 @@ pub mod market {
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
 
-        m.resolved_score = run.correct;
-        m.resolved_at = Clock::get()?.unix_timestamp;
         let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
         if all_backed {
+            let pot: u64 = m.totals.iter().sum();
+            m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
+            m.resolved_score = run.correct;
+            m.resolved_at = Clock::get()?.unix_timestamp;
             m.status = MARKET_RESOLVED;
             m.outcome = outcome_of(&m.edges, m.n_outcomes, run.correct);
         } else {
@@ -271,16 +314,69 @@ pub mod market {
         Ok(())
     }
 
-    /// Authority escape hatch for runs that never finalize.
+    /// Authority escape hatch for score markets — only while the outcome is
+    /// still unknowable (run pending, no scoring started). Once a single MPC
+    /// computation is queued the authority must wait for resolution or let the
+    /// `resolve_by` deadline expire the market; otherwise the authority could
+    /// free-look at the result and cancel when it loses.
     pub fn void_market(ctx: Context<VoidMarket>) -> Result<()> {
+        let run = load_run(&ctx.accounts.run)?;
         let m = &mut ctx.accounts.market;
+        require!(m.run_b == Pubkey::default(), ErrorCode::NotScoreMarket);
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(
+            run.scored_mask == 0 && run.pending_mask == 0,
+            ErrorCode::ScoringStarted
+        );
         m.status = MARKET_CANCELLED;
         Ok(())
     }
 
-    /// Pay out a winning position (or refund everything after a cancellation)
-    /// and close the position account.
+    /// Same escape hatch for duels: both runs must still be fully unscored.
+    pub fn void_duel(ctx: Context<VoidDuel>) -> Result<()> {
+        let ra = load_run(&ctx.accounts.run_a)?;
+        let rb = load_run(&ctx.accounts.run_b)?;
+        let m = &mut ctx.accounts.market;
+        require!(m.run_b != Pubkey::default(), ErrorCode::NotDuelMarket);
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(ra.status == RUN_PENDING && rb.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(
+            ra.scored_mask == 0 && ra.pending_mask == 0 && rb.scored_mask == 0 && rb.pending_mask == 0,
+            ErrorCode::ScoringStarted
+        );
+        m.status = MARKET_CANCELLED;
+        Ok(())
+    }
+
+    /// Permissionless deadline: once `resolve_by` passes, anyone can cancel an
+    /// open market so stake isn't locked behind a run that never finalizes.
+    /// `resolve_by == 0` means no deadline.
+    pub fn expire_market(ctx: Context<ExpireMarket>) -> Result<()> {
+        let m = &mut ctx.accounts.market;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(m.resolve_by != 0, ErrorCode::MarketNotExpired);
+        require!(Clock::get()?.unix_timestamp > m.resolve_by, ErrorCode::MarketNotExpired);
+        m.status = MARKET_CANCELLED;
+        Ok(())
+    }
+
+    /// The market authority collects the accrued fee once resolved.
+    pub fn claim_fee(ctx: Context<ClaimFee>) -> Result<()> {
+        let m = &mut ctx.accounts.market;
+        require!(m.status == MARKET_RESOLVED, ErrorCode::MarketNotResolved);
+        require!(m.fees_accrued > 0, ErrorCode::NoFees);
+        let fee = m.fees_accrued;
+        m.fees_accrued = 0;
+        **m.to_account_info().try_borrow_mut_lamports()? -= fee;
+        **ctx.accounts.authority.to_account_info().try_borrow_mut_lamports()? += fee;
+        Ok(())
+    }
+
+    /// Pay out a position and close its account. Cancelled markets refund in
+    /// full; resolved markets split the pot net of the authority fee pro-rata.
+    /// Losing positions pay 0 but still close — the `close` constraint returns
+    /// the rent to the bettor either way.
     pub fn claim(ctx: Context<Claim>) -> Result<()> {
         let m = &ctx.accounts.market;
         let p = &mut ctx.accounts.position;
@@ -288,25 +384,29 @@ pub mod market {
             m.status == MARKET_RESOLVED || m.status == MARKET_CANCELLED,
             ErrorCode::MarketNotResolved
         );
-        require!(!p.claimed, ErrorCode::AlreadyClaimed);
 
-        let pot: u64 = m.totals.iter().sum();
         let payout = if m.status == MARKET_CANCELLED {
             p.amounts.iter().sum()
         } else {
+            let pot: u64 = m.totals.iter().sum();
+            let net_pot = pot.saturating_sub(m.fees_accrued);
             let win_amt = p.amounts[m.outcome as usize];
             let win_total = m.totals[m.outcome as usize];
-            (win_amt as u128)
-                .checked_mul(pot as u128)
-                .unwrap()
-                .checked_div(win_total as u128)
-                .unwrap() as u64
+            if win_amt == 0 || win_total == 0 {
+                0
+            } else {
+                (win_amt as u128)
+                    .checked_mul(net_pot as u128)
+                    .unwrap()
+                    .checked_div(win_total as u128)
+                    .unwrap() as u64
+            }
         };
-        require!(payout > 0, ErrorCode::NothingToClaim);
-        p.claimed = true;
 
-        **m.to_account_info().try_borrow_mut_lamports()? -= payout;
-        **ctx.accounts.bettor.to_account_info().try_borrow_mut_lamports()? += payout;
+        if payout > 0 {
+            **m.to_account_info().try_borrow_mut_lamports()? -= payout;
+            **ctx.accounts.bettor.to_account_info().try_borrow_mut_lamports()? += payout;
+        }
         emit!(Claimed {
             market: m.key(),
             bettor: p.bettor,
@@ -338,6 +438,8 @@ pub struct Run {
     pub outputs_root: [u8; 32],
     #[max_len(64)]
     pub model_id: String,
+    pub attested: bool,
+    pub attested_at: i64,
 }
 
 #[account]
@@ -365,6 +467,14 @@ pub struct Market {
     pub resolved_at: i64,
     /// Second run for head-to-head markets; Pubkey::default() on score markets.
     pub run_b: Pubkey,
+    /// Authority take on resolution, in basis points (max 1000 = 10%).
+    pub fee_bps: u16,
+    /// Lamports of fee accrued at resolution, claimable via `claim_fee`.
+    pub fees_accrued: u64,
+    /// Optional betting cutoff (unix ts; 0 = bets close when scoring starts).
+    pub closes_at: i64,
+    /// Optional deadline after which anyone can `expire_market` (0 = none).
+    pub resolve_by: i64,
 }
 
 #[account]
@@ -375,7 +485,6 @@ pub struct Position {
     pub bump: u8,
     /// Lamports staked per outcome.
     pub amounts: [u64; MAX_OUTCOMES],
-    pub claimed: bool,
 }
 
 #[derive(Accounts)]
@@ -499,6 +608,36 @@ pub struct ResolveDuel<'info> {
 #[derive(Accounts)]
 pub struct VoidMarket<'info> {
     pub authority: Signer<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run @ ErrorCode::WrongRun)]
+    pub run: UncheckedAccount<'info>,
+    #[account(mut, has_one = authority @ ErrorCode::NotAuthority)]
+    pub market: Account<'info, Market>,
+}
+
+#[derive(Accounts)]
+pub struct VoidDuel<'info> {
+    pub authority: Signer<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run @ ErrorCode::WrongRun)]
+    pub run_a: UncheckedAccount<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run_b @ ErrorCode::WrongRun)]
+    pub run_b: UncheckedAccount<'info>,
+    #[account(mut, has_one = authority @ ErrorCode::NotAuthority)]
+    pub market: Account<'info, Market>,
+}
+
+#[derive(Accounts)]
+pub struct ExpireMarket<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimFee<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
     #[account(mut, has_one = authority @ ErrorCode::NotAuthority)]
     pub market: Account<'info, Market>,
 }
@@ -595,14 +734,24 @@ pub enum ErrorCode {
     WrongMarket,
     #[msg("Outcome index out of range")]
     InvalidOutcome,
-    #[msg("Edges must be nondecreasing with 1..=7 entries")]
+    #[msg("Edges must be strictly increasing with 1..=7 entries")]
     InvalidEdges,
     #[msg("Bet amount must be positive")]
     ZeroAmount,
-    #[msg("Position already claimed")]
-    AlreadyClaimed,
-    #[msg("Nothing to claim on this position")]
-    NothingToClaim,
+    #[msg("Betting is closed for this market")]
+    BettingClosed,
+    #[msg("Fee exceeds the 10% maximum")]
+    FeeTooLarge,
+    #[msg("Market has no accrued fees")]
+    NoFees,
+    #[msg("Market has not passed its resolve_by deadline")]
+    MarketNotExpired,
+    #[msg("Deadline must be in the future")]
+    DeadlineInPast,
+    #[msg("Not a score market")]
+    NotScoreMarket,
+    #[msg("Not a duel market")]
+    NotDuelMarket,
     #[msg("Duel runs must be on the same benchmark")]
     BenchmarkMismatch,
     #[msg("Duel needs two different runs")]

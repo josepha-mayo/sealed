@@ -456,6 +456,12 @@ pub mod sealed {
         require!(c.parts_sealed & bit == 0, ErrorCode::PartAlreadySealed);
         require!(items.parts_written & bit == 0, ErrorCode::PartAlreadySealed);
         require!(c.sealing_part == NO_PART, ErrorCode::PartSealPending);
+        // One bank = one viewer key. Without this pin an operator could mint a
+        // chunk whose parts decrypt under different keys — the last part's key
+        // would overwrite `items.encryption_key` and silently brick the rest.
+        if items.parts_written != 0 {
+            require!(items.encryption_key == viewer, ErrorCode::ViewerKeyMismatch);
+        }
         c.sealing_part = part;
 
         let base_index = c.index as u32 * CHUNK as u32 + part as u32 * PART as u32;
@@ -574,6 +580,9 @@ pub mod sealed {
         require!(c.parts_sealed & (1u8 << part) != 0, ErrorCode::PartNotSealed);
 
         let reveal = &mut ctx.accounts.reveal;
+        // Same retry semantics as reshare: revealed_at == 0 means queued or
+        // aborted — re-queuing is safe; a completed reveal cannot be re-run.
+        require!(reveal.revealed_at == 0, ErrorCode::PartAlreadyRevealed);
         reveal.benchmark = ctx.accounts.benchmark.key();
         reveal.chunk_index = index;
         reveal.part = part;
@@ -655,6 +664,10 @@ pub mod sealed {
         );
 
         let grant = &mut ctx.accounts.grant;
+        // shared_at is set only by the callback — a grant whose computation
+        // aborted stays at 0 and can be re-queued here; a completed grant is
+        // immutable (same viewer would just re-encrypt the same specs anyway).
+        require!(grant.shared_at == 0, ErrorCode::PartAlreadyShared);
         grant.benchmark = b.key();
         grant.chunk_index = index;
         grant.part = part;
@@ -729,6 +742,22 @@ pub mod sealed {
         Ok(())
     }
 
+    /// Venue attestation: the benchmark authority vouches that this run
+    /// executed the claimed model/harness. Reputation, not proof of
+    /// inference — the explorer separates attested from self-reported runs
+    /// so a `model_id` string alone can't top the leaderboard.
+    pub fn attest_run(ctx: Context<AttestRun>, _run_index: u64) -> Result<()> {
+        let r = &mut ctx.accounts.run;
+        require!(r.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
+        r.attested = true;
+        r.attested_at = Clock::get()?.unix_timestamp;
+        emit!(RunAttested {
+            run: r.key(),
+            benchmark: r.benchmark,
+        });
+        Ok(())
+    }
+
     // ------------------------------------------------------------ runs
 
     /// Register a model run. `outputs_root` commits to every output hash before any
@@ -769,6 +798,8 @@ pub mod sealed {
         r.harness_hash = harness_hash;
         r.outputs_root = outputs_root;
         r.model_id = model_id.clone();
+        r.attested = false;
+        r.attested_at = 0;
         b.run_count += 1;
         emit!(RunCreated {
             run: r.key(),
@@ -781,13 +812,17 @@ pub mod sealed {
     }
 
     /// Queue scoring of one chunk. `outputs[i]` is the run's public hash of the
-    /// model's canonical answer to item `chunk_index * CHUNK + i`.
+    /// model's canonical answer to item `chunk_index * CHUNK + i`. `proof` is
+    /// the sibling path binding this chunk to `outputs_root`: without it a
+    /// runner could choose outputs adaptively after observing per-chunk counts,
+    /// turning each `ChunkScored` event into a 32-way membership oracle.
     pub fn score_chunk(
         ctx: Context<ScoreChunk>,
         computation_offset: u64,
         _run_index: u64,
         chunk_index: u16,
         outputs: [u64; CHUNK],
+        proof: Vec<[u8; 32]>,
     ) -> Result<()> {
         let r = &mut ctx.accounts.run;
         let c = &ctx.accounts.chunk;
@@ -797,6 +832,30 @@ pub mod sealed {
         let bit = 1u64 << chunk_index;
         require!(r.scored_mask & bit == 0, ErrorCode::ChunkAlreadyScored);
         require!(r.pending_mask & bit == 0, ErrorCode::ChunkScorePending);
+
+        // Bind the submitted outputs to the pre-scoring commitment:
+        //   leaf = sha256("sealed/v1/chunkout\0" || u16le(chunk) || outputs_le)
+        // then fold the sibling path to `outputs_root` (nodes carry a 0x01
+        // domain byte, matching packages/harness/src/hash.ts).
+        let ci = chunk_index.to_le_bytes();
+        let out_bytes: Vec<[u8; 8]> = outputs.iter().map(|h| h.to_le_bytes()).collect();
+        let mut parts: Vec<&[u8]> = Vec::with_capacity(2 + CHUNK);
+        parts.push(b"sealed/v1/chunkout\0");
+        parts.push(&ci);
+        for o in out_bytes.iter() {
+            parts.push(o);
+        }
+        let mut node = solana_sha256_hasher::hashv(&parts);
+        let mut idx = chunk_index as u64;
+        for sib in proof.iter() {
+            node = if idx & 1 == 0 {
+                solana_sha256_hasher::hashv(&[&[1u8], node.as_ref(), sib.as_ref()])
+            } else {
+                solana_sha256_hasher::hashv(&[&[1u8], sib.as_ref(), node.as_ref()])
+            };
+            idx >>= 1;
+        }
+        require!(node.to_bytes() == r.outputs_root, ErrorCode::OutputsRootMismatch);
         r.pending_mask |= bit;
 
         // Circuit signature: (outputs: [u64; CHUNK], p0..p3: Enc<Mxe, AnswerPart>).
@@ -1021,6 +1080,9 @@ pub struct Run {
     pub outputs_root: [u8; 32],
     #[max_len(64)]
     pub model_id: String,
+    /// Venue attestation by the benchmark authority (see `attest_run`).
+    pub attested: bool,
+    pub attested_at: i64,
 }
 
 // ------------------------------------------------------------------ plain ixs
@@ -1128,6 +1190,21 @@ pub struct RetireBenchmark<'info> {
     pub authority: Signer<'info>,
     #[account(mut, has_one = authority @ ErrorCode::NotAuthority)]
     pub benchmark: Account<'info, Benchmark>,
+}
+
+#[derive(Accounts)]
+#[instruction(run_index: u64)]
+pub struct AttestRun<'info> {
+    pub authority: Signer<'info>,
+    #[account(has_one = authority @ ErrorCode::NotAuthority)]
+    pub benchmark: Account<'info, Benchmark>,
+    #[account(
+        mut,
+        has_one = benchmark,
+        seeds = [b"run", benchmark.key().as_ref(), run_index.to_le_bytes().as_ref()],
+        bump = run.bump,
+    )]
+    pub run: Account<'info, Run>,
 }
 
 #[derive(Accounts)]
@@ -1524,7 +1601,7 @@ pub struct RevealPart<'info> {
     )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
     #[account(
-        init,
+        init_if_needed,
         payer = payer,
         space = 8 + Reveal::INIT_SPACE,
         seeds = [b"reveal", benchmark.key().as_ref(), index.to_le_bytes().as_ref(), part.to_le_bytes().as_ref()],
@@ -1596,7 +1673,7 @@ pub struct ResharePart<'info> {
     )]
     pub items: Box<Account<'info, PrivItemChunk>>,
     #[account(
-        init,
+        init_if_needed,
         payer = payer,
         space = 8 + ShareGrant::INIT_SPACE,
         seeds = [b"grant", benchmark.key().as_ref(), index.to_le_bytes().as_ref(), part.to_le_bytes().as_ref(), viewer.as_ref()],
@@ -1770,6 +1847,12 @@ pub struct RunCreated {
 }
 
 #[event]
+pub struct RunAttested {
+    pub run: Pubkey,
+    pub benchmark: Pubkey,
+}
+
+#[event]
 pub struct ChunkScored {
     pub run: Pubkey,
     pub chunk_index: u16,
@@ -1832,4 +1915,14 @@ pub enum ErrorCode {
     ChunkBenchmarkMismatch,
     #[msg("Operation does not match the benchmark kind (authored vs generated)")]
     WrongBankKind,
+    #[msg("Submitted outputs do not reach the run's committed outputs_root")]
+    OutputsRootMismatch,
+    #[msg("Run is not finalized yet")]
+    RunNotFinalized,
+    #[msg("All parts of a private bank must share one viewer key")]
+    ViewerKeyMismatch,
+    #[msg("Part was already reshared to this viewer")]
+    PartAlreadyShared,
+    #[msg("Part was already revealed")]
+    PartAlreadyRevealed,
 }

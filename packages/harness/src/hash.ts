@@ -5,6 +5,7 @@ import { utf8ToBytes, concatBytes } from "@noble/hashes/utils.js";
 const DOMAIN_ANSWER = utf8ToBytes("sealed/v1/answer\0");
 const DOMAIN_ITEM = utf8ToBytes("sealed/v1/item\0");
 const DOMAIN_OUTPUT = utf8ToBytes("sealed/v1/output\0");
+const DOMAIN_CHUNK_OUT = utf8ToBytes("sealed/v1/chunkout\0");
 const DOMAIN_GEN_ANSWER = utf8ToBytes("sealed/v1/genanswer\0");
 const DOMAIN_GEN_ITEMS = utf8ToBytes("sealed/v1/genitems\0");
 const DOMAIN_PRIV_ITEMS = utf8ToBytes("sealed/v1/privitems\0");
@@ -71,6 +72,29 @@ export function itemLeaf(benchmarkId: number, itemIndex: number, salt: Uint8Arra
 /** Merkle leaf for one output hash of a run. */
 export function outputLeaf(itemIndex: number, hash: bigint): Uint8Array {
   return sha256(concatBytes(DOMAIN_OUTPUT, u32le(itemIndex), u64le(hash)));
+}
+
+/**
+ * Merkle leaf committing to one scoring chunk's 32 positional output hashes.
+ * `score_chunk` recomputes this leaf on-chain and folds the sibling path up to
+ * `Run.outputs_root`, so submitted outputs are bound to the pre-scoring
+ * commitment — adaptive probing (choosing outputs after seeing per-chunk
+ * counts) is impossible.
+ */
+export function chunkOutLeaf(chunkIndex: number, outputs: bigint[]): Uint8Array {
+  if (outputs.length !== 32) throw new Error(`chunk must have 32 outputs, got ${outputs.length}`);
+  return sha256(concatBytes(DOMAIN_CHUNK_OUT, u32le(chunkIndex).subarray(0, 2), ...outputs.map(u64le)));
+}
+
+/** One leaf per 32-output chunk, zero-padding a short tail. */
+export function chunkOutLeaves(hashes: bigint[]): Uint8Array[] {
+  const leaves: Uint8Array[] = [];
+  for (let c = 0; c * 32 < hashes.length; c++) {
+    const chunk = hashes.slice(c * 32, (c + 1) * 32);
+    while (chunk.length < 32) chunk.push(0n);
+    leaves.push(chunkOutLeaf(c, chunk));
+  }
+  return leaves;
 }
 
 /** Binary Merkle root; odd levels duplicate the last node. Empty input -> 32 zero bytes. */

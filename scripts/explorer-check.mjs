@@ -60,7 +60,9 @@ function parseShareGrant(d) {
 }
 // disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
 // + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
-// + resolvedScore u32 + createdAt i64 + resolvedAt i64  (same layout as web/index.html)
+// + resolvedScore u32 + createdAt i64 + resolvedAt i64 + runB 32
+// + feeBps u16 + feesAccrued u64 + closesAt i64 + resolveBy i64
+// (same layout as web/index.html)
 function parseMarket(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   o += 32;
@@ -76,8 +78,17 @@ function parseMarket(d) {
   o += 16; // created_at + resolved_at
   // run_b appended for duel markets; absent on pre-duel accounts.
   const runB = o + 32 <= d.length ? b58(d.slice(o, o + 32)) : null;
+  o += 32;
   const duel = runB && runB !== "11111111111111111111111111111111";
-  return { run: b58(run), runB: duel ? runB : undefined, benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges: edges.slice(0, Math.max(0, nOutcomes - 1)), status, outcome, totals: totals.slice(0, nOutcomes), resolvedScore: duel ? `${resolvedScore >> 16}-${resolvedScore & 0xffff}` : resolvedScore };
+  // fee/deadline tail appended in the market-economics upgrade.
+  let feeBps, feesAccrued, closesAt, resolveBy;
+  if (o + 26 <= d.length) {
+    feeBps = v.getUint16(o, true); o += 2;
+    feesAccrued = v.getBigUint64(o, true); o += 8;
+    closesAt = v.getBigInt64(o, true); o += 8;
+    resolveBy = v.getBigInt64(o, true); o += 8;
+  }
+  return { run: b58(run), runB: duel ? runB : undefined, benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges: edges.slice(0, Math.max(0, nOutcomes - 1)), status, outcome, totals: totals.slice(0, nOutcomes), resolvedScore: duel ? `${resolvedScore >> 16}-${resolvedScore & 0xffff}` : resolvedScore, feeBps, feesAccrued, closesAt, resolveBy };
 }
 
 const url = process.argv[2] || "http://127.0.0.1:8899";

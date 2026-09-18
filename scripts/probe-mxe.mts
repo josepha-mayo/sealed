@@ -1,0 +1,10 @@
+import { getMXEAccAddress, getClusterAccAddress } from "@arcium-hq/client";
+import { Connection, PublicKey } from "@solana/web3.js";
+const c = new Connection(process.argv[2] ?? "http://127.0.0.1:8899", "confirmed");
+const pid = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
+const m = getMXEAccAddress(pid);
+const i = await c.getAccountInfo(m);
+console.log("MXE", m.toBase58(), "len", i?.data.length);
+const cl = getClusterAccAddress(0);
+const ci = await c.getAccountInfo(cl);
+console.log("cluster", cl.toBase58(), "len", ci?.data.length);

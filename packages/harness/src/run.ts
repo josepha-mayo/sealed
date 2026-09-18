@@ -3,7 +3,7 @@
  * The chain half (create_run / score_chunk) consumes `RunArtifact`.
  */
 import { canonicalAnswer } from "./canonical.js";
-import { answerHash, genAnswerHash, outputLeaf, merkleRoot, hex } from "./hash.js";
+import { answerHash, genAnswerHash, chunkOutLeaves, merkleRoot, hex } from "./hash.js";
 import { parseCanonicalInt } from "./genbank.js";
 import { type Bank, CHUNK } from "./bank.js";
 import { type HarnessConfig, DEFAULT_CONFIG, ModelClient, configHash } from "./models.js";
@@ -68,8 +68,10 @@ export async function runModel(
   };
 }
 
+/** Two-level commitment: Merkle root over per-chunk leaves (32 outputs each).
+ *  `score_chunk` verifies each submitted chunk against this root on-chain. */
 export function outputsRoot(hashes: bigint[]): Uint8Array {
-  return merkleRoot(hashes.map((h, i) => outputLeaf(i, h)));
+  return merkleRoot(chunkOutLeaves(hashes));
 }
 
 /** Output hashes for chunk `i` in circuit order. */

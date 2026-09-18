@@ -48,6 +48,7 @@ import {
   type PrivItemChunkState,
 } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
+import { chunkOutLeaves, merkleProof } from "./hash.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -623,6 +624,7 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   }
 
   let correct = Number(state.correct);
+  const outLeaves = chunkOutLeaves(run.items.map((r) => BigInt(r.outputHash)));
   for (let i = 0; i < bank.chunkCount; i++) {
     state = await acct.run.fetch(r);
     const bit = 1n << BigInt(i);
@@ -634,9 +636,10 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
     }
     if (!pending) {
       const outputs = runChunkOutputs(run, i).map((h) => new anchor.BN(h.toString()));
+      const proof = merkleProof(outLeaves, i).map((p) => Array.from(p));
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
-        .scoreChunk(offset, new anchor.BN(runIndex.toString()), i, outputs)
+        .scoreChunk(offset, new anchor.BN(runIndex.toString()), i, outputs, proof)
         .accountsPartial({ payer: wallet.publicKey, run: r, runner: wallet.publicKey, chunk: chunk(i), ...arciumAccounts(ctx, offset, "score_chunk") })
         .rpc({ commitment: "confirmed" });
     }
@@ -799,23 +802,41 @@ export function outcomeLabel(nOutcomes: number, edges: number[] | bigint[], i: n
   return hi === null ? `>= ${lo}` : lo === 0 ? `< ${hi}` : `${lo}–${hi - 1}`;
 }
 
-async function marketOpen(run: PublicKey, edges: number[], salt: bigint, kpPath?: string) {
+interface MarketTiming { feeBps: number; closesAt: bigint; resolveBy: bigint }
+
+/** `--flag 0` disables; `+3600` = that many seconds from now; else absolute unix ts. */
+function deadline(v: string | boolean | undefined): bigint {
+  if (v === undefined || v === true || v === "0") return 0n;
+  const s = String(v);
+  if (s.startsWith("+")) return BigInt(Math.floor(Date.now() / 1000) + Number(s.slice(1)));
+  return BigInt(s);
+}
+
+function timing(args: Args): MarketTiming {
+  return {
+    feeBps: args["fee-bps"] !== undefined ? Number(args["fee-bps"]) : 0,
+    closesAt: deadline(args["closes-at"]),
+    resolveBy: deadline(args["resolve-by"]),
+  };
+}
+
+async function marketOpen(run: PublicKey, edges: number[], salt: bigint, t: MarketTiming, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const m = marketPda(run, salt, market.programId);
   await (market.methods as any)
-    .createMarket(new anchor.BN(salt.toString()), edges)
+    .createMarket(new anchor.BN(salt.toString()), edges, t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()))
     .accounts({ authority: kp.publicKey, run, market: m })
     .rpc({ commitment: "confirmed" });
   const labels = Array.from({ length: edges.length + 1 }, (_, i) => outcomeLabel(edges.length + 1, edges, i)).join(" | ");
-  console.log(`market ${m.toBase58()} opened: run ${run.toBase58()} outcomes: ${labels}`);
+  console.log(`market ${m.toBase58()} opened: run ${run.toBase58()} outcomes: ${labels}${t.feeBps ? ` fee=${t.feeBps}bps` : ""}`);
   return m;
 }
 
-async function marketOpenDuel(runA: PublicKey, runB: PublicKey, salt: bigint, kpPath?: string) {
+async function marketOpenDuel(runA: PublicKey, runB: PublicKey, salt: bigint, t: MarketTiming, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const m = duelPda(runA, runB, salt, market.programId);
   await (market.methods as any)
-    .createDuel(new anchor.BN(salt.toString()))
+    .createDuel(new anchor.BN(salt.toString()), t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()))
     .accounts({ authority: kp.publicKey, runA, runB, market: m })
     .rpc({ commitment: "confirmed" });
   console.log(`duel market ${m.toBase58()} opened: run ${runA.toBase58()} vs ${runB.toBase58()} — outcomes: A wins | B wins | tie`);
@@ -873,6 +894,44 @@ async function marketClaim(marketPk: PublicKey, kpPath?: string) {
   console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
 
+/** Authority void — only while every referenced run is still fully unscored. */
+async function marketVoid(marketPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const m: any = await (market.account as any).market.fetch(marketPk);
+  const sig = isDuel(m)
+    ? await (market.methods as any)
+        .voidDuel()
+        .accounts({ authority: kp.publicKey, runA: m.run, runB: m.runB, market: marketPk })
+        .rpc({ commitment: "confirmed" })
+    : await (market.methods as any)
+        .voidMarket()
+        .accounts({ authority: kp.publicKey, run: m.run, market: marketPk })
+        .rpc({ commitment: "confirmed" });
+  console.log(`market voided (${sig}): ${marketPk.toBase58()} — all positions refundable via claim`);
+}
+
+/** Permissionless expiry once resolve_by has passed. */
+async function marketExpire(marketPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const sig = await (market.methods as any)
+    .expireMarket()
+    .accounts({ market: marketPk })
+    .rpc({ commitment: "confirmed" });
+  console.log(`market expired (${sig}): ${marketPk.toBase58()} — all positions refundable via claim`);
+}
+
+/** Authority collects the fee accrued at resolution. */
+async function marketClaimFee(marketPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const before = await provider0(kp).getBalance(kp.publicKey);
+  const sig = await (market.methods as any)
+    .claimFee()
+    .accounts({ authority: kp.publicKey, market: marketPk })
+    .rpc({ commitment: "confirmed" });
+  const after = await provider0(kp).getBalance(kp.publicKey);
+  console.log(`claim-fee (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+}
+
 function provider0(kp: Keypair) {
   const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
   return new Connection(url, "confirmed");
@@ -893,14 +952,32 @@ async function marketShow(marketPk: PublicKey) {
   }
   const rs = duel ? `${m.resolvedScore >> 16}-${m.resolvedScore & 0xffff}` : `${m.resolvedScore}`;
   console.log(`  resolved_score=${rs} outcome=${m.status === 1 ? m.outcome : "-"}`);
+  const fmt = (v: bigint) => (v === 0n ? "-" : new Date(Number(v) * 1000).toISOString());
+  console.log(`  fee_bps=${m.feeBps} fees_accrued=${Number(m.feesAccrued) / LAMPORTS_PER_SOL} SOL closes_at=${fmt(m.closesAt)} resolve_by=${fmt(m.resolveBy)}`);
   const positions = await (market.account as any).position.all([{ memcmp: { offset: 8, bytes: marketPk.toBase58() } }]);
   for (const { account: p } of positions) {
     const bets = p.amounts.slice(0, n).map((a: bigint, i: number) => `${lbl(i)}=${Number(a) / LAMPORTS_PER_SOL}`).filter((s: string) => !s.endsWith("=0")).join(" ");
-    console.log(`  position ${p.bettor.toBase58()} ${bets} claimed=${p.claimed}`);
+    console.log(`  position ${p.bettor.toBase58()} ${bets}`);
   }
 }
 
 // ------------------------------------------------------------------ cli glue
+
+/**
+ * Venue attestation: the benchmark authority marks a finalized run as vouched
+ * (it executed the claimed model/harness). Reputation, not proof — separates
+ * attested runs from self-reported `model_id` claims on the leaderboard.
+ */
+export async function attestRun(runPk: PublicKey) {
+  const ctx = setup();
+  const acct = ctx.program.account as any;
+  const r: any = await acct.run.fetch(runPk);
+  await ctx.program.methods
+    .attestRun(new anchor.BN(r.index.toString()))
+    .accounts({ authority: ctx.wallet.publicKey, benchmark: r.benchmark, run: runPk })
+    .rpc({ commitment: "confirmed" });
+  console.log(`run ${runPk.toBase58()} attested by authority ${ctx.wallet.publicKey.toBase58()}`);
+}
 
 export async function chainMain(cmd: string[], args: Args) {
   const loadJson = (p: string) => JSON.parse(readFileSync(p, "utf8"));
@@ -1018,6 +1095,10 @@ export async function chainMain(cmd: string[], args: Args) {
     await status(new PublicKey(String(args.benchmark)));
     return;
   }
+  if (sub === "attest") {
+    await attestRun(new PublicKey(String(args.run)));
+    return;
+  }
   if (sub === "market") {
     const [m0] = cmd.slice(1);
     const bettor = args.bettor as string | undefined;
@@ -1026,10 +1107,10 @@ export async function chainMain(cmd: string[], args: Args) {
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.
       const edges = args.edges ? String(args.edges).split(",").map(Number) : [Number(args.threshold)];
       if (edges.some((e) => !Number.isFinite(e))) throw new Error("--edges 40,55[,64..] or --threshold n");
-      await marketOpen(run, edges, BigInt(String(args.salt ?? "0")), bettor);
+      await marketOpen(run, edges, BigInt(String(args.salt ?? "0")), timing(args), bettor);
     } else if (m0 === "duel") {
       // Head-to-head: does run A outscore run B on the same benchmark?
-      await marketOpenDuel(new PublicKey(String(args["run-a"])), new PublicKey(String(args["run-b"])), BigInt(String(args.salt ?? "0")), bettor);
+      await marketOpenDuel(new PublicKey(String(args["run-a"])), new PublicKey(String(args["run-b"])), BigInt(String(args.salt ?? "0")), timing(args), bettor);
     } else if (m0 === "bet") {
       const marketPk = new PublicKey(String(args.market));
       // --outcome i is canonical; --side yes|no maps onto binary markets (no=0, yes=1).
@@ -1044,6 +1125,12 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketResolve(new PublicKey(String(args.market)), bettor);
     } else if (m0 === "claim") {
       await marketClaim(new PublicKey(String(args.market)), bettor);
+    } else if (m0 === "void") {
+      await marketVoid(new PublicKey(String(args.market)), bettor);
+    } else if (m0 === "expire") {
+      await marketExpire(new PublicKey(String(args.market)), bettor);
+    } else if (m0 === "claim-fee") {
+      await marketClaimFee(new PublicKey(String(args.market)), bettor);
     } else if (m0 === "show") {
       await marketShow(new PublicKey(String(args.market)));
     } else throw new Error(`unknown market command: ${m0}`);

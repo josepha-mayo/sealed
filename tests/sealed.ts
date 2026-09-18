@@ -97,6 +97,48 @@ function decodePrivItemChunk(data: Buffer) {
     nonces,
   };
 }
+// Chunk-level output-commitment mirrors — score_chunk verifies this fold
+// onchain (kept independent of packages/harness so client/program drift shows).
+const DOMAIN_CHUNK_OUT = utf8ToBytes("sealed/v1/chunkout\0");
+const DOMAIN_NODE = new Uint8Array([0x01]);
+function chunkOutLeaf(chunkIndex: number, outputs: bigint[]): Uint8Array {
+  return sha256(concatBytes(DOMAIN_CHUNK_OUT, u32le(chunkIndex).subarray(0, 2), ...outputs.map(u64le)));
+}
+function chunkOutLeaves(chunks: bigint[][]): Uint8Array[] {
+  return chunks.map((outputs, i) => {
+    const padded = outputs.slice();
+    while (padded.length < CHUNK) padded.push(0n);
+    return chunkOutLeaf(i, padded);
+  });
+}
+function merkleRoot(leaves: Uint8Array[]): Uint8Array {
+  let level = leaves.slice();
+  while (level.length > 1) {
+    const next: Uint8Array[] = [];
+    for (let i = 0; i < level.length; i += 2) {
+      next.push(sha256(concatBytes(DOMAIN_NODE, level[i], i + 1 < level.length ? level[i + 1] : level[i])));
+    }
+    level = next;
+  }
+  return level.length ? level[0] : new Uint8Array(32);
+}
+function merkleProof(leaves: Uint8Array[], index: number): number[][] {
+  const proof: number[][] = [];
+  let level = leaves.slice();
+  let i = index;
+  while (level.length > 1) {
+    const sib = i ^ 1;
+    proof.push(Array.from(sib < level.length ? level[sib] : level[i]));
+    const next: Uint8Array[] = [];
+    for (let j = 0; j < level.length; j += 2) {
+      next.push(sha256(concatBytes(DOMAIN_NODE, level[j], j + 1 < level.length ? level[j + 1] : level[j])));
+    }
+    level = next;
+    i >>= 1;
+  }
+  return proof;
+}
+
 function unpackSpecs(fields: bigint[]): ItemSpec[] {
   expect(fields.length).to.equal(2);
   const bytes = new Array<number>(40);
@@ -253,8 +295,15 @@ describe("Sealed", () => {
     await fund(provider, owner, runner.publicKey, 0.5 * LAMPORTS_PER_SOL);
     const authorityBefore = await provider.connection.getBalance(owner.publicKey);
     const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
+    // Outputs are committed in outputs_root BEFORE scoring: score_chunk verifies
+    // a chunk-level Merkle proof, so the runner can't adapt outputs per chunk.
+    const planted = [13, CHUNK];
+    const runOutputs: bigint[][] = answers.map((chunk, i) =>
+      chunk.map((a, j) => (j < planted[i] ? a : randomU64())),
+    );
+    const outLeaves = runOutputs.map((chunk, i) => chunkOutLeaf(i, chunk));
     await program.methods
-      .createRun("test/oracle", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .createRun("test/oracle", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
@@ -266,14 +315,12 @@ describe("Sealed", () => {
     expect(r.modelId).to.equal("test/oracle");
 
     // ---------------------------------------------------------------- score
-    const planted = [13, CHUNK];
     let total = 0;
     for (let i = 0; i < CHUNKS; i++) {
-      const outputs = answers[i].map((a, j) => (j < planted[i] ? a : randomU64()));
       console.log(`score chunk ${i} (expect ${planted[i]})`);
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
-        .scoreChunk(offset, new anchor.BN(0), i, outputs.map((o) => new anchor.BN(o.toString())))
+        .scoreChunk(offset, new anchor.BN(0), i, runOutputs[i].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, i))
         .accountsPartial({
           payer: runner.publicKey,
           run,
@@ -297,7 +344,7 @@ describe("Sealed", () => {
     const again = new anchor.BN(randomBytes(8), "hex");
     await expectAnchorError(
       program.methods
-        .scoreChunk(again, new anchor.BN(0), 0, answers[0].map((o) => new anchor.BN(o.toString())))
+        .scoreChunk(again, new anchor.BN(0), 0, runOutputs[0].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
         .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk: chunkPdas[0], ...arciumAccounts(again, "score_chunk") })
         .signers([runner])
         .rpc(),
@@ -366,7 +413,7 @@ describe("Sealed", () => {
         .accountsPartial({ payer: owner.publicKey, benchmark, chunk, reveal, ...arciumAccounts(again, "reveal_part") })
         .signers([owner])
         .rpc(),
-      "already in use",
+      "PartAlreadyRevealed",
     );
   });
 
@@ -388,27 +435,34 @@ describe("Sealed", () => {
     const [run0] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(new anchor.BN(0), [30])
+        .createMarket(new anchor.BN(0), [30], 0, new anchor.BN(0), new anchor.BN(0))
         .accounts({ authority: owner.publicKey, run: run0, market: mktPda(run0) })
         .signers([owner])
         .rpc(),
       "RunNotPending",
     );
 
-    // Run #1 is created pending; the market opens on it while unscored.
+    // Run #1 is created pending with a real outputs commitment (10+0 planted
+    // correct over 2 chunks -> score 10).
     const runner = Keypair.generate();
     await fund(provider, owner, runner.publicKey, 0.5 * LAMPORTS_PER_SOL);
     const [run1] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(1n)], program.programId);
+    const planted = [10, 0];
+    const runOutputs: bigint[][] = answers.map((chunk, i) =>
+      chunk.map((a, j) => (j < planted[i] ? a : randomU64())),
+    );
+    const outLeaves = runOutputs.map((chunk, i) => chunkOutLeaf(i, chunk));
     await program.methods
-      .createRun("test/market-run", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .createRun("test/market-run", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: run1 })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
 
     const THRESHOLD = 30;
+    const BN0 = new anchor.BN(0);
     const mkt = mktPda(run1);
     await marketProgram.methods
-      .createMarket(new anchor.BN(0), [THRESHOLD])
+      .createMarket(new anchor.BN(0), [THRESHOLD], 0, BN0, BN0)
       .accounts({ authority: owner.publicKey, run: run1, market: mkt })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -417,19 +471,57 @@ describe("Sealed", () => {
     expect(m.nOutcomes).to.equal(2);
     expect(m.edges[0]).to.equal(THRESHOLD);
 
+    // Duplicate edges create unreachable buckets — rejected now.
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(9), [10, 10], 0, BN0, BN0)
+        .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 9n) })
+        .signers([owner])
+        .rpc(),
+      "InvalidEdges",
+    );
+
     // Second market on the same run, different salt + 3-way score bands.
     const mkt3 = mktPda(run1, 1n);
     await marketProgram.methods
-      .createMarket(new anchor.BN(1), [10, 20])
+      .createMarket(new anchor.BN(1), [10, 20], 0, BN0, BN0)
       .accounts({ authority: owner.publicKey, run: run1, market: mkt3 })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
 
+    // A 5%-fee market (salt 2) and a voidable market (salt 3).
+    const mktF = mktPda(run1, 2n);
+    await marketProgram.methods
+      .createMarket(new anchor.BN(2), [THRESHOLD], 500, BN0, BN0)
+      .accounts({ authority: owner.publicKey, run: run1, market: mktF })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    const mktV = mktPda(run1, 3n);
+    await marketProgram.methods
+      .createMarket(new anchor.BN(3), [THRESHOLD], 0, BN0, BN0)
+      .accounts({ authority: owner.publicKey, run: run1, market: mktV })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    // Deadline market (salt 4): anyone can expire it once resolve_by passes.
+    const mktX = mktPda(run1, 4n);
+    const resolveBy = Math.floor(Date.now() / 1000) + 2;
+    await marketProgram.methods
+      .createMarket(new anchor.BN(4), [THRESHOLD], 0, BN0, new anchor.BN(resolveBy))
+      .accounts({ authority: owner.publicKey, run: run1, market: mktX })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+
+    // No deadline -> cannot expire.
+    await expectAnchorError(
+      marketProgram.methods.expireMarket().accounts({ market: mkt }).rpc(),
+      "MarketNotExpired",
+    );
+
     // Binary market: YES(outcome1) 0.3 SOL vs NO(outcome0) 0.5 SOL.
     const yes = Keypair.generate();
     const no = Keypair.generate();
-    await fund(provider, owner, yes.publicKey, 0.5 * LAMPORTS_PER_SOL);
-    await fund(provider, owner, no.publicKey, 0.6 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, yes.publicKey, 0.6 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, no.publicKey, 0.8 * LAMPORTS_PER_SOL);
     const noBefore = await provider.connection.getBalance(no.publicKey);
     await marketProgram.methods
       .bet(1, new anchor.BN(0.3 * LAMPORTS_PER_SOL))
@@ -453,15 +545,75 @@ describe("Sealed", () => {
         .signers([yes])
         .rpc({ commitment: "confirmed" });
     }
+    // Fee market: 0.2 SOL on each side; winner takes 95% of the pot.
+    await marketProgram.methods
+      .bet(0, new anchor.BN(0.2 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: yes.publicKey, run: run1, market: mktF, position: posPda(mktF, yes.publicKey) })
+      .signers([yes])
+      .rpc({ commitment: "confirmed" });
+    await marketProgram.methods
+      .bet(1, new anchor.BN(0.2 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: no.publicKey, run: run1, market: mktF, position: posPda(mktF, no.publicKey) })
+      .signers([no])
+      .rpc({ commitment: "confirmed" });
+    // Voidable + deadline markets get one bet each.
+    await marketProgram.methods
+      .bet(0, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: yes.publicKey, run: run1, market: mktV, position: posPda(mktV, yes.publicKey) })
+      .signers([yes])
+      .rpc({ commitment: "confirmed" });
+    await marketProgram.methods
+      .bet(1, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: no.publicKey, run: run1, market: mktX, position: posPda(mktX, no.publicKey) })
+      .signers([no])
+      .rpc({ commitment: "confirmed" });
 
-    // MPC-score run #1 with 10+0 planted correct answers -> 10 < 30 -> NO wins.
-    const planted = [10, 0];
+    // Only the authority can void, and only while the run is still unscored.
+    await expectAnchorError(
+      marketProgram.methods
+        .voidMarket()
+        .accounts({ authority: yes.publicKey, run: run1, market: mktV })
+        .signers([yes])
+        .rpc(),
+      "NotAuthority",
+    );
+    await marketProgram.methods
+      .voidMarket()
+      .accounts({ authority: owner.publicKey, run: run1, market: mktV })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    const mv = await marketProgram.account.market.fetch(mktV);
+    expect(mv.status).to.equal(2, "voided");
+
+    // Voided market refunds in full via claim.
+    const yesBefore = await provider.connection.getBalance(yes.publicKey);
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: yes.publicKey, market: mktV, position: posPda(mktV, yes.publicKey) })
+      .signers([yes])
+      .rpc({ commitment: "confirmed" });
+    const yesAfter = await provider.connection.getBalance(yes.publicKey);
+    expect(yesAfter - yesBefore).to.be.greaterThan(0.04 * LAMPORTS_PER_SOL, "voided market refunded");
+
+    // A mismatched Merkle proof cannot pass outputs into scoring.
+    const badOffset = new anchor.BN(randomBytes(8), "hex");
+    const badProof = merkleProof(outLeaves, 0);
+    badProof[0] = Array.from(randomBytes(32));
+    await expectAnchorError(
+      program.methods
+        .scoreChunk(badOffset, new anchor.BN(1), 0, runOutputs[0].map((o) => new anchor.BN(o.toString())), badProof)
+        .accountsPartial({ payer: runner.publicKey, run: run1, runner: runner.publicKey, chunk: chunkPdas[0], ...arciumAccounts(badOffset, "score_chunk") })
+        .signers([runner])
+        .rpc(),
+      "OutputsRootMismatch",
+    );
+
+    // MPC-score run #1: 10+0 planted -> 10 < 30 -> NO wins.
     let total = 0;
     for (let i = 0; i < 2; i++) {
-      const outputs = Array.from({ length: CHUNK }, (_, j) => new anchor.BN((j < planted[i] ? answers[i][j] : randomU64()).toString()));
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
-        .scoreChunk(offset, new anchor.BN(1), i, outputs)
+        .scoreChunk(offset, new anchor.BN(1), i, runOutputs[i].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, i))
         .accountsPartial({ payer: runner.publicKey, run: run1, runner: runner.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
         .signers([runner])
         .rpc({ commitment: "confirmed" });
@@ -472,7 +624,7 @@ describe("Sealed", () => {
     expect(r1.status).to.equal(1);
     expect(r1.correct).to.equal(total);
 
-    // Betting is closed once the run is finalized.
+    // Betting and voiding are both closed once the run is finalized.
     await expectAnchorError(
       marketProgram.methods
         .bet(0, new anchor.BN(1000))
@@ -481,6 +633,23 @@ describe("Sealed", () => {
         .rpc(),
       "RunNotPending",
     );
+    await expectAnchorError(
+      marketProgram.methods
+        .voidMarket()
+        .accounts({ authority: owner.publicKey, run: run1, market: mkt })
+        .signers([owner])
+        .rpc(),
+      "RunNotPending",
+    );
+
+    // Permissionless expiry once resolve_by has passed.
+    await new Promise((r) => setTimeout(r, 2500));
+    await marketProgram.methods
+      .expireMarket()
+      .accounts({ market: mktX })
+      .rpc({ commitment: "confirmed" });
+    const mx = await marketProgram.account.market.fetch(mktX);
+    expect(mx.status).to.equal(2, "expired");
 
     // Permissionless resolve: score 10 < 30 -> outcome 0 (the "<30" bucket).
     await marketProgram.methods
@@ -491,6 +660,7 @@ describe("Sealed", () => {
     expect(m.status).to.equal(1, "resolved");
     expect(m.outcome).to.equal(0, "score < threshold wins");
     expect(m.resolvedScore).to.equal(total);
+    expect(m.feesAccrued.toNumber()).to.equal(0, "no fee on the zero-fee market");
 
     // The 3-way market resolves on the same run: score 10 lands in bucket [10,20).
     await marketProgram.methods
@@ -501,15 +671,24 @@ describe("Sealed", () => {
     expect(m3.status).to.equal(1);
     expect(m3.outcome).to.equal(1, "10 lands in the 10..19 band");
 
-    // Loser has nothing to claim.
-    await expectAnchorError(
-      marketProgram.methods
-        .claim()
-        .accounts({ bettor: yes.publicKey, market: mkt, position: posPda(mkt, yes.publicKey) })
-        .signers([yes])
-        .rpc(),
-      "NothingToClaim",
-    );
+    // The fee market resolves and accrues 5% of the 0.4 SOL pot.
+    await marketProgram.methods
+      .resolve()
+      .accounts({ run: run1, market: mktF })
+      .rpc({ commitment: "confirmed" });
+    const mF = await marketProgram.account.market.fetch(mktF);
+    expect(mF.status).to.equal(1);
+    expect(mF.outcome).to.equal(0);
+    expect(mF.feesAccrued.toNumber()).to.equal(0.02 * LAMPORTS_PER_SOL, "5% fee accrued");
+
+    // Loser still closes its position (payout 0, rent back) — no locked account.
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: yes.publicKey, market: mkt, position: posPda(mkt, yes.publicKey) })
+      .signers([yes])
+      .rpc({ commitment: "confirmed" });
+    const gone = await marketProgram.account.position.fetchNullable(posPda(mkt, yes.publicKey));
+    expect(gone).to.equal(null, "losing position closed");
 
     // Winner takes the whole pot (0.8 SOL) plus the position's rent back.
     await marketProgram.methods
@@ -518,8 +697,27 @@ describe("Sealed", () => {
       .signers([no])
       .rpc({ commitment: "confirmed" });
     const noAfter = await provider.connection.getBalance(no.publicKey);
-    expect(noAfter - noBefore).to.be.greaterThan(0.29 * LAMPORTS_PER_SOL, "NO bettor profited");
-    console.log(`market settled: NO bettor ${noBefore / LAMPORTS_PER_SOL} -> ${noAfter / LAMPORTS_PER_SOL} SOL`);
+    console.log(`  no trace: before=${noBefore} after=${noAfter} delta=${noAfter - noBefore}`);
+    expect(noAfter - noBefore).to.be.greaterThan(0.04 * LAMPORTS_PER_SOL, "NO bettor profited");
+
+    // Authority collects the accrued fee; a second claim finds nothing.
+    const authBefore = await provider.connection.getBalance(owner.publicKey);
+    await marketProgram.methods
+      .claimFee()
+      .accounts({ authority: owner.publicKey, market: mktF })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    const authAfter = await provider.connection.getBalance(owner.publicKey);
+    expect(authAfter - authBefore).to.be.greaterThan(0.01 * LAMPORTS_PER_SOL, "fee collected");
+    await expectAnchorError(
+      marketProgram.methods
+        .claimFee()
+        .accounts({ authority: owner.publicKey, market: mktF })
+        .signers([owner])
+        .rpc(),
+      "NoFees",
+    );
+    console.log(`market settled: NO bettor ${noBefore / LAMPORTS_PER_SOL} -> ${noAfter / LAMPORTS_PER_SOL} SOL, fee claimed`);
   });
 
   it("mints a generated bank inside MPC and scores a run against it", async () => {
@@ -596,17 +794,18 @@ describe("Sealed", () => {
     await fund(provider, owner, runner.publicKey, 0.3 * LAMPORTS_PER_SOL);
     const runIndex = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
     const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(runIndex)], program.programId);
+    const PLANTED = 17;
+    const outputs = truth.map((v, j) => (j < PLANTED ? genAnswerHash(GEN_ID, j, v) : randomU64()));
+    const outLeaves = [chunkOutLeaf(0, outputs)];
     await program.methods
-      .createRun("test/gen-oracle", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .createRun("test/gen-oracle", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
 
-    const PLANTED = 17;
-    const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(GEN_ID, j, v) : randomU64()).toString()));
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
-      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs)
+      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
@@ -744,17 +943,18 @@ describe("Sealed", () => {
     await fund(provider, owner, runner.publicKey, 0.3 * LAMPORTS_PER_SOL);
     const runIndex = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
     const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(runIndex)], program.programId);
+    const PLANTED = 21;
+    const outputs = truth.map((v, j) => (j < PLANTED ? genAnswerHash(PRIV_ID, j, v) : randomU64()));
+    const outLeaves = [chunkOutLeaf(0, outputs)];
     await program.methods
-      .createRun("test/priv-oracle", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .createRun("test/priv-oracle", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
 
-    const PLANTED = 21;
-    const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(PRIV_ID, j, v) : randomU64()).toString()));
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
-      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs)
+      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
@@ -851,7 +1051,7 @@ describe("Sealed", () => {
         .accountsPartial({ payer: owner.publicKey, benchmark, items: pitemsPda, grant, ...arciumAccounts(again, "reshare_part") })
         .signers([owner])
         .rpc(),
-      "already in use",
+      "PartAlreadyShared",
     );
     console.log(`reshare verified: delegate decrypted ${specs.length} items identical to the authority's`);
   });
@@ -908,17 +1108,18 @@ describe("Sealed", () => {
     // The runner's "model" answers PLANTED of them right; MPC counts the rest.
     const runIndex = (await program.account.benchmark.fetch(benchmark)).runCount;
     const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(BigInt(runIndex.toString()))], program.programId);
+    const PLANTED = 19;
+    const outputs = truth.map((v, j) => (j < PLANTED ? genAnswerHash(PRIV_ID, j, v) : randomU64()));
+    const outLeaves = [chunkOutLeaf(0, outputs)];
     await program.methods
-      .createRun("delegate/runner-1", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .createRun("delegate/runner-1", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
 
-    const PLANTED = 19;
-    const outputs = truth.map((v, j) => new anchor.BN((j < PLANTED ? genAnswerHash(PRIV_ID, j, v) : randomU64()).toString()));
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
-      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs)
+      .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
       .rpc({ commitment: "confirmed" });
@@ -946,17 +1147,21 @@ describe("Sealed", () => {
     await fund(provider, owner, runnerB.publicKey, 0.4 * LAMPORTS_PER_SOL);
 
     const idx0 = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
-    const mkRun = async (kp: Keypair, model: string, idx: bigint) => {
+    const mkRun = async (kp: Keypair, model: string, idx: bigint, planted: number) => {
       const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx)], program.programId);
+      const outputs = truth.map((v, j) => (j < planted ? genAnswerHash(GEN_ID, j, v) : randomU64()));
+      const outLeaves = [chunkOutLeaf(0, outputs)];
       await program.methods
-        .createRun(model, Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+        .createRun(model, Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
         .accountsPartial({ runner: kp.publicKey, authority: owner.publicKey, benchmark, run })
         .signers([kp])
         .rpc({ commitment: "confirmed" });
-      return run;
+      return { run, outputs, outLeaves };
     };
-    const runA = await mkRun(runnerA, "duel/model-a", idx0);
-    const runB = await mkRun(runnerB, "duel/model-b", idx0 + 1n);
+    const A = await mkRun(runnerA, "duel/model-a", idx0, 25);
+    const B = await mkRun(runnerB, "duel/model-b", idx0 + 1n, 19);
+    const runA = A.run;
+    const runB = B.run;
 
     const duelPda = (a: PublicKey, b: PublicKey, salt: bigint) =>
       PublicKey.findProgramAddressSync([Buffer.from("duel"), a.toBuffer(), b.toBuffer(), u64le(salt)], marketProgram.programId)[0];
@@ -964,9 +1169,10 @@ describe("Sealed", () => {
       PublicKey.findProgramAddressSync([Buffer.from("position"), mkt.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
 
     // A duel between a run and itself is nonsense.
+    const BN0 = new anchor.BN(0);
     await expectAnchorError(
       marketProgram.methods
-        .createDuel(new anchor.BN(7))
+        .createDuel(new anchor.BN(7), 0, BN0, BN0)
         .accounts({ authority: owner.publicKey, runA, runB: runA, market: duelPda(runA, runA, 7n) })
         .signers([owner])
         .rpc({ commitment: "confirmed" }),
@@ -975,7 +1181,7 @@ describe("Sealed", () => {
 
     const mkt = duelPda(runA, runB, 0n);
     await marketProgram.methods
-      .createDuel(new anchor.BN(0))
+      .createDuel(new anchor.BN(0), 0, BN0, BN0)
       .accounts({ authority: owner.publicKey, runA, runB, market: mkt })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -1002,17 +1208,16 @@ describe("Sealed", () => {
 
     // MPC-score run A (25 right); once it finalizes, duel bets must close —
     // half the outcome is already known.
-    const score = async (kp: Keypair, run: PublicKey, idx: bigint, planted: number) => {
-      const outputs = truth.map((v, j) => new anchor.BN((j < planted ? genAnswerHash(GEN_ID, j, v) : randomU64()).toString()));
+    const score = async (kp: Keypair, run: PublicKey, idx: bigint, outputs: bigint[], outLeaves: Uint8Array[]) => {
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
-        .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs)
+        .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
         .accountsPartial({ payer: kp.publicKey, run, runner: kp.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
         .signers([kp])
         .rpc({ commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     };
-    await score(runnerA, runA, idx0, 25);
+    await score(runnerA, runA, idx0, A.outputs, A.outLeaves);
     expect((await program.account.run.fetch(runA)).correct).to.equal(25);
 
     await expectAnchorError(
@@ -1022,7 +1227,7 @@ describe("Sealed", () => {
       "RunNotPending",
     );
 
-    await score(runnerB, runB, idx0 + 1n, 19);
+    await score(runnerB, runB, idx0 + 1n, B.outputs, B.outLeaves);
     expect((await program.account.run.fetch(runB)).correct).to.equal(19);
 
     // Permissionless settle from the two finalized runs.

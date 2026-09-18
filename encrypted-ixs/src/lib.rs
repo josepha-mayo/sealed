@@ -103,8 +103,11 @@ mod circuits {
             let a = ArcisRNG::gen_public_integer_from_width(6) as u8; // 0..63
             let b = ArcisRNG::gen_public_integer_from_width(6) as u8;
             let c = ArcisRNG::gen_public_integer_from_width(6) as u8;
-            let op0 = (ArcisRNG::gen_public_integer_from_width(2) as u8) % 3;
-            let op1 = (ArcisRNG::gen_public_integer_from_width(2) as u8) % 3;
+            // width(2)%3 would make '+' 50% likely ({0,3}→0). No power-of-2
+            // range is divisible by 3, so draw 16 bits instead: the residual
+            // bias is 2^-16 (33.335% vs 33.332%) — statistically undetectable.
+            let op0 = (ArcisRNG::gen_public_integer_from_width(16) as u16 % 3) as u8;
+            let op1 = (ArcisRNG::gen_public_integer_from_width(16) as u16 % 3) as u8;
             let ans = apply_op(apply_op(a as i64, op0, b as i64), op1, c as i64);
             specs[i] = ItemSpec { a, b, c, op0, op1 };
             hashes[i] = gen_answer_hash(benchmark_id, base_index + i as u32, ans);
