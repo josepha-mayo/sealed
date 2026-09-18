@@ -55,7 +55,7 @@
 <div class="card">
   <div class="kv" style="margin-bottom:8px">proof that a model's output was committed <i>before</i> scoring — paste <code>sealed prove --run … --item …</code> output</div>
   <input id="vrun" size="44" placeholder="run account pubkey"> <button onclick="verify()">verify</button>
-  <div><textarea id="vproof" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"itemIndex":0,"outputHash":"…","proof":["…"],"outputsRoot":"…"}'></textarea></div>
+  <div><textarea id="vproof" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"itemIndex":0,"chunkIndex":0,"outputHash":"…","chunkOutputs":["…×32"],"proof":["…"],"outputsRoot":"…"}'></textarea></div>
   <div id="vres"></div>
 </div>
 <div class="footer">benchmark items are committed by Merkle root at creation; model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
