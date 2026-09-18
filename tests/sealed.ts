@@ -502,18 +502,27 @@ describe("Sealed", () => {
       .accounts({ authority: owner.publicKey, run: run1, market: mktV })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
-    // Deadline market (salt 4): anyone can expire it once resolve_by passes.
+    // Deadline market (salt 4): anyone can expire it once resolve_by passes
+    // while the run is still pending.
     const mktX = mktPda(run1, 4n);
-    const resolveBy = Math.floor(Date.now() / 1000) + 2;
+    const resolveBy = Math.floor(Date.now() / 1000) + 15;
     await marketProgram.methods
       .createMarket(new anchor.BN(4), [THRESHOLD], 0, BN0, new anchor.BN(resolveBy))
       .accounts({ authority: owner.publicKey, run: run1, market: mktX })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
+    // Second deadline market (salt 5): after the run finalizes, expiry MUST
+    // fail — a losing bettor cannot veto a pending resolution for a refund.
+    const mktX2 = mktPda(run1, 5n);
+    await marketProgram.methods
+      .createMarket(new anchor.BN(5), [THRESHOLD], 0, BN0, new anchor.BN(resolveBy))
+      .accounts({ authority: owner.publicKey, run: run1, market: mktX2 })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
 
     // No deadline -> cannot expire.
     await expectAnchorError(
-      marketProgram.methods.expireMarket().accounts({ market: mkt }).rpc(),
+      marketProgram.methods.expireMarket().accounts({ market: mkt, runA: run1, runB: run1 }).rpc(),
       "MarketNotExpired",
     );
 
@@ -608,6 +617,21 @@ describe("Sealed", () => {
       "OutputsRootMismatch",
     );
 
+    // Deadline passed while the run is still pending -> permissionless expiry
+    // cancels mktX; `no`'s stake refunds in full via claim.
+    await new Promise((r) => setTimeout(r, 16000));
+    await marketProgram.methods
+      .expireMarket()
+      .accounts({ market: mktX, runA: run1, runB: run1 })
+      .rpc({ commitment: "confirmed" });
+    const mx = await marketProgram.account.market.fetch(mktX);
+    expect(mx.status).to.equal(2, "expired");
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: no.publicKey, market: mktX, position: posPda(mktX, no.publicKey) })
+      .signers([no])
+      .rpc({ commitment: "confirmed" });
+
     // MPC-score run #1: 10+0 planted -> 10 < 30 -> NO wins.
     let total = 0;
     for (let i = 0; i < 2; i++) {
@@ -642,14 +666,15 @@ describe("Sealed", () => {
       "RunNotPending",
     );
 
-    // Permissionless expiry once resolve_by has passed.
-    await new Promise((r) => setTimeout(r, 2500));
-    await marketProgram.methods
-      .expireMarket()
-      .accounts({ market: mktX })
-      .rpc({ commitment: "confirmed" });
-    const mx = await marketProgram.account.market.fetch(mktX);
-    expect(mx.status).to.equal(2, "expired");
+    // The run finalized before resolve_by — expiry must NOT cancel a market
+    // that can still resolve, or losers would refund their stakes.
+    await expectAnchorError(
+      marketProgram.methods
+        .expireMarket()
+        .accounts({ market: mktX2, runA: run1, runB: run1 })
+        .rpc(),
+      "MarketResolvable",
+    );
 
     // Permissionless resolve: score 10 < 30 -> outcome 0 (the "<30" bucket).
     await marketProgram.methods
@@ -681,6 +706,42 @@ describe("Sealed", () => {
     expect(mF.outcome).to.equal(0);
     expect(mF.feesAccrued.toNumber()).to.equal(0.02 * LAMPORTS_PER_SOL, "5% fee accrued");
 
+    // Authority takes the fee BEFORE bettors claim — claims must stay solvent
+    // because the fee is recomputed from fee_bps, not the zeroed fees_accrued.
+    const authBefore = await provider.connection.getBalance(owner.publicKey);
+    await marketProgram.methods
+      .claimFee()
+      .accounts({ authority: owner.publicKey, market: mktF })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    const authAfter = await provider.connection.getBalance(owner.publicKey);
+    expect(authAfter - authBefore).to.be.greaterThan(0.01 * LAMPORTS_PER_SOL, "fee collected");
+    await expectAnchorError(
+      marketProgram.methods
+        .claimFee()
+        .accounts({ authority: owner.publicKey, market: mktF })
+        .signers([owner])
+        .rpc(),
+      "NoFees",
+    );
+
+    // Post-fee claims: winner `yes` takes 0.38 (0.4 pot - 0.02 fee); loser
+    // `no` closes for rent only. Under the old accounting the last claim
+    // underflowed and locked the remaining pot.
+    const yesF = await provider.connection.getBalance(yes.publicKey);
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: yes.publicKey, market: mktF, position: posPda(mktF, yes.publicKey) })
+      .signers([yes])
+      .rpc({ commitment: "confirmed" });
+    const yesF2 = await provider.connection.getBalance(yes.publicKey);
+    expect(yesF2 - yesF).to.be.greaterThan(0.35 * LAMPORTS_PER_SOL, "winner paid after fee-claim-first");
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: no.publicKey, market: mktF, position: posPda(mktF, no.publicKey) })
+      .signers([no])
+      .rpc({ commitment: "confirmed" });
+
     // Loser still closes its position (payout 0, rent back) — no locked account.
     await marketProgram.methods
       .claim()
@@ -698,24 +759,6 @@ describe("Sealed", () => {
       .rpc({ commitment: "confirmed" });
     const noAfter = await provider.connection.getBalance(no.publicKey);
     expect(noAfter - noBefore).to.be.greaterThan(0.04 * LAMPORTS_PER_SOL, "NO bettor profited");
-
-    // Authority collects the accrued fee; a second claim finds nothing.
-    const authBefore = await provider.connection.getBalance(owner.publicKey);
-    await marketProgram.methods
-      .claimFee()
-      .accounts({ authority: owner.publicKey, market: mktF })
-      .signers([owner])
-      .rpc({ commitment: "confirmed" });
-    const authAfter = await provider.connection.getBalance(owner.publicKey);
-    expect(authAfter - authBefore).to.be.greaterThan(0.01 * LAMPORTS_PER_SOL, "fee collected");
-    await expectAnchorError(
-      marketProgram.methods
-        .claimFee()
-        .accounts({ authority: owner.publicKey, market: mktF })
-        .signers([owner])
-        .rpc(),
-      "NoFees",
-    );
     console.log(`market settled: NO bettor ${noBefore / LAMPORTS_PER_SOL} -> ${noAfter / LAMPORTS_PER_SOL} SOL, fee claimed`);
   });
 

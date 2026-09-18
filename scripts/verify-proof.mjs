@@ -11,6 +11,15 @@ const u64 = (n) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); r
 const D_COUT = Buffer.from("sealed/v1/chunkout\0");
 const D_NODE = Buffer.from([1]);
 const outputs = [...(p.chunkOutputs ?? [p.outputHash])]; // tolerate a single-output artifact
+if (!Number.isInteger(p.itemIndex) || p.itemIndex < 0 || !Number.isInteger(p.chunkIndex) || p.chunkIndex < 0)
+  throw new Error("malformed proof: itemIndex/chunkIndex must be non-negative integers");
+if (outputs.length === 0 || outputs.length > 32)
+  throw new Error("malformed proof: chunkOutputs must be 1..32 values");
+if (Math.floor(p.itemIndex / 32) !== p.chunkIndex)
+  throw new Error(`item ${p.itemIndex} lives in chunk ${Math.floor(p.itemIndex / 32)}, not chunk ${p.chunkIndex} — proof is for a different item`);
+const slot = p.itemIndex % 32;
+if (slot >= outputs.length || BigInt(p.outputHash) !== BigInt(outputs[slot]))
+  throw new Error("outputHash does not match the committed output at that item index");
 while (outputs.length < 32) outputs.push(0); // chunkOutLeaf zero-pads short tails
 let h = sha(D_COUT, u32(p.chunkIndex).subarray(0, 2), ...outputs.map(u64));
 let i = p.chunkIndex;

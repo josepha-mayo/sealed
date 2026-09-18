@@ -81,6 +81,10 @@ pub mod market {
         let now = Clock::get()?.unix_timestamp;
         require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
         require!(resolve_by == 0 || resolve_by > now, ErrorCode::DeadlineInPast);
+        require!(
+            closes_at == 0 || resolve_by == 0 || closes_at <= resolve_by,
+            ErrorCode::DeadlineOrder
+        );
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(run.scored_mask == 0 && run.pending_mask == 0, ErrorCode::ScoringStarted);
@@ -123,7 +127,9 @@ pub mod market {
         require!(run.scored_mask == 0 && run.pending_mask == 0, ErrorCode::ScoringStarted);
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
-        require!(m.closes_at == 0 || Clock::get()?.unix_timestamp < m.closes_at, ErrorCode::BettingClosed);
+        let now = Clock::get()?.unix_timestamp;
+        require!(m.closes_at == 0 || now < m.closes_at, ErrorCode::BettingClosed);
+        require!(m.resolve_by == 0 || now < m.resolve_by, ErrorCode::BettingClosed);
         require!(outcome < m.n_outcomes, ErrorCode::InvalidOutcome);
 
         system_program::transfer(
@@ -179,6 +185,10 @@ pub mod market {
         let now = Clock::get()?.unix_timestamp;
         require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
         require!(resolve_by == 0 || resolve_by > now, ErrorCode::DeadlineInPast);
+        require!(
+            closes_at == 0 || resolve_by == 0 || closes_at <= resolve_by,
+            ErrorCode::DeadlineOrder
+        );
         let m = &mut ctx.accounts.market;
         m.authority = ctx.accounts.authority.key();
         m.run = ctx.accounts.run_a.key();
@@ -220,7 +230,9 @@ pub mod market {
         require!(ra.pending_mask == 0 && rb.pending_mask == 0, ErrorCode::ScoringStarted);
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
-        require!(m.closes_at == 0 || Clock::get()?.unix_timestamp < m.closes_at, ErrorCode::BettingClosed);
+        let now = Clock::get()?.unix_timestamp;
+        require!(m.closes_at == 0 || now < m.closes_at, ErrorCode::BettingClosed);
+        require!(m.resolve_by == 0 || now < m.resolve_by, ErrorCode::BettingClosed);
         require!(outcome < m.n_outcomes, ErrorCode::InvalidOutcome);
 
         system_program::transfer(
@@ -350,13 +362,27 @@ pub mod market {
     }
 
     /// Permissionless deadline: once `resolve_by` passes, anyone can cancel an
-    /// open market so stake isn't locked behind a run that never finalizes.
-    /// `resolve_by == 0` means no deadline.
+    /// open market whose run can no longer resolve — stake isn't locked behind
+    /// a run that never finalizes. If the run DID finalize, expiry must not
+    /// fire: a losing bettor would otherwise veto a pending resolution and
+    /// claim a refund instead of paying out. `resolve_by == 0` = no deadline.
     pub fn expire_market(ctx: Context<ExpireMarket>) -> Result<()> {
+        let ra = load_run(&ctx.accounts.run_a)?;
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
         require!(m.resolve_by != 0, ErrorCode::MarketNotExpired);
         require!(Clock::get()?.unix_timestamp > m.resolve_by, ErrorCode::MarketNotExpired);
+        if m.run_b == Pubkey::default() {
+            // Score market: resolvable iff the run finalized.
+            require!(ra.status != RUN_FINALIZED, ErrorCode::MarketResolvable);
+        } else {
+            // Duel: resolvable iff BOTH runs finalized.
+            let rb = load_run(&ctx.accounts.run_b)?;
+            require!(
+                !(ra.status == RUN_FINALIZED && rb.status == RUN_FINALIZED),
+                ErrorCode::MarketResolvable
+            );
+        }
         m.status = MARKET_CANCELLED;
         Ok(())
     }
@@ -389,7 +415,12 @@ pub mod market {
             p.amounts.iter().sum()
         } else {
             let pot: u64 = m.totals.iter().sum();
-            let net_pot = pot.saturating_sub(m.fees_accrued);
+            // Recompute the fee rather than trusting `fees_accrued`: claim_fee
+            // zeroes that field, and using it here would inflate net_pot for
+            // every winner claiming after the authority — leaving the pot
+            // `fee` short and permanently stranding the last claim(s).
+            let fee = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
+            let net_pot = pot.saturating_sub(fee);
             let win_amt = p.amounts[m.outcome as usize];
             let win_total = m.totals[m.outcome as usize];
             if win_amt == 0 || win_total == 0 {
@@ -630,6 +661,14 @@ pub struct VoidDuel<'info> {
 
 #[derive(Accounts)]
 pub struct ExpireMarket<'info> {
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = market.run @ ErrorCode::WrongRun)]
+    pub run_a: UncheckedAccount<'info>,
+    /// CHECK: `market.run_b` for duels; unread for score markets (pass `run_a`).
+    #[account(
+        constraint = market.run_b == Pubkey::default() || run_b.key() == market.run_b @ ErrorCode::WrongRun
+    )]
+    pub run_b: UncheckedAccount<'info>,
     #[account(mut)]
     pub market: Account<'info, Market>,
 }
@@ -758,4 +797,8 @@ pub enum ErrorCode {
     RunsMustDiffer,
     #[msg("Score too large to pack into resolved_score")]
     ScoreOverflow,
+    #[msg("Run already finalized — market is resolvable, not expirable")]
+    MarketResolvable,
+    #[msg("closes_at must not exceed resolve_by")]
+    DeadlineOrder,
 }

@@ -62,8 +62,19 @@ after sealing, and nobody can fabricate a score.
 - **Cluster liveness** — sealing and scoring depend on the MPC cluster
   executing computations and submitting callbacks. If the cluster stalls, runs
   stay pending; `void_market` lets the authority refund bettors on dead runs
-  and `reset_sealing` frees a stuck chunk. (Observed live: devnet cluster 456
-  finalized our computations but withheld callback txs during an outage.)
+  (only while the run is pending AND unscored — no free-look cancels),
+  `expire_market` lets anyone reclaim stake once `resolve_by` passes on a run
+  that never finalized, and `reset_sealing` frees a stuck chunk. Callbacks
+  are bound to the recorded `sealing_offset`, so a stale computation landing
+  after a reset cannot overwrite re-queued staging. (Observed live: devnet
+  cluster 456 finalized our computations but withheld callback txs during an
+  outage.)
+- **Market settlement economics** — `claim_fee` is safe to call in any order:
+  `claim` recomputes the fee from `fee_bps` rather than the zeroed
+  `fees_accrued`, so early fee collection cannot strand bettor claims.
+  Losing positions close for their rent; cancelled markets refund in full;
+  resolved markets with any unbacked bucket cancel instead of letting dust
+  lock the pot.
 
 ## What is *not* protected (yet)
 

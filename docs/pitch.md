@@ -48,8 +48,9 @@ parimutuel market resolves on that number. The leaderboard is the oracle.
 5. **Market close (0:30)** — "Prediction markets on AI progress already exist
    and settle on vibes. Sealed turns 'will model X clear threshold T' into a
    contract that resolves itself. Fees: every run pays the benchmark authority;
-   market take-rate on settlement is a one-line `claim` extension. The surface
-   area is every future claim about what a model can do."
+   markets skim up to 10% at resolution (`fee_bps`), claimed by the authority
+   with order-independent solvency. The surface area is every future claim
+   about what a model can do."
 
 ## Demo shot list (~3 min)
 
@@ -90,8 +91,8 @@ not the commands.
   binary + N-way markets resolved and paid out, fingerprint reveal audits,
   mocha suite 8/8 + 12/12 unit tests green. Authored banks work too (seal+score).
 - **Business:** per-run fee to the benchmark authority (live on-chain); market
-  take-rate on settlement is a one-line `claim` extension; sealed-eval as a
-  service to labs, markets, and insurers.
+  take-rate on settlement (`fee_bps`, capped at 10%, live on-chain);
+  sealed-eval as a service to labs, markets, and insurers.
 - **Moat:** for generated banks the answer key never exists — not encrypted
   at rest, not held by a committee, not in the author's head. A benchmark
   with no secret to leak is a rotation policy, not a trust request.

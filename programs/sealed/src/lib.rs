@@ -235,6 +235,7 @@ pub mod sealed {
         require!(c.parts_sealed & bit == 0, ErrorCode::PartAlreadySealed);
         require!(c.sealing_part == NO_PART, ErrorCode::PartSealPending);
         c.sealing_part = part;
+        c.sealing_offset = computation_offset;
 
         // Enc<Shared, AnswerPart> = pubkey, nonce, then PART ciphertexts read from the account.
         let args = ArgBuilder::new()
@@ -279,6 +280,15 @@ pub mod sealed {
             }
         };
         let c = &mut ctx.accounts.chunk;
+        // Stale-callback guard: after `reset_sealing` + re-queue, the OLD
+        // computation's callback must not write over the new staging. The
+        // computation PDA is derived from the recorded offset, so only the
+        // callback of the currently-queued computation is accepted.
+        require!(
+            ctx.accounts.computation_account.key()
+                == derive_comp_pda!(c.sealing_offset, ctx.accounts.mxe_account),
+            ErrorCode::StaleComputation
+        );
         let part = c.sealing_part;
         require!(part != NO_PART, ErrorCode::PartSealNotPending);
         let bit = 1u8 << part;
@@ -327,6 +337,7 @@ pub mod sealed {
         require!(items.parts_written & bit == 0, ErrorCode::PartAlreadySealed);
         require!(c.sealing_part == NO_PART, ErrorCode::PartSealPending);
         c.sealing_part = part;
+        c.sealing_offset = computation_offset;
 
         let base_index = c.index as u32 * CHUNK as u32 + part as u32 * PART as u32;
         let args = ArgBuilder::new()
@@ -376,6 +387,15 @@ pub mod sealed {
         let gen = o.field_0;
         let enc = o.field_1;
         let c = &mut ctx.accounts.chunk;
+        // Stale-callback guard: after `reset_sealing` + re-queue, the OLD
+        // computation's callback must not write over the new staging. The
+        // computation PDA is derived from the recorded offset, so only the
+        // callback of the currently-queued computation is accepted.
+        require!(
+            ctx.accounts.computation_account.key()
+                == derive_comp_pda!(c.sealing_offset, ctx.accounts.mxe_account),
+            ErrorCode::StaleComputation
+        );
         let part = c.sealing_part;
         require!(part != NO_PART, ErrorCode::PartSealNotPending);
         let bit = 1u8 << part;
@@ -463,6 +483,7 @@ pub mod sealed {
             require!(items.encryption_key == viewer, ErrorCode::ViewerKeyMismatch);
         }
         c.sealing_part = part;
+        c.sealing_offset = computation_offset;
 
         let base_index = c.index as u32 * CHUNK as u32 + part as u32 * PART as u32;
         let args = ArgBuilder::new()
@@ -513,6 +534,15 @@ pub mod sealed {
         let enc_specs = o.field_0;
         let enc = o.field_1;
         let c = &mut ctx.accounts.chunk;
+        // Stale-callback guard: after `reset_sealing` + re-queue, the OLD
+        // computation's callback must not write over the new staging. The
+        // computation PDA is derived from the recorded offset, so only the
+        // callback of the currently-queued computation is accepted.
+        require!(
+            ctx.accounts.computation_account.key()
+                == derive_comp_pda!(c.sealing_offset, ctx.accounts.mxe_account),
+            ErrorCode::StaleComputation
+        );
         let part = c.sealing_part;
         require!(part != NO_PART, ErrorCode::PartSealNotPending);
         let bit = 1u8 << part;
@@ -731,9 +761,12 @@ pub mod sealed {
     }
 
     /// If a seal computation aborts, its callback never lands. The authority clears
-    /// the flag so the part can be staged/sealed again.
+    /// the flag so the part can be staged/sealed again. Safe even mid-flight: a
+    /// still-running old computation's callback fails the `sealing_offset`
+    /// binding, so it cannot overwrite newly queued staging.
     pub fn reset_sealing(ctx: Context<ResetSealing>, _index: u16) -> Result<()> {
         ctx.accounts.chunk.sealing_part = NO_PART;
+        ctx.accounts.chunk.sealing_offset = 0;
         Ok(())
     }
 
@@ -1007,6 +1040,12 @@ pub struct AnswerChunk {
     /// Per-part nonce: the author's while staged, the MXE's once sealed.
     pub nonces: [u128; PARTS],
     pub ciphertexts: [[u8; 32]; CHUNK],
+    /// Computation offset of the in-flight seal/gen computation. Callbacks
+    /// re-derive the computation PDA from it and reject stale callbacks, so
+    /// `reset_sealing` + re-queue can never be hijacked by the old computation.
+    /// Tail-appended: `CIPHERTEXTS_OFFSET` and the account-read layout above it
+    /// are unchanged.
+    pub sealing_offset: u64,
 }
 
 /// Spec ciphertexts for one chunk of a PRIVATE generated bank, written by
@@ -1921,6 +1960,8 @@ pub enum ErrorCode {
     RunNotFinalized,
     #[msg("All parts of a private bank must share one viewer key")]
     ViewerKeyMismatch,
+    #[msg("Callback does not belong to the currently queued computation")]
+    StaleComputation,
     #[msg("Part was already reshared to this viewer")]
     PartAlreadyShared,
     #[msg("Part was already revealed")]

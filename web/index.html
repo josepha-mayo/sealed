@@ -203,6 +203,7 @@ function outcomeLabel(n, edges, i) {
 }
 // AnswerChunk: disc8 + benchmark32 + index u16 + bump + parts_staged + parts_sealed
 // + sealing_part + author_pubkey32 + nonces[4][16] + ciphertexts[32][32]
+// + sealing_offset u64 (tail)
 function parseChunk(d) {
   return {
     partsStaged: d[43], partsSealed: d[44], sealingPart: d[45],
@@ -294,7 +295,7 @@ async function load() {
       `<tr><th>rank</th><th>model</th><th>benchmark</th><th>score</th><th>runner</th><th>run</th><th>finalized</th></tr>`;
     board.forEach((e, i) => {
       h += `<tr${i < 3 ? ` class="top${i + 1}"` : ""}><td>#${i + 1}</td>
-        <td class="mono">${e.r.modelId}</td>
+        <td class="mono">${e.r.modelId}${e.r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ` <span class="pill" title="self-reported model id">unattested</span>`}</td>
         <td>${e.b ? e.b.name : short(e.r.benchmark)}</td>
         <td class="score">${e.r.correct}/${e.items} (${e.pct.toFixed(1)}%)<div class="bar"><i style="width:${e.pct}%"></i></div></td>
         <td class="mono">${short(e.r.runner)}</td>
@@ -367,7 +368,7 @@ async function load() {
       h += `<table><tr><th>rank</th><th>model</th><th>score</th><th></th><th>run</th><th>status</th><th>outputs_root</th></tr>`;
       brs.forEach((r, i) => {
         const pct = (100 * r.correct) / items;
-        h += `<tr><td>#${i + 1}</td><td>${r.modelId}</td>
+        h += `<tr><td>#${i + 1}</td><td>${r.modelId}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
           <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
           <td>${link(r.pk)}</td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "pending " + popcount(r.scoredMask) + "/" + r.chunkCount}</span></td>
           <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;
@@ -447,6 +448,15 @@ async function verify() {
     const p = JSON.parse(document.getElementById("vproof").value);
     // chunk leaf = sha256("sealed/v1/chunkout\0" || u16le(chunkIndex) || 32×u64le)
     // — the same leaf score_chunk recomputes on-chain before folding the path.
+    if (!Number.isInteger(p.itemIndex) || p.itemIndex < 0) throw new Error("malformed proof: itemIndex must be a non-negative integer");
+    if (!Number.isInteger(p.chunkIndex) || p.chunkIndex < 0) throw new Error("malformed proof: chunkIndex must be a non-negative integer");
+    if (!Array.isArray(p.chunkOutputs) || p.chunkOutputs.length === 0 || p.chunkOutputs.length > 32)
+      throw new Error("malformed proof: chunkOutputs must be 1..32 values");
+    if (Math.floor(p.itemIndex / 32) !== p.chunkIndex)
+      throw new Error(`item ${p.itemIndex} lives in chunk ${Math.floor(p.itemIndex / 32)}, not chunk ${p.chunkIndex} — proof is for a different item`);
+    const slot = p.itemIndex % 32;
+    if (slot >= p.chunkOutputs.length || BigInt(p.outputHash) !== BigInt(p.chunkOutputs[slot]))
+      throw new Error("outputHash does not match the committed output at that item index — the displayed value is not the proven one");
     const outs = p.chunkOutputs.slice(); while (outs.length < 32) outs.push(0);
     let h = await sha(cat(D_COUT, u32le(p.chunkIndex).slice(0, 2), ...outs.map(u64le)));
     let i = p.chunkIndex;

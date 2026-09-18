@@ -653,6 +653,7 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   const items = bank.chunkCount * CHUNK;
   console.log(
     `run ${r.toBase58()} ${final.status === 1 ? "FINALIZED" : "pending"}: ${final.correct}/${items} = ${((100 * Number(final.correct)) / items).toFixed(1)}%` +
+      (final.attested ? "  [attested ✓]" : "") +
       (run.localCorrect !== Number(final.correct) ? `  (local pre-score ${run.localCorrect} DIFFERS)` : "  (matches local pre-score)"),
   );
   return r;
@@ -763,7 +764,7 @@ export async function status(benchmark: PublicKey, ctx = setup()) {
   console.log("rank  score      model                                   run");
   rows.forEach((r: any, i: number) => {
     const pct = ((100 * Number(r.correct)) / items).toFixed(1).padStart(5);
-    console.log(`${String(i + 1).padStart(4)}  ${pct}%  ${String(Number(r.correct)).padStart(4)}/${items}  ${r.modelId.padEnd(38)} #${r.index}`);
+    console.log(`${String(i + 1).padStart(4)}  ${pct}%  ${String(Number(r.correct)).padStart(4)}/${items}  ${(r.modelId + (r.attested ? " ✓" : "")).padEnd(38)} #${r.index}`);
   });
 }
 
@@ -910,12 +911,14 @@ async function marketVoid(marketPk: PublicKey, kpPath?: string) {
   console.log(`market voided (${sig}): ${marketPk.toBase58()} — all positions refundable via claim`);
 }
 
-/** Permissionless expiry once resolve_by has passed. */
+/** Permissionless expiry once resolve_by has passed (rejects resolvable markets). */
 async function marketExpire(marketPk: PublicKey, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
+  const m = await (market.account as any).market.fetch(marketPk);
+  const runB = m.runB.equals(PublicKey.default) ? m.run : m.runB;
   const sig = await (market.methods as any)
     .expireMarket()
-    .accounts({ market: marketPk })
+    .accounts({ market: marketPk, runA: m.run, runB })
     .rpc({ commitment: "confirmed" });
   console.log(`market expired (${sig}): ${marketPk.toBase58()} — all positions refundable via claim`);
 }

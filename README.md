@@ -67,23 +67,41 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes.
 
 ```
-create_market(run, salt, edges)   open while run is pending and unscored (scored_mask == 0)
+create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
+                                  open while run is pending and unscored
+                                  (scored_mask == 0 && pending_mask == 0).
                                   edges=[t] is a binary market; edges=[10,20,40] makes 4
-                                  score buckets; salt allows multiple markets per run
-create_duel(run_a, run_b, salt)   head-to-head on the same benchmark: does A
+                                  score buckets (strictly increasing, no duplicates).
+                                  fee_bps <= 1000 (10% max) skimmed at resolution;
+                                  closes_at / resolve_by are optional unix deadlines.
+create_duel(run_a, run_b, salt, fee_bps, closes_at, resolve_by)
+                                  head-to-head on the same benchmark: does A
                                   outscore B? 3 outcomes — A wins / B wins / tie
-bet(outcome, lamports)            stake on one bucket; one position PDA per (market, bettor)
+bet(outcome, lamports)            stake on one bucket; one position PDA per (market, bettor).
+                                  Rejects once scoring starts, closes_at passes, or
+                                  resolve_by passes.
 bet_duel(outcome, lamports)       same, but closes once EITHER run starts scoring
 resolve()                         permissionless once run.status == FINALIZED:
-                                  outcome = the bucket containing run.correct
+                                  outcome = the bucket containing run.correct.
+                                  Markets with any unbacked bucket cancel (refunds).
 resolve_duel()                    permissionless once BOTH runs are FINALIZED:
                                   outcome = larger correct (ties pay the tie bucket);
                                   resolved_score packs (a << 16) | b
-claim()                           winners split the whole pot pro-rata; one-sided or
-                                  voided markets refund
+claim()                           winners split the pot net of fee pro-rata and the
+                                  position closes; cancelled markets refund in full;
+                                  losing positions close for their rent back
+claim_fee()                       authority collects fees_accrued once resolved; safe
+                                  to call before bettors claim (fee is recomputed
+                                  from fee_bps at each claim, so solvency never
+                                  depends on claim order)
+void_market()                     authority cancels — only while the run is still
+                                  pending AND unscored (no free-look cancels)
+expire_market()                   permissionless cancel once resolve_by passes —
+                                  but NOT if the run already finalized (a market
+                                  that can resolve is not expirable)
 ```
 
-The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and deserialized inside `resolve`, so the settlement source is the MPC-scored field itself. Betting closes the moment the first chunk is scored — before that, all a bettor can see is the model id and the committed `outputs_root`.
+The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and deserialized inside `resolve`, so the settlement source is the MPC-scored field itself. Betting closes the moment the first scoring computation is queued — before that, all a bettor can see is the model id and the committed `outputs_root`.
 
 ### Trust model (honest version)
 
