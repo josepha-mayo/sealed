@@ -697,7 +697,6 @@ describe("Sealed", () => {
       .signers([no])
       .rpc({ commitment: "confirmed" });
     const noAfter = await provider.connection.getBalance(no.publicKey);
-    console.log(`  no trace: before=${noBefore} after=${noAfter} delta=${noAfter - noBefore}`);
     expect(noAfter - noBefore).to.be.greaterThan(0.04 * LAMPORTS_PER_SOL, "NO bettor profited");
 
     // Authority collects the accrued fee; a second claim finds nothing.

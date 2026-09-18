@@ -27,12 +27,24 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 - After a fresh ledger: `docker restart artifacts-arx-node-*-1
   artifacts-arcium-trusted-dealer-1` — nodes hold a stale context slot.
 - MXE is genesis-baked; keygen completes when primary nodes activate (account
-  grows to 396 bytes).
+  grows to ~396 bytes, then `finalize` shrinks it to 289 = keys Set).
+- If MXE stalls mid-keygen (cluster account exists, nodes up, no growth):
+  keygen usually COMPLETED at MPC level but was never finalized on-chain.
+  `~/.config/solana/id.json` IS the `4RUW…` mint/MXE authority, so run
+  `arcium finalize-mxe-keys -k ~/.config/solana/id.json -o 0 FGVuEoWp… -u localnet`
+  (`requeue-mxe-keygen` errors `MxeKeysAlreadySet` when only finalization is
+  missing). `activate-cluster` fails `InvalidAuthority` — cluster authority
+  is None (permissionless) and it activates at genesis.
+- Probe state: `npx tsx scripts/probe-mxe.mts` prints MXE/cluster lengths.
 
 ## Devnet
 
 - Cluster offset 456. Sealed program + all 6 comp defs/circuits deployed;
   market.so has duel support (tx 5dZQFQHd…).
+- Devnet binaries are STALE vs the hardening batch (score_chunk gained a
+  proof arg, market gained fee/deadline/expire instructions). Redeploy
+  before demoing devnet — sealed likely needs a fresh program deploy since
+  the instruction signature changed.
 - The shared Arcium devnet cluster finalizes computations but has an ongoing
   callback-tx outage — bank mints/scores stall pending. `scripts/*-retry.sh`
   loops are the armed watchers; do not claim devnet success until one lands.
