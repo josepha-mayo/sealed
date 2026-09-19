@@ -75,7 +75,9 @@ create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
                                   edges=[t] is a binary market; edges=[10,20,40] makes 4
                                   score buckets (strictly increasing, no duplicates).
                                   fee_bps <= 1000 (10% max) skimmed at resolution;
-                                  closes_at / resolve_by are optional unix deadlines.
+                                  closes_at optional (0 = until scoring starts);
+                                  resolve_by REQUIRED — every market carries a
+                                  permissionless refund deadline (max now+90d).
 create_duel(run_a, run_b, salt, fee_bps, closes_at, resolve_by)
                                   head-to-head on the same benchmark: does A
                                   outscore B? 3 outcomes — A wins / B wins / tie
@@ -153,12 +155,14 @@ sealed chain delegate-bank --benchmark <pk> [--out bank.json]          # rebuild
 sealed chain score --bank bank/1.json --run runs/….json              # create_run + score every chunk in MPC
 sealed chain score --bank bank/1.json --run runs/….json --create-only  # park the run pending (for a market)
 sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score an existing run
+                              [--authority <pubkey>]  # bank authority when the
+                                                      # scoring wallet is a separate runner
 sealed chain status --benchmark <pubkey>                             # leaderboard from chain state
 
 sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"
 sealed chain market open    --run <pubkey> --edges 40,55 --salt 1    # 3-way score bands, 2nd market
-                              [--fee-bps 0..1000] [--closes-at +secs|ts] [--resolve-by +secs|ts]
-sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]     # head-to-head: A outscores B?
+                              [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts
+sealed chain market duel    --run-a <pk> --run-b <pk> --resolve-by +86400  # head-to-head
 sealed chain market bet     --market <pk> --outcome 1 --lamports 500000000 [--bettor kp.json]
 sealed chain market bet     --market <pk> --side yes --lamports 500000000   # binary shorthand
 sealed chain market resolve --market <pk>                            # settles off Run.correct
@@ -177,7 +181,7 @@ sealed prove                --run <file> --item <i>                # Merkle proo
 
 The explorer's **verify-an-output** widget recomputes the Merkle path in-browser and checks it against the run's onchain `outputs_root` — cryptographic evidence that a model's claimed answer was in the committed set.
 
-Explorer: serve `web/` (`python3 -m http.server -d web 8788`) and open `?rpc=<url>` — defaults to localnet `http://127.0.0.1:8899`; on devnet it links out to explorer.solana.com.
+Explorer: serve the repo root (`python3 -m http.server -d . 8788`) and open `http://localhost:8788/web/?rpc=<url>` — defaults to localnet `http://127.0.0.1:8899`; offline, load the committed dump via `?snapshot=/docs/evidence/snapshot.json` or the file picker; on devnet it links out to explorer.solana.com.
 
 Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `SEALED_CLUSTER_OFFSET` (localnet: 0, devnet: 456; `ARCIUM_CLUSTER_OFFSET` works as a fallback when running inside the `arcium` env). `scripts/smoke-localnet.sh` runs the whole pipeline against a running `arcium localnet`.
 

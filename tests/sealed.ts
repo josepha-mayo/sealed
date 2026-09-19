@@ -159,6 +159,8 @@ const CHUNK = 32;
 const PART = 8;
 const PARTS = CHUNK / PART;
 
+const FAR_FUTURE = new anchor.BN(Math.floor(Date.now() / 1000) + 30 * 86400);
+
 describe("Sealed", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const program = anchor.workspace.Sealed as Program<Sealed>;
@@ -438,7 +440,7 @@ describe("Sealed", () => {
     const [run0] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(new anchor.BN(0), [30], 0, new anchor.BN(0), new anchor.BN(0))
+        .createMarket(new anchor.BN(0), [30], 0, new anchor.BN(0), FAR_FUTURE)
         .accounts({ authority: owner.publicKey, run: run0, market: mktPda(run0) })
         .signers([owner])
         .rpc(),
@@ -465,7 +467,7 @@ describe("Sealed", () => {
     const BN0 = new anchor.BN(0);
     const mkt = mktPda(run1);
     await marketProgram.methods
-      .createMarket(new anchor.BN(0), [THRESHOLD], 0, BN0, BN0)
+      .createMarket(new anchor.BN(0), [THRESHOLD], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mkt })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -477,7 +479,7 @@ describe("Sealed", () => {
     // Duplicate edges create unreachable buckets — rejected now.
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(new anchor.BN(9), [10, 10], 0, BN0, BN0)
+        .createMarket(new anchor.BN(9), [10, 10], 0, BN0, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 9n) })
         .signers([owner])
         .rpc(),
@@ -487,7 +489,7 @@ describe("Sealed", () => {
     // Second market on the same run, different salt + 3-way score bands.
     const mkt3 = mktPda(run1, 1n);
     await marketProgram.methods
-      .createMarket(new anchor.BN(1), [10, 20], 0, BN0, BN0)
+      .createMarket(new anchor.BN(1), [10, 20], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mkt3 })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -495,13 +497,13 @@ describe("Sealed", () => {
     // A 5%-fee market (salt 2) and a voidable market (salt 3).
     const mktF = mktPda(run1, 2n);
     await marketProgram.methods
-      .createMarket(new anchor.BN(2), [THRESHOLD], 500, BN0, BN0)
+      .createMarket(new anchor.BN(2), [THRESHOLD], 500, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mktF })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
     const mktV = mktPda(run1, 3n);
     await marketProgram.methods
-      .createMarket(new anchor.BN(3), [THRESHOLD], 0, BN0, BN0)
+      .createMarket(new anchor.BN(3), [THRESHOLD], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mktV })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -1218,7 +1220,7 @@ describe("Sealed", () => {
     const BN0 = new anchor.BN(0);
     await expectAnchorError(
       marketProgram.methods
-        .createDuel(new anchor.BN(7), 0, BN0, BN0)
+        .createDuel(new anchor.BN(7), 0, BN0, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, runA, runB: runA, market: duelPda(runA, runA, 7n) })
         .signers([owner])
         .rpc({ commitment: "confirmed" }),
@@ -1227,7 +1229,7 @@ describe("Sealed", () => {
 
     const mkt = duelPda(runA, runB, 0n);
     await marketProgram.methods
-      .createDuel(new anchor.BN(0), 0, BN0, BN0)
+      .createDuel(new anchor.BN(0), 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, runA, runB, market: mkt })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -1345,7 +1347,7 @@ describe("Sealed", () => {
       PublicKey.findProgramAddressSync([Buffer.from("market"), runP.toBuffer(), u64le(salt)], marketProgram.programId)[0];
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(new anchor.BN(20), [0, 30], 0, BN0, BN0)
+        .createMarket(new anchor.BN(20), [0, 30], 0, BN0, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, run: runP, market: mktPdaX(20n) })
         .signers([owner])
         .rpc({ commitment: "confirmed" }),
@@ -1357,7 +1359,7 @@ describe("Sealed", () => {
     const posPdaX = (m: PublicKey, bettor: PublicKey) =>
       PublicKey.findProgramAddressSync([Buffer.from("position"), m.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
     await marketProgram.methods
-      .createMarket(new anchor.BN(21), [40], 0, BN0, BN0)
+      .createMarket(new anchor.BN(21), [40], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: runP, market: mkt })
       .signers([owner])
       .rpc({ commitment: "confirmed" });
@@ -1463,7 +1465,7 @@ describe("Sealed", () => {
     );
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(new anchor.BN(22), [40], 0, BN0, BN0)
+        .createMarket(new anchor.BN(22), [40], 0, BN0, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, run: runP, market: mktPdaX(22n) })
         .signers([owner])
         .rpc({ commitment: "confirmed" }),

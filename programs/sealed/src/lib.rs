@@ -1264,7 +1264,7 @@ pub struct Run {
     /// First time any scoring computation was queued; never refreshed. Markets
     /// use it as the expiry horizon — a runner sweeping+requeueing refreshes
     /// `pending_since` but cannot keep a market un-expirable past
-    /// `EXPIRE_IDLE_SECS` from the first queue.
+    /// `EXPIRE_HARD_CAP_SECS` from the first queue.
     pub first_pending_at: i64,
 }
 

@@ -40,7 +40,8 @@ since been wiped and redeployed during hardening. The evidence bundle in
 - **Market economics + lifecycle:** `fee_bps` (≤10%) is skimmed at resolution
   and collected via `claim_fee` — solvency is order-independent (claims
   recompute the fee, so the authority collecting first cannot strand the
-  pot). `closes_at` and `resolve_by` are optional deadlines; bets reject
+  pot). `closes_at` is optional (0 = until scoring starts); `resolve_by` is required
+  and capped at 90 days — every market carries a permissionless refund deadline; bets reject
   after either passes. `void_market`/`void_duel` let the authority cancel
   ONLY while the run is pending and unscored (no free-look cancels);
   `expire_market` lets anyone cancel once `resolve_by` passes — but NOT
@@ -102,9 +103,11 @@ since been wiped and redeployed during hardening. The evidence bundle in
   finalized **32/32 — on-chain score identical to the local pre-score**
   (run `7pcbA5hE…`, verified live at the time; artifact in
   `docs/evidence/run-real-99003-artifact.json`). The current evidence ledger
-  has generated bank 99004 (`items_root e05a7840…`) scored by
-  `mock/oracle-0.75` at 26/32 — run `2W4E4TPf…`, proof verifiable
-  against the live account.
+  has generated bank 25864 (`items_root 4eae8312…`, minted by a full
+  `demo.sh` pass) scored by `mock/oracle-0.75` at 47/64 — run
+  `4uns99WD…`, proof verifiable against the live account. A second
+  separate-runner run (35/64) settled a duel market; private bank
+  25865's specs exist on-chain only as ciphertext.
   Earlier real-model evidence through OpenCode Zen: ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
@@ -138,7 +141,9 @@ scripts/setup-wsl.sh        # toolchain
 yarn install && arcium build
 scripts/e2e.sh              # arcium test on localnet
 yarn --cwd packages/harness cli chain status --benchmark <pda>
-python3 -m http.server -d web 8788   # explorer -> http://localhost:8788/?rpc=http://127.0.0.1:8899
+python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ resolve
+# explorer -> http://localhost:8788/web/?rpc=http://127.0.0.1:8899
+# offline  -> http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json
 ```
 
 ## Devnet note (record honestly)

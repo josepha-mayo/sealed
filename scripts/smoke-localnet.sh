@@ -19,7 +19,8 @@ if [ "${4:-}" != "--skip-bank" ]; then
   cli run --bank "$BANK" --model "mock/oracle-$P" --out "$RUN" 2>/dev/null | grep -E 'localCorrect|items'
 fi
 cli chain init
-cli chain seal --bank "$BANK" --fee-lamports 1000000
+SEAL_OUT=$(cli chain seal --bank "$BANK" --fee-lamports 1000000)
+echo "$SEAL_OUT"
 cli chain score --bank "$BANK" --run "$RUN"
-BENCH=$(cli chain seal --bank "$BANK" | grep -o 'benchmark [A-Za-z0-9]* status=LIVE' | head -1 | cut -d' ' -f2)
+BENCH=$(echo "$SEAL_OUT" | grep -o 'benchmark [A-Za-z0-9]*' | head -1 | cut -d' ' -f2)
 cli chain status --benchmark "$BENCH"

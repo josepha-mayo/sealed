@@ -82,9 +82,9 @@ RUN1=$(PDA run "$BENCH" 1)
 echo "run PDAs: $RUN0 (model-a) vs $RUN1 (model-b)"
 
 say "4/6 open markets on the pending runs + place bets"
-$SEALED chain market open --run "$RUN0" --threshold 48
+$SEALED chain market open --run "$RUN0" --threshold 48 --resolve-by +86400
 MKT_BIN=$(PDA market "$RUN0" 0)
-$SEALED chain market open --run "$RUN0" --edges 32,48 --salt 1
+$SEALED chain market open --run "$RUN0" --edges 32,48 --salt 1 --resolve-by +86400
 MKT_3WAY=$(PDA market "$RUN0" 1)
 $SEALED chain market bet --market "$MKT_BIN" --outcome 1 --lamports 300000000
 # The judge takes the other side: a market with an unbacked bucket cancels +
@@ -95,13 +95,14 @@ $SEALED chain market bet --market "$MKT_BIN" --outcome 0 --lamports 100000000 --
 for oc in 0 1 2; do $SEALED chain market bet --market "$MKT_3WAY" --outcome "$oc" --lamports 10000000; done
 # The head-to-head: does run0 outscore run1? Bets close once EITHER starts
 # scoring, so nobody trades on leaked information. All three buckets backed.
-$SEALED chain market duel --run-a "$RUN0" --run-b "$RUN1"
+$SEALED chain market duel --run-a "$RUN0" --run-b "$RUN1" --resolve-by +86400
 DUEL=$(PDA duel "$RUN0" "$RUN1" 0)
 for oc in 0 1 2; do $SEALED chain market bet --market "$DUEL" --outcome "$oc" --lamports 20000000; done
 
 say "5/6 score both runs through MPC (hash-compare vs answers born encrypted)"
 $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --run-index 0
-$SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --run-index 1
+# run 1's runner is the judge wallet — only the runner can queue its scoring.
+ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --run-index 1 --authority "$(solana address)"
 
 say "6/6 resolve markets + claim, then leaderboard"
 $SEALED chain market resolve --market "$MKT_BIN"
@@ -114,7 +115,7 @@ $SEALED chain status --benchmark "$BENCH"
 
 echo
 echo "the minted item specs are public — see them rendered in the explorer:"
-echo "  python3 -m http.server -d web 8788  →  http://localhost:8788/?rpc=$ANCHOR_PROVIDER_URL"
+echo "  python3 -m http.server -d . 8788  →  http://localhost:8788/web/?rpc=$ANCHOR_PROVIDER_URL"
 echo "or:  $SEALED chain items --benchmark $BENCH"
 echo "the private bank's specs are ciphertext-only onchain; only the authority can render them:"
 echo "  $SEALED chain pitems --benchmark $PBENCH"

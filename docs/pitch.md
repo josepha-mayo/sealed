@@ -63,11 +63,11 @@ not the commands.
 | 2. Show the items | `sealed chain items --benchmark <pk>` | "Anyone can render the specs into prompts — the specs are plaintext. The answers exist only as MXE ciphertext." |
 | 3. Run a real model | `sealed run --bank bank/gen-8.json --model <model>` | "A real model API, normalized to canonical answers, hashed publicly." |
 | 4. Park the run | `sealed chain score ... --create-only` | "The run commits its output root before scoring. Now the market opens." |
-| 5. Open a market + bet | `sealed chain market open --run <pk> --threshold 55` then `market bet` ×2 | "'Will it clear 55/64?' Bets close the moment scoring starts — after that the score leaks information." |
+| 5. Open a market + bet | `sealed chain market open --run <pk> --threshold 55 --resolve-by +86400` then `market bet` ×2 (two wallets, both outcomes) | "'Will it clear 55/64?' Bets close the moment scoring starts — after that the score leaks information." |
 | 6. Score in MPC | `sealed chain score --bank … --run … --run-index N` | "Each chunk is one MPC computation comparing output hashes to answers born encrypted. Only the count leaves the circuit." |
 | 7. Explorer | open `web/index.html` | "Leaderboard from raw chain state — minted specs, items root, outputs root, MPC score." |
 | 8. Resolve + claim | `chain market resolve` / `claim` | "The market read `Run.correct` itself. Winner withdraws; the loser has nothing to claim." |
-| 9. Duel (optional beat) | `sealed chain market duel --run-a <pk> --run-b <pk>` | "Two runs, one sealed bank: 'who outscores whom?' — bets close once either side starts scoring, so nobody trades on a half-known result." |
+| 9. Duel (optional beat) | `sealed chain market duel --run-a <pk> --run-b <pk> --resolve-by +86400` | "Two runs, one sealed bank: 'who outscores whom?' — bets close once either side starts scoring, so nobody trades on a half-known result." |
 
 ## One-pager for the submission form
 

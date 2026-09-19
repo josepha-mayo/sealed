@@ -151,15 +151,15 @@ async function main() {
   sealed chain grant  --benchmark <pk> --chunk <i> --part <0..3>             fetch + decrypt YOUR grant (delegate)
   sealed chain grants --benchmark <pubkey>                                 list ShareGrant PDAs (who can see which parts)
   sealed chain delegate-bank --benchmark <pubkey> [--out file]             rebuild a bank from YOUR grants (delegate)
-  sealed chain score --bank <file> --run <file> [--create-only] [--run-index n]
+  sealed chain score --bank <file> --run <file> [--create-only] [--run-index n] [--authority <pk>]
   sealed chain reveal --benchmark <pk> --chunk <i> --part <0..3>   authority declassifies 8 answer hashes
   sealed chain verify --benchmark <pk> --run <file> [--run-index n]  audit revealed hashes vs committed outputs
   sealed chain status --benchmark <pubkey>
   sealed chain attest --run <pubkey>                       authority marks a finalized run as venue-vouched
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
-                              [--fee-bps 0..1000] [--closes-at +secs|ts] [--resolve-by +secs|ts]
+                              [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)
   sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]         head-to-head: does A outscore B? (A/B/tie)
-                              [--fee-bps 0..1000] [--closes-at +secs|ts] [--resolve-by +secs|ts]
+                              [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)
   sealed chain market bet     --market <pk> --outcome <i> --lamports <n> [--bettor keypair.json]   (--side yes|no for binary)
   sealed chain market resolve --market <pk>                                permissionless once the run finalizes
   sealed chain market claim   --market <pk> [--bettor keypair.json]        pays out (0 for losers) + closes position

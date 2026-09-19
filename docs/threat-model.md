@@ -96,11 +96,17 @@ after sealing, and nobody can fabricate a score.
 
 ## What is *not* protected (yet)
 
-- **Deadline-free markets** — `create_market` accepts `resolve_by == 0` as
-  "no deadline"; if the run then stalls mid-scoring, nothing can cancel
-  such a market (`expire_market` requires a deadline, `void_market`
-  requires `pending_since == 0`). Bettors should only enter markets with a
-  finite `resolve_by`; a program-level require is a candidate hardening.
+- **Expiry is a bounded tradeoff, not a guarantee** — every market must set
+  `resolve_by` at creation (`resolve_by <= now` is rejected, and it is capped
+  at `now + 90d`), so bettors always have a permissionless refund path. But
+  expiry still requires the run to be *idle* — the 24h
+  `EXPIRE_HARD_CAP_SECS` is the only unconditional exit, because nothing
+  on-chain can prove a computation is dead (swept/stale callbacks still
+  land), so a freshly-queued computation can extend lockup up to 24h from
+  the first queue before a refund opens even if it never lands. Residual:
+  `resolve_by == 0` means "no deadline" to `bet` yet "never expirable" to
+  `expire_market` — creation rejects it, so any future path that admits it
+  would produce a pot with no refund hatch.
 - **Granular answer disclosure** — `reveal_part` declassifies 8 fingerprints at
   a time at the authority's discretion. A per-item variant and threshold-gated
   reveal (e.g. after a market resolves, or multi-sig) are small extensions.

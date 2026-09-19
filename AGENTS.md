@@ -39,19 +39,18 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 
 ## Devnet
 
-- Cluster offset 456. Sealed program + all 6 comp defs/circuits deployed;
-  market.so has duel support (tx 5dZQFQHd…).
-- Devnet binaries are STALE vs the hardening batch (score_chunk gained a
-  proof arg, market gained fee/deadline/expire instructions). Redeploy
-  before demoing devnet — sealed likely needs a fresh program deploy since
-  the instruction signature changed.
-- REDEPLOY ORDER: account layouts grew (Benchmark/Run/ItemChunk/
-  PrivItemChunk/AnswerChunk tails). Borsh EOF-bricks every old-layout
-  account — resolve or void all open markets BEFORE redeploying, and expect
-  a fresh bank set afterward. No migration ix exists.
+- Cluster offset 456. Both programs upgraded to the hardened build on
+  2026-09-19: sealed `4zNMgJno8WNfyHjfezSz2A4USkkdyofxdjWB1ouhozzNYqU8swdgnkCr46S9J2p2QBdjXDajpLfD3FMJC8JPYiUK`,
+  market `5fKofCZqJFKuut4bnJTNjrkVMNKVzce469vMB77NUYpEgnUARA4XkG1GL8i1nQGxwnNG7kwYM9rZY6CzHGYbHxVq`
+  (both upgradeable — same program IDs).
+- Accounts created under the pre-upgrade layout (e.g. bank 99004) are
+  Borsh-EOF bricked — mint fresh banks on the new binaries; there is no
+  migration ix.
 - The shared Arcium devnet cluster finalizes computations but has an ongoing
-  callback-tx outage — bank mints/scores stall pending. `scripts/*-retry.sh`
-  loops are the armed watchers; do not claim devnet success until one lands.
+  callback-tx outage — bank mints/scores stall pending (verified: a fresh
+  `gen` queued a computation whose callback never landed). Do not claim
+  devnet success until a callback-backed flow lands; the honest framing is
+  "deployed + queued, cluster callback outage upstream".
 
 ## Gotchas
 

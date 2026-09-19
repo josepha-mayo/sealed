@@ -31,19 +31,14 @@ pub const MARKET_RESOLVED: u8 = 1;
 pub const MARKET_CANCELLED: u8 = 2;
 
 pub const MAX_OUTCOMES: usize = 8;
-/// Mirrors sealed::PENDING_TIMEOUT_SECS — a run whose last score queue is
-/// older than this is treated as dead for expiry purposes.
-pub const PENDING_TIMEOUT_SECS: i64 = 900;
-/// Much longer idleness horizon for market expiry: cancelling a market is
-/// irreversible, and on a congested cluster a legit computation can sit in
-/// the mempool far past the sweep timeout. A run queued within the last hour
-/// (measured from the FIRST queue — `first_pending_at` never refreshes, so a
-/// runner cannot hold a market open forever by requeueing) blocks expiry.
-pub const EXPIRE_IDLE_SECS: i64 = 3600;
 /// Absolute bound on scoring-liveness delays: a run whose FIRST queue is this
-/// old is expirable unconditionally — pending bits are runner-refreshable, so
-/// nothing else can bound a deliberate stall.
+/// old is expirable unconditionally — pending bits are runner-refreshable,
+/// swept/stale computations can still land, so nothing on-chain can prove a
+/// computation is dead; a write-once timestamp is the only ungameable bound.
 pub const EXPIRE_HARD_CAP_SECS: i64 = 24 * 3600;
+/// Longest deadline a market may set — a far-future `resolve_by` defeats the
+/// refund escape hatch, so creation caps it well past any real scoring delay.
+pub const MAX_RESOLVE_HORIZON_SECS: i64 = 90 * 24 * 3600;
 
 declare_id!("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 
@@ -76,7 +71,8 @@ pub mod market {
     /// `edges` (len = n_outcomes - 1, strictly increasing) splits the score range.
     /// `fee_bps` is the creator's take on resolution (max 1000 = 10%);
     /// `closes_at` stops betting early (0 = until scoring starts);
-    /// `resolve_by` is a deadline after which anyone can expire the market.
+    /// `resolve_by` is a required deadline after which anyone can expire the
+    /// market — every market gets the permissionless refund escape hatch.
     pub fn create_market(
         ctx: Context<CreateMarket>,
         salt: u64,
@@ -93,12 +89,13 @@ pub mod market {
         require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
         let now = Clock::get()?.unix_timestamp;
         require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
+        require!(resolve_by > now, ErrorCode::DeadlineInPast);
         require!(
-            resolve_by == 0 || resolve_by > now,
+            resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
             ErrorCode::DeadlineInPast
         );
         require!(
-            closes_at == 0 || resolve_by == 0 || closes_at <= resolve_by,
+            closes_at == 0 || closes_at <= resolve_by,
             ErrorCode::DeadlineOrder
         );
         let run = load_run(&ctx.accounts.run)?;
@@ -233,12 +230,13 @@ pub mod market {
         require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
         let now = Clock::get()?.unix_timestamp;
         require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
+        require!(resolve_by > now, ErrorCode::DeadlineInPast);
         require!(
-            resolve_by == 0 || resolve_by > now,
+            resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
             ErrorCode::DeadlineInPast
         );
         require!(
-            closes_at == 0 || resolve_by == 0 || closes_at <= resolve_by,
+            closes_at == 0 || closes_at <= resolve_by,
             ErrorCode::DeadlineOrder
         );
         let m = &mut ctx.accounts.market;
@@ -444,7 +442,7 @@ pub mod market {
     /// open market whose run can no longer resolve — stake isn't locked behind
     /// a run that never finalizes. If the run DID finalize, expiry must not
     /// fire: a losing bettor would otherwise veto a pending resolution and
-    /// claim a refund instead of paying out. `resolve_by == 0` = no deadline.
+    /// claim a refund instead of paying out. `resolve_by` is required nonzero.
     pub fn expire_market(ctx: Context<ExpireMarket>) -> Result<()> {
         let ra = load_run(&ctx.accounts.run_a)?;
         let m = &mut ctx.accounts.market;
@@ -455,20 +453,21 @@ pub mod market {
             ErrorCode::MarketNotExpired
         );
         let now_ts = Clock::get()?.unix_timestamp;
-        // A run is "idle" when no live scoring computation can still land.
-        // `pending_mask`/`pending_since` are runner-malleable (sweep is
-        // runner-permissioned, requeue refreshes the stamp), so they can't
-        // prove a computation is dead — swept and stale comps may still land.
-        // The rule therefore bounds delay absolutely: `first_pending_at` is
-        // set once and never refreshed, and past the hard cap the run is
-        // declared dead even if a zombie computation lands later (its score
-        // still posts on-chain; bettors are refunded, not robbed).
-        let idle = |r: &Run| {
-            r.first_pending_at == 0
-                || now_ts > r.first_pending_at + EXPIRE_HARD_CAP_SECS
-                || (now_ts > r.first_pending_at + EXPIRE_IDLE_SECS
-                    && (r.pending_mask == 0 || now_ts > r.pending_since + PENDING_TIMEOUT_SECS))
-        };
+        // A run is "idle" only when NO scoring computation can still land —
+        // and nothing on-chain can prove that before finalization: swept
+        // computations still callback (`scored_mask` gates apply, not the
+        // pending bit), stale `pending_since` only means 15min without a
+        // requeue (congested clusters legitimately exceed that), and both
+        // fields are runner-malleable anyway. Any expiry window short of a
+        // bound therefore hands a free cancel option to whoever best knows a
+        // zombie is still alive — refunding losers at the winners' expense.
+        // So the predicate is binary: a run that never queued is expirable at
+        // `resolve_by`, and every started run gets an absolute 24h cap —
+        // `first_pending_at` is write-once so griefing can't extend it. Past
+        // the cap a late callback may still post its score on-chain, but the
+        // market is already refunded; that tradeoff is documented.
+        let idle =
+            |r: &Run| r.first_pending_at == 0 || now_ts > r.first_pending_at + EXPIRE_HARD_CAP_SECS;
         if m.run_b == Pubkey::default() {
             // Score market: resolvable iff the run finalized; expirable only
             // when it hasn't AND no in-flight chunk can still finalize it.
@@ -625,7 +624,8 @@ pub struct Market {
     pub fees_accrued: u64,
     /// Optional betting cutoff (unix ts; 0 = bets close when scoring starts).
     pub closes_at: i64,
-    /// Optional deadline after which anyone can `expire_market` (0 = none).
+    /// Required deadline after which anyone can `expire_market` — creation
+    /// rejects `resolve_by <= now` so a stalled run can never lock funds forever.
     pub resolve_by: i64,
 }
 
