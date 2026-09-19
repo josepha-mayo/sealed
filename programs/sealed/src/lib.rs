@@ -1086,13 +1086,15 @@ pub mod sealed {
         let r = &mut ctx.accounts.run;
         require!(r.status == RUN_PENDING, ErrorCode::RunAlreadyFinalized);
         require!(chunk_index < r.chunk_count, ErrorCode::InvalidChunkIndex);
+        let bit = 1u64 << chunk_index;
+        require!(r.pending_mask & bit != 0, ErrorCode::ChunkNotPending);
         let stale = r.pending_since != 0
             && Clock::get()?.unix_timestamp > r.pending_since + PENDING_TIMEOUT_SECS;
         require!(
             ctx.accounts.sweeper.key() == r.runner || stale,
             ErrorCode::NotRunner
         );
-        r.pending_mask &= !(1u64 << chunk_index);
+        r.pending_mask &= !bit;
         Ok(())
     }
 }
@@ -2118,4 +2120,6 @@ pub enum ErrorCode {
     AlreadyAttested,
     #[msg("Generated/private banks must start from a zero items_root")]
     InvalidItemsRoot,
+    #[msg("No computation is pending on this chunk")]
+    ChunkNotPending,
 }

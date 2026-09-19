@@ -452,12 +452,17 @@ pub mod market {
         );
         let now_ts = Clock::get()?.unix_timestamp;
         // A run is "idle" when no live scoring computation can still land:
-        // never queued (`first_pending_at == 0`) or past the expiry horizon
-        // measured from the FIRST queue — a runner sweeping + requeueing
-        // refreshes `pending_since` each cycle but can never push
-        // `first_pending_at`, so griefing a market's expiry is bounded.
-        let idle =
-            |r: &Run| r.first_pending_at == 0 || now_ts > r.first_pending_at + EXPIRE_IDLE_SECS;
+        // never queued (`first_pending_at == 0`), or past the expiry horizon
+        // measured from the FIRST queue with no live computation still in
+        // flight. `first_pending_at` can't be refreshed by sweep+requeue, so
+        // griefing is bounded; but past the horizon a run still counts as live
+        // while a pending bit could land — a losing bettor must not be able to
+        // refund a market while the winner's score is in flight.
+        let idle = |r: &Run| {
+            r.first_pending_at == 0
+                || (now_ts > r.first_pending_at + EXPIRE_IDLE_SECS
+                    && (r.pending_mask == 0 || now_ts > r.pending_since + PENDING_TIMEOUT_SECS))
+        };
         if m.run_b == Pubkey::default() {
             // Score market: resolvable iff the run finalized; expirable only
             // when it hasn't AND no in-flight chunk can still finalize it.

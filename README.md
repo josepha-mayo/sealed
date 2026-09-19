@@ -167,6 +167,7 @@ sealed chain market claim-fee --market <pk>                          # authority
 sealed chain market show    --market <pk>
 sealed chain reset-sealing  --bank-id <n> --chunk <i>                # clear a part stuck by a dropped MPC computation
 sealed chain reset-pending  --run <pk> --chunk <i>                   # sweep a stuck scoring bit (stale = anyone)
+sealed chain attest        --benchmark <pk> --run-index <n>           # authority pins an attestation flag on a finalized run
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
 sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring

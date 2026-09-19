@@ -54,7 +54,7 @@ parimutuel market resolves on that number. The leaderboard is the oracle.
 
 ## Demo shot list (~3 min)
 
-All on `arcium localnet` (or devnet once funded). Narrate the trust boundary,
+All on `arcium localnet` (devnet once the Arcium callback outage resolves). Narrate the trust boundary,
 not the commands.
 
 | Shot | Command | Say |

@@ -70,9 +70,9 @@ export interface ItemChunkState {
   mintOrder: number[];
 }
 
-/** Decode an ItemChunk account: 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 160 specs | 8 mint_order. */
+/** Decode an ItemChunk account: 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 160 specs | 8 mint_order. Tolerates tail-appended fields. */
 export function decodeItemChunk(data: Buffer): ItemChunkState {
-  if (data.length !== 8 + 32 + 2 + 1 + 1 + CHUNK * ITEM_SPEC_LEN + PARTS * 2) {
+  if (data.length < 8 + 32 + 2 + 1 + 1 + CHUNK * ITEM_SPEC_LEN + PARTS * 2) {
     throw new Error(`ItemChunk size mismatch: ${data.length}`);
   }
   const specs: ItemSpec[] = [];
@@ -167,7 +167,7 @@ export interface PrivItemChunkState {
  */
 export function decodePrivItemChunk(data: Buffer): PrivItemChunkState {
   const len = 8 + 32 + 2 + 1 + 1 + 32 + PARTS * 16 + 8 * 32 + PARTS * 2;
-  if (data.length !== len) throw new Error(`PrivItemChunk size mismatch: ${data.length}`);
+  if (data.length < len) throw new Error(`PrivItemChunk size mismatch: ${data.length}`);
   const nonces: bigint[] = [];
   for (let p = 0; p < PARTS; p++) nonces.push(readU128le(data, 76 + p * 16));
   const ciphertexts: Uint8Array[] = [];

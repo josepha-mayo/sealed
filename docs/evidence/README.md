@@ -12,11 +12,11 @@ while that ledger is up; the artifact is also self-checking offline.
 
 - `benchmark-99004-account.json` — dump of the generated benchmark
   (id 99004, PDA `GJtU2gRqcq9HpYNEvezWey6Jfxk3fVrkFzPjC9AGDDLW`).
-  `status=LIVE`, `kind=1` (generated), `items_root` `9e59c342…`. The bank's
+  `status=LIVE`, `kind=1` (generated), `items_root` `e05a7840…`. The bank's
   questions are public specs; the answers were produced and sealed inside MPC.
 - `run-2W4E4TPf-account.json` — dump of the finalized run
   (`2W4E4TPfbFh6NXyFJvJVbdh5THdDMhdykNMeaRPxveU1`): model id
-  `mock/oracle-0.75`, `correct=22/32`, `outputs_root` `ac15db63…`, status
+  `mock/oracle-0.75`, `correct=26/32`, `outputs_root` `d6f7b24e…`, status
   FINALIZED. The score field was written by the MPC cluster's callback
   transaction, not by the run's creator.
 - `run-99004-artifact.json` — the local run artifact (model outputs, canonical
@@ -66,9 +66,9 @@ CLI="npx tsx packages/harness/src/cli.ts"
 
 $CLI chain init                                 # one-time: comp defs + circuit upload
 $CLI chain gen --id 99005 --chunks 1            # mint a fresh bank inside MPC
-$CLI run --bank bank-99005.json --model mock/oracle-0.75 \
+$CLI run --bank bank/gen-99005.json --model mock/oracle-0.75 \
         --out /tmp/run.json                     # model answers the items
-$CLI chain score --bank bank-99005.json --run /tmp/run.json
+$CLI chain score --bank bank/gen-99005.json --run /tmp/run.json
 #   → "FINALIZED: N/32 (matches local pre-score)"
 $CLI prove --run /tmp/run.json --item 0         # Merkle proof vs committed root
 ```

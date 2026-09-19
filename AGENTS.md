@@ -45,6 +45,10 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   proof arg, market gained fee/deadline/expire instructions). Redeploy
   before demoing devnet — sealed likely needs a fresh program deploy since
   the instruction signature changed.
+- REDEPLOY ORDER: account layouts grew (Benchmark/Run/ItemChunk/
+  PrivItemChunk/AnswerChunk tails). Borsh EOF-bricks every old-layout
+  account — resolve or void all open markets BEFORE redeploying, and expect
+  a fresh bank set afterward. No migration ix exists.
 - The shared Arcium devnet cluster finalizes computations but has an ongoing
   callback-tx outage — bank mints/scores stall pending. `scripts/*-retry.sh`
   loops are the armed watchers; do not claim devnet success until one lands.

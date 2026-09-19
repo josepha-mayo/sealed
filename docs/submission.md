@@ -17,6 +17,11 @@ devnet callback outage (below).
 
 ## Verified on localnet (arcium localnet, cluster offset 0)
 
+_Note: accounts cited in this section (`ExdsS5WX…`, `9NQJE5uF…`, `BgA7Bxaq…`,
+`GeCpoqi7…`, `2PDB8cqC…`) lived on earlier localnet epochs that have
+since been wiped and redeployed during hardening. The evidence bundle in
+`docs/evidence/` is the current-ledger set._
+
 - **Sealed bank, 320 items / 10 chunks** — `bank-8` sealed via 40 MPC re-encryption
   computations; benchmark `ExdsS5WX6xYNiE6fSDqdU8PCgbiuGirD5ttAGf1AmQTk` LIVE.
 - **Real model runs through OpenCode Zen (free tier):**
@@ -95,8 +100,8 @@ devnet callback outage (below).
   finalized **32/32 — on-chain score identical to the local pre-score**
   (run `7pcbA5hE…`, verified live at the time; artifact in
   `docs/evidence/run-real-99003-artifact.json`). The current evidence ledger
-  has generated bank 99004 (`items_root 9e59c342…`) scored by
-  `mock/oracle-0.75` at 22/32 — run `2W4E4TPf…`, proof verifiable
+  has generated bank 99004 (`items_root e05a7840…`) scored by
+  `mock/oracle-0.75` at 26/32 — run `2W4E4TPf…`, proof verifiable
   against the live account.
   Earlier real-model evidence through OpenCode Zen: ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
@@ -117,7 +122,10 @@ devnet callback outage (below).
   open→bet→score-both→resolve→claim + gates; generated-bank mint→live→score;
   private-bank mint→decrypt→score + privacy negatives; reshare
   delegate-decrypt + one-directional disclosure + gates; delegated-runner
-  rebuild-from-grants + MPC score). The suite salts bank ids per run so it's
+  rebuild-from-grants + MPC score; pending-sweep liveness — markets stay
+  latched after sweeps, swept computations still land, stranger sweep
+  rejected, edge bounds, double-attestation rejected, duel dead-run expiry
+  bail, retired-bank mutation rejected). The suite salts bank ids per run so it's
   re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a run).
   `yarn harness:test` — 12/12.
 

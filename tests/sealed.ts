@@ -1417,6 +1417,18 @@ describe("Sealed", () => {
       "ScoringStarted",
     );
 
+    // A stranger cannot sweep a live pending bit before the timeout.
+    const stranger = Keypair.generate();
+    await fund(provider, owner, stranger.publicKey, 0.05 * LAMPORTS_PER_SOL);
+    await expectAnchorError(
+      program.methods
+        .resetPending(new anchor.BN(runIndex), 0)
+        .accounts({ sweeper: stranger.publicKey, run: runP })
+        .signers([stranger])
+        .rpc({ commitment: "confirmed" }),
+      "NotRunner",
+    );
+
     // The runner sweeps the in-flight bit (e.g. the computation died).
     await program.methods
       .resetPending(new anchor.BN(runIndex), 0)
@@ -1426,17 +1438,16 @@ describe("Sealed", () => {
     r = await program.account.run.fetch(runP);
     expect(r.pendingMask.toNumber() & 1).to.equal(0, "bit swept");
     expect(r.pendingSince.toNumber()).to.be.greaterThan(0, "latch stays set");
+    expect(r.firstPendingAt.toNumber()).to.be.greaterThan(0, "first-queue horizon recorded");
 
-    // A stranger cannot sweep — even a non-existent bit — before the timeout.
-    const stranger = Keypair.generate();
-    await fund(provider, owner, stranger.publicKey, 0.05 * LAMPORTS_PER_SOL);
+    // Nobody can sweep a bit that isn't pending.
     await expectAnchorError(
       program.methods
         .resetPending(new anchor.BN(runIndex), 1)
         .accounts({ sweeper: stranger.publicKey, run: runP })
         .signers([stranger])
         .rpc({ commitment: "confirmed" }),
-      "NotRunner",
+      "ChunkNotPending",
     );
 
     // Betting stays closed AND new markets are refused — the latch is
@@ -1493,6 +1504,11 @@ describe("Sealed", () => {
     );
 
     await marketProgram.methods.resolve().accounts({ run: runP, market: mkt }).rpc({ commitment: "confirmed" });
+    // Prove it was a real WIN, not a cancelled-market refund: both buckets were
+    // backed and outcome 1 (yes-bucket) must be settled.
+    const mAfterResolve = await marketProgram.account.market.fetch(mkt);
+    expect(mAfterResolve.status).to.equal(1, "market resolved, not cancelled");
+    expect(mAfterResolve.outcome).to.equal(1, "yes bucket won at 64/64");
     const before = await provider.connection.getBalance(bettor.publicKey);
     await marketProgram.methods
       .claim()
