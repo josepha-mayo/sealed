@@ -43,8 +43,11 @@ parimutuel market resolves on that number. The leaderboard is the oracle.
    key, but generated banks are the honest primitive.)
 4. **Why crypto is load-bearing (0:30)** — Solana is the commitment layer
    (roots, accounts, fees, market settlement); Arcium is the only reason the
-   answers can be "onchain but unreadable." Without MPC this is a database.
-   Without the chain it's a promise.
+   answers can be "onchain but unreadable" — trust is split across MPC
+   nodes, so no single operator and no breakable chip holds the truth (TEE
+   evals trust Intel; Arcium trusts math). Without MPC this is a database.
+   Without the chain it's a promise. Confidential AI evaluation is exactly
+   the flagship use-case MPC exists for — Sealed is it, productized.
 5. **Market close (0:30)** — "Prediction markets on AI progress already exist
    and settle on vibes. Sealed turns 'will model X clear threshold T' into a
    contract that resolves itself. Fees: every run pays the benchmark authority;
@@ -90,6 +93,10 @@ not the commands.
   grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
   binary + N-way markets resolved and paid out, fingerprint reveal audits,
   mocha suite 9/9 + 12/12 unit tests green. Authored banks work too (seal+score).
+- **Traction evidence:** 30+ sealed evaluations executed on the evidence
+  ledger (generated + private + delegated runs), incl. real models — gpt-oss-20b
+  32/32, ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score identical to the
+  local pre-score, artifacts + tx proofs in `docs/evidence/`.
 - **Business:** per-run fee to the benchmark authority (live on-chain); market
   take-rate on settlement (`fee_bps`, capped at 10%, live on-chain);
   sealed-eval as a service to labs, markets, and insurers.
@@ -102,14 +109,17 @@ not the commands.
 | Approach | Who holds the truth | Can it leak? | Settles markets? |
 |---|---|---|---|
 | Lab self-report (SWE-bench, FrontierMath) | The lab being measured | Already in training data | Polymarket resolves on Epoch AI — a single conflicted party |
+| On-chain arenas (Recall) | The operator — test sets public | Public evals are gameable/contaminable | Demand proven (7.8M predictions), no cheat-proof evals |
 | Leaderboard operator (LMArena) | The operator | Operator sees votes + tests | No settlement layer |
+| TEE pilot (DeepMind × OpenMined) | Enclave + one bespoke operator | One hardware trust domain, not a product | One-off research run — not permissionless |
 | Trusted oracle / committee | The committee | Any member can leak | Yes, but trust-permissioned |
-| TEE harness (Phala, NVIDIA CC) | Enclave + hardware vendor | One SGX break away | Attestation ≠ resolution |
 | zkML / opML | Proves "M(x)=y", not the eval | Operator still holds the key | Inference proofs only |
 | **Sealed** | **No one — the key never exists outside the MPC** | **Nothing to leak: mint, key, and scoring stay inside the cluster** | **Yes — `Run.correct` written by MPC callback, markets resolve permissionlessly** |
 
 Melee hides your position; Bench hides your stake; **Sealed hides the truth
-itself** — the market settles on an answer no human ever possessed. The
-private-bank path keeps questions ciphertext-only; `reshare_part` hands a
-judge the exam without publishing it; betting closes before scoring starts,
-so nobody trades on leaked information.
+itself** — the market settles on an answer no human ever possessed. Google
+needed a bespoke TEE pilot to run one double-blind eval; Sealed makes it a
+permissionless primitive. The private-bank path keeps questions
+ciphertext-only; `reshare_part` hands a judge the exam without publishing it;
+betting closes before scoring starts, so nobody trades on leaked
+information. The repeatable one-liner: **the benchmark that can't leak.**

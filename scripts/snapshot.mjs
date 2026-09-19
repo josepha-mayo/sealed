@@ -13,6 +13,7 @@ async function gpa(programId) {
   const res = await fetch(rpc, {
     method: "POST",
     headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(30_000),
     body: JSON.stringify({
       jsonrpc: "2.0", id: 1, method: "getProgramAccounts",
       params: [programId, { encoding: "base64" }],
@@ -20,11 +21,17 @@ async function gpa(programId) {
   });
   const j = await res.json();
   if (j.error) throw new Error(`${programId}: ${j.error.message}`);
-  return j.result.map(({ pubkey, account }) => ({ pubkey, data: account.data[0] }));
+  if (!Array.isArray(j.result)) throw new Error(`${programId}: no result (RPC down?)`);
+  return j.result
+    .map(({ pubkey, account }) => ({ pubkey, data: account.data[0] }))
+    .sort((a, b) => a.pubkey.localeCompare(b.pubkey)); // stable order = clean diffs
 }
 
 const snap = {
-  meta: { rpc, takenAt: new Date().toISOString() },
+  meta: {
+    rpc, takenAt: new Date().toISOString(),
+    programs: { sealed: SEALED_PID, market: MARKET_PID },
+  },
   sealed: await gpa(SEALED_PID),
   market: await gpa(MARKET_PID).catch(() => []),
 };

@@ -26,9 +26,11 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   so `solana program deploy target/deploy/market.so` works without a wipe).
 - After a fresh ledger: `docker restart artifacts-arx-node-*-1
   artifacts-arcium-trusted-dealer-1` — nodes hold a stale context slot.
-- MXE is genesis-baked; keygen completes when primary nodes activate (account
-  grows to ~396 bytes, then `finalize` shrinks it to 289 = keys Set).
-- If MXE stalls mid-keygen (cluster account exists, nodes up, no growth):
+- MXE is genesis-baked; keygen completes when primary nodes activate. The
+  readiness check is `getMXEPublicKey` — `npx tsx scripts/probe-mxe-live.mts`
+  prints LIVE/PENDING (scripts/wait-mxe.sh polls it; the old byte-94
+  heuristic is stale — the current layout settles at ~313 bytes).
+- If MXE stalls mid-keygen (account exists, nodes up, probe PENDING):
   keygen usually COMPLETED at MPC level but was never finalized on-chain.
   `~/.config/solana/id.json` IS the `4RUW…` mint/MXE authority, so run
   `arcium finalize-mxe-keys -k ~/.config/solana/id.json -o 0 FGVuEoWp… -u localnet`
