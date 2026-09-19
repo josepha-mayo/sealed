@@ -7,7 +7,7 @@ the whole arc end-to-end; this script splits it into narrated segments.
 | Time | Beat | Show | Say |
 |---|---|---|---|
 | 0:00 | The problem | `docs/pitch.md` table / README "why" | "Every AI leaderboard trusts an operator who could lie. Every benchmark answer key is a thing that can leak." |
-| 0:10 | The fix in one line | `chain gen` minting (4 computations) | "We mint the benchmark *inside* the MPC cluster. The questions come from enclave randomness; the answers are computed and fingerprinted in-circuit and born encrypted to the cluster key. There is no answer key anywhere on Earth — nothing to leak, sell, or subpoena." |
+| 0:10 | The fix in one line | `chain gen` minting (8 computations — 4 parts × 2 chunks) | "We mint the benchmark *inside* the MPC cluster. The questions come from enclave randomness; the answers are computed and fingerprinted in-circuit and born encrypted to the cluster key. There is no answer key anywhere on Earth — nothing to leak, sell, or subpoena." |
 | 0:25 | Public minted items | `chain items --benchmark <pk>` + explorer items grid | "The item specs are public — anyone can re-render the prompts and re-fold the items_root commitment." |
 | 0:35 | Private bank | `chain gen-private` then explorer's ciphertext-only card | "Or the specs stay encrypted to the authority's key. The chain holds ciphertext only — and items_root still commits to it, so the mint transcript is auditable without decrypting." |
 | 0:50 | Selective disclosure | `chain reshare` ×4 → `chain grants` | "The authority hands a judge the exam — the MPC re-encrypts the questions to the judge's key. Grant PDAs record who can see which parts. The answers never move." |

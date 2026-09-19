@@ -1,0 +1,268 @@
+{
+  "schema": "sealed.run/1",
+  "benchmarkId": 99004,
+  "model": "mock/oracle-0.75",
+  "harnessHash": "6167a62de342308280dd9f9792ab82a78bcaf96c1f76183a9978bcdca6953d9a",
+  "outputsRoot": "ac15db63bdff39662a83e336705c7da666bd7e520931a51a122bed29543c1eb2",
+  "startedAt": "2026-09-19T02:51:26.333Z",
+  "finishedAt": "2026-09-19T02:51:26.353Z",
+  "items": [
+    {
+      "index": 0,
+      "raw": "Let me work through this.\n\n**ANSWER:**  1275 .",
+      "canonical": "1275",
+      "outputHash": "11109540290674798920",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 1,
+      "raw": "Let me work through this.\n\n**ANSWER:**  -2 .",
+      "canonical": "-2",
+      "outputHash": "2608743907773825333",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 2,
+      "raw": "Let me work through this.\n\n**ANSWER:**  103 .",
+      "canonical": "103",
+      "outputHash": "4215092491976995130",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 3,
+      "raw": "Let me work through this.\n\n**ANSWER:**  51 .",
+      "canonical": "51",
+      "outputHash": "17070384515644225582",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 4,
+      "raw": "Let me work through this.\n\n**ANSWER:**  -336 .",
+      "canonical": "-336",
+      "outputHash": "13969112857186109604",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 5,
+      "raw": "I think it is\nANSWER: -21x",
+      "canonical": "-21x",
+      "outputHash": "9062687044220952194",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 6,
+      "raw": "I think it is\nANSWER: 78x",
+      "canonical": "78x",
+      "outputHash": "8437334666677526938",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 7,
+      "raw": "I think it is\nANSWER: 774x",
+      "canonical": "774x",
+      "outputHash": "4723564262969230601",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 8,
+      "raw": "Let me work through this.\n\n**ANSWER:**  833 .",
+      "canonical": "833",
+      "outputHash": "10301264307567060782",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 9,
+      "raw": "Let me work through this.\n\n**ANSWER:**  713 .",
+      "canonical": "713",
+      "outputHash": "13510116876897830543",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 10,
+      "raw": "Let me work through this.\n\n**ANSWER:**  2436 .",
+      "canonical": "2436",
+      "outputHash": "1561329329722155306",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 11,
+      "raw": "I think it is\nANSWER: -1976x",
+      "canonical": "-1976x",
+      "outputHash": "15341883018961413549",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 12,
+      "raw": "Let me work through this.\n\n**ANSWER:**  70 .",
+      "canonical": "70",
+      "outputHash": "17180671165221505470",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 13,
+      "raw": "Let me work through this.\n\n**ANSWER:**  460 .",
+      "canonical": "460",
+      "outputHash": "8973835286386715295",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 14,
+      "raw": "Let me work through this.\n\n**ANSWER:**  265 .",
+      "canonical": "265",
+      "outputHash": "14640173691900614713",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 15,
+      "raw": "Let me work through this.\n\n**ANSWER:**  -25 .",
+      "canonical": "-25",
+      "outputHash": "9288547787239496844",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 16,
+      "raw": "Let me work through this.\n\n**ANSWER:**  25 .",
+      "canonical": "25",
+      "outputHash": "15349127432736851636",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 17,
+      "raw": "Let me work through this.\n\n**ANSWER:**  -868 .",
+      "canonical": "-868",
+      "outputHash": "921930631326506884",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 18,
+      "raw": "I think it is\nANSWER: 62x",
+      "canonical": "62x",
+      "outputHash": "10793834498502269016",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 19,
+      "raw": "Let me work through this.\n\n**ANSWER:**  -567 .",
+      "canonical": "-567",
+      "outputHash": "16675759867656397081",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 20,
+      "raw": "I think it is\nANSWER: 358x",
+      "canonical": "358x",
+      "outputHash": "4184078729188318582",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 21,
+      "raw": "Let me work through this.\n\n**ANSWER:**  0 .",
+      "canonical": "0",
+      "outputHash": "11267319993098411577",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 22,
+      "raw": "I think it is\nANSWER: 5x",
+      "canonical": "5x",
+      "outputHash": "3490603601949311808",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 23,
+      "raw": "I think it is\nANSWER: 124x",
+      "canonical": "124x",
+      "outputHash": "14411155649254168312",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 24,
+      "raw": "Let me work through this.\n\n**ANSWER:**  71 .",
+      "canonical": "71",
+      "outputHash": "4427860950661901185",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 25,
+      "raw": "Let me work through this.\n\n**ANSWER:**  0 .",
+      "canonical": "0",
+      "outputHash": "7779125684722538282",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 26,
+      "raw": "Let me work through this.\n\n**ANSWER:**  2706 .",
+      "canonical": "2706",
+      "outputHash": "1790955648457063062",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 27,
+      "raw": "Let me work through this.\n\n**ANSWER:**  213 .",
+      "canonical": "213",
+      "outputHash": "11698798233530270611",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 28,
+      "raw": "I think it is\nANSWER: 18304x",
+      "canonical": "18304x",
+      "outputHash": "16476781808535958055",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 29,
+      "raw": "I think it is\nANSWER: 1862x",
+      "canonical": "1862x",
+      "outputHash": "5622083513498684644",
+      "correct": false,
+      "latencyMs": 0
+    },
+    {
+      "index": 30,
+      "raw": "Let me work through this.\n\n**ANSWER:**  -28 .",
+      "canonical": "-28",
+      "outputHash": "13746080643527886366",
+      "correct": true,
+      "latencyMs": 0
+    },
+    {
+      "index": 31,
+      "raw": "Let me work through this.\n\n**ANSWER:**  45 .",
+      "canonical": "45",
+      "outputHash": "10969484815807847768",
+      "correct": true,
+      "latencyMs": 0
+    }
+  ],
+  "localCorrect": 22
+}

@@ -19,30 +19,24 @@ can do.
 ## technicalApproach
 
 Sealed is a Solana + Arcium protocol that removes the trusted data party
-entirely. Six Arcis circuits run inside the Arcium MPC cluster:
+entirely. Six Arcis circuits run inside the MPC cluster:
 
-- `gen_part` mints benchmark items inside the enclave — specs drawn from
-  ArcisRNG, answers computed and SHA3-fingerprinted in-circuit, born encrypted
-  to the MXE key. No answer key is ever materialized outside the cluster.
-- `gen_part_private` returns the specs themselves as `Enc<Shared>` ciphertext
-  to the authority's x25519 key — questions never appear in plaintext on-chain.
-- `reshare_part` re-encrypts individual spec parts to a delegate's key —
-  selective, one-directional, recorded in on-chain `ShareGrant` PDAs. A judge
-  or model provider rebuilds the exam from grants alone; answers never move.
-- `score_chunk` compares a run's committed output hashes against sealed
-  fingerprints inside MPC and reveals only the count; the cluster's callback
-  writes `Run.correct` on-chain.
-- `seal_part` (authored banks) and `reveal_part` (fingerprint spot-check
-  audits) round out the pipeline.
+- `gen_part` mints items inside the enclave — specs from ArcisRNG, answers
+  computed and fingerprinted in-circuit, born `Enc<Mxe>`. No answer key is
+  ever materialized outside the cluster.
+- `gen_part_private` returns specs as `Enc<Shared>` to the authority — the
+  questions never appear in plaintext on-chain either.
+- `reshare_part` re-encrypts spec parts to a delegate's key — selective,
+  one-directional, recorded in `ShareGrant` PDAs; answers never move.
+- `score_chunk` compares a run's committed `outputs_root` Merkle proof
+  against sealed fingerprints inside MPC; the callback writes `Run.correct`.
+- `seal_part` + `reveal_part` cover authored banks and fingerprint audits.
 
-A second Anchor program hosts parimutuel markets — binary, N-way score bands,
-and head-to-head duels — that resolve permissionlessly by reading
-`Run.correct` itself. Betting closes before the first scored chunk, so nobody
-trades on leaked information. Solana carries commitments, fees, and
-settlement; Arcium carries everything that must exist but must not be
-readable. Verified: 8/8 E2E + 12/12 unit tests on a real MPC localnet, and a
-real model (gpt-oss-20b) finalized 32/32 with the on-chain score identical to
-the local pre-score.
+A second program hosts parimutuel markets — binary, N-way score bands,
+head-to-head duels — resolving permissionlessly on `Run.correct`, with
+fees, deadlines, void, and expiry; bets latch shut before the first scored
+chunk. Verified: 9/9 E2E + 12/12 unit on a real MPC localnet; a real model
+(gpt-oss-20b) finalized 32/32 — on-chain score == local pre-score.
 
 ## targetAudience
 
@@ -58,8 +52,9 @@ Adjacent: insurers, auditors, and DAOs pricing AI capability risk.
 ## businessModel
 
 Per-run fees paid to the benchmark authority are live on-chain today
-(`create_run` transfers `fee_lamports`). Market take-rate on settlement is a
-one-line `claim` extension. The durable business is sealed-evaluation
+(`create_run` transfers `fee_lamports`), and market take-rate on settlement is
+live too (`fee_bps` skimmed at resolution, authority-claimed via `claim_fee`).
+The durable business is sealed-evaluation
 infrastructure: fresh private banks minted on demand (no key custody to sell),
 delegated scoring runs for labs and judges, and the settlement layer every
 "AI capability" market resolves against. Every future claim about what a
@@ -83,8 +78,8 @@ and settlement is permissionless because the chain itself reads the score.
 The resolution layer for AI capability claims. Markets on model scores are
 already traded; the missing piece was a number nobody could rig. Roadmap:
 confidential stakes for markets (positions encrypted via the same MPC),
-quorum/timed disclosure for judge panels, market take-rate on settlement,
-on-chain verification of output Merkle proofs inside the market program, and
+quorum/timed disclosure for judge panels, TEE-attested runner harnesses for
+third-party operators, and
 private banks as a service — any lab, insurer, or market can commission an
 eval that cannot be leaked because nobody ever held it. As confidential
 inference (Arcium Blackthorn) matures, the runner's outputs can be sealed

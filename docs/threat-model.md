@@ -75,6 +75,17 @@ after sealing, and nobody can fabricate a score.
   Losing positions close for their rent; cancelled markets refund in full;
   resolved markets with any unbacked bucket cancel instead of letting dust
   lock the pot.
+- **Stuck computations** — a `score_chunk` that never lands leaves
+  `pending_mask` set, which freezes betting, voiding, and resolution on every
+  market for that run. The runner can always `reset_pending`; once the bit is
+  stale (`PENDING_TIMEOUT_SECS` = 15 min since the last queue) ANYONE may
+  sweep it — a runner who disappears cannot permanently hold market stake.
+  Late callbacks are idempotent (`scored_mask` rejects a second count).
+  Markets also carry `resolve_by` + permissionless `expire_market` as a
+  second escape hatch: expiry requires every unfinished run to be idle,
+  measured from `first_pending_at` — a monotone timestamp set on the first
+  score queue and never refreshed — so a runner sweeping + requeueing can
+  delay a market's expiry by at most `EXPIRE_IDLE_SECS` (1 hour) total.
 
 ## What is *not* protected (yet)
 
@@ -92,5 +103,27 @@ after sealing, and nobody can fabricate a score.
   expressions only. The construction generalizes to any family where the
   answer is a pure function of public spec fields; richer families are
   circuit work, not new trust assumptions.
+- **Insider foresight by bank kind** — a market is only as honest as its
+  outcome's pre-resolution secrecy. On *authored* and *private* banks no
+  on-chain role knows both halves: the authority holds the answer key (or
+  the prompts), the runner holds only their committed outputs, so neither
+  can compute `correct` alone. On *generated* banks the item specs are
+  public plaintext, so anyone can compute the true answers — and the runner,
+  who committed `outputs_root`, can compute their final score before anyone
+  bets. Generated-bank markets therefore demonstrate the resolution
+  machinery but offer the runner a structural edge; markets with real stakes
+  belong on authored/private banks, and duels additionally require two
+  distinct runner keys (`RunnersMustDiffer`) so one runner can't control
+  both legs.
+- **PDA pre-funding (Solana-generic)** — sending ≥1 lamport to a
+  not-yet-created PDA makes its `init` fail ("account already in use"). An
+  attacker could pre-fund the *next* `["run", benchmark, run_count]` PDA and
+  block that index forever. Mitigation is a known ecosystem wart (no clean
+  on-chain fix); salt-based PDAs (markets, benchmarks) have workarounds.
+- **Market dust + rent** — pro-rata integer division leaves remainder
+  lamports, and there is no `close_market`, so a resolved market's rent +
+  dust stay locked. Deliberate for now: sweeping unclaimed stake would be
+  the bigger evil. A claim-window + `close_market` that sweeps only the
+  remainder is a small extension.
 - **Fee/griefing economics** — run fees are collected but not yet distributed.
 - **Multi-authority benchmarks** — the bank has a single authority today.

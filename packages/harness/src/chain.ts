@@ -33,7 +33,7 @@ import {
   RescueCipher,
   deserializeLE,
 } from "@arcium-hq/client";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { type Bank, CHUNK, PART, chunkHashes } from "./bank.js";
 import {
   bankFromChunks,
@@ -202,7 +202,14 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
 
   const mxePublicKey = await getMXEPublicKey(provider, program.programId);
   if (!mxePublicKey) throw new Error("MXE public key unavailable (is the MXE initialized on this cluster?)");
-  const priv = x25519.utils.randomSecretKey();
+  // Deterministic author key: `stage_part` pins `author_pubkey` once any part
+  // is staged, so a mid-run restart with a fresh random key would brick the
+  // chunk on `StagingKeyMismatch` forever. Derive from the wallet — same key
+  // every run, domain-separated from the private-bank viewer key.
+  const priv = createHash("sha256")
+    .update("sealed/author-key\0")
+    .update(wallet.secretKey.subarray(0, 32))
+    .digest();
   const pub = x25519.getPublicKey(priv);
   const cipher = new RescueCipher(x25519.getSharedSecret(priv, mxePublicKey));
 
@@ -624,6 +631,8 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   }
 
   let correct = Number(state.correct);
+  if (run.items.length !== bank.chunkCount * CHUNK)
+    throw new Error(`run artifact has ${run.items.length} outputs; benchmark expects ${bank.chunkCount * CHUNK}`);
   const outLeaves = chunkOutLeaves(run.items.map((r) => BigInt(r.outputHash)));
   for (let i = 0; i < bank.chunkCount; i++) {
     state = await acct.run.fetch(r);
@@ -747,6 +756,26 @@ export async function resetSealing(benchmarkId: number, chunkIndex: number, ctx 
     .accounts({ authority: wallet.publicKey, benchmark, chunk: chunk(chunkIndex) })
     .rpc({ commitment: "confirmed" });
   console.log(`reset_sealing ${sig}`);
+}
+
+/**
+ * Clear a stuck pending_mask bit on a run. The runner may sweep anytime; anyone
+ * may sweep once the bit is stale (PENDING_TIMEOUT_SECS after the last queue).
+ */
+export async function resetPending(runPk: PublicKey, chunkIndex: number, ctx = setup()) {
+  const { program, wallet } = ctx;
+  const acct = program.account as any;
+  const r: any = await acct.run.fetch(runPk);
+  const stale = r.pendingSince.toNumber() !== 0 && Date.now() / 1000 > r.pendingSince.toNumber() + 900;
+  console.log(
+    `run #${Number(r.index)} chunk ${chunkIndex}: pendingMask bit=${r.pendingMask.testn(chunkIndex) ? 1 : 0}, ` +
+      `pendingSince=${r.pendingSince.toNumber()} ${stale ? "(STALE — anyone may sweep)" : "(runner-only until stale)"}`,
+  );
+  const sig = await program.methods
+    .resetPending(new anchor.BN(Number(r.index)), chunkIndex)
+    .accounts({ sweeper: wallet.publicKey, run: runPk })
+    .rpc({ commitment: "confirmed" });
+  console.log(`reset_pending ${sig}`);
 }
 
 // ------------------------------------------------------------------ status
@@ -991,6 +1020,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "reset-sealing") {
     await resetSealing(Number(args["bank-id"]), Number(args.chunk));
+    return;
+  }
+  if (sub === "reset-pending") {
+    await resetPending(new PublicKey(String(args.run)), Number(args.chunk));
     return;
   }
   if (sub === "seal") {

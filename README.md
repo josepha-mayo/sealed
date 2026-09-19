@@ -155,13 +155,18 @@ sealed chain status --benchmark <pubkey>                             # leaderboa
 
 sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"
 sealed chain market open    --run <pubkey> --edges 40,55 --salt 1    # 3-way score bands, 2nd market
+                              [--fee-bps 0..1000] [--closes-at +secs|ts] [--resolve-by +secs|ts]
 sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]     # head-to-head: A outscores B?
 sealed chain market bet     --market <pk> --outcome 1 --lamports 500000000 [--bettor kp.json]
 sealed chain market bet     --market <pk> --side yes --lamports 500000000   # binary shorthand
 sealed chain market resolve --market <pk>                            # settles off Run.correct
 sealed chain market claim   --market <pk> [--bettor kp.json]
+sealed chain market void    --market <pk>                            # authority cancels, pre-scoring only
+sealed chain market expire  --market <pk>                            # anyone, once resolve_by passes (not if finalized)
+sealed chain market claim-fee --market <pk>                          # authority collects the accrued fee
 sealed chain market show    --market <pk>
 sealed chain reset-sealing  --bank-id <n> --chunk <i>                # clear a part stuck by a dropped MPC computation
+sealed chain reset-pending  --run <pk> --chunk <i>                   # sweep a stuck scoring bit (stale = anyone)
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
 sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring
@@ -191,7 +196,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected
-- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 8/8 tests pass on any ledger
+- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 9/9 tests pass on any ledger
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 

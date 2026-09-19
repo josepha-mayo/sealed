@@ -46,6 +46,8 @@
 
 <div class="cfg">
   <input id="rpc" size="42"> <button onclick="load()">connect</button>
+  <button onclick="document.getElementById('snapPick').click()">load snapshot</button>
+  <input type="file" id="snapPick" accept=".json" style="display:none" onchange="this.files[0] && loadSnapshot(this.files[0])">
   <span id="net" class="kv"></span>
 </div>
 <div id="err"></div>
@@ -159,9 +161,10 @@ function parseRun(d) {
   const outputsRoot = d.slice(o, o + 32); o += 32;
   const ml = v.getUint32(o, true); o += 4;
   const modelId = new TextDecoder().decode(d.slice(o, o + ml)); o += ml;
-  let attested = false, attestedAt = 0;
+  let attested = false, attestedAt = 0, pendingSince = 0;
   if (o + 9 <= d.length) { attested = d[o++] !== 0; attestedAt = Number(v.getBigInt64(o, true)); o += 8; }
-  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId, attested, attestedAt };
+  if (o + 8 <= d.length) { pendingSince = Number(v.getBigInt64(o, true)); o += 8; }
+  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId, attested, attestedAt, pendingSince };
 }
 // Market: disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
 // + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
@@ -249,6 +252,39 @@ async function load() {
     document.getElementById("err").textContent = "RPC error: " + e.message + " (localnet? try `arcium localnet`; CORS? serve this file: python3 -m http.server -d web)";
     return;
   }
+  try {
+    renderAll(sealedAccs, marketAccs);
+  } catch (e) {
+    document.getElementById("err").textContent = "render error: " + e.message + " (old-layout accounts on this ledger?)";
+  }
+}
+
+// Offline snapshot: `node scripts/snapshot.mjs [rpc]` dumps every program
+// account to JSON; loading it here renders the identical views from frozen
+// real chain data — the full explorer without standing up a localnet.
+function applySnapshot(snap) {
+  const dec = (rows) => (rows || []).map(({ pubkey, data }) => ({
+    pubkey: new solanaWeb3.PublicKey(pubkey),
+    account: { data: Uint8Array.from(atob(data), (c) => c.charCodeAt(0)) },
+  }));
+  isDevnet = false;
+  const meta = snap.meta || {};
+  document.getElementById("net").textContent =
+    ` SNAPSHOT — ${esc(String(meta.rpc || "unknown rpc"))} @ ${esc(String(meta.takenAt || "?"))}`;
+  renderAll(dec(snap.sealed), dec(snap.market));
+}
+
+async function loadSnapshot(file) {
+  try { applySnapshot(JSON.parse(await file.text())); }
+  catch (e) { document.getElementById("err").textContent = "snapshot error: " + e.message; }
+}
+
+async function loadSnapshotUrl(u) {
+  try { applySnapshot(await (await fetch(u)).json()); }
+  catch (e) { document.getElementById("err").textContent = "snapshot fetch error: " + e.message; }
+}
+
+function renderAll(sealedAccs, marketAccs) {
   const benches = [], runs = [], markets = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [];
   for (const { pubkey, account } of sealedAccs) {
     const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
@@ -295,8 +331,8 @@ async function load() {
       `<tr><th>rank</th><th>model</th><th>benchmark</th><th>score</th><th>runner</th><th>run</th><th>finalized</th></tr>`;
     board.forEach((e, i) => {
       h += `<tr${i < 3 ? ` class="top${i + 1}"` : ""}><td>#${i + 1}</td>
-        <td class="mono">${e.r.modelId}${e.r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ` <span class="pill" title="self-reported model id">unattested</span>`}</td>
-        <td>${e.b ? e.b.name : short(e.r.benchmark)}</td>
+        <td class="mono">${esc(e.r.modelId)}${e.r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ` <span class="pill" title="self-reported model id">unattested</span>`}</td>
+        <td>${e.b ? esc(e.b.name) : short(e.r.benchmark)}</td>
         <td class="score">${e.r.correct}/${e.items} (${e.pct.toFixed(1)}%)<div class="bar"><i style="width:${e.pct}%"></i></div></td>
         <td class="mono">${short(e.r.runner)}</td>
         <td>${link(e.r.pk)}</td>
@@ -310,7 +346,7 @@ async function load() {
     const items = b.chunkCount * 32;
     const brs = runs.filter(r => r.benchmark === b.pk).sort((a, b2) => b2.correct - a.correct);
     h += `<div class="card"><div class="row">
-      <b class="score">${b.name}</b>
+      <b class="score">${esc(b.name)}</b>
       <span class="pill ${BSTATUS[b.status].toLowerCase()}">${BSTATUS[b.status]}</span>
       ${b.kind === 1 ? `<span class="pill live">MPC-minted</span>` : ``}
       ${b.kind === 2 ? `<span class="pill live">MPC-minted · private</span>` : ``}
@@ -368,7 +404,7 @@ async function load() {
       h += `<table><tr><th>rank</th><th>model</th><th>score</th><th></th><th>run</th><th>status</th><th>outputs_root</th></tr>`;
       brs.forEach((r, i) => {
         const pct = (100 * r.correct) / items;
-        h += `<tr><td>#${i + 1}</td><td>${r.modelId}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
+        h += `<tr><td>#${i + 1}</td><td>${esc(r.modelId)}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
           <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
           <td>${link(r.pk)}</td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "pending " + popcount(r.scoredMask) + "/" + r.chunkCount}</span></td>
           <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;
@@ -377,7 +413,7 @@ async function load() {
     } else h += `<div class="kv" style="margin-top:8px">no runs yet</div>`;
     h += `</div>`;
   }
-  if (!benches.length) h = `<div class="card kv">no benchmarks on ${url} — seal one: <code>sealed chain seal --bank …</code></div>`;
+  if (!benches.length) h = `<div class="card kv">no benchmarks on ${esc(rpcIn.value.trim())} — seal one: <code>sealed chain seal --bank …</code></div>`;
 
   if (markets.length) {
     h += `<h2>markets</h2>`;
@@ -387,9 +423,9 @@ async function load() {
       const pot = m.totals.reduce((s, t) => s + Number(t), 0) / 1e9;
       const mpos = positions.filter(p => p.market === m.pk);
       const n = m.nOutcomes;
-      const model = (r, pk) => r ? `<span class="mono">${r.modelId}</span>` : `<span class="mono">${short(pk)}</span>`;
+      const model = (r, pk) => r ? `<span class="mono">${esc(r.modelId)}</span>` : `<span class="mono">${short(pk)}</span>`;
       const lbl = m.duel
-        ? (i) => i === 0 ? `${run ? run.modelId : "A"} wins` : i === 1 ? `${runB ? runB.modelId : "B"} wins` : "tie"
+        ? (i) => i === 0 ? `${run ? esc(run.modelId) : "A"} wins` : i === 1 ? `${runB ? esc(runB.modelId) : "B"} wins` : "tie"
         : (i) => outcomeLabel(n, m.edges, i);
       const q = m.duel
         ? `${model(run, m.run)} vs ${model(runB, m.runB)} — who scores higher?`
@@ -439,6 +475,10 @@ const cat = (...a) => { const n = a.reduce((s, x) => s + x.length, 0), o = new U
 const u32le = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
 const u64le = (n) => { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b; };
 const unhex = (s) => new Uint8Array(s.match(/../g).map((x) => parseInt(x, 16)));
+// HTML-escape anything that could carry markup: on-chain model ids and bank
+// names are free-form strings, and error messages embed attacker input —
+// unescaped, a crafted value could inject a fake VERIFIED/attested badge.
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 async function sha(b) { return new Uint8Array(await crypto.subtle.digest("SHA-256", b)); }
 const D_COUT = utf8("sealed/v1/chunkout\0"), D_NODE = new Uint8Array([1]);
 
@@ -468,22 +508,29 @@ async function verify() {
       const conn = new solanaWeb3.Connection(rpcIn.value.trim(), "confirmed");
       const info = await conn.getAccountInfo(new solanaWeb3.PublicKey(runPk));
       if (!info) throw new Error("run account not found");
-      const r = parseRun(new Uint8Array(info.data));
-      onchain = r.outputsRoot;
+      // Only a real sealed Run account may supply the on-chain root — without
+      // this check any ≥184-byte account with crafted bytes at the outputs_root
+      // offset could forge a "VERIFIED vs on-chain" result.
+      if (!info.owner.equals(SEALED_PID)) throw new Error("account is not owned by the sealed program — not a Run");
+      const d = new Uint8Array(info.data);
+      if (d.length < 8 || hex(d.slice(0, 8)) !== DISC.run) throw new Error("account is not a sealed Run (discriminator mismatch)");
+      onchain = parseRun(d).outputsRoot;
     }
     const want = onchain || p.outputsRoot;
     const ok = root === want;
     res.innerHTML = `<div class="proof" style="margin-top:8px">
       <span class="pill ${ok ? "resolved" : "open"}" style="font-size:13px">${ok ? "VERIFIED" : "MISMATCH"}</span>
-      model <b>${p.model || "?"}</b> · item ${p.itemIndex} (chunk ${p.chunkIndex}) · output hash <span class="mono">${String(p.outputHash)}</span>
-      <br>recomputed root <span class="mono">${root.slice(0, 16)}…</span> ${onchain ? "vs on-chain" : "vs supplied"} <span class="mono">${String(want).slice(0, 16)}…</span>
+      model <b>${esc(p.model || "?")}</b> · item ${p.itemIndex} (chunk ${p.chunkIndex}) · output hash <span class="mono">${esc(p.outputHash)}</span>
+      <br>recomputed root <span class="mono">${root.slice(0, 16)}…</span> ${onchain ? "vs on-chain" : "vs supplied"} <span class="mono">${esc(String(want)).slice(0, 16)}…</span>
       ${ok ? "" : `<br><span style="color:var(--err)">the proof does not reach the committed root — output was not part of this run</span>`}
     </div>`;
-  } catch (e) { res.innerHTML = `<div class="proof" style="color:var(--err)">${e.message}</div>`; }
+  } catch (e) { res.innerHTML = `<div class="proof" style="color:var(--err)">${esc(e.message)}</div>`; }
 }
 
-load();
-setInterval(load, 15000);
+// `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.
+const snapUrl = params.get("snapshot");
+if (snapUrl) loadSnapshotUrl(snapUrl);
+else { load(); setInterval(load, 15000); }
 </script>
 </body>
 </html>

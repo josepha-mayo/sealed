@@ -8,7 +8,7 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 
 - `anchor build` (sealed), `anchor build -p market --ignore-keys` (market; its
   keypair file address intentionally differs — do NOT `anchor keys sync`).
-- `yarn test` → 8/8 mocha E2E against a RUNNING localnet; needs env
+- `yarn test` → 9/9 mocha E2E against a RUNNING localnet; needs env
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.

@@ -55,7 +55,10 @@ export const UNPARSEABLE = -(1n << 63n);
 
 /** Parse a canonical reply as the integer the generated bank expects. */
 export function parseCanonicalInt(canonical: string): bigint {
-  return /^[+-]?\d+$/.test(canonical) ? BigInt(canonical) : UNPARSEABLE;
+  if (!/^[+-]?\d+$/.test(canonical)) return UNPARSEABLE;
+  const v = BigInt(canonical);
+  // Out-of-i64 values would crash setBigInt64 downstream — treat as wrong answer.
+  return v >= -(1n << 63n) && v <= (1n << 63n) - 1n ? v : UNPARSEABLE;
 }
 
 export interface ItemChunkState {
@@ -63,11 +66,13 @@ export interface ItemChunkState {
   index: number;
   partsWritten: number;
   specs: ItemSpec[];
+  /** Landing sequence per part — the on-chain fold is landing-order-dependent. */
+  mintOrder: number[];
 }
 
-/** Decode an ItemChunk account: 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 160 specs. */
+/** Decode an ItemChunk account: 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 160 specs | 8 mint_order. */
 export function decodeItemChunk(data: Buffer): ItemChunkState {
-  if (data.length !== 8 + 32 + 2 + 1 + 1 + CHUNK * ITEM_SPEC_LEN) {
+  if (data.length !== 8 + 32 + 2 + 1 + 1 + CHUNK * ITEM_SPEC_LEN + PARTS * 2) {
     throw new Error(`ItemChunk size mismatch: ${data.length}`);
   }
   const specs: ItemSpec[] = [];
@@ -75,11 +80,14 @@ export function decodeItemChunk(data: Buffer): ItemChunkState {
     const o = 44 + i * ITEM_SPEC_LEN;
     specs.push({ a: data[o], b: data[o + 1], c: data[o + 2], op0: data[o + 3], op1: data[o + 4] });
   }
+  const mintOrder: number[] = [];
+  for (let p = 0; p < PARTS; p++) mintOrder.push(data.readUInt16LE(44 + CHUNK * ITEM_SPEC_LEN + p * 2));
   return {
     benchmark: new PublicKey(data.subarray(8, 40)),
     index: data.readUInt16LE(40),
     partsWritten: data[43],
     specs,
+    mintOrder,
   };
 }
 
@@ -92,13 +100,19 @@ export function bankFromChunks(benchmarkId: number, chunks: ItemChunkState[]): B
   const items: BankItem[] = [];
   let root: Uint8Array = new Uint8Array(32);
   const byIndex = chunks.slice().sort((a, b) => a.index - b.index);
+  // Replay the on-chain fold in true landing order — callbacks may land in any
+  // sequence, and each part's position is stamped in `mint_order`.
+  const steps: { seq: number; ci: number; part: number; bytes: Uint8Array }[] = [];
   for (const c of byIndex) {
     for (let part = 0; part < CHUNK / PART; part++) {
       if (!(c.partsWritten & (1 << part))) throw new Error(`chunk ${c.index} part ${part} not minted yet`);
       const bytes = new Uint8Array(PART * ITEM_SPEC_LEN);
       for (let k = 0; k < PART; k++) bytes.set(specBytes(c.specs[part * PART + k]), k * ITEM_SPEC_LEN);
-      root = genItemsFold(root, c.index, part, bytes);
+      steps.push({ seq: c.mintOrder[part], ci: c.index, part, bytes });
     }
+  }
+  for (const s of steps.sort((a, b) => a.seq - b.seq)) root = genItemsFold(root, s.ci, s.part, s.bytes);
+  for (const c of byIndex) {
     for (let k = 0; k < CHUNK; k++) {
       const index = c.index * CHUNK + k;
       const spec = c.specs[k];
@@ -143,19 +157,23 @@ export interface PrivItemChunkState {
   ciphertexts: Uint8Array[];
   /** Per-part Shared-encryption nonces. */
   nonces: bigint[];
+  /** Landing sequence per part — the on-chain fold is landing-order-dependent. */
+  mintOrder: number[];
 }
 
 /**
  * Decode a PrivItemChunk account:
- * 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 32 key | 64 nonces | 256 cts.
+ * 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 32 key | 64 nonces | 256 cts | 8 mint_order.
  */
 export function decodePrivItemChunk(data: Buffer): PrivItemChunkState {
-  const len = 8 + 32 + 2 + 1 + 1 + 32 + PARTS * 16 + 8 * 32;
+  const len = 8 + 32 + 2 + 1 + 1 + 32 + PARTS * 16 + 8 * 32 + PARTS * 2;
   if (data.length !== len) throw new Error(`PrivItemChunk size mismatch: ${data.length}`);
   const nonces: bigint[] = [];
   for (let p = 0; p < PARTS; p++) nonces.push(readU128le(data, 76 + p * 16));
   const ciphertexts: Uint8Array[] = [];
   for (let i = 0; i < 8; i++) ciphertexts.push(new Uint8Array(data.subarray(140 + i * 32, 172 + i * 32)));
+  const mintOrder: number[] = [];
+  for (let p = 0; p < PARTS; p++) mintOrder.push(data.readUInt16LE(396 + p * 2));
   return {
     benchmark: new PublicKey(data.subarray(8, 40)),
     index: data.readUInt16LE(40),
@@ -163,6 +181,7 @@ export function decodePrivItemChunk(data: Buffer): PrivItemChunkState {
     encryptionKey: new Uint8Array(data.subarray(44, 76)),
     ciphertexts,
     nonces,
+    mintOrder,
   };
 }
 
@@ -202,6 +221,8 @@ export function unpackSpecs(fields: bigint[]): ItemSpec[] {
  */
 export function privItemsRoot(chunks: PrivItemChunkState[]): string {
   let root: Uint8Array = new Uint8Array(32);
+  // Replay the fold in true landing order (see ItemChunk.mint_order).
+  const steps: { seq: number; ci: number; part: number; enc: Uint8Array }[] = [];
   for (const c of chunks.slice().sort((a, b) => a.index - b.index)) {
     for (let part = 0; part < PARTS; part++) {
       if (!(c.partsWritten & (1 << part))) throw new Error(`chunk ${c.index} part ${part} not minted yet`);
@@ -211,9 +232,10 @@ export function privItemsRoot(chunks: PrivItemChunkState[]): string {
       let n = c.nonces[part];
       for (let i = 0; i < 16; i++) { nb[i] = Number(n & 0xffn); n >>= 8n; }
       enc.set(nb, PRIV_CTS_PER_PART * 32);
-      root = privItemsFold(root, c.index, part, enc);
+      steps.push({ seq: c.mintOrder[part], ci: c.index, part, enc });
     }
   }
+  for (const s of steps.sort((a, b) => a.seq - b.seq)) root = privItemsFold(root, s.ci, s.part, s.enc);
   return hex(root);
 }
 

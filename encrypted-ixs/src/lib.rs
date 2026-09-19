@@ -97,7 +97,13 @@ mod circuits {
     /// Shared mint loop: 8 item specs drawn from MPC randomness plus their
     /// answer fingerprints. Used by both the public and private gen variants.
     fn mint_part(benchmark_id: u32, base_index: u32) -> (GenPart, AnswerPart) {
-        let mut specs = [ItemSpec { a: 0, b: 0, c: 0, op0: 0, op1: 0 }; PART];
+        let mut specs = [ItemSpec {
+            a: 0,
+            b: 0,
+            c: 0,
+            op0: 0,
+            op1: 0,
+        }; PART];
         let mut hashes = [0u64; PART];
         for i in 0..PART {
             let a = ArcisRNG::gen_public_integer_from_width(6) as u8; // 0..63

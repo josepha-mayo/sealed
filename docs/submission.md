@@ -6,10 +6,14 @@ Everything below is verifiable on-chain or reproducible from this repo.
 
 | Program | Devnet address | Status |
 |---|---|---|
-| sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded |
-| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed (bucketed outcomes at slot 499411157; InitSpace fix redeployed `2MTjU2pH…`) |
+| sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 499939236, authority `4RUW4pDm…` |
+| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel support; upgradeable under `4RUW4pDm…` |
 
-Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRGc…`/`2KEQqnjZ…`.
+**Staleness disclosure:** the devnet binaries predate the latest hardening
+batch (commit-bound scoring proofs, market fees/deadlines/expiry, attestation
+fields). They demonstrate the protocol on a real cluster; the current feature
+set is verified end-to-end on localnet and redeploy is pending the Arcium
+devnet callback outage (below).
 
 ## Verified on localnet (arcium localnet, cluster offset 0)
 
@@ -22,16 +26,29 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
 - **Market lifecycle on `9NQJE5uF…`** (binary threshold 55, on pending run
   `GeCpoqi7…`): YES 0.5 SOL / NO 0.7 SOL from two wallets → MPC finalized run
   at 59/64 → `resolve` read `Run.correct` itself → outcome YES → winner
-  claimed the 1.2 SOL pot + rent; loser claim rejected `NothingToClaim`.
-- **N-way markets:** `create_market(salt, edges)` opens bucketed parimutuels
-  (e.g. edges `[32,48]` = bands `<32`/`32–47`/`≥48`); multiple markets per run
-  via `salt`. Covered by the anchor test (binary + 3-way on one MPC-scored run).
-- **Duel markets — "who mogs whom":** `create_duel(run_a, run_b, salt)` opens a
+  claimed the 1.2 SOL pot + rent; the losing position paid 0 and closed
+  (rent back — no account left behind).
+- **N-way markets:** `create_market(salt, edges, fee_bps, closes_at,
+  resolve_by)` opens bucketed parimutuels (e.g. edges `[32,48]` = bands
+  `<32`/`32–47`/`≥48`); multiple markets per run via `salt`. Covered by the
+  anchor test (binary + 3-way on one MPC-scored run).
+- **Market economics + lifecycle:** `fee_bps` (≤10%) is skimmed at resolution
+  and collected via `claim_fee` — solvency is order-independent (claims
+  recompute the fee, so the authority collecting first cannot strand the
+  pot). `closes_at` and `resolve_by` are optional deadlines; bets reject
+  after either passes. `void_market`/`void_duel` let the authority cancel
+  ONLY while the run is pending and unscored (no free-look cancels);
+  `expire_market` lets anyone cancel once `resolve_by` passes — but NOT
+  after the run finalized (`MarketResolvable`), so a losing bettor cannot
+  veto a pending resolution for a refund. Markets resolving with any
+  unbacked bucket cancel (full refunds) instead of stranding the pot.
+- **Duel markets — "who mogs whom":** `create_duel(run_a, run_b, salt,
+  fee_bps, closes_at, resolve_by)` opens a
   head-to-head on two pending runs of the SAME benchmark (outcomes: A wins /
   B wins / tie). `bet_duel` closes the book once EITHER run starts scoring, so
   no one trades on a half-known result; `resolve_duel` reads both finalized
-  `Run.correct` fields and pays the winner bucket (ties refund via the tie
-  bucket); `resolved_score` packs both scores `(a << 16) | b`. Verified E2E:
+  `Run.correct` fields and pays the winner bucket (a tie pays the tie bucket
+  pro-rata); `resolved_score` packs both scores `(a << 16) | b`. Verified E2E:
   duel `9QteJLVr…` between `duel/model-a` and `duel/model-b` on a generated
   bank → MPC-scored 25–19 → outcome A-wins → winner claimed pro-rata
   (0.098 → 0.65 SOL). Negative paths proven: self-duel rejected
@@ -73,11 +90,14 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   private bank entirely from a wallet's grants — verified byte-identical to
   the authority's own decryption (prompts, answer hashes, items_root).
 - **Real model through a minted bank:** `gpt-oss-20b` (Pollinations free
-  OpenAI endpoint) answered all 32 items of an MPC-generated bank (id 99001);
-  the run committed its output root (`3a75a0a8…`), scored inside MPC, and
+  OpenAI endpoint) answered all 32 items of an MPC-generated bank; the run
+  committed its output root (`e64f04fd…`), scored inside MPC, and
   finalized **32/32 — on-chain score identical to the local pre-score**
-  (run `G5X7Ly4rA7Za4yvCYYfFasbRVZn1ypBDf1pY86RWyiCn`, on the current
-  localnet ledger).
+  (run `7pcbA5hE…`, verified live at the time; artifact in
+  `docs/evidence/run-real-99003-artifact.json`). The current evidence ledger
+  has generated bank 99004 (`items_root 9e59c342…`) scored by
+  `mock/oracle-0.75` at 22/32 — run `2W4E4TPf…`, proof verifiable
+  against the live account.
   Earlier real-model evidence through OpenCode Zen: ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
@@ -91,8 +111,9 @@ Devnet deploy txs: sealed `5B3ksaWZ…`, market `zKHouHTc…`, MXE init `2fgATRG
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 8/8 passing (seal+score+finalize; reveal
-  declassify+audit; market open→bet→score→resolve→claim; duel market
+- **Test suite:** `yarn test` — 9/9 passing (seal+score+finalize; reveal
+  declassify+audit; market open→bet→score→resolve→claim incl. expiry,
+  claim-fee-first solvency, and post-finalize expiry rejection; duel market
   open→bet→score-both→resolve→claim + gates; generated-bank mint→live→score;
   private-bank mint→decrypt→score + privacy negatives; reshare
   delegate-decrypt + one-directional disclosure + gates; delegated-runner
@@ -112,8 +133,12 @@ python3 -m http.server -d web 8788   # explorer -> http://localhost:8788/?rpc=ht
 
 ## Devnet note (record honestly)
 
-Programs, MXE, comp defs, circuits, and the benchmark are all live on devnet.
-At submission time the shared Arcium devnet cluster (offset 456) is finalizing
+Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
+verify with `solana -u devnet program show`). Two honest caveats: (1) the
+deployed binaries predate the latest hardening batch — commit-bound scoring
+proofs, market fees/deadlines/expiry, and attestation are verified on
+localnet and redeploy is queued behind the outage below; (2) at submission
+time the shared Arcium devnet cluster (offset 456) is finalizing
 computations but not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts
 `BfPSFuZy…`/`74TL3b1x…`), so sealed-bank writes stall at the callback step.

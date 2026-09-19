@@ -9,7 +9,7 @@
 #   head-to-head duel (who outscores whom).
 #
 # Requires: `arcium localnet` already up. Usage: scripts/demo.sh [bank-id-seed]
-set -uo pipefail
+set -euo pipefail
 cd "$(dirname "$0")/.."
 export ANCHOR_PROVIDER_URL="${ANCHOR_PROVIDER_URL:-http://127.0.0.1:8899}"
 export SEALED_CLUSTER_OFFSET="${SEALED_CLUSTER_OFFSET:-0}"

@@ -165,16 +165,19 @@ test("ItemChunk decode and items_root fold are deterministic and lossless", () =
   const specs: ItemSpec[] = Array.from({ length: CHUNK }, () => ({
     a: rng.int(0, 63), b: rng.int(0, 63), c: rng.int(0, 63), op0: rng.int(0, 2), op1: rng.int(0, 2),
   }));
-  const data = Buffer.alloc(8 + 32 + 2 + 1 + 1 + CHUNK * 5);
+  const NPARTS = CHUNK / PART;
+  const data = Buffer.alloc(8 + 32 + 2 + 1 + 1 + CHUNK * 5 + NPARTS * 2);
   new PublicKey("11111111111111111111111111111112").toBuffer().copy(data, 8);
   data.writeUInt16LE(1, 40);
   data[42] = 254;
   data[43] = 0b1111;
   specs.forEach((s, i) => Buffer.from(specBytes(s)).copy(data, 44 + i * 5));
+  for (let p = 0; p < NPARTS; p++) data.writeUInt16LE(p, 44 + CHUNK * 5 + p * 2);
   const st = decodeItemChunk(data);
   assert.equal(st.index, 1);
   assert.equal(st.partsWritten, 0b1111);
   assert.deepEqual(st.specs, specs);
+  assert.deepEqual(st.mintOrder, [0, 1, 2, 3]);
 
   const bank = bankFromChunks(5, [st]);
   assert.equal(bank.kind, "generated");
@@ -186,13 +189,20 @@ test("ItemChunk decode and items_root fold are deterministic and lossless", () =
   // Every spec occupies a distinct slot in the fold: same specs, different chunk -> different root.
   const st2 = { ...st, index: 0 };
   assert.notEqual(bankFromChunks(5, [st2]).itemsRoot, bank.itemsRoot);
+  // Out-of-order MPC landings replay via mint_order, not chunk position:
+  // [2,0,3,1] folds differently than [0,1,2,3] — and must verify as-minted.
+  const st3 = { ...st, mintOrder: [2, 0, 3, 1] };
+  assert.notEqual(bankFromChunks(5, [st3]).itemsRoot, bank.itemsRoot);
+  const st4 = { ...st, mintOrder: [1, 0, 3, 2] };
+  const st5 = { ...st, mintOrder: [2, 3, 0, 1] };
+  assert.notEqual(bankFromChunks(5, [st4]).itemsRoot, bankFromChunks(5, [st5]).itemsRoot);
 });
 
 test("generated bank scores model outputs through the same pipeline", async () => {
   const specs: ItemSpec[] = Array.from({ length: CHUNK }, (_, i) => ({
     a: (i * 7) % 64, b: (i * 11) % 64, c: (i * 13) % 64, op0: i % 3, op1: (i * 2) % 3,
   }));
-  const st: ItemChunkState = { benchmark: new PublicKey("11111111111111111111111111111112"), index: 0, partsWritten: (1 << (CHUNK / PART)) - 1, specs };
+  const st: ItemChunkState = { benchmark: new PublicKey("11111111111111111111111111111112"), index: 0, partsWritten: (1 << (CHUNK / PART)) - 1, specs, mintOrder: [0, 1, 2, 3] };
   const bank = bankFromChunks(6, [st]);
   const client = new ModelClient({
     apiKey: "test",

@@ -38,6 +38,9 @@ pub const ALL_PARTS: u8 = (1u8 << PARTS) - 1;
 pub const NO_PART: u8 = 0xFF;
 /// Max chunks per benchmark; run bookkeeping uses a u64 bitmask.
 pub const MAX_CHUNKS: u16 = 64;
+/// Seconds after which a stuck `pending_mask` bit may be swept by anyone.
+/// MPC callbacks land in seconds; 15 min dead means the computation is gone.
+pub const PENDING_TIMEOUT_SECS: i64 = 900;
 /// 8 (discriminator) + benchmark 32 + index 2 + bump 1 + parts_staged 1 + parts_sealed 1
 /// + sealing_part 1 + author_pubkey 32 + nonces 4*16.
 pub const CIPHERTEXTS_OFFSET: u32 = 8 + 32 + 2 + 1 + 1 + 1 + 1 + 32 + (16 * PARTS as u32);
@@ -129,6 +132,12 @@ pub mod sealed {
         );
         require!(name.len() <= 32, ErrorCode::NameTooLong);
         require!(kind <= KIND_PRIVATE, ErrorCode::WrongBankKind);
+        // Generated/private banks fold their root from a zero base — a nonzero
+        // seed here would poison every off-chain items_root replay.
+        require!(
+            kind == KIND_AUTHORED || items_root == [0u8; 32],
+            ErrorCode::InvalidItemsRoot
+        );
         let b = &mut ctx.accounts.benchmark;
         b.authority = ctx.accounts.authority.key();
         b.id = id;
@@ -142,6 +151,8 @@ pub mod sealed {
         b.created_at = Clock::get()?.unix_timestamp;
         b.kind = kind;
         b.name = name;
+        b.priv_viewer = [0u8; 32];
+        b.mint_seq = 0;
         emit!(BenchmarkCreated {
             benchmark: b.key(),
             authority: b.authority,
@@ -157,6 +168,7 @@ pub mod sealed {
     pub fn init_items(ctx: Context<InitItems>, index: u16) -> Result<()> {
         let b = &ctx.accounts.benchmark;
         require!(b.kind == KIND_GENERATED, ErrorCode::WrongBankKind);
+        require!(b.status != STATUS_RETIRED, ErrorCode::BenchmarkRetired);
         require!(index < b.chunk_count, ErrorCode::InvalidChunkIndex);
         let c = &mut ctx.accounts.items;
         c.benchmark = b.key();
@@ -171,6 +183,7 @@ pub mod sealed {
     pub fn init_items_private(ctx: Context<InitItemsPrivate>, index: u16) -> Result<()> {
         let b = &ctx.accounts.benchmark;
         require!(b.kind == KIND_PRIVATE, ErrorCode::WrongBankKind);
+        require!(b.status != STATUS_RETIRED, ErrorCode::BenchmarkRetired);
         require!(index < b.chunk_count, ErrorCode::InvalidChunkIndex);
         let c = &mut ctx.accounts.items;
         c.benchmark = b.key();
@@ -180,6 +193,10 @@ pub mod sealed {
     }
 
     pub fn init_chunk(ctx: Context<InitChunk>, index: u16) -> Result<()> {
+        require!(
+            ctx.accounts.benchmark.status != STATUS_RETIRED,
+            ErrorCode::BenchmarkRetired
+        );
         require!(
             index < ctx.accounts.benchmark.chunk_count,
             ErrorCode::InvalidChunkIndex
@@ -203,7 +220,14 @@ pub mod sealed {
         ciphertexts: [[u8; 32]; PART],
     ) -> Result<()> {
         let c = &mut ctx.accounts.chunk;
-        require!(ctx.accounts.benchmark.kind == KIND_AUTHORED, ErrorCode::WrongBankKind);
+        require!(
+            ctx.accounts.benchmark.kind == KIND_AUTHORED,
+            ErrorCode::WrongBankKind
+        );
+        require!(
+            ctx.accounts.benchmark.status != STATUS_RETIRED,
+            ErrorCode::BenchmarkRetired
+        );
         require!((part as usize) < PARTS, ErrorCode::InvalidPart);
         let bit = 1u8 << part;
         require!(c.parts_sealed & bit == 0, ErrorCode::PartAlreadySealed);
@@ -211,7 +235,10 @@ pub mod sealed {
         if c.parts_staged == 0 {
             c.author_pubkey = author_pubkey;
         } else {
-            require!(c.author_pubkey == author_pubkey, ErrorCode::StagingKeyMismatch);
+            require!(
+                c.author_pubkey == author_pubkey,
+                ErrorCode::StagingKeyMismatch
+            );
         }
         c.nonces[part as usize] = nonce;
         let start = part as usize * PART;
@@ -228,7 +255,14 @@ pub mod sealed {
         part: u8,
     ) -> Result<()> {
         let c = &mut ctx.accounts.chunk;
-        require!(ctx.accounts.benchmark.kind == KIND_AUTHORED, ErrorCode::WrongBankKind);
+        require!(
+            ctx.accounts.benchmark.kind == KIND_AUTHORED,
+            ErrorCode::WrongBankKind
+        );
+        require!(
+            ctx.accounts.benchmark.status != STATUS_RETIRED,
+            ErrorCode::BenchmarkRetired
+        );
         require!((part as usize) < PARTS, ErrorCode::InvalidPart);
         let bit = 1u8 << part;
         require!(c.parts_staged & bit != 0, ErrorCode::PartNotStaged);
@@ -253,8 +287,14 @@ pub mod sealed {
                 computation_offset,
                 &ctx.accounts.mxe_account,
                 &[
-                    CallbackAccount { pubkey: ctx.accounts.chunk.key(), is_writable: true },
-                    CallbackAccount { pubkey: ctx.accounts.benchmark.key(), is_writable: true },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.chunk.key(),
+                        is_writable: true,
+                    },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.benchmark.key(),
+                        is_writable: true,
+                    },
                 ],
             )?],
             1,
@@ -304,7 +344,8 @@ pub mod sealed {
         if chunk_sealed {
             c.author_pubkey = [0u8; 32];
             b.chunks_sealed += 1;
-            if b.chunks_sealed == b.chunk_count {
+            // A retired benchmark stays retired — callbacks must not un-retire it.
+            if b.chunks_sealed == b.chunk_count && b.status != STATUS_RETIRED {
                 b.status = STATUS_LIVE;
             }
         }
@@ -329,6 +370,7 @@ pub mod sealed {
     ) -> Result<()> {
         let b = &ctx.accounts.benchmark;
         require!(b.kind == KIND_GENERATED, ErrorCode::WrongBankKind);
+        require!(b.status != STATUS_RETIRED, ErrorCode::BenchmarkRetired);
         let c = &mut ctx.accounts.chunk;
         let items = &ctx.accounts.items;
         require!((part as usize) < PARTS, ErrorCode::InvalidPart);
@@ -354,9 +396,18 @@ pub mod sealed {
                 computation_offset,
                 &ctx.accounts.mxe_account,
                 &[
-                    CallbackAccount { pubkey: ctx.accounts.chunk.key(), is_writable: true },
-                    CallbackAccount { pubkey: ctx.accounts.items.key(), is_writable: true },
-                    CallbackAccount { pubkey: ctx.accounts.benchmark.key(), is_writable: true },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.chunk.key(),
+                        is_writable: true,
+                    },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.items.key(),
+                        is_writable: true,
+                    },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.benchmark.key(),
+                        is_writable: true,
+                    },
                 ],
             )?],
             1,
@@ -427,8 +478,11 @@ pub mod sealed {
         items.parts_written |= bit;
 
         // Fold this part's specs into items_root: a running commitment to every
-        // minted item, in order.
+        // minted item, in landing order. MPC callbacks may arrive out of order,
+        // so stamp the sequence — verifiers replay the exact same fold.
         let b = &mut ctx.accounts.benchmark;
+        items.mint_order[part as usize] = b.mint_seq;
+        b.mint_seq += 1;
         b.items_root = solana_sha256_hasher::hashv(&[
             &b"sealed/v1/genitems\0"[..],
             &b.items_root[..],
@@ -441,7 +495,8 @@ pub mod sealed {
         let chunk_sealed = c.parts_sealed == ALL_PARTS;
         if chunk_sealed {
             b.chunks_sealed += 1;
-            if b.chunks_sealed == b.chunk_count {
+            // A retired benchmark stays retired — callbacks must not un-retire it.
+            if b.chunks_sealed == b.chunk_count && b.status != STATUS_RETIRED {
                 b.status = STATUS_LIVE;
             }
         }
@@ -467,8 +522,9 @@ pub mod sealed {
         part: u8,
         viewer: [u8; 32],
     ) -> Result<()> {
-        let b = &ctx.accounts.benchmark;
+        let b = &mut ctx.accounts.benchmark;
         require!(b.kind == KIND_PRIVATE, ErrorCode::WrongBankKind);
+        require!(b.status != STATUS_RETIRED, ErrorCode::BenchmarkRetired);
         let c = &mut ctx.accounts.chunk;
         let items = &ctx.accounts.items;
         require!((part as usize) < PARTS, ErrorCode::InvalidPart);
@@ -476,11 +532,15 @@ pub mod sealed {
         require!(c.parts_sealed & bit == 0, ErrorCode::PartAlreadySealed);
         require!(items.parts_written & bit == 0, ErrorCode::PartAlreadySealed);
         require!(c.sealing_part == NO_PART, ErrorCode::PartSealPending);
-        // One bank = one viewer key. Without this pin an operator could mint a
-        // chunk whose parts decrypt under different keys — the last part's key
-        // would overwrite `items.encryption_key` and silently brick the rest.
-        if items.parts_written != 0 {
-            require!(items.encryption_key == viewer, ErrorCode::ViewerKeyMismatch);
+        // One bank = one viewer key, pinned bank-wide: without it an operator
+        // could mint chunks under different keys — the last part's key would
+        // overwrite `items.encryption_key` and silently brick the rest, and a
+        // later chunk could decrypt under a key the first chunk's holder lacks.
+        require!(viewer != [0u8; 32], ErrorCode::ViewerKeyMismatch);
+        if b.priv_viewer == [0u8; 32] {
+            b.priv_viewer = viewer;
+        } else {
+            require!(b.priv_viewer == viewer, ErrorCode::ViewerKeyMismatch);
         }
         c.sealing_part = part;
         c.sealing_offset = computation_offset;
@@ -501,9 +561,18 @@ pub mod sealed {
                 computation_offset,
                 &ctx.accounts.mxe_account,
                 &[
-                    CallbackAccount { pubkey: ctx.accounts.chunk.key(), is_writable: true },
-                    CallbackAccount { pubkey: ctx.accounts.items.key(), is_writable: true },
-                    CallbackAccount { pubkey: ctx.accounts.benchmark.key(), is_writable: true },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.chunk.key(),
+                        is_writable: true,
+                    },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.items.key(),
+                        is_writable: true,
+                    },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.benchmark.key(),
+                        is_writable: true,
+                    },
                 ],
             )?],
             1,
@@ -568,6 +637,8 @@ pub mod sealed {
         }
         spec_bytes.extend_from_slice(&enc_specs.nonce.to_le_bytes());
         let b = &mut ctx.accounts.benchmark;
+        items.mint_order[part as usize] = b.mint_seq;
+        b.mint_seq += 1;
         b.items_root = solana_sha256_hasher::hashv(&[
             &b"sealed/v1/privitems\0"[..],
             &b.items_root[..],
@@ -580,7 +651,8 @@ pub mod sealed {
         let chunk_sealed = c.parts_sealed == ALL_PARTS;
         if chunk_sealed {
             b.chunks_sealed += 1;
-            if b.chunks_sealed == b.chunk_count {
+            // A retired benchmark stays retired — callbacks must not un-retire it.
+            if b.chunks_sealed == b.chunk_count && b.status != STATUS_RETIRED {
                 b.status = STATUS_LIVE;
             }
         }
@@ -607,7 +679,10 @@ pub mod sealed {
     ) -> Result<()> {
         let c = &ctx.accounts.chunk;
         require!((part as usize) < PARTS, ErrorCode::InvalidPart);
-        require!(c.parts_sealed & (1u8 << part) != 0, ErrorCode::PartNotSealed);
+        require!(
+            c.parts_sealed & (1u8 << part) != 0,
+            ErrorCode::PartNotSealed
+        );
 
         let reveal = &mut ctx.accounts.reveal;
         // Same retry semantics as reshare: revealed_at == 0 means queued or
@@ -633,7 +708,10 @@ pub mod sealed {
             vec![RevealPartCallback::callback_ix(
                 computation_offset,
                 &ctx.accounts.mxe_account,
-                &[CallbackAccount { pubkey: ctx.accounts.reveal.key(), is_writable: true }],
+                &[CallbackAccount {
+                    pubkey: ctx.accounts.reveal.key(),
+                    is_writable: true,
+                }],
             )?],
             1,
             0,
@@ -722,7 +800,10 @@ pub mod sealed {
             vec![ResharePartCallback::callback_ix(
                 computation_offset,
                 &ctx.accounts.mxe_account,
-                &[CallbackAccount { pubkey: ctx.accounts.grant.key(), is_writable: true }],
+                &[CallbackAccount {
+                    pubkey: ctx.accounts.grant.key(),
+                    is_writable: true,
+                }],
             )?],
             1,
             0,
@@ -782,6 +863,7 @@ pub mod sealed {
     pub fn attest_run(ctx: Context<AttestRun>, _run_index: u64) -> Result<()> {
         let r = &mut ctx.accounts.run;
         require!(r.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
+        require!(!r.attested, ErrorCode::AlreadyAttested);
         r.attested = true;
         r.attested_at = Clock::get()?.unix_timestamp;
         emit!(RunAttested {
@@ -833,6 +915,8 @@ pub mod sealed {
         r.model_id = model_id.clone();
         r.attested = false;
         r.attested_at = 0;
+        r.pending_since = 0;
+        r.first_pending_at = 0;
         b.run_count += 1;
         emit!(RunCreated {
             run: r.key(),
@@ -888,17 +972,27 @@ pub mod sealed {
             };
             idx >>= 1;
         }
-        require!(node.to_bytes() == r.outputs_root, ErrorCode::OutputsRootMismatch);
+        require!(
+            node.to_bytes() == r.outputs_root,
+            ErrorCode::OutputsRootMismatch
+        );
         r.pending_mask |= bit;
+        let now = Clock::get()?.unix_timestamp;
+        if r.first_pending_at == 0 {
+            r.first_pending_at = now;
+        }
+        r.pending_since = now;
 
         // Circuit signature: (outputs: [u64; CHUNK], p0..p3: Enc<Mxe, AnswerPart>).
         let mut args = outputs
             .iter()
             .fold(ArgBuilder::new(), |b, h| b.plaintext_u64(*h));
         for p in 0..PARTS as u8 {
-            args = args
-                .plaintext_u128(c.nonces[p as usize])
-                .account(c.key(), part_offset(p), PART_CIPHERTEXTS_LEN);
+            args = args.plaintext_u128(c.nonces[p as usize]).account(
+                c.key(),
+                part_offset(p),
+                PART_CIPHERTEXTS_LEN,
+            );
         }
         let args = args.build();
 
@@ -911,8 +1005,14 @@ pub mod sealed {
                 computation_offset,
                 &ctx.accounts.mxe_account,
                 &[
-                    CallbackAccount { pubkey: ctx.accounts.run.key(), is_writable: true },
-                    CallbackAccount { pubkey: ctx.accounts.chunk.key(), is_writable: false },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.run.key(),
+                        is_writable: true,
+                    },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.chunk.key(),
+                        is_writable: false,
+                    },
                 ],
             )?],
             1,
@@ -940,7 +1040,11 @@ pub mod sealed {
         let r = &mut ctx.accounts.run;
         let c = &ctx.accounts.chunk;
         let bit = 1u64 << c.index;
-        require!(r.pending_mask & bit != 0, ErrorCode::ChunkScoreNotPending);
+        // `scored_mask` alone gates application: a computation swept by
+        // `reset_pending` can still land here, and its output is deterministic
+        // over committed inputs (outputs_root-bound leaf + sealed ciphertexts),
+        // so applying it is always correct — rejecting it would leak the count
+        // in a failed callback and orphan the computation.
         require!(r.scored_mask & bit == 0, ErrorCode::ChunkAlreadyScored);
         r.pending_mask &= !bit;
         r.scored_mask |= bit;
@@ -950,7 +1054,11 @@ pub mod sealed {
             chunk_index: c.index,
             correct,
         });
-        let all = if r.chunk_count >= 64 { u64::MAX } else { (1u64 << r.chunk_count) - 1 };
+        let all = if r.chunk_count >= 64 {
+            u64::MAX
+        } else {
+            (1u64 << r.chunk_count) - 1
+        };
         if r.scored_mask == all {
             r.status = RUN_FINALIZED;
             r.finalized_at = Clock::get()?.unix_timestamp;
@@ -966,11 +1074,24 @@ pub mod sealed {
 
     /// If an MPC computation aborts, its callback never lands and the chunk stays
     /// pending. The runner can clear the flag and queue again; double counting is
-    /// prevented by `scored_mask` in the callback.
-    pub fn reset_pending(ctx: Context<ResetPending>, _run_index: u64, chunk_index: u16) -> Result<()> {
+    /// prevented by `scored_mask` in the callback. Once the bit is provably stale
+    /// (`PENDING_TIMEOUT_SECS` since the last queue), anyone may sweep it — a
+    /// runner who disappears cannot permanently brick the run or the stake of
+    /// markets built on it.
+    pub fn reset_pending(
+        ctx: Context<ResetPending>,
+        _run_index: u64,
+        chunk_index: u16,
+    ) -> Result<()> {
         let r = &mut ctx.accounts.run;
         require!(r.status == RUN_PENDING, ErrorCode::RunAlreadyFinalized);
         require!(chunk_index < r.chunk_count, ErrorCode::InvalidChunkIndex);
+        let stale = r.pending_since != 0
+            && Clock::get()?.unix_timestamp > r.pending_since + PENDING_TIMEOUT_SECS;
+        require!(
+            ctx.accounts.sweeper.key() == r.runner || stale,
+            ErrorCode::NotRunner
+        );
         r.pending_mask &= !(1u64 << chunk_index);
         Ok(())
     }
@@ -995,6 +1116,13 @@ pub struct Benchmark {
     pub kind: u8,
     #[max_len(32)]
     pub name: String,
+    /// Bank-wide pin of the private-mint viewer key: the first gen_part_private
+    /// sets it, every later part must match — otherwise one bank could silently
+    /// mix viewers and brick parts the authority can no longer decrypt.
+    pub priv_viewer: [u8; 32],
+    /// Total parts minted so far; stamped into each chunk's `mint_order` so the
+    /// items_root fold can be replayed in true landing order off-chain.
+    pub mint_seq: u16,
 }
 
 /// One minted item spec, 5 bytes packed onchain. Mirrors `ItemSpec` in the
@@ -1019,6 +1147,9 @@ pub struct ItemChunk {
     /// Bitmask of parts written so far.
     pub parts_written: u8,
     pub items: [ItemSpecWire; CHUNK],
+    /// Landing sequence per part — the items_root fold commits to mint order,
+    /// and MPC callbacks may land in any order; verifiers replay via this.
+    pub mint_order: [u16; PARTS],
 }
 
 /// Fixed-size prefix; `ciphertexts` starts at `CIPHERTEXTS_OFFSET`. Part `p` occupies
@@ -1065,6 +1196,8 @@ pub struct PrivItemChunk {
     pub nonces: [u128; PARTS],
     /// Packed spec ciphertexts: PRIV_CTS_PER_PART per part (2 * 4 = 8).
     pub ciphertexts: [[u8; 32]; 8],
+    /// Landing sequence per part (see ItemChunk.mint_order).
+    pub mint_order: [u16; PARTS],
 }
 
 /// Answer fingerprints for one part, declassified by a `reveal_part` computation
@@ -1122,6 +1255,15 @@ pub struct Run {
     /// Venue attestation by the benchmark authority (see `attest_run`).
     pub attested: bool,
     pub attested_at: i64,
+    /// Last time a scoring computation was queued. Lets anyone sweep a stuck
+    /// `pending_mask` bit after `PENDING_TIMEOUT_SECS` — a dead runner cannot
+    /// brick the run (or hold market stake hostage) forever.
+    pub pending_since: i64,
+    /// First time any scoring computation was queued; never refreshed. Markets
+    /// use it as the expiry horizon — a runner sweeping+requeueing refreshes
+    /// `pending_since` but cannot keep a market un-expirable past
+    /// `EXPIRE_IDLE_SECS` from the first queue.
+    pub first_pending_at: i64,
 }
 
 // ------------------------------------------------------------------ plain ixs
@@ -1269,10 +1411,11 @@ pub struct CreateRun<'info> {
 #[derive(Accounts)]
 #[instruction(run_index: u64, chunk_index: u16)]
 pub struct ResetPending<'info> {
-    pub runner: Signer<'info>,
+    /// The caller — always a signer (tx fee payer suffices). The run's runner
+    /// may sweep any time; anyone may sweep once the bit is provably stale.
+    pub sweeper: Signer<'info>,
     #[account(
         mut,
-        has_one = runner @ ErrorCode::NotRunner,
         seeds = [b"run", run.benchmark.as_ref(), run_index.to_le_bytes().as_ref()],
         bump = run.bump,
     )]
@@ -1553,7 +1696,10 @@ pub struct InitResharePartCompDef<'info> {
 pub struct GenPartPrivate<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
+    #[account(
+        mut,
+        constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority
+    )]
     pub benchmark: Box<Account<'info, Benchmark>>,
     #[account(
         mut,
@@ -1966,4 +2112,10 @@ pub enum ErrorCode {
     PartAlreadyShared,
     #[msg("Part was already revealed")]
     PartAlreadyRevealed,
+    #[msg("Benchmark is retired")]
+    BenchmarkRetired,
+    #[msg("Run is already attested")]
+    AlreadyAttested,
+    #[msg("Generated/private banks must start from a zero items_root")]
+    InvalidItemsRoot,
 }

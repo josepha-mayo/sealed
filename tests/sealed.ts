@@ -89,12 +89,15 @@ function decodePrivItemChunk(data: Buffer) {
   }
   const ciphertexts: Uint8Array[] = [];
   for (let i = 0; i < 8; i++) ciphertexts.push(new Uint8Array(data.subarray(140 + i * 32, 172 + i * 32)));
+  const mintOrder: number[] = [];
+  for (let p = 0; p < PARTS; p++) mintOrder.push(data.readUInt16LE(396 + p * 2));
   return {
     index: data.readUInt16LE(40),
     partsWritten: data[43],
     encryptionKey: new Uint8Array(data.subarray(44, 76)),
     ciphertexts,
     nonces,
+    mintOrder,
   };
 }
 // Chunk-level output-commitment mirrors — score_chunk verifies this fold
@@ -944,8 +947,9 @@ describe("Sealed", () => {
     expect(Buffer.from(st.encryptionKey).equals(Buffer.from(viewerPub))).to.equal(true, "encrypted to the authority");
 
     // The items_root commits to the ciphertext stream — verifiable without keys.
+    // The fold is landing-order-dependent; mint_order records the true sequence.
     let root: Uint8Array = new Uint8Array(32);
-    for (let p = 0; p < PARTS; p++) {
+    for (const p of [0, 1, 2, 3].sort((a, b) => st.mintOrder[a] - st.mintOrder[b])) {
       const enc = concatBytes(st.ciphertexts[p * 2], st.ciphertexts[p * 2 + 1], u128le(st.nonces[p]));
       root = privItemsFold(root, 0, p, enc);
     }
@@ -1291,6 +1295,260 @@ describe("Sealed", () => {
     const after = await provider.connection.getBalance(betA.publicKey);
     expect(after).to.be.greaterThan(before, "winner paid pro-rata");
     console.log(`duel settled: model-a ${25} vs model-b ${19} — A bettor ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+  });
+
+  it("pending sweeps are liveness-only — markets stay latched, swept computations still land", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(AUTH_ID)],
+      program.programId,
+    );
+    let b: any = await program.account.benchmark.fetch(benchmark);
+    expect(b.status).to.equal(1, "auth bank still live");
+    const runIndex = b.runCount.toNumber();
+    const [runP] = PublicKey.findProgramAddressSync(
+      [Buffer.from("run"), benchmark.toBuffer(), u64le(BigInt(runIndex))],
+      program.programId,
+    );
+    const chunks = [0, 1].map(
+      (i) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], program.programId)[0],
+    );
+
+    // All-correct run (64/64) committed before any scoring.
+    const runOutputs = [answers[0], answers[1]];
+    const outLeaves = runOutputs.map((c, i) => chunkOutLeaf(i, c));
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.3 * LAMPORTS_PER_SOL);
+    const BN0 = new anchor.BN(0);
+    await program.methods
+      .createRun("test/sweep-run", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: runP })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+
+    // A second run that is never scored — the dead-run leg of the duel below.
+    const idxQ = runIndex + 1;
+    const [runQ] = PublicKey.findProgramAddressSync(
+      [Buffer.from("run"), benchmark.toBuffer(), u64le(BigInt(idxQ))],
+      program.programId,
+    );
+    const runnerQ = Keypair.generate();
+    await fund(provider, owner, runnerQ.publicKey, 0.15 * LAMPORTS_PER_SOL);
+    await program.methods
+      .createRun("test/dead-run", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
+      .accountsPartial({ runner: runnerQ.publicKey, authority: owner.publicKey, benchmark, run: runQ })
+      .signers([runnerQ])
+      .rpc({ commitment: "confirmed" });
+
+    // Unreachable buckets are rejected: edges[0]==0 makes bucket 0 unwinnable.
+    const mktPdaX = (salt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("market"), runP.toBuffer(), u64le(salt)], marketProgram.programId)[0];
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(20), [0, 30], 0, BN0, BN0)
+        .accounts({ authority: owner.publicKey, run: runP, market: mktPdaX(20n) })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "InvalidEdges",
+    );
+
+    // Real market + a bettor.
+    const mkt = mktPdaX(21n);
+    const posPdaX = (m: PublicKey, bettor: PublicKey) =>
+      PublicKey.findProgramAddressSync([Buffer.from("position"), m.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
+    await marketProgram.methods
+      .createMarket(new anchor.BN(21), [40], 0, BN0, BN0)
+      .accounts({ authority: owner.publicKey, run: runP, market: mkt })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    const bettor = Keypair.generate();
+    await fund(provider, owner, bettor.publicKey, 0.3 * LAMPORTS_PER_SOL);
+    await marketProgram.methods
+      .bet(1, new anchor.BN(0.1 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: bettor.publicKey, run: runP, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
+      .signers([bettor])
+      .rpc({ commitment: "confirmed" });
+    // Back the losing side too — an unbacked bucket cancels on resolve.
+    const loser = Keypair.generate();
+    await fund(provider, owner, loser.publicKey, 0.1 * LAMPORTS_PER_SOL);
+    await marketProgram.methods
+      .bet(0, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: loser.publicKey, run: runP, market: mkt, position: posPdaX(mkt, loser.publicKey) })
+      .signers([loser])
+      .rpc({ commitment: "confirmed" });
+
+    // Duel: runP vs runQ, created while both are still pending.
+    const duelPdaX = (a: PublicKey, bb: PublicKey, salt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("duel"), a.toBuffer(), bb.toBuffer(), u64le(salt)], marketProgram.programId)[0];
+    const mktD = duelPdaX(runP, runQ, 0n);
+    const resolveBy = Math.floor(Date.now() / 1000) + 45;
+    await marketProgram.methods
+      .createDuel(new anchor.BN(0), 0, BN0, new anchor.BN(resolveBy))
+      .accounts({ authority: owner.publicKey, runA: runP, runB: runQ, market: mktD })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    await marketProgram.methods
+      .betDuel(0, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
+      .accounts({ bettor: bettor.publicKey, runA: runP, runB: runQ, market: mktD, position: posPdaX(mktD, bettor.publicKey) })
+      .signers([bettor])
+      .rpc({ commitment: "confirmed" });
+    // Before the deadline even the dead run can't cancel the market.
+    await expectAnchorError(
+      marketProgram.methods.expireMarket().accounts({ market: mktD, runA: runP, runB: runQ }).rpc({ commitment: "confirmed" }),
+      "MarketNotExpired",
+    );
+
+    // Queue chunk-0 scoring — the pending_since latch sets and betting closes.
+    const off0 = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .scoreChunk(off0, new anchor.BN(runIndex), 0, runOutputs[0].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
+      .accountsPartial({ payer: runner.publicKey, run: runP, runner: runner.publicKey, chunk: chunks[0], ...arciumAccounts(off0, "score_chunk") })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    let r: any = await program.account.run.fetch(runP);
+    expect(r.pendingSince.toNumber()).to.be.greaterThan(0, "scoring-start latch set");
+
+    await expectAnchorError(
+      marketProgram.methods
+        .bet(0, new anchor.BN(1000))
+        .accounts({ bettor: bettor.publicKey, run: runP, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
+        .signers([bettor])
+        .rpc({ commitment: "confirmed" }),
+      "ScoringStarted",
+    );
+
+    // The runner sweeps the in-flight bit (e.g. the computation died).
+    await program.methods
+      .resetPending(new anchor.BN(runIndex), 0)
+      .accounts({ sweeper: runner.publicKey, run: runP })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    r = await program.account.run.fetch(runP);
+    expect(r.pendingMask.toNumber() & 1).to.equal(0, "bit swept");
+    expect(r.pendingSince.toNumber()).to.be.greaterThan(0, "latch stays set");
+
+    // A stranger cannot sweep — even a non-existent bit — before the timeout.
+    const stranger = Keypair.generate();
+    await fund(provider, owner, stranger.publicKey, 0.05 * LAMPORTS_PER_SOL);
+    await expectAnchorError(
+      program.methods
+        .resetPending(new anchor.BN(runIndex), 1)
+        .accounts({ sweeper: stranger.publicKey, run: runP })
+        .signers([stranger])
+        .rpc({ commitment: "confirmed" }),
+      "NotRunner",
+    );
+
+    // Betting stays closed AND new markets are refused — the latch is
+    // permanent; a sweep is a liveness tool, never a window to trade on a
+    // leaked in-flight result.
+    await expectAnchorError(
+      marketProgram.methods
+        .bet(1, new anchor.BN(1000))
+        .accounts({ bettor: bettor.publicKey, run: runP, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
+        .signers([bettor])
+        .rpc({ commitment: "confirmed" }),
+      "ScoringStarted",
+    );
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(22), [40], 0, BN0, BN0)
+        .accounts({ authority: owner.publicKey, run: runP, market: mktPdaX(22n) })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "ScoringStarted",
+    );
+
+    // The swept computation still lands — its output is deterministic over the
+    // committed inputs, so applying it is correct and nothing is orphaned.
+    await awaitComputationFinalization(provider, off0, program.programId, "confirmed");
+    r = await program.account.run.fetch(runP);
+    expect(r.scoredMask.toNumber() & 1).to.not.equal(0, "swept computation applied");
+
+    // Chunk 1 scores normally; run finalizes; the market resolves itself.
+    const off1 = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .scoreChunk(off1, new anchor.BN(runIndex), 1, runOutputs[1].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 1))
+      .accountsPartial({ payer: runner.publicKey, run: runP, runner: runner.publicKey, chunk: chunks[1], ...arciumAccounts(off1, "score_chunk") })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    await awaitComputationFinalization(provider, off1, program.programId, "confirmed");
+    r = await program.account.run.fetch(runP);
+    expect(r.status).to.equal(1, "finalized");
+    expect(r.correct).to.equal(64);
+
+    // Attestation works once, not twice.
+    await program.methods
+      .attestRun(new anchor.BN(runIndex))
+      .accounts({ authority: owner.publicKey, benchmark, run: runP })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    await expectAnchorError(
+      program.methods
+        .attestRun(new anchor.BN(runIndex))
+        .accounts({ authority: owner.publicKey, benchmark, run: runP })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "AlreadyAttested",
+    );
+
+    await marketProgram.methods.resolve().accounts({ run: runP, market: mkt }).rpc({ commitment: "confirmed" });
+    const before = await provider.connection.getBalance(bettor.publicKey);
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: bettor.publicKey, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
+      .signers([bettor])
+      .rpc({ commitment: "confirmed" });
+    const after = await provider.connection.getBalance(bettor.publicKey);
+    expect(after).to.be.greaterThan(before, "winner paid after swept computation landed");
+
+    // Duel expiry dead-run bail: runP finalized but runQ was never scored —
+    // after resolve_by passes anyone can cancel the duel and refund bettors.
+    const wait = resolveBy - Math.floor(Date.now() / 1000) + 2;
+    if (wait > 0) await new Promise((r2) => setTimeout(r2, wait * 1000));
+    await marketProgram.methods
+      .expireMarket()
+      .accounts({ market: mktD, runA: runP, runB: runQ })
+      .rpc({ commitment: "confirmed" });
+    const md = await marketProgram.account.market.fetch(mktD);
+    expect(md.status).to.equal(2, "dead-run duel expired and refundable");
+    const rBefore = await provider.connection.getBalance(bettor.publicKey);
+    await marketProgram.methods
+      .claim()
+      .accounts({ bettor: bettor.publicKey, market: mktD, position: posPdaX(mktD, bettor.publicKey) })
+      .signers([bettor])
+      .rpc({ commitment: "confirmed" });
+    expect(await provider.connection.getBalance(bettor.publicKey)).to.be.greaterThan(
+      rBefore,
+      "expired duel refunded the bettor",
+    );
+
+    // A retired bank refuses all further mutation.
+    const RET_ID = 9000 + ID_SALT;
+    const [benchR] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(RET_ID)],
+      program.programId,
+    );
+    await program.methods
+      .createBenchmark(RET_ID, "sealed-retire", 1, Array.from(randomBytes(32)), BN0, 0)
+      .accounts({ authority: owner.publicKey })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    await program.methods
+      .retireBenchmark()
+      .accounts({ authority: owner.publicKey, benchmark: benchR })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    const [chunkR] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchR.toBuffer(), u16le(0)], program.programId);
+    await expectAnchorError(
+      program.methods
+        .initChunk(0)
+        .accounts({ authority: owner.publicKey, benchmark: benchR, chunk: chunkR })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "BenchmarkRetired",
+    );
+    console.log("sweep latch, swept-callback landing, edges bound, double-attest, duel-expire bail, retire guard — all verified");
   });
 });
 

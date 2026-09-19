@@ -164,10 +164,11 @@ async function main() {
   sealed chain market resolve --market <pk>                                permissionless once the run finalizes
   sealed chain market claim   --market <pk> [--bettor keypair.json]        pays out (0 for losers) + closes position
   sealed chain market void    --market <pk> [--bettor keypair.json]        authority cancels, only before scoring starts
-  sealed chain market expire  --market <pk>                                anyone cancels once resolve_by has passed
+  sealed chain market expire  --market <pk>                                anyone cancels once resolve_by has passed (not if the run finalized)
   sealed chain market claim-fee --market <pk> [--bettor keypair.json]      authority collects the accrued fee
   sealed chain market show    --market <pk>
   sealed chain reset-sealing  --bank-id <n> --chunk <i>          clear a part stuck by a dropped MPC computation
+  sealed chain reset-pending  --run <pk> --chunk <i>             sweep a stuck scoring bit (runner anytime, anyone after 15min stale)
   sealed prove  --run <file> --item <i>               Merkle proof that output i was committed`);
   process.exit(2);
 }
