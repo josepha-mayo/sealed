@@ -7,7 +7,7 @@
  */
 import * as anchor from "@anchor-lang/core";
 import { Program } from "@anchor-lang/core";
-import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey, Keypair, SystemProgram, LAMPORTS_PER_SOL, SYSVAR_CLOCK_PUBKEY } from "@solana/web3.js";
 import { Sealed } from "../target/types/sealed";
 import { Market } from "../target/types/market";
 import { randomBytes } from "crypto";
@@ -622,7 +622,7 @@ describe("Sealed", () => {
 
     // Deadline passed while the run is still pending -> permissionless expiry
     // cancels mktX; `no`'s stake refunds in full via claim.
-    await new Promise((r) => setTimeout(r, 16000));
+    await waitChainTs(provider, resolveBy);
     await marketProgram.methods
       .expireMarket()
       .accounts({ market: mktX, runA: run1, runB: run1 })
@@ -1520,8 +1520,7 @@ describe("Sealed", () => {
 
     // Duel expiry dead-run bail: runP finalized but runQ was never scored —
     // after resolve_by passes anyone can cancel the duel and refund bettors.
-    const wait = resolveBy - Math.floor(Date.now() / 1000) + 2;
-    if (wait > 0) await new Promise((r2) => setTimeout(r2, wait * 1000));
+    await waitChainTs(provider, resolveBy);
     await marketProgram.methods
       .expireMarket()
       .accounts({ market: mktD, runA: runP, runB: runQ })
@@ -1593,6 +1592,14 @@ async function dumpTx(provider: anchor.AnchorProvider, sig: string) {
   const tx = await provider.connection.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
   console.log(`--- tx ${sig} err=${JSON.stringify(tx?.meta?.err)}`);
   for (const l of tx?.meta?.logMessages ?? []) console.log("   ", l);
+}
+
+async function chainNow(provider: anchor.AnchorProvider): Promise<number> {
+  const a = await provider.connection.getAccountInfo(SYSVAR_CLOCK_PUBKEY);
+  return Number(a!.data.readBigInt64LE(32));
+}
+async function waitChainTs(provider: anchor.AnchorProvider, ts: number) {
+  while ((await chainNow(provider)) <= ts) await new Promise((r) => setTimeout(r, 2000));
 }
 
 async function fund(provider: anchor.AnchorProvider, from: Keypair, to: PublicKey, lamports: number) {

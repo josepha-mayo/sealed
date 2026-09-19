@@ -71,7 +71,12 @@ say "3/6 create runs 0+1 (mock models 75% vs 50%) — PENDING, outputs committed
 $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.75 --out /tmp/run-gen.json
 $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --create-only
 $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.50 --out /tmp/run-gen1.json
-$SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --create-only
+# Run 1 must come from a DIFFERENT wallet: a duel between runs sharing one
+# runner is rejected on-chain (a runner scoring both legs could trade on the
+# outcome). The judge keypair signs as runner; --authority still points at the
+# bank authority for the fee recipient. It needs lamports to pay for the run.
+solana airdrop 1 "$JUDGE" --url "$ANCHOR_PROVIDER_URL" >/dev/null 2>&1 || true
+ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --create-only --authority "$(solana address)"
 RUN0=$(PDA run "$BENCH" 0)
 RUN1=$(PDA run "$BENCH" 1)
 echo "run PDAs: $RUN0 (model-a) vs $RUN1 (model-b)"

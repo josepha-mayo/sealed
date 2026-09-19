@@ -12,4 +12,6 @@ else
   if [ "${PIPESTATUS[0]}" -ne 0 ]; then echo "BUILD FAILED"; exit 1; fi
 fi
 arcium test "$@" 2>&1 | tee -a "$LOG" | grep -E -A3 'Sealed|passing|failing|Error|error|✓|✔|[0-9]+\)' | grep -v -E 'Stack offset|overwrites values in the frame' | head -80
-echo "EXIT=${PIPESTATUS[0]}"
+rc=${PIPESTATUS[0]}
+echo "EXIT=$rc"
+exit "$rc"

@@ -40,6 +40,10 @@ pub const PENDING_TIMEOUT_SECS: i64 = 900;
 /// (measured from the FIRST queue — `first_pending_at` never refreshes, so a
 /// runner cannot hold a market open forever by requeueing) blocks expiry.
 pub const EXPIRE_IDLE_SECS: i64 = 3600;
+/// Absolute bound on scoring-liveness delays: a run whose FIRST queue is this
+/// old is expirable unconditionally — pending bits are runner-refreshable, so
+/// nothing else can bound a deliberate stall.
+pub const EXPIRE_HARD_CAP_SECS: i64 = 24 * 3600;
 
 declare_id!("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 
@@ -451,15 +455,17 @@ pub mod market {
             ErrorCode::MarketNotExpired
         );
         let now_ts = Clock::get()?.unix_timestamp;
-        // A run is "idle" when no live scoring computation can still land:
-        // never queued (`first_pending_at == 0`), or past the expiry horizon
-        // measured from the FIRST queue with no live computation still in
-        // flight. `first_pending_at` can't be refreshed by sweep+requeue, so
-        // griefing is bounded; but past the horizon a run still counts as live
-        // while a pending bit could land — a losing bettor must not be able to
-        // refund a market while the winner's score is in flight.
+        // A run is "idle" when no live scoring computation can still land.
+        // `pending_mask`/`pending_since` are runner-malleable (sweep is
+        // runner-permissioned, requeue refreshes the stamp), so they can't
+        // prove a computation is dead — swept and stale comps may still land.
+        // The rule therefore bounds delay absolutely: `first_pending_at` is
+        // set once and never refreshed, and past the hard cap the run is
+        // declared dead even if a zombie computation lands later (its score
+        // still posts on-chain; bettors are refunded, not robbed).
         let idle = |r: &Run| {
             r.first_pending_at == 0
+                || now_ts > r.first_pending_at + EXPIRE_HARD_CAP_SECS
                 || (now_ts > r.first_pending_at + EXPIRE_IDLE_SECS
                     && (r.pending_mask == 0 || now_ts > r.pending_since + PENDING_TIMEOUT_SECS))
         };

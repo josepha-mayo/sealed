@@ -21,11 +21,17 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 | **Why crypto is load-bearing** | Solana = the commitment layer (roots, PDAs, market settlement). Arcium MPC = the only reason data can be on-chain yet unreadable. Without either, this is a database + a promise. | `docs/threat-model.md` |
 | **Privacy depth** | Three disclosure levels, all proven: public specs (generated), delegate-only specs (`reshare_part` → `ShareGrant` PDAs — one-directional, grant trail on-chain), sealed answers (MXE-only, fingerprints declassifiable via `reveal_part`). | `docs/threat-model.md` tables |
 | **Market fit / viability** | Per-run fees to the benchmark authority are live (`create_run` transfers `fee_lamports`); market take-rate is live too (`fee_bps` at resolution, `claim_fee`). Parimutuel markets on scores are deployed and resolve themselves off `Run.correct` — the first self-settling "will model X clear T" primitive — plus head-to-head duels ("does run A outscore run B") that read two finalized Run.correct fields. | `programs/market`, `docs/submission.md` |
-| **Honesty / craft** | The devnet note is recorded truthfully: the shared Arcium devnet cluster finalizes computations but is withholding callback txs during an outage — retry loops are armed and every localnet flow is reproducible meanwhile. | `docs/submission.md` "Devnet note" |
+| **Honesty / craft** | The devnet note is recorded truthfully: the shared Arcium devnet cluster finalizes computations but is withholding callback txs during an outage (programs already upgraded to the hardened build; only callbacks are missing) — retry loops are armed and every localnet flow is reproducible meanwhile. | `docs/submission.md` "Devnet note" |
 
 ## 3-minute reproduction
 
-Prereqs: `yarn install && arcium build` once (compiles circuits + IDL).
+Prereqs: Solana CLI, Docker (the arx nodes), Anchor + the arcium toolchain
+(`scripts/setup-wsl.sh` provisions all of it), and a funded wallet:
+`solana-keygen new -o ~/.config/solana/id.json` (localnet auto-funds it).
+Then `yarn install && arcium build && anchor build -p market --ignore-keys`
+once — `arcium build` compiles circuits + the sealed program/IDL; the market
+program builds separately (its declared ID intentionally differs from any
+generated keypair — `--ignore-keys` keeps it; do NOT run `anchor keys sync`).
 
 ```bash
 # 0. chain env (localnet cluster offset — both vars are required)
@@ -48,6 +54,8 @@ yarn test                      # 9/9 E2E
 yarn harness:test              # 12/12 unit
 
 # 4. verify a committed output independently (two-level Merkle proof)
+#    — the PDA below lives on the author's current localnet; after demo.sh
+#    substitute YOUR run PDA (printed by `chain score` / `chain status`).
 node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
   --run 2W4E4TPfbFh6NXyFJvJVbdh5THdDMhdykNMeaRPxveU1 --rpc http://127.0.0.1:8899
 ```

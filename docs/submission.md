@@ -9,11 +9,11 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 499939236, authority `4RUW4pDm…` |
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel support; upgradeable under `4RUW4pDm…` |
 
-**Staleness disclosure:** the devnet binaries predate the latest hardening
-batch (commit-bound scoring proofs, market fees/deadlines/expiry, attestation
-fields). They demonstrate the protocol on a real cluster; the current feature
-set is verified end-to-end on localnet and redeploy is pending the Arcium
-devnet callback outage (below).
+**Deploy state:** the devnet binaries were upgraded to the current
+hardened build on 2026-09-19 (sealed `4zNMgJno…`, market `5fKofCZq…` —
+`solana -u devnet program show <id>` reports the deploy slots). All protocol
+features are verified end-to-end on localnet; the only devnet caveat left is
+the Arcium callback outage (below).
 
 ## Verified on localnet (arcium localnet, cluster offset 0)
 
@@ -50,7 +50,9 @@ since been wiped and redeployed during hardening. The evidence bundle in
 - **Duel markets — "who mogs whom":** `create_duel(run_a, run_b, salt,
   fee_bps, closes_at, resolve_by)` opens a
   head-to-head on two pending runs of the SAME benchmark (outcomes: A wins /
-  B wins / tie). `bet_duel` closes the book once EITHER run starts scoring, so
+  B wins / tie). Both legs must come from DISTINCT runner wallets
+  (`RunnersMustDiffer` — one runner scoring both legs could trade on the
+  outcome it already knows). `bet_duel` closes the book once EITHER run starts scoring, so
   no one trades on a half-known result; `resolve_duel` reads both finalized
   `Run.correct` fields and pays the winner bucket (a tie pays the tie bucket
   pro-rata); `resolved_score` packs both scores `(a << 16) | b`. Verified E2E:
@@ -142,13 +144,13 @@ python3 -m http.server -d web 8788   # explorer -> http://localhost:8788/?rpc=ht
 ## Devnet note (record honestly)
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
-verify with `solana -u devnet program show`). Two honest caveats: (1) the
-deployed binaries predate the latest hardening batch — commit-bound scoring
-proofs, market fees/deadlines/expiry, and attestation are verified on
-localnet and redeploy is queued behind the outage below; (2) at submission
-time the shared Arcium devnet cluster (offset 456) is finalizing
-computations but not submitting their callback transactions
+verify with `solana -u devnet program show`; binaries upgraded to the current
+build 2026-09-19 — sealed `4zNMgJno…`, market `5fKofCZq…`). The one honest
+caveat: at submission time the shared Arcium devnet cluster (offset 456)
+finalizes computations but is not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts
-`BfPSFuZy…`/`74TL3b1x…`), so sealed-bank writes stall at the callback step.
-The retry loop in `scripts/seal-devnet-retry.sh` completes sealing as soon as
-the cluster recovers; the full flow is demonstrated on localnet meanwhile.
+`BfPSFuZy…`/`74TL3b1x…`), so sealed-bank writes stall at the callback step —
+most recently probed 2026-09-19: bank `SwG8c3TK…` queued gen_part for chunk 0
+part 0 (computation `3w9kBpRt…`) and no callback landed. The retry loop in
+`scripts/seal-devnet-retry.sh` completes sealing as soon as the cluster
+recovers; the full flow is demonstrated on localnet meanwhile.

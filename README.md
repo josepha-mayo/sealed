@@ -69,7 +69,9 @@ A second Anchor program hosts N-way parimutuel markets on a run's final score, w
 ```
 create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
                                   open while run is pending and unscored
-                                  (scored_mask == 0 && pending_mask == 0).
+                                  (scored_mask == 0 && pending_since == 0 —
+                                  once scoring is ever queued, markets on
+                                  that run stay closed permanently).
                                   edges=[t] is a binary market; edges=[10,20,40] makes 4
                                   score buckets (strictly increasing, no duplicates).
                                   fee_bps <= 1000 (10% max) skimmed at resolution;
@@ -167,7 +169,7 @@ sealed chain market claim-fee --market <pk>                          # authority
 sealed chain market show    --market <pk>
 sealed chain reset-sealing  --bank-id <n> --chunk <i>                # clear a part stuck by a dropped MPC computation
 sealed chain reset-pending  --run <pk> --chunk <i>                   # sweep a stuck scoring bit (stale = anyone)
-sealed chain attest        --benchmark <pk> --run-index <n>           # authority pins an attestation flag on a finalized run
+sealed chain attest        --run <pk>                                 # authority pins an attestation flag on a finalized run
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
 sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring

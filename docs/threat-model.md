@@ -82,13 +82,25 @@ after sealing, and nobody can fabricate a score.
   sweep it — a runner who disappears cannot permanently hold market stake.
   Late callbacks are idempotent (`scored_mask` rejects a second count).
   Markets also carry `resolve_by` + permissionless `expire_market` as a
-  second escape hatch: expiry requires every unfinished run to be idle,
-  measured from `first_pending_at` — a monotone timestamp set on the first
-  score queue and never refreshed — so a runner sweeping + requeueing can
-  delay a market's expiry by at most `EXPIRE_IDLE_SECS` (1 hour) total.
+  second escape hatch: expiry requires every unfinished run to be idle.
+  Honest semantics — pending bits CANNOT distinguish "in flight" from
+  "dead" (swept/stale computations can still land), so expiry is a policy
+  bound, not a proof: a run counts idle once (a) nothing was ever queued,
+  (b) `first_pending_at` — monotone, set on the first score queue, never
+  refreshed — is `EXPIRE_IDLE_SECS` (1 h) past AND no pending bit is fresh
+  (< `PENDING_TIMEOUT_SECS`), or (c) `EXPIRE_HARD_CAP_SECS` (24 h) elapsed
+  since the first queue unconditionally. A refresh-cycling runner can
+  therefore hold a market open at most one day at real computation cost
+  per cycle; a computation landing into an expired market still posts its
+  score on-chain (bettors are refunded, never robbed).
 
 ## What is *not* protected (yet)
 
+- **Deadline-free markets** — `create_market` accepts `resolve_by == 0` as
+  "no deadline"; if the run then stalls mid-scoring, nothing can cancel
+  such a market (`expire_market` requires a deadline, `void_market`
+  requires `pending_since == 0`). Bettors should only enter markets with a
+  finite `resolve_by`; a program-level require is a candidate hardening.
 - **Granular answer disclosure** — `reveal_part` declassifies 8 fingerprints at
   a time at the authority's discretion. A per-item variant and threshold-gated
   reveal (e.g. after a market resolves, or multi-sig) are small extensions.
