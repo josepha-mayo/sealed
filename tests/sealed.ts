@@ -486,6 +486,50 @@ describe("Sealed", () => {
       "InvalidEdges",
     );
 
+    // Deadline guards: resolve_by is required, in the future, and within the
+    // 90-day horizon; a nonzero closes_at must precede it.
+    const nowSec = Math.floor(Date.now() / 1000);
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(10), [THRESHOLD], 0, BN0, BN0)
+        .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 10n) })
+        .signers([owner])
+        .rpc(),
+      "DeadlineInPast",
+    );
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(11), [THRESHOLD], 0, BN0, new anchor.BN(nowSec - 1))
+        .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 11n) })
+        .signers([owner])
+        .rpc(),
+      "DeadlineInPast",
+    );
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(12), [THRESHOLD], 0, BN0, new anchor.BN(nowSec + 91 * 86400))
+        .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 12n) })
+        .signers([owner])
+        .rpc(),
+      "DeadlineInPast",
+    );
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(13), [THRESHOLD], 0, new anchor.BN(nowSec - 1), FAR_FUTURE)
+        .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 13n) })
+        .signers([owner])
+        .rpc(),
+      "DeadlineInPast",
+    );
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(14), [THRESHOLD], 0, FAR_FUTURE.add(new anchor.BN(100)), FAR_FUTURE)
+        .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 14n) })
+        .signers([owner])
+        .rpc(),
+      "DeadlineOrder",
+    );
+
     // Second market on the same run, different salt + 3-way score bands.
     const mkt3 = mktPda(run1, 1n);
     await marketProgram.methods
@@ -1225,6 +1269,16 @@ describe("Sealed", () => {
         .signers([owner])
         .rpc({ commitment: "confirmed" }),
       "RunsMustDiffer",
+    );
+
+    // Duel deadlines follow the same rules: resolve_by is required and capped.
+    await expectAnchorError(
+      marketProgram.methods
+        .createDuel(new anchor.BN(8), 0, BN0, BN0)
+        .accounts({ authority: owner.publicKey, runA, runB, market: duelPda(runA, runB, 8n) })
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "DeadlineInPast",
     );
 
     const mkt = duelPda(runA, runB, 0n);
