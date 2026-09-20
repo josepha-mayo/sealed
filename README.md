@@ -100,9 +100,11 @@ claim_fee()                       authority collects fees_accrued once resolved;
                                   depends on claim order)
 void_market()                     authority cancels — only while the run is still
                                   pending AND unscored (no free-look cancels)
-expire_market()                   permissionless cancel once resolve_by passes —
-                                  but NOT if the run already finalized (a market
-                                  that can resolve is not expirable)
+expire_market()                   permissionless cleanup once resolve_by passes —
+                                  never-queued runs refund in full; a run that
+                                  stalled past the 24h first-queue cap settles on
+                                  its proven partial score (no runner stall-veto);
+                                  NOT callable once the run finalized
 ```
 
 The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and deserialized inside `resolve`, so the settlement source is the MPC-scored field itself. Betting closes the moment the first scoring computation is queued — before that, all a bettor can see is the model id and the committed `outputs_root`.

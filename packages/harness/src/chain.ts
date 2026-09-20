@@ -48,7 +48,7 @@ import {
   type PrivItemChunkState,
 } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
-import { chunkOutLeaves, merkleProof } from "./hash.js";
+import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -622,6 +622,17 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
     );
   if (!run.itemsRoot)
     console.log("warning: run artifact predates items_root binding — cannot verify bank revision");
+  // Authored banks: re-derive the leaf fold — itemsRoot is a claimed string
+  // in a mutable file, so verify it actually commits to these items.
+  // Generated banks can't refold from rendered items (raw spec bytes aren't
+  // stored); the on-chain compare above is the check there.
+  if (!bank.kind || bank.kind === "authored") {
+    const refolded = hex(
+      merkleRoot(bank.items.map((it) => itemLeaf(bank.benchmarkId, it.index, Buffer.from(it.salt, "hex"), it.prompt))),
+    );
+    if (refolded !== bank.itemsRoot)
+      throw new Error(`bank file items_root doesn't re-fold to ${bank.itemsRoot} — file corrupted or edited`);
+  }
 
   const runIndex = runIndexOverride ?? BigInt(b.runCount.toString());
   const r = runPda(runIndex);
@@ -636,6 +647,11 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
     state = await acct.run.fetch(r);
   } else {
     if (run.model !== state.modelId) throw new Error(`run #${runIndex} already exists for model ${state.modelId}`);
+    // Resuming with the wrong artifact would fail at OutputsRootMismatch
+    // on-chain — catch it here with a legible error.
+    const committed = Buffer.from(state.outputsRoot).toString("hex");
+    if (run.outputsRoot !== committed)
+      throw new Error(`run #${runIndex} committed outputs_root ${committed} — this artifact's ${run.outputsRoot} cannot score it`);
     console.log(`run #${runIndex} exists (scored_mask=${state.scoredMask}); resuming`);
   }
   if (createOnly) {
@@ -956,7 +972,8 @@ async function marketVoid(marketPk: PublicKey, kpPath?: string) {
   console.log(`market voided (${sig}): ${marketPk.toBase58()} — all positions refundable via claim`);
 }
 
-/** Permissionless expiry once resolve_by has passed (rejects resolvable markets). */
+/** Permissionless expiry once resolve_by has passed: never-queued runs refund;
+ *  a run stalled past the 24h cap settles on its proven partial score. */
 async function marketExpire(marketPk: PublicKey, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const m = await (market.account as any).market.fetch(marketPk);
@@ -965,7 +982,11 @@ async function marketExpire(marketPk: PublicKey, kpPath?: string) {
     .expireMarket()
     .accounts({ market: marketPk, runA: m.run, runB })
     .rpc({ commitment: "confirmed" });
-  console.log(`market expired (${sig}): ${marketPk.toBase58()} — all positions refundable via claim`);
+  const after = await (market.account as any).market.fetch(marketPk);
+  const what = after.status === 1
+    ? `settled on proven score ${after.resolvedScore.toString()} (outcome ${after.outcome})`
+    : "cancelled — all positions refundable via claim";
+  console.log(`market expired (${sig}): ${marketPk.toBase58()} — ${what}`);
 }
 
 /** Authority collects the fee accrued at resolution. */

@@ -70,6 +70,119 @@ fn outcome_of(edges: &[u32; MAX_OUTCOMES - 1], n: u8, score: u32) -> u8 {
     i
 }
 
+/// Shared settlement: every outcome bucket backed → resolve on `correct`,
+/// else cancel and refund. Emits the resolved record either way.
+fn settle_score(m: &mut Account<Market>, correct: u32, run: Pubkey) -> Result<()> {
+    let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
+    if all_backed {
+        let pot: u64 = m.totals.iter().sum();
+        m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
+        m.resolved_score = correct;
+        m.resolved_at = Clock::get()?.unix_timestamp;
+        m.status = MARKET_RESOLVED;
+        m.outcome = outcome_of(&m.edges, m.n_outcomes, correct);
+    } else {
+        m.status = MARKET_CANCELLED;
+    }
+    emit!(MarketResolved {
+        market: m.key(),
+        run,
+        correct,
+        outcome: m.outcome,
+        cancelled: m.status == MARKET_CANCELLED,
+    });
+    Ok(())
+}
+
+/// What `expire_market` should do, decided purely from run state — unit-testable.
+enum ExpireAction {
+    /// No proven signal — refund every position.
+    Cancel,
+    /// Settle a score market on the (possibly partial) proven count.
+    SettleScore(u32),
+    /// Settle a duel on both (possibly partial) proven counts.
+    SettleDuel(u32, u32),
+    /// A run can still legitimately move — expiry must not fire.
+    Blocked,
+}
+
+/// Past the 24h first-queue hard cap: the cluster is presumed dead for this
+/// computation. `first_pending_at` is write-once, so sweep+requeue can't
+/// extend it.
+fn past_cap(r: &Run, now: i64) -> bool {
+    r.first_pending_at != 0 && now > r.first_pending_at + EXPIRE_HARD_CAP_SECS
+}
+
+fn expire_decision(ra: &Run, rb: Option<&Run>, now: i64) -> ExpireAction {
+    match rb {
+        None => {
+            if ra.status == RUN_FINALIZED {
+                return ExpireAction::Blocked;
+            }
+            if ra.first_pending_at == 0 {
+                return ExpireAction::Cancel; // never queued — nothing proven
+            }
+            if !past_cap(ra, now) {
+                return ExpireAction::Blocked; // in-flight inside the window
+            }
+            if ra.scored_mask == 0 {
+                ExpireAction::Cancel // queued but the cluster never landed a chunk
+            } else {
+                ExpireAction::SettleScore(ra.correct) // stall-veto fix: settle partial
+            }
+        }
+        Some(rb) => {
+            if ra.status == RUN_FINALIZED && rb.status == RUN_FINALIZED {
+                return ExpireAction::Blocked;
+            }
+            let still_moving =
+                |r: &Run| r.status != RUN_FINALIZED && r.first_pending_at != 0 && !past_cap(r, now);
+            if still_moving(ra) || still_moving(rb) {
+                return ExpireAction::Blocked;
+            }
+            if ra.scored_mask == 0 && rb.scored_mask == 0 {
+                ExpireAction::Cancel // nothing landed on either leg — refund
+            } else {
+                // A never-queued leg contributes its initial 0 — a forfeit, not
+                // a refund, so the other side's runner can't wash a lost duel by
+                // withholding their own run.
+                ExpireAction::SettleDuel(ra.correct, rb.correct)
+            }
+        }
+    }
+}
+
+/// Duel settlement on two scores (finalized or stalled-partial): larger wins,
+/// equal pays the tie bucket. `resolved_score` packs (a << 16) | b.
+fn settle_duel(m: &mut Account<Market>, a: u32, b: u32) -> Result<()> {
+    require!(a <= 0xffff && b <= 0xffff, ErrorCode::ScoreOverflow);
+    let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
+    if all_backed {
+        let pot: u64 = m.totals.iter().sum();
+        m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
+        m.resolved_score = (a << 16) | b;
+        m.resolved_at = Clock::get()?.unix_timestamp;
+        m.status = MARKET_RESOLVED;
+        m.outcome = if a > b {
+            0
+        } else if b > a {
+            1
+        } else {
+            2
+        };
+    } else {
+        m.status = MARKET_CANCELLED;
+    }
+    emit!(DuelResolved {
+        market: m.key(),
+        a_correct: a,
+        b_correct: b,
+        outcome: m.outcome,
+        cancelled: m.status == MARKET_CANCELLED,
+    });
+    Ok(())
+}
+
 #[program]
 pub mod market {
     use super::*;
@@ -80,7 +193,7 @@ pub mod market {
     /// `fee_bps` is the creator's take on resolution (max 1000 = 10%);
     /// `closes_at` stops betting early (0 = until scoring starts);
     /// `resolve_by` is a required deadline after which anyone can expire the
-    /// market — every market gets the permissionless refund escape hatch.
+    /// market — every market gets a permissionless exit (refund or partial settle).
     pub fn create_market(
         ctx: Context<CreateMarket>,
         salt: u64,
@@ -356,36 +469,7 @@ pub mod market {
         require!(rb.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
-        require!(
-            ra.correct <= 0xffff && rb.correct <= 0xffff,
-            ErrorCode::ScoreOverflow
-        );
-
-        let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
-        if all_backed {
-            let pot: u64 = m.totals.iter().sum();
-            m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
-            m.resolved_score = (ra.correct << 16) | rb.correct;
-            m.resolved_at = Clock::get()?.unix_timestamp;
-            m.status = MARKET_RESOLVED;
-            m.outcome = if ra.correct > rb.correct {
-                0
-            } else if rb.correct > ra.correct {
-                1
-            } else {
-                2
-            };
-        } else {
-            m.status = MARKET_CANCELLED;
-        }
-        emit!(DuelResolved {
-            market: m.key(),
-            a_correct: ra.correct,
-            b_correct: rb.correct,
-            outcome: m.outcome,
-            cancelled: m.status == MARKET_CANCELLED,
-        });
-        Ok(())
+        settle_duel(m, ra.correct, rb.correct)
     }
 
     /// Settle the market from the finalized run. If any outcome attracted no
@@ -395,26 +479,7 @@ pub mod market {
         require!(run.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
-
-        let all_backed = m.totals[..m.n_outcomes as usize].iter().all(|&t| t > 0);
-        if all_backed {
-            let pot: u64 = m.totals.iter().sum();
-            m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
-            m.resolved_score = run.correct;
-            m.resolved_at = Clock::get()?.unix_timestamp;
-            m.status = MARKET_RESOLVED;
-            m.outcome = outcome_of(&m.edges, m.n_outcomes, run.correct);
-        } else {
-            m.status = MARKET_CANCELLED;
-        }
-        emit!(MarketResolved {
-            market: m.key(),
-            run: ctx.accounts.run.key(),
-            correct: run.correct,
-            outcome: m.outcome,
-            cancelled: m.status == MARKET_CANCELLED,
-        });
-        Ok(())
+        settle_score(m, run.correct, ctx.accounts.run.key())
     }
 
     /// Authority escape hatch for score markets — only while the outcome is
@@ -458,11 +523,16 @@ pub mod market {
         Ok(())
     }
 
-    /// Permissionless deadline: once `resolve_by` passes, anyone can cancel an
-    /// open market whose run can no longer resolve — stake isn't locked behind
-    /// a run that never finalizes. If the run DID finalize, expiry must not
-    /// fire: a losing bettor would otherwise veto a pending resolution and
-    /// claim a refund instead of paying out. `resolve_by` is required nonzero.
+    /// Permissionless deadline: once `resolve_by` passes, anyone can clean up
+    /// an open market whose run can no longer finalize normally. The split
+    /// matters — refunding every stalled run hands the runner a free veto:
+    /// `Run.correct` accumulates publicly per chunk, so a runner who sees a
+    /// losing tally could simply stop queueing and wait out the cap for a
+    /// wash. Instead, a run past the 24h first-queue cap that LANDED chunks
+    /// settles on the proven partial score — stalling converts a losing
+    /// position into a certain loss, never into a refund. Refund is reserved
+    /// for runs with no proven signal at all (never queued, or queued but the
+    /// cluster never landed a single chunk).
     pub fn expire_market(ctx: Context<ExpireMarket>) -> Result<()> {
         let ra = load_run(&ctx.accounts.run_a)?;
         let m = &mut ctx.accounts.market;
@@ -470,44 +540,27 @@ pub mod market {
         require!(m.resolve_by != 0, ErrorCode::MarketNotExpired);
         let now_ts = Clock::get()?.unix_timestamp;
         require!(now_ts > m.resolve_by, ErrorCode::MarketNotExpired);
-        // A run is "idle" only when NO scoring computation can still land —
-        // and nothing on-chain can prove that before finalization: swept
-        // computations still callback (`scored_mask` gates apply, not the
-        // pending bit), stale `pending_since` only means 15min without a
-        // requeue (congested clusters legitimately exceed that), and both
-        // fields are runner-malleable anyway. Any expiry window short of a
-        // bound therefore hands a free cancel option to whoever best knows a
-        // zombie is still alive — refunding losers at the winners' expense.
-        // So the predicate is binary: a run that never queued is expirable at
-        // `resolve_by`, and every started run gets an absolute 24h cap —
-        // `first_pending_at` is write-once so griefing can't extend it. Past
-        // the cap a late callback may still post its score on-chain, but the
-        // market is already refunded; that tradeoff is documented.
-        let idle =
-            |r: &Run| r.first_pending_at == 0 || now_ts > r.first_pending_at + EXPIRE_HARD_CAP_SECS;
-        if m.run_b == Pubkey::default() {
-            // Score market: resolvable iff the run finalized; expirable only
-            // when it hasn't AND no in-flight chunk can still finalize it.
-            require!(ra.status != RUN_FINALIZED, ErrorCode::MarketResolvable);
-            require!(idle(&ra), ErrorCode::MarketResolvable);
+        // `first_pending_at` is write-once at the first score_chunk queue, so
+        // griefing can't extend the cap by sweep+requeue cycling. A run still
+        // inside the cap is not expirable: a late callback may legitimately
+        // finalize it, and a losing bettor must not veto that.
+        let duel = m.run_b != Pubkey::default();
+        let rb = if duel {
+            Some(load_run(&ctx.accounts.run_b)?)
         } else {
-            // Duel: resolvable iff BOTH runs finalized; expirable only when at
-            // least one hasn't AND every unfinished run is provably idle —
-            // otherwise the side that already lost publicly could refund
-            // instead of paying while the winner's computation is in flight.
-            let rb = load_run(&ctx.accounts.run_b)?;
-            require!(
-                !(ra.status == RUN_FINALIZED && rb.status == RUN_FINALIZED),
-                ErrorCode::MarketResolvable
-            );
-            require!(
-                (ra.status == RUN_FINALIZED || idle(&ra))
-                    && (rb.status == RUN_FINALIZED || idle(&rb)),
-                ErrorCode::MarketResolvable
-            );
+            None
+        };
+        match expire_decision(&ra, rb.as_ref(), now_ts) {
+            ExpireAction::Blocked => err!(ErrorCode::MarketResolvable),
+            ExpireAction::Cancel => {
+                m.status = MARKET_CANCELLED;
+                Ok(())
+            }
+            ExpireAction::SettleScore(correct) => {
+                settle_score(m, correct, ctx.accounts.run_a.key())
+            }
+            ExpireAction::SettleDuel(a, b) => settle_duel(m, a, b),
         }
-        m.status = MARKET_CANCELLED;
-        Ok(())
     }
 
     /// The market authority collects the accrued fee once resolved.
@@ -986,5 +1039,91 @@ mod tests {
         // Tail-appended bytes are ignored — this is the upgrade path.
         let parsed = Run::try_deserialize_unchecked(&mut &buf[..]).unwrap();
         assert_eq!(parsed.correct, 42);
+    }
+
+    fn run(status: u8, first_pending_at: i64, scored_mask: u64, correct: u32) -> Run {
+        Run {
+            benchmark: Pubkey::default(),
+            runner: Pubkey::default(),
+            index: 0,
+            bump: 0,
+            status,
+            chunk_count: 2,
+            pending_mask: 0,
+            scored_mask,
+            correct,
+            created_at: 0,
+            finalized_at: 0,
+            harness_hash: [0; 32],
+            outputs_root: [0; 32],
+            model_id: "m".into(),
+            attested: false,
+            attested_at: 0,
+            pending_since: 0,
+            first_pending_at,
+        }
+    }
+
+    /// The expire predicate's full branch table — the stall-veto fix lives here:
+    /// a run that LANDED chunks then stalled past the 24h cap settles on its
+    /// partial score instead of refunding.
+    #[test]
+    fn expire_decision_covers_every_branch() {
+        let now = 1_000_000i64;
+        let pending_never_queued = run(0, 0, 0, 0);
+        let inflight = run(0, now - 60, 0, 0); // queued a minute ago, nothing landed
+        let stalled_no_chunks = run(0, now - EXPIRE_HARD_CAP_SECS - 1, 0, 0);
+        let stalled_partial = run(0, now - EXPIRE_HARD_CAP_SECS - 1, 1, 30);
+        let finalized = run(1, now - EXPIRE_HARD_CAP_SECS - 1, 3, 64);
+
+        // Score market branches.
+        assert!(matches!(
+            expire_decision(&pending_never_queued, None, now),
+            ExpireAction::Cancel
+        ));
+        assert!(matches!(
+            expire_decision(&inflight, None, now),
+            ExpireAction::Blocked
+        ));
+        assert!(matches!(
+            expire_decision(&stalled_no_chunks, None, now),
+            ExpireAction::Cancel
+        ));
+        assert!(matches!(
+            expire_decision(&stalled_partial, None, now),
+            ExpireAction::SettleScore(30)
+        ));
+        assert!(matches!(
+            expire_decision(&finalized, None, now),
+            ExpireAction::Blocked
+        ));
+
+        // Duel branches.
+        assert!(matches!(
+            expire_decision(&finalized, Some(&finalized), now),
+            ExpireAction::Blocked
+        ));
+        // A never-queued leg forfeits its 0 — the other side's runner can't
+        // wash a lost duel by withholding their own scoring.
+        assert!(matches!(
+            expire_decision(&finalized, Some(&pending_never_queued), now),
+            ExpireAction::SettleDuel(64, 0)
+        ));
+        // Nothing landed on either leg -> refund, not a 0-0 settle.
+        assert!(matches!(
+            expire_decision(&pending_never_queued, Some(&stalled_no_chunks), now),
+            ExpireAction::Cancel
+        ));
+        // A leg still inside its cap keeps the whole duel unexpirable.
+        assert!(matches!(
+            expire_decision(&finalized, Some(&inflight), now),
+            ExpireAction::Blocked
+        ));
+        // Both stalled with proven chunks -> partial-vs-partial settle.
+        let stalled_b = run(0, now - EXPIRE_HARD_CAP_SECS - 5, 3, 40);
+        assert!(matches!(
+            expire_decision(&stalled_partial, Some(&stalled_b), now),
+            ExpireAction::SettleDuel(30, 40)
+        ));
     }
 }

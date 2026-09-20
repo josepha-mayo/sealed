@@ -44,10 +44,15 @@ since been wiped and redeployed during hardening. The evidence bundle in
   and capped at 90 days — every market carries a permissionless refund deadline; bets reject
   after either passes. `void_market`/`void_duel` let the authority cancel
   ONLY while the run is pending and unscored (no free-look cancels);
-  `expire_market` lets anyone cancel once `resolve_by` passes — but NOT
+  `expire_market` lets anyone clean up once `resolve_by` passes — but NOT
   after the run finalized (`MarketResolvable`), so a losing bettor cannot
-  veto a pending resolution for a refund. Markets resolving with any
-  unbacked bucket cancel (full refunds) instead of stranding the pot.
+  veto a pending resolution for a refund. And a run that STARTED scoring
+  then stalled past the 24h first-queue cap settles on its proven partial
+  score instead of refunding — the runner cannot veto a losing market by
+  withholding chunks mid-flight. Refund is reserved for runs with no
+  proven signal (never queued, or zero chunks ever landed). Markets
+  resolving with any unbacked bucket cancel (full refunds) instead of
+  stranding the pot.
 - **Duel markets — "who mogs whom":** `create_duel(run_a, run_b, salt,
   fee_bps, closes_at, resolve_by)` opens a
   head-to-head on two pending runs of the SAME benchmark (outcomes: A wins /

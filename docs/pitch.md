@@ -68,7 +68,7 @@ not the commands.
 | 4. Park the run | `sealed chain score ... --create-only` | "The run commits its output root before scoring. Now the market opens." |
 | 5. Open a market + bet | `sealed chain market open --run <pk> --threshold 55 --resolve-by +86400` then `market bet` ×2 (two wallets, both outcomes) | "'Will it clear 55/64?' Bets close the moment scoring starts — after that the score leaks information." |
 | 6. Score in MPC | `sealed chain score --bank … --run … --run-index N` | "Each chunk is one MPC computation comparing output hashes to answers born encrypted. Only the count leaves the circuit." |
-| 7. Explorer | open `web/index.html` | "Leaderboard from raw chain state — minted specs, items root, outputs root, MPC score." |
+| 7. Explorer | open `web/index.html` | "Leaderboard from raw chain state — minted specs, items root, outputs root, MPC score. On bank 25864: `openai` 1/64 sits under `openai` 64/64 — a stale artifact claimed 64/64 locally and MPC said 1. The enclave's count is the score." |
 | 8. Resolve + claim | `chain market resolve` / `claim` | "The market read `Run.correct` itself. Winner withdraws; the loser has nothing to claim." |
 | 9. Duel (optional beat) | `sealed chain market duel --run-a <pk> --run-b <pk> --resolve-by +86400` | "Two runs, one sealed bank: 'who outscores whom?' — bets close once either side starts scoring, so nobody trades on a half-known result." |
 

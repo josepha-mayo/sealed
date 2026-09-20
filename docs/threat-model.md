@@ -63,8 +63,8 @@ after sealing, and nobody can fabricate a score.
   executing computations and submitting callbacks. If the cluster stalls, runs
   stay pending; `void_market` lets the authority refund bettors on dead runs
   (only while the run is pending AND unscored — no free-look cancels),
-  `expire_market` lets anyone reclaim stake once `resolve_by` passes on a run
-  that never finalized, and `reset_sealing` frees a stuck chunk. Callbacks
+  `expire_market` lets anyone settle or reclaim stake once `resolve_by`
+  passes, and `reset_sealing` frees a stuck chunk. Callbacks
   are bound to the recorded `sealing_offset`, so a stale computation landing
   after a reset cannot overwrite re-queued staging. (Observed live: devnet
   cluster 456 finalized our computations but withheld callback txs during an
@@ -82,34 +82,39 @@ after sealing, and nobody can fabricate a score.
   sweep it — a runner who disappears cannot permanently hold market stake.
   Late callbacks are idempotent (`scored_mask` rejects a second count).
   Markets also carry `resolve_by` + permissionless `expire_market` as a
-  second escape hatch: expiry requires every unfinished run to be idle.
-  Honest semantics — pending bits CANNOT distinguish "in flight" from
-  "dead" (swept/stale computations can still land), so expiry is a policy
-  bound, not a proof. The predicate is binary: a run counts idle once
-  (a) nothing was ever queued (`first_pending_at == 0`), or
-  (b) `EXPIRE_HARD_CAP_SECS` (24 h) elapsed since `first_pending_at` — a
-  write-once timestamp set on the first score queue and never refreshed,
-  so a refresh-cycling runner cannot extend it. A computation landing
-  into an expired market still posts its score on-chain (bettors are
-  refunded, never robbed). Effective expiry is therefore
-  `max(resolve_by, first_queue + 24h)`: market creators expecting slow
-  scoring should set `resolve_by` generously, and a perfectly healthy
-  in-flight computation past the 24h line does NOT block expiry — the
-  cap protects stake, not the score of a market that already expired.
+  second escape hatch. Honest semantics — pending bits CANNOT distinguish
+  "in flight" from "dead" (swept/stale computations can still land), so
+  expiry is a policy bound, not a proof. `first_pending_at` is write-once
+  on the first score queue and never refreshed, so a refresh-cycling
+  runner cannot extend it. Past `resolve_by`, expiry acts as:
+  (a) run never queued (`first_pending_at == 0`) → cancel + refund;
+  (b) queued but zero chunks ever landed past `EXPIRE_HARD_CAP_SECS`
+      (24 h) → cancel + refund (a zero score is no proven signal);
+  (c) run landed chunks then stalled past the 24 h cap → **settle on the
+      proven partial score** — this kills the stall-veto: a runner
+      watching the public `correct` accumulator cannot convert a losing
+      position into a refund by withholding the remaining chunks.
+  For duels each leg independently contributes its current `correct`
+  (finalized or stalled; a never-queued leg forfeits 0), and the market
+  cancels only when NO chunk ever landed on either leg.
+  A computation landing into an already-settled-or-refunded market still
+  posts its score on-chain — the record stays honest either way.
 
 ## What is *not* protected (yet)
 
 - **Expiry is a bounded tradeoff, not a guarantee** — every market must set
   `resolve_by` at creation (at least 60 s out, at most `now + 90d`), so
-  bettors always have a permissionless refund path. But expiry still
-  requires the run to be *idle* — the 24h `EXPIRE_HARD_CAP_SECS` is the
-  only unconditional exit, because nothing on-chain can prove a
-  computation is dead (swept/stale callbacks still land), so a
-  freshly-queued computation can extend lockup up to 24h from the first
-  queue before a refund opens even if it never lands. Residual:
-  `resolve_by == 0` means "no deadline" to `bet` yet "never expirable" to
-  `expire_market` — creation rejects it, so any future path that admits it
-  would produce a pot with no refund hatch.
+  bettors always have a permissionless exit: refund for never-queued or
+  never-landed runs, settlement on the proven partial score for stalled
+  ones. Residual — the runner can still *freeze* a currently-winning
+  partial score by withholding the rest (a 30/64 stall settles at 30), so
+  a runner holding a winning position can lock it early; they can never
+  rescue a losing one. Nothing on-chain can distinguish a stalled runner
+  from a dead cluster — the cap is the bound.
+- **Partial-settle trusts `Run.correct` mid-flight** — chunks only ever
+  add, so a partial score is a strict lower bound of the true final; the
+  market settles on it as the best proven truth. Bettors accept that an
+  MPC outage >24 h converts "final score" into "score at cap".
 - **`pending_since` is a permanent latch** — once a run queues even one
   scoring computation, `pending_since`/`first_pending_at` stay set forever
   (sweeps clear only `pending_mask`; swept callbacks can still land, so a
