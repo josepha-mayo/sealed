@@ -90,6 +90,9 @@ binary + 3-way + duel markets, resolution, payouts, leaderboard.
 
 For a real model: `export SEALED_API_BASE=<openai-compatible-endpoint>
 SEALED_API_KEY=<key>` and `--model <id>` (e.g. `openai` on the free
-Pollinations endpoint is gpt-oss-20b; anonymous callers are capped at one
-in-flight request, so a 32-item bank takes ~15–20 minutes at
-`--concurrency 1`).
+Pollinations endpoint was gpt-oss-20b; anonymous callers were capped at one
+in-flight request). NOTE: the anonymous Pollinations tier is now
+credit-walled — it returns a billing notice as a normal 200 reply, which the
+harness now rejects (`ModelClient` provider-error signatures + the
+identical-replies guard in `runModel`). Any funded OpenAI-compatible
+endpoint works the same way.

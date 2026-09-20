@@ -101,10 +101,20 @@ export class ModelClient {
         if (!res.ok) throw new FatalHttpError(`HTTP ${res.status}: ${await res.text()}`);
         const json = (await res.json()) as {
           choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+          error?: { message?: string };
           usage?: Completion["usage"];
         };
+        if (json.error?.message) throw new FatalHttpError(`HTTP 200 error payload: ${json.error.message}`);
         const content = json.choices?.[0]?.message?.content;
         const text = Array.isArray(content) ? content.map((c) => c.text ?? "").join("") : (content ?? "");
+        // Free gateways increasingly return credit/quota walls as a 200 with the
+        // notice rendered as assistant content. Treat as an endpoint error — a
+        // retryable RateLimitError — never as a model answer (run.ts also refuses
+        // an artifact when one reply dominates the whole bank).
+        const head = text.slice(0, 300).toLowerCase();
+        if (!text.trim()) throw new Error("empty completion content");
+        if (PROVIDER_ERROR_SIGS.some((sig) => head.includes(sig)))
+          throw new RateLimitError(`provider notice as content: ${text.slice(0, 120)}`);
         return { text, usage: json.usage, latencyMs: Date.now() - t0 };
       } catch (e) {
         if (e instanceof FatalHttpError) throw e;
@@ -142,6 +152,21 @@ export class ModelClient {
 
 export class FatalHttpError extends Error {}
 export class RateLimitError extends Error {}
+
+/** Substrings (lowercased) that mean "endpoint notice", never a model answer. */
+const PROVIDER_ERROR_SIGS = [
+  "doesn't have enough credits",
+  "does not have enough credits",
+  "no payment method",
+  "creditserror",
+  "insufficient_quota",
+  "insufficient credits",
+  "exceeded your current quota",
+  "payment required",
+  "add a payment method",
+  "upgrade your plan",
+  "free tier limit",
+];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

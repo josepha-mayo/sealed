@@ -96,6 +96,27 @@ test("run pipeline hashes model output the same way as the bank", async () => {
   assert.equal(run.outputsRoot.length, 64);
 });
 
+test("provider error notices and degenerate replies never become an artifact", async () => {
+  const bank = buildBank("master", 3, 1);
+  const client = (reply: string) =>
+    new ModelClient({
+      apiKey: "test",
+      retries: 0,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ choices: [{ message: { content: reply } }] }), { status: 200 })) as typeof fetch,
+    });
+  // A credit/quota wall rendered as assistant content (Pollinations-style 200).
+  await assert.rejects(
+    () => runModel(bank, "x", client("The account behind this API key doesn't have enough credits")),
+    /provider notice as content/,
+  );
+  // Some other identical non-answer repeated for every prompt must also be refused.
+  await assert.rejects(
+    () => runModel(bank, "x", client("I cannot help with that.")),
+    /same reply to .* prompts/,
+  );
+});
+
 test("output proofs verify against the committed outputs_root (prover/verifier split)", async () => {
   const bank = buildBank("master", 4, 2);
   const client = new ModelClient({

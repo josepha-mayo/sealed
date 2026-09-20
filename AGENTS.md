@@ -60,7 +60,10 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   decoders in genbank.ts / tests / explorer all share this layout.
 - `Pack<GenPart>` = 40 u8s in two 256-bit fields; `Enc<Shared>` decrypts via
   `x25519.getSharedSecret(ed→montgomery(secret), mxe_pubkey)` + RescueCipher.
-- Free model endpoint: `SEALED_API_BASE=https://text.pollinations.ai/openai`,
-  model `openai` (gpt-oss-20b), `SEALED_API_KEY` any value, `--concurrency 1`
-  (anonymous IPs capped at 1 in-flight request).
+- Real-model runs need any OpenAI-compatible endpoint via
+  `SEALED_API_BASE`/`SEALED_API_KEY`/`--model`. Anonymous Pollinations
+  (gpt-oss-20b) and unpaid OpenCode Zen are now credit-walled — they return
+  the notice as a 200 reply; `ModelClient` rejects provider-error signatures
+  and `runModel` refuses an artifact when one reply dominates the bank.
+  Historical real-run evidence (32/32, `7pcbA5hE`) predates the wall.
 - Private bank JSON files contain plaintext questions — keep out of git.

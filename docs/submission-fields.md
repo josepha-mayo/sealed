@@ -38,6 +38,12 @@ fees, deadlines, void, and expiry; bets latch shut before the first scored
 chunk. Verified: 9/9 E2E + 12/12 unit on a real MPC localnet; a real model
 (gpt-oss-20b) finalized 32/32 — on-chain score == local pre-score.
 
+Traction: 30+ sealed evaluations executed on the evidence ledger
+(generated, private, and delegated runs), incl. three real models — every
+MPC score identical to the local pre-score. `scripts/demo.sh` reproduces the
+full arc (mint → disclose → run → market → settle) in one command; the
+explorer renders everything from a committed snapshot — no localnet needed.
+
 ## targetAudience
 
 Three buyers today: (1) prediction-market operators and traders who need a
@@ -85,3 +91,21 @@ eval that cannot be leaked because nobody ever held it. As confidential
 inference (Arcium Blackthorn) matures, the runner's outputs can be sealed
 end-to-end: questions, answers, and model replies all inside the encryption
 boundary.
+
+## teamBackground (fill before submitting — judges score it)
+
+<TODO: 2-3 lines per member — prior ships, domain credibility, why this team.
+Colosseum's criteria explicitly include founder-market fit; omitting team
+background is a listed submission mistake.>
+
+## demoVideo / publicDemo
+
+- Demo video (≤3 min, product running — not a pitch): record `scripts/demo.sh`
+  per `docs/video-script.md`; every beat is a real command with real output.
+- Public URL: serve the explorer with its committed snapshot so judges can
+  click without a localnet — `python3 -m http.server -d . 8788` →
+  `http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json`
+  (the bundled `web/snapshot.json` also auto-fallbacks when RPC is down).
+  For a hosted link, deploy `web/` + `web/snapshot.json` + `web/sample-proof.json`
+  to any static host — the page needs no backend.
+- Repo must be public or judges invited — most common disqualifying mistake.

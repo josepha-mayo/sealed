@@ -40,6 +40,18 @@ export async function runModel(
 ): Promise<RunArtifact> {
   const startedAt = new Date().toISOString();
   const completions = await client.completeAll(model, bank.items.map((it) => it.prompt), cfg, onProgress);
+  // An endpoint that returns the SAME reply to every prompt (a credit-wall,
+  // quota, or outage notice rendered as assistant content) is an API error,
+  // not a model answering — committing it would mint a garbage 0-score run.
+  const raws = completions.map((c) => c.text.trim());
+  const top = new Map<string, number>();
+  for (const r of raws) top.set(r, (top.get(r) ?? 0) + 1);
+  const [topText, topCount] = [...top.entries()].sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
+  if (topCount >= Math.max(4, Math.ceil(raws.length * 0.9)))
+    throw new Error(
+      `endpoint returned the same reply to ${topCount}/${raws.length} prompts — ` +
+        `looks like an API error, not a model answer: ${topText.slice(0, 120)}`,
+    );
   const gen = bank.kind === "generated" || bank.kind === "generated-private";
   const items: RunItemRecord[] = bank.items.map((it, i) => {
     const canonical = canonicalAnswer(completions[i].text);

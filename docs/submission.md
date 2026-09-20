@@ -98,7 +98,9 @@ since been wiped and redeployed during hardening. The evidence bundle in
   private bank entirely from a wallet's grants — verified byte-identical to
   the authority's own decryption (prompts, answer hashes, items_root).
 - **Real model through a minted bank:** `gpt-oss-20b` (Pollinations free
-  OpenAI endpoint) answered all 32 items of an MPC-generated bank; the run
+  OpenAI endpoint — since credit-walled for anonymous callers, so the
+  reproduction command below now needs any funded OpenAI-compatible
+  endpoint) answered all 32 items of an MPC-generated bank; the run
   committed its output root (`e64f04fd…`), scored inside MPC, and
   finalized **32/32 — on-chain score identical to the local pre-score**
   (run `7pcbA5hE…`, verified live at the time; artifact in
