@@ -62,8 +62,17 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   `x25519.getSharedSecret(ed→montgomery(secret), mxe_pubkey)` + RescueCipher.
 - Real-model runs need any OpenAI-compatible endpoint via
   `SEALED_API_BASE`/`SEALED_API_KEY`/`--model`. Anonymous Pollinations
-  (gpt-oss-20b) and unpaid OpenCode Zen are now credit-walled — they return
-  the notice as a 200 reply; `ModelClient` rejects provider-error signatures
-  and `runModel` refuses an artifact when one reply dominates the bank.
-  Historical real-run evidence (32/32, `7pcbA5hE`) predates the wall.
+  (`SEALED_API_BASE=https://text.pollinations.ai/openai`,
+  `SEALED_API_KEY=anonymous` — sends NO auth header, keyed calls are
+  credit-walled) still serves gpt-oss-20b BUT caps `max_tokens` at ~512 —
+  larger values get a billing notice back as a normal 200 reply.
+  `ModelClient` rejects provider-error signatures and `runModel` refuses an
+  artifact when one reply dominates the bank; `scripts/real-model-run.sh`
+  is the working retry loop (`--max-tokens 512 --concurrency 1`).
+- Bank files are mutable on disk: re-minting an id or `chain items` rewrites
+  `bank/gen-<id>.json`. A run started before a rewrite answers STALE items —
+  MPC then scores it honestly but low (observed: local 64/64 → on-chain
+  1/64). `RunArtifact.itemsRoot` now binds the artifact to the bank revision
+  and `chain score` rejects a mismatch — never re-mint or re-fetch a bank
+  while a run against it is in flight.
 - Private bank JSON files contain plaintext questions — keep out of git.

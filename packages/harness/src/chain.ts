@@ -609,6 +609,19 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   const acct = program.account as any;
   const b = await acct.benchmark.fetch(benchmark);
   if (b.status !== 1) throw new Error(`benchmark not live (status ${b.status})`);
+  // The artifact must bind to THIS bank revision: a bank file rewritten
+  // (re-minted, re-fetched) after the run started silently scores stale
+  // outputs — MPC will tally honestly but against the wrong sealed key.
+  const onchainRoot = Buffer.from(b.itemsRoot).toString("hex");
+  if (bank.itemsRoot !== onchainRoot)
+    throw new Error(`bank file items_root ${bank.itemsRoot} != on-chain ${onchainRoot} — stale bank file`);
+  if (run.itemsRoot && run.itemsRoot !== onchainRoot)
+    throw new Error(
+      `run artifact answered items_root ${run.itemsRoot} but the on-chain bank is ${onchainRoot} — ` +
+        `the bank changed after this run; re-run the model against the current bank`,
+    );
+  if (!run.itemsRoot)
+    console.log("warning: run artifact predates items_root binding — cannot verify bank revision");
 
   const runIndex = runIndexOverride ?? BigInt(b.runCount.toString());
   const r = runPda(runIndex);

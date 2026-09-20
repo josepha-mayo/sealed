@@ -94,6 +94,9 @@ test("run pipeline hashes model output the same way as the bank", async () => {
   const matches = outs.filter((h, i) => h === refs[i]).length;
   assert.equal(matches, CHUNK / 2);
   assert.equal(run.outputsRoot.length, 64);
+  // The artifact binds to this exact bank revision so a re-minted/rewritten
+  // bank file is rejected at score time instead of scoring stale outputs.
+  assert.equal(run.itemsRoot, bank.itemsRoot);
 });
 
 test("provider error notices and degenerate replies never become an artifact", async () => {

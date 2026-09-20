@@ -21,6 +21,9 @@ export interface RunItemRecord {
 export interface RunArtifact {
   schema: "sealed.run/1";
   benchmarkId: number;
+  /** Bank revision this run answered — score() refuses a mismatch. Absent on
+   *  artifacts written before the binding existed. */
+  itemsRoot?: string;
   model: string;
   harnessHash: string;
   outputsRoot: string;
@@ -71,6 +74,7 @@ export async function runModel(
   return {
     schema: "sealed.run/1",
     benchmarkId: bank.benchmarkId,
+    itemsRoot: bank.itemsRoot,
     model,
     harnessHash: hex(configHash(cfg)),
     outputsRoot: hex(outputsRoot(items.map((r) => BigInt(r.outputHash)))),
