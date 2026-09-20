@@ -486,8 +486,9 @@ describe("Sealed", () => {
       "InvalidEdges",
     );
 
-    // Deadline guards: resolve_by is required, in the future, and within the
-    // 90-day horizon; a nonzero closes_at must precede it.
+    // Deadline guards: resolve_by is required, at least 60s out, and within
+    // the 90-day horizon; a nonzero closes_at gets the same floor and must
+    // precede resolve_by.
     const nowSec = Math.floor(Date.now() / 1000);
     await expectAnchorError(
       marketProgram.methods
@@ -495,15 +496,15 @@ describe("Sealed", () => {
         .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 10n) })
         .signers([owner])
         .rpc(),
-      "DeadlineInPast",
+      "DeadlineTooSoon",
     );
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(new anchor.BN(11), [THRESHOLD], 0, BN0, new anchor.BN(nowSec - 1))
+        .createMarket(new anchor.BN(11), [THRESHOLD], 0, BN0, new anchor.BN(nowSec + 30))
         .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 11n) })
         .signers([owner])
         .rpc(),
-      "DeadlineInPast",
+      "DeadlineTooSoon",
     );
     await expectAnchorError(
       marketProgram.methods
@@ -515,11 +516,11 @@ describe("Sealed", () => {
     );
     await expectAnchorError(
       marketProgram.methods
-        .createMarket(new anchor.BN(13), [THRESHOLD], 0, new anchor.BN(nowSec - 1), FAR_FUTURE)
+        .createMarket(new anchor.BN(13), [THRESHOLD], 0, new anchor.BN(nowSec + 30), FAR_FUTURE)
         .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 13n) })
         .signers([owner])
         .rpc(),
-      "DeadlineInPast",
+      "DeadlineTooSoon",
     );
     await expectAnchorError(
       marketProgram.methods
@@ -554,7 +555,7 @@ describe("Sealed", () => {
     // Deadline market (salt 4): anyone can expire it once resolve_by passes
     // while the run is still pending.
     const mktX = mktPda(run1, 4n);
-    const resolveBy = Math.floor(Date.now() / 1000) + 15;
+    const resolveBy = Math.floor(Date.now() / 1000) + 70;
     await marketProgram.methods
       .createMarket(new anchor.BN(4), [THRESHOLD], 0, BN0, new anchor.BN(resolveBy))
       .accounts({ authority: owner.publicKey, run: run1, market: mktX })
@@ -1278,7 +1279,7 @@ describe("Sealed", () => {
         .accounts({ authority: owner.publicKey, runA, runB, market: duelPda(runA, runB, 8n) })
         .signers([owner])
         .rpc({ commitment: "confirmed" }),
-      "DeadlineInPast",
+      "DeadlineTooSoon",
     );
 
     const mkt = duelPda(runA, runB, 0n);
@@ -1437,7 +1438,7 @@ describe("Sealed", () => {
     const duelPdaX = (a: PublicKey, bb: PublicKey, salt: bigint) =>
       PublicKey.findProgramAddressSync([Buffer.from("duel"), a.toBuffer(), bb.toBuffer(), u64le(salt)], marketProgram.programId)[0];
     const mktD = duelPdaX(runP, runQ, 0n);
-    const resolveBy = Math.floor(Date.now() / 1000) + 45;
+    const resolveBy = Math.floor(Date.now() / 1000) + 70;
     await marketProgram.methods
       .createDuel(new anchor.BN(0), 0, BN0, new anchor.BN(resolveBy))
       .accounts({ authority: owner.publicKey, runA: runP, runB: runQ, market: mktD })

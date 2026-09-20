@@ -1236,6 +1236,10 @@ pub struct Reveal {
     pub hashes: [u64; PART],
 }
 
+/// INVARIANT: tail-append ONLY. The market program Borsh-deserializes this
+/// account through its own mirror — shrinking or reordering any field bricks
+/// every open market's resolve AND expire paths (funds locked permanently).
+/// New fields go at the end, never in the middle.
 #[account]
 #[derive(InitSpace)]
 pub struct Run {

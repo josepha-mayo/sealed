@@ -39,11 +39,17 @@ pub const EXPIRE_HARD_CAP_SECS: i64 = 24 * 3600;
 /// Longest deadline a market may set — a far-future `resolve_by` defeats the
 /// refund escape hatch, so creation caps it well past any real scoring delay.
 pub const MAX_RESOLVE_HORIZON_SECS: i64 = 90 * 24 * 3600;
+/// Shortest deadline a market may set — a `resolve_by`/`closes_at` seconds
+/// after creation is bait that evaporates before anyone can react to it.
+pub const MIN_RESOLVE_DELAY_SECS: i64 = 60;
 
 declare_id!("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 
 /// Deserialize a Sealed `Run` account: owner + discriminator checked by hand
 /// (`Account<T>` would demand the market program as owner).
+/// INVARIANT: `sealed::Run` may only ever grow by TAIL-APPEND — shrinking or
+/// reordering a field before `first_pending_at` Borsh-bricks every open market
+/// (resolve AND expire both route through this fn). Mirror below must match.
 fn load_run(info: &AccountInfo) -> Result<Run> {
     require!(info.owner == &SEALED_PROGRAM, ErrorCode::WrongRun);
     let data = info.try_borrow_data()?;
@@ -88,8 +94,14 @@ pub mod market {
         }
         require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
         let now = Clock::get()?.unix_timestamp;
-        require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
-        require!(resolve_by > now, ErrorCode::DeadlineInPast);
+        require!(
+            closes_at == 0 || closes_at >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            resolve_by >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
         require!(
             resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
             ErrorCode::DeadlineInPast
@@ -229,8 +241,14 @@ pub mod market {
         require!(ra.runner != rb.runner, ErrorCode::RunnersMustDiffer);
         require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
         let now = Clock::get()?.unix_timestamp;
-        require!(closes_at == 0 || closes_at > now, ErrorCode::DeadlineInPast);
-        require!(resolve_by > now, ErrorCode::DeadlineInPast);
+        require!(
+            closes_at == 0 || closes_at >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            resolve_by >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
         require!(
             resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
             ErrorCode::DeadlineInPast
@@ -448,11 +466,8 @@ pub mod market {
         let m = &mut ctx.accounts.market;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
         require!(m.resolve_by != 0, ErrorCode::MarketNotExpired);
-        require!(
-            Clock::get()?.unix_timestamp > m.resolve_by,
-            ErrorCode::MarketNotExpired
-        );
         let now_ts = Clock::get()?.unix_timestamp;
+        require!(now_ts > m.resolve_by, ErrorCode::MarketNotExpired);
         // A run is "idle" only when NO scoring computation can still land —
         // and nothing on-chain can prove that before finalization: swept
         // computations still callback (`scored_mask` gates apply, not the
@@ -924,4 +939,6 @@ pub enum ErrorCode {
     MarketResolvable,
     #[msg("closes_at must not exceed resolve_by")]
     DeadlineOrder,
+    #[msg("deadline too close — markets must live at least 60s")]
+    DeadlineTooSoon,
 }

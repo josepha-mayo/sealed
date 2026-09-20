@@ -85,28 +85,37 @@ after sealing, and nobody can fabricate a score.
   second escape hatch: expiry requires every unfinished run to be idle.
   Honest semantics — pending bits CANNOT distinguish "in flight" from
   "dead" (swept/stale computations can still land), so expiry is a policy
-  bound, not a proof: a run counts idle once (a) nothing was ever queued,
-  (b) `first_pending_at` — monotone, set on the first score queue, never
-  refreshed — is `EXPIRE_IDLE_SECS` (1 h) past AND no pending bit is fresh
-  (< `PENDING_TIMEOUT_SECS`), or (c) `EXPIRE_HARD_CAP_SECS` (24 h) elapsed
-  since the first queue unconditionally. A refresh-cycling runner can
-  therefore hold a market open at most one day at real computation cost
-  per cycle; a computation landing into an expired market still posts its
-  score on-chain (bettors are refunded, never robbed).
+  bound, not a proof. The predicate is binary: a run counts idle once
+  (a) nothing was ever queued (`first_pending_at == 0`), or
+  (b) `EXPIRE_HARD_CAP_SECS` (24 h) elapsed since `first_pending_at` — a
+  write-once timestamp set on the first score queue and never refreshed,
+  so a refresh-cycling runner cannot extend it. A computation landing
+  into an expired market still posts its score on-chain (bettors are
+  refunded, never robbed). Effective expiry is therefore
+  `max(resolve_by, first_queue + 24h)`: market creators expecting slow
+  scoring should set `resolve_by` generously, and a perfectly healthy
+  in-flight computation past the 24h line does NOT block expiry — the
+  cap protects stake, not the score of a market that already expired.
 
 ## What is *not* protected (yet)
 
 - **Expiry is a bounded tradeoff, not a guarantee** — every market must set
-  `resolve_by` at creation (`resolve_by <= now` is rejected, and it is capped
-  at `now + 90d`), so bettors always have a permissionless refund path. But
-  expiry still requires the run to be *idle* — the 24h
-  `EXPIRE_HARD_CAP_SECS` is the only unconditional exit, because nothing
-  on-chain can prove a computation is dead (swept/stale callbacks still
-  land), so a freshly-queued computation can extend lockup up to 24h from
-  the first queue before a refund opens even if it never lands. Residual:
+  `resolve_by` at creation (at least 60 s out, at most `now + 90d`), so
+  bettors always have a permissionless refund path. But expiry still
+  requires the run to be *idle* — the 24h `EXPIRE_HARD_CAP_SECS` is the
+  only unconditional exit, because nothing on-chain can prove a
+  computation is dead (swept/stale callbacks still land), so a
+  freshly-queued computation can extend lockup up to 24h from the first
+  queue before a refund opens even if it never lands. Residual:
   `resolve_by == 0` means "no deadline" to `bet` yet "never expirable" to
   `expire_market` — creation rejects it, so any future path that admits it
   would produce a pot with no refund hatch.
+- **`pending_since` is a permanent latch** — once a run queues even one
+  scoring computation, `pending_since`/`first_pending_at` stay set forever
+  (sweeps clear only `pending_mask`; swept callbacks can still land, so a
+  zeroed mask cannot prove idleness). Consequence: a once-queued-then-
+  fully-swept run can never host a market again even though its state is
+  fresh — the conservative choice, since zombie risk can't be ruled out.
 - **Granular answer disclosure** — `reveal_part` declassifies 8 fingerprints at
   a time at the authority's discretion. A per-item variant and threshold-gated
   reveal (e.g. after a market resolves, or multi-sig) are small extensions.

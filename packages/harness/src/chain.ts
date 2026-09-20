@@ -843,10 +843,13 @@ function deadline(v: string | boolean | undefined): bigint {
 }
 
 function timing(args: Args): MarketTiming {
+  const resolveBy = deadline(args["resolve-by"]);
+  if (resolveBy === 0n)
+    throw new Error("--resolve-by is required (e.g. --resolve-by +86400) — every market needs a refund deadline");
   return {
     feeBps: args["fee-bps"] !== undefined ? Number(args["fee-bps"]) : 0,
     closesAt: deadline(args["closes-at"]),
-    resolveBy: deadline(args["resolve-by"]),
+    resolveBy,
   };
 }
 

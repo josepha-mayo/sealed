@@ -74,8 +74,36 @@
 <div class="footer">benchmark items are committed by a sequential commitment fold at mint (replayable in-browser — see "verify commitment"); model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
 
 <script>
-const SEALED_PID = new solanaWeb3.PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
-const MARKET_PID = new solanaWeb3.PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
+// Local base58 + a minimal PublicKey shim: the explorer renders snapshots and
+// verifies proofs even when the web3.js CDN is unreachable — only live-RPC
+// calls (load(), Connection in verify) need the real library.
+const B58A = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const B58M = Object.fromEntries([...B58A].map((c, i) => [c, BigInt(i)]));
+const b58enc = (u8) => {
+  let n = 0n; for (const b of u8) n = n * 256n + BigInt(b);
+  let s = ""; while (n > 0n) { s = B58A[Number(n % 58n)] + s; n /= 58n; }
+  for (const b of u8) { if (b === 0) s = "1" + s; else break; }
+  return s || "1";
+};
+const b58dec = (s) => {
+  let n = 0n; for (const c of s) { if (!(c in B58M)) throw new Error("bad base58"); n = n * 58n + B58M[c]; }
+  const out = []; while (n > 0n) { out.unshift(Number(n % 256n)); n /= 256n; }
+  for (const c of s) { if (c === "1") out.unshift(0); else break; }
+  return Uint8Array.from(out);
+};
+class Pk {
+  constructor(x) {
+    this.b = typeof x === "string" ? b58dec(x) : Uint8Array.from(x);
+    if (this.b.length !== 32) throw new Error("pubkey must be 32 bytes");
+  }
+  toBase58() { return b58enc(this.b); }
+  toBuffer() { return this.b; }
+  toBytes() { return this.b; }
+  equals(o) { return !!o && hex(this.b) === hex(o.toBuffer()); }
+}
+const PK = window.solanaWeb3?.PublicKey ?? Pk;
+const SEALED_PID = new PK("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
+const MARKET_PID = new PK("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 const DISC = {
   benchmark: "39fc2136718de9f7",
   run: "c7369b56eb73f6bd",
@@ -88,7 +116,7 @@ const DISC = {
   position: "aabc8fe47a40f7d0",
 };
 const hex = (u8) => [...u8].map(b => b.toString(16).padStart(2, "0")).join("");
-const b58 = (u8) => new solanaWeb3.PublicKey(u8).toBase58();
+const b58 = (u8) => new PK(u8).toBase58();
 const sol = (l) => (Number(l) / 1e9).toFixed(3);
 
 const params = new URLSearchParams(location.search);
@@ -124,6 +152,7 @@ function parseBenchmark(d) {
 // ItemChunk: disc8 + benchmark32 + index u16 + bump + parts_written + specs[32][5]
 // + mint_order[4]u16 (tail — callback landing sequence per part)
 function parseItemChunk(d) {
+  if (d.length < 204) throw new Error("truncated ItemChunk (" + d.length + "B < 204B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
   const specs = [];
   for (let i = 0; i < 32; i++) {
@@ -138,6 +167,7 @@ function parseItemChunk(d) {
 // + encryption_key32 + nonces[4][16] + ciphertexts[8][32] + mint_order[4]u16
 // — NO plaintext specs.
 function parsePrivItemChunk(d) {
+  if (d.length < 396) throw new Error("truncated PrivItemChunk (" + d.length + "B < 396B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
   const mintOrder = [];
   for (let p = 0; p < 4; p++) mintOrder.push(396 + p * 2 + 2 <= d.length ? v.getUint16(396 + p * 2, true) : p);
@@ -152,6 +182,7 @@ function parsePrivItemChunk(d) {
 }
 // Reveal: disc8 + benchmark32 + chunk u16 + part u8 + bump + revealed_at i64 + hashes[8]u64
 function parseReveal(d) {
+  if (d.length < 116) throw new Error("truncated Reveal (" + d.length + "B < 116B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
   const hashes = [];
   for (let i = 0; i < 8; i++) hashes.push(v.getBigUint64(52 + i * 8, true).toString(16));
@@ -162,6 +193,7 @@ function parseReveal(d) {
 // A reshare_part re-encryption of the specs to a delegate's x25519 key —
 // who can see the questions, without ever seeing the answers.
 function parseShareGrant(d) {
+  if (d.length < 196) throw new Error("truncated ShareGrant (" + d.length + "B < 196B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
   return {
     chunk: v.getUint16(40, true), part: d[42],
@@ -203,6 +235,7 @@ function parseRun(d) {
 // + resolvedScore u32 + createdAt i64 + resolvedAt i64 + runB 32
 // + feeBps u16 + feesAccrued u64 + closesAt i64 + resolveBy i64
 function parseMarket(d) {
+  if (d.length < 236) throw new Error("truncated Market (" + d.length + "B < 236B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const authority = d.slice(o, o + 32); o += 32;
   const run = d.slice(o, o + 32); o += 32;
@@ -240,6 +273,7 @@ function outcomeLabel(n, edges, i) {
 // + sealing_part + author_pubkey32 + nonces[4][16] + ciphertexts[32][32]
 // + sealing_offset u64 (tail)
 function parseChunk(d) {
+  if (d.length < 1166) throw new Error("truncated AnswerChunk (" + d.length + "B < 1166B)");
   return {
     partsStaged: d[43], partsSealed: d[44], sealingPart: d[45],
     authorPub: hex(d.slice(46, 78)),
@@ -251,6 +285,7 @@ function parseChunk(d) {
 // Position: disc8 + market32 + bettor32 + bump + amounts[8]u64
 // (positions close on claim — an open account is unclaimed by definition)
 function parsePosition(d) {
+  if (d.length < 137) throw new Error("truncated Position (" + d.length + "B < 137B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const market = d.slice(o, o + 32); o += 32;
   const bettor = d.slice(o, o + 32); o += 32;
@@ -260,10 +295,13 @@ function parsePosition(d) {
 }
 
 const short = (s) => s.slice(0, 6) + "…" + s.slice(-4);
-const fmtTs = (t) => { const n = Number(t); return n > 0 ? new Date(n * 1000).toISOString().slice(5, 16).replace("T", " ") : "—"; };
-let isDevnet = false;
-const link = (pk) => isDevnet
-  ? `<a href="https://explorer.solana.com/address/${pk}?cluster=devnet" target="_blank">${short(pk)}</a>`
+const fmtTs = (t) => { const n = Number(t); return Number.isFinite(n) && n > 0 && n < 8.64e12 ? new Date(n * 1000).toISOString().slice(5, 16).replace("T", " ") : "—"; };
+// Cluster tag for explorer.solana.com links — devnet/testnet/mainnet-beta, or
+// null on localnet (links are meaningless there).
+let clusterTag = null;
+const clusterOf = (url) => /devnet/.test(url) ? "devnet" : /testnet/.test(url) ? "testnet" : /mainnet|api\.solana/.test(url) ? "mainnet-beta" : null;
+const link = (pk) => clusterTag
+  ? `<a href="https://explorer.solana.com/address/${pk}?cluster=${clusterTag}" target="_blank" rel="noopener">${short(pk)}</a>`
   : `<span class="mono">${short(pk)}</span>`;
 
 const BSTATUS = ["DRAFT", "LIVE", "RETIRED"];
@@ -271,10 +309,12 @@ const MSTATUS = ["open", "resolved", "cancelled"];
 
 async function load() {
   const url = rpcIn.value.trim();
+  if (window.__snapFrozen) return; // a manually loaded snapshot stays frozen
   document.getElementById("err").textContent = "";
   if (!window.__loadedOnce) document.getElementById("out").innerHTML = `<div class="card kv">connecting to ${esc(url)}…</div>`;
+  if (!window.solanaWeb3) { document.getElementById("err").textContent = "web3.js CDN unreachable — live RPC needs it; snapshot loading still works"; return; }
   const conn = new solanaWeb3.Connection(url, "confirmed");
-  isDevnet = /devnet|testnet|mainnet/.test(url);
+  clusterTag = clusterOf(url);
   document.getElementById("net").textContent = " " + url;
   let sealedAccs, marketAccs;
   try {
@@ -311,19 +351,23 @@ function applySnapshot(snap) {
   if (!snap || (!Array.isArray(snap.sealed) && !Array.isArray(snap.market)))
     throw new Error("not a sealed snapshot (expected {sealed:[],market:[]})");
   const dec = (rows) => (rows || []).map(({ pubkey, data }) => ({
-    pubkey: new solanaWeb3.PublicKey(pubkey),
+    pubkey: new PK(pubkey),
     account: { data: Uint8Array.from(atob(data), (c) => c.charCodeAt(0)) },
   }));
   const meta = snap.meta || {};
   if (meta.rpc) {
     rpcIn.value = meta.rpc; // verify-proof lookups hit the snapshot's origin RPC
-    isDevnet = /devnet|testnet|mainnet/.test(meta.rpc);
+    clusterTag = clusterOf(meta.rpc);
   } else {
-    isDevnet = false;
+    clusterTag = null;
   }
+  // "Now" for staleness pills is the snapshot's own timestamp, not wall clock —
+  // a week-old dump shouldn't mark every pending run "stuck".
+  window.__nowRef = meta.takenAt ? Date.parse(meta.takenAt) / 1000 : undefined;
+  window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
   document.getElementById("net").textContent =
-    ` SNAPSHOT — ${esc(String(meta.rpc || "unknown rpc"))} @ ${esc(String(meta.takenAt || "?"))}`;
+    ` SNAPSHOT — ${meta.rpc || "unknown rpc"} @ ${meta.takenAt || "?"}`;
   try {
     renderAll(dec(snap.sealed), dec(snap.market));
   } catch (e) {
@@ -332,12 +376,19 @@ function applySnapshot(snap) {
 }
 
 async function loadSnapshot(file) {
-  try { applySnapshot(JSON.parse(await file.text())); }
+  try {
+    window.__snapFrozen = true; // don't let the live poll clobber a manual dump
+    applySnapshot(JSON.parse(await file.text()));
+  }
   catch (e) { document.getElementById("err").textContent = "snapshot error: " + e.message; }
 }
 
 async function loadSnapshotUrl(u) {
-  try { applySnapshot(await (await fetch(u)).json()); }
+  try {
+    const r = await fetch(u);
+    if (!r.ok) throw new Error("http " + r.status);
+    applySnapshot(await r.json());
+  }
   catch (e) { document.getElementById("err").textContent = "snapshot fetch error: " + e.message + " (serve the repo root: python3 -m http.server -d . 8788 → http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json)"; }
 }
 
@@ -395,7 +446,7 @@ function renderAll(sealedAccs, marketAccs) {
     [grants.length, "disclosure grants"],
     [reveals.length, "audit reveals"],
     [sol(potLamports), "SOL in markets"],
-  ].filter(([v]) => Number(v) !== 0 || isNaN(Number(v)));
+  ].filter(([v]) => Number.isFinite(Number(v)) && Number(v) !== 0);
 
   // ---- hero: the confidentiality paradox, in one strip ----
   const heroCt = privChunks.find(c => c.partsWritten)?.cts0 || chunks.find(c => c.partsSealed)?.cts && hex(chunks.find(c => c.partsSealed).cts.slice(0, 64));
@@ -404,7 +455,7 @@ function renderAll(sealedAccs, marketAccs) {
     const heroItems = heroRun ? (benches.find(x => x.pk === heroRun.benchmark)?.chunkCount ?? heroRun.chunkCount) * 32 : 0;
     h += `<div class="card hero"><div class="herohead">questions &amp; answer keys exist only as MPC ciphertext — yet every score is cryptographically proven</div><div class="herorow">`;
     if (heroCt) h += `<div class="herocell"><div class="herolabel">all the chain holds</div><div class="mono heroct">${heroCt.slice(0, 64)}…</div><div class="kv">Rescue / x25519 — no plaintext spec or answer key on-chain</div></div>`;
-    if (heroRun) h += `<div class="heroarrow">→</div><div class="herocell"><div class="herolabel">what's proven anyway</div><div class="score" style="font-size:26px">${heroRun.correct}/${heroItems} ✓</div><div class="kv">${esc(heroRun.modelId)} · committed pre-scoring · MPC-verified${heroRun.attested ? " · authority-attested" : ""}</div></div>`;
+    if (heroRun) h += `<div class="heroarrow">→</div><div class="herocell"><div class="herolabel">what's proven anyway</div><div class="score" style="font-size:26px">${heroRun.correct}/${heroItems || "?"} ✓</div><div class="kv">${esc(heroRun.modelId)} · committed pre-scoring · MPC-verified${heroRun.attested ? " · authority-attested" : ""}</div></div>`;
     h += `</div></div>`;
   }
   h += `<div class="card statcard">` + stats.map(([v, l]) => `<span class="kv"><b class="score">${v}</b> ${l}</span>`).join("") + `</div>`;
@@ -494,10 +545,11 @@ function renderAll(sealedAccs, marketAccs) {
       h += `<table><tr><th>rank</th><th>model</th><th>score</th><th></th><th>run</th><th>status</th><th>outputs_root</th></tr>`;
       brs.forEach((r, i) => {
         const pct = items ? (100 * r.correct) / items : 0;
-        const stale = r.status !== 1 && r.pendingSince > 0 && (Date.now() / 1000 - r.pendingSince) > 900;
+        const nowRef = window.__nowRef ?? Date.now() / 1000;
+        const stale = r.status !== 1 && r.pendingSince > 0 && r.pendingMask !== 0n && (nowRef - r.pendingSince) > 900;
         h += `<tr><td>#${i + 1}</td><td>${esc(r.modelId)}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
           <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
-          <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "pending " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}</td>
+          <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vres').innerHTML='';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "scored " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}</td>
           <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;
       });
       h += `</table>`;
@@ -514,6 +566,7 @@ function renderAll(sealedAccs, marketAccs) {
       const pot = m.totals.reduce((s, t) => s + Number(t), 0) / 1e9;
       const mpos = positions.filter(p => p.market === m.pk);
       const n = m.nOutcomes;
+      if (n < 2 || n > 8) { h += `<div class="card kv">market ${link(m.pk)} — malformed nOutcomes ${n}</div>`; continue; }
       const model = (r, pk) => r ? `<span class="mono">${esc(r.modelId)}</span>` : `<span class="mono">${short(pk)}</span>`;
       const lbl = m.duel
         ? (i) => i === 0 ? `${run ? esc(run.modelId) : "A"} wins` : i === 1 ? `${runB ? esc(runB.modelId) : "B"} wins` : "tie"
@@ -610,7 +663,7 @@ async function replayItems(benchPk, el) {
     }
     if (!st.length) throw new Error("no minted parts loaded for this bank");
     let root = new Uint8Array(32);
-    for (const s of st.sort((a, b) => a.seq - b.seq))
+    for (const s of st.sort((a, b) => a.seq - b.seq || a.ci - b.ci || a.part - b.part))
       root = await sha(cat(dom, root, u32le(s.ci).slice(0, 2), new Uint8Array([s.part]), s.bytes));
     const got = hex(root), ok = got === bench.itemsRoot;
     out.innerHTML = `<span class="pill ${ok ? "resolved" : "open"}">${ok ? "✓ commitment replayed" : "MISMATCH"}</span>
@@ -639,40 +692,50 @@ async function verify() {
     for (const s of p.proof.map(unhex)) { h = await sha(cat(D_NODE, i % 2 === 0 ? h : s, i % 2 === 0 ? s : h)); i >>= 1; }
     const root = hex(h);
     const runPk = document.getElementById("vrun").value.trim();
-    let onchain = null, onchainNote = "";
+    let runKey = null;
     if (runPk) {
+      try { runKey = new PK(runPk); }
+      catch { throw new Error(`"${runPk}" is not a valid Solana pubkey`); }
+    }
+    let onchain = null, onchainNote = "";
+    if (runKey) {
       // Snapshot data first — verification works fully offline when the run
-      // is in the loaded dump; then live RPC; finally degrade to the proof's
-      // claimed root with a clear caveat rather than hard-failing.
+      // is in the loaded dump; then live RPC. A *found* account that fails the
+      // owner/discriminator/parse checks hard-fails below — only a transport
+      // failure degrades to the self-consistency path.
       const snapRun = window.__runs?.get(runPk);
       if (snapRun) {
         onchain = snapRun.outputsRoot;
         onchainNote = "vs snapshot";
       } else {
+        let info = null;
         try {
+          if (!window.solanaWeb3) throw new Error("web3 CDN unreachable");
           const conn = new solanaWeb3.Connection(rpcIn.value.trim(), "confirmed");
-          const info = await conn.getAccountInfo(new solanaWeb3.PublicKey(runPk));
-          if (info) {
-            // Only a real sealed Run account may supply the on-chain root —
-            // without this check any ≥184-byte account with crafted bytes at
-            // the outputs_root offset could forge a VERIFIED result.
-            if (!info.owner.equals(SEALED_PID)) throw new Error("account is not owned by the sealed program — not a Run");
-            const d = new Uint8Array(info.data);
-            if (d.length < 8 || hex(d.slice(0, 8)) !== DISC.run) throw new Error("account is not a sealed Run (discriminator mismatch)");
-            onchain = parseRun(d).outputsRoot;
-            onchainNote = "vs on-chain";
-          }
+          info = await conn.getAccountInfo(runKey);
         } catch (e) { /* RPC unreachable — degrade below */ }
-        if (!onchain) onchainNote = "vs supplied (on-chain lookup unavailable)";
+        if (info) {
+          // Only a real sealed Run account may supply the on-chain root —
+          // without this check any ≥184-byte account with crafted bytes at
+          // the outputs_root offset could forge a VERIFIED result.
+          if (!info.owner.equals(SEALED_PID)) throw new Error("account is not owned by the sealed program — not a Run");
+          const d = new Uint8Array(info.data);
+          if (d.length < 8 || hex(d.slice(0, 8)) !== DISC.run) throw new Error("account is not a sealed Run (discriminator mismatch)");
+          onchain = parseRun(d).outputsRoot;
+          onchainNote = "vs on-chain";
+        }
+        if (!onchain) onchainNote = "SELF-CONSISTENT only — run not in snapshot and RPC unreachable";
       }
     }
     const want = onchain || p.outputsRoot;
     const ok = root === want;
+    const anchored = !!onchain;
     res.innerHTML = `<div class="proof" style="margin-top:8px">
-      <span class="pill ${ok ? "resolved" : "open"}" style="font-size:13px">${ok ? "VERIFIED" : "MISMATCH"}</span>
+      <span class="pill ${ok ? (anchored ? "resolved" : "") : "open"}" ${ok && !anchored ? 'style="font-size:13px;border-color:#c9a227;color:#c9a227"' : 'style="font-size:13px"'}>${ok ? (anchored ? "VERIFIED" : "SELF-CONSISTENT") : "MISMATCH"}</span>
       model <b>${esc(p.model || "?")}</b> · item ${p.itemIndex} (chunk ${p.chunkIndex}) · output hash <span class="mono">${esc(p.outputHash)}</span>
       ${p.canonical ? `<br>committed answer <b>${esc(JSON.stringify(p.canonical))}</b> — bound into the root before scoring` : ""}
       <br>recomputed root <span class="mono">${root.slice(0, 16)}…</span> ${onchainNote || "vs supplied"} <span class="mono">${esc(String(want)).slice(0, 16)}…</span>
+      ${ok && !anchored ? `<br><span style="color:#c9a227">proof is internally consistent but NOT anchored to any chain/snapshot root — a self-made file can pass this check. Paste the run PDA with a live RPC or a snapshot containing it for full verification.</span>` : ""}
       ${ok ? "" : `<br><span style="color:var(--err)">the proof does not reach the committed root — output was not part of this run</span>`}
     </div>`;
   } catch (e) { res.innerHTML = `<div class="proof" style="color:var(--err)">${esc(e.message)}</div>`; }

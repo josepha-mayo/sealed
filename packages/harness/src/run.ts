@@ -6,7 +6,7 @@ import { canonicalAnswer } from "./canonical.js";
 import { answerHash, genAnswerHash, chunkOutLeaves, merkleRoot, hex } from "./hash.js";
 import { parseCanonicalInt } from "./genbank.js";
 import { type Bank, CHUNK } from "./bank.js";
-import { type HarnessConfig, DEFAULT_CONFIG, ModelClient, configHash } from "./models.js";
+import { type HarnessConfig, DEFAULT_CONFIG, ModelClient, configHash, normForMatch } from "./models.js";
 
 export interface RunItemRecord {
   index: number;
@@ -43,7 +43,8 @@ export async function runModel(
   // An endpoint that returns the SAME reply to every prompt (a credit-wall,
   // quota, or outage notice rendered as assistant content) is an API error,
   // not a model answering — committing it would mint a garbage 0-score run.
-  const raws = completions.map((c) => c.text.trim());
+  // Dedup on normalized text — a notice with a per-request id still collapses.
+  const raws = completions.map((c) => normForMatch(c.text.trim()));
   const top = new Map<string, number>();
   for (const r of raws) top.set(r, (top.get(r) ?? 0) + 1);
   const [topText, topCount] = [...top.entries()].sort((a, b) => b[1] - a[1])[0] ?? ["", 0];

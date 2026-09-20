@@ -162,6 +162,7 @@ sealed chain status --benchmark <pubkey>                             # leaderboa
 sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"
 sealed chain market open    --run <pubkey> --edges 40,55 --salt 1    # 3-way score bands, 2nd market
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts
+                              # resolve_by required: 60s..90d from now; closes_at optional, same floor
 sealed chain market duel    --run-a <pk> --run-b <pk> --resolve-by +86400  # head-to-head
 sealed chain market bet     --market <pk> --outcome 1 --lamports 500000000 [--bettor kp.json]
 sealed chain market bet     --market <pk> --side yes --lamports 500000000   # binary shorthand

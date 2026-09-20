@@ -68,7 +68,7 @@ export class ModelClient {
     this.fetchImpl = opts.fetchImpl ?? fetch;
     this.timeoutMs = opts.timeoutMs ?? 90_000;
     this.sessionId = opts.sessionId ?? process.env.SEALED_SESSION_ID ?? `sealed-${Date.now().toString(36)}`;
-    if (!this.apiKey) throw new Error("no API key: set SEALED_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY)");
+    if (!this.apiKey) throw new Error("no API key: set SEALED_API_KEY (or OPENROUTER_API_KEY / OPENAI_API_KEY; 'anonymous' to send no auth)");
   }
 
   async complete(model: string, prompt: string, cfg: HarnessConfig = DEFAULT_CONFIG): Promise<Completion> {
@@ -81,7 +81,9 @@ export class ModelClient {
           signal: AbortSignal.timeout(this.timeoutMs),
           headers: {
             "content-type": "application/json",
-            authorization: `Bearer ${this.apiKey}`,
+            // 'anonymous' sends no Authorization at all — some free endpoints
+            // (Pollinations) credit-wall keyed calls but still serve keyless ones.
+            ...(this.apiKey === "anonymous" ? {} : { authorization: `Bearer ${this.apiKey}` }),
             "x-title": "sealed-harness",
             // OpenCode Zen routes/caches by a per-session id; required for its free tier.
             "x-opencode-session": this.sessionId,
@@ -110,15 +112,16 @@ export class ModelClient {
         // Free gateways increasingly return credit/quota walls as a 200 with the
         // notice rendered as assistant content. Treat as an endpoint error — a
         // retryable RateLimitError — never as a model answer (run.ts also refuses
-        // an artifact when one reply dominates the whole bank).
-        const head = text.slice(0, 300).toLowerCase();
+        // an artifact when one reply dominates the whole bank). Match on the
+        // whole body, normalized, so spacing/case/request-id variants still hit.
         if (!text.trim()) throw new Error("empty completion content");
-        if (PROVIDER_ERROR_SIGS.some((sig) => head.includes(sig)))
+        if (PROVIDER_ERROR_SIGS.some((sig) => normForMatch(text).includes(sig)))
           throw new RateLimitError(`provider notice as content: ${text.slice(0, 120)}`);
         return { text, usage: json.usage, latencyMs: Date.now() - t0 };
       } catch (e) {
         if (e instanceof FatalHttpError) throw e;
         lastErr = e;
+        if (attempt === this.retries) break; // don't sleep after the last try
         // Free-tier gateways (e.g. Zen) rate-limit per ~minute window; 429 needs a long wait.
         const base = e instanceof RateLimitError ? 15_000 : 500;
         const mult = e instanceof RateLimitError ? attempt + 1 : 2 ** attempt;
@@ -153,20 +156,33 @@ export class ModelClient {
 export class FatalHttpError extends Error {}
 export class RateLimitError extends Error {}
 
-/** Substrings (lowercased) that mean "endpoint notice", never a model answer. */
+/** Normalized substrings that mean "endpoint notice", never a model answer. */
 const PROVIDER_ERROR_SIGS = [
-  "doesn't have enough credits",
-  "does not have enough credits",
+  "enough credits",
+  "insufficient credits",
+  "insufficient balance",
+  "insufficient_quota",
   "no payment method",
   "creditserror",
-  "insufficient_quota",
-  "insufficient credits",
+  "quota exceeded",
   "exceeded your current quota",
+  "out of credits",
   "payment required",
   "add a payment method",
+  "top up",
+  "topup",
+  "recharge",
+  "billing",
   "upgrade your plan",
   "free tier limit",
+  "rate limit",
+  "too many requests",
+  "account suspended",
+  "plan limit",
 ];
+/** Lowercase + collapse whitespace + strip request-id hex so notices match. */
+export const normForMatch = (s: string) =>
+  s.toLowerCase().replace(/[0-9a-f]{8,}[-0-9a-f]*/g, " ").replace(/\s+/g, " ");
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
