@@ -95,7 +95,8 @@ not the commands.
   mocha suite 9/9 + 12/12 unit tests green. Authored banks work too (seal+score).
 - **Traction evidence:** 30+ sealed evaluations executed on the evidence
   ledger (generated + private + delegated runs), incl. real models — gpt-oss-20b
-  32/32, ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score identical to the
+  64/64 fresh on the evidence ledger (run 3CKnMa8X), ling-3.0 58/64,
+  nemotron-3.5 59/64 — every MPC score identical to the
   local pre-score, artifacts + tx proofs in `docs/evidence/`.
 - **Business:** per-run fee to the benchmark authority (live on-chain); market
   take-rate on settlement (`fee_bps`, capped at 10%, live on-chain);

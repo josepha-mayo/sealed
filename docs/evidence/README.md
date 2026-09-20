@@ -1,10 +1,13 @@
 # Evidence bundle — model scored through an MPC-minted bank
 
-Checkable artifacts for the headline claim: models answer banks **minted
-inside Arcium MPC** — the answer key never exists in plaintext anywhere —
-and the on-chain MPC score is the only score that counts. This bundle also
-contains a live demonstration of *why* that matters: a stale artifact that
-claimed 64/64 locally was scored **1/64** on-chain.
+Checkable artifacts for the headline claim: a real model
+(`openai` = gpt-oss-20b) answered 64 items of a bank **minted inside Arcium
+MPC** — the answer key never existed in plaintext anywhere — and the
+on-chain MPC score matched the local pre-score exactly: **64/64**.
+
+The same bank also carries the counter-demonstration: a stale artifact
+claiming 64/64 locally was scored **1/64** on-chain. The protocol never
+trusts a runner's self-reported score — MPC is the sole arbiter.
 
 All identifiers below refer to the current **localnet** ledger
 (`http://127.0.0.1:8899`, cluster offset 0), produced by `scripts/demo.sh`
@@ -30,15 +33,18 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 ### Runs
 
-- `acct-4uns99WD….json` — **the anti-cheat demonstration.** A real model
-  run (`openai` = gpt-oss-20b via Pollinations) whose artifact claimed
-  `localCorrect=64/64` — but the bank file had been re-minted mid-run, so
-  the outputs were for a stale item set. MPC scored it **1/64** (one
-  coincidental match) and the on-chain `Run.correct` permanently records
-  the truth: the protocol never trusts a runner's self-reported score.
-  The harness now also refuses this case outright — run artifacts bind to
-  the bank's `items_root`, and `chain score` rejects a mismatch before
-  spending an MPC computation.
+- `acct-3CKnMa8X….json` — **the headline run.** `openai` (gpt-oss-20b via
+  anonymous Pollinations), run #1 on bank 25864: `correct=64/64`,
+  `outputs_root` `f6aa29a3…`, FINALIZED — every digit written by the MPC
+  cluster's callback transactions, matching the local pre-score exactly.
+- `run-25864-v2-artifact.json` — its local artifact: raw outputs,
+  canonical answers, per-item output hashes, `itemsRoot` `e6a614da…`
+  binding it to this exact bank revision.
+- `acct-4uns99WD….json` — **the anti-cheat demonstration.** Run #0 on the
+  same bank, same model id — the artifact claimed `localCorrect=64/64`,
+  but the bank file had been re-minted mid-run so the outputs were for a
+  stale item set. MPC scored it **1/64** (one coincidental match) and the
+  on-chain `Run.correct` permanently records the truth.
 - `acct-F75o5JjA….json` — demo run on bank 6750: `mock/oracle-0.75`,
   `correct=49/64`, FINALIZED. Score written by the MPC cluster's callback,
   not the runner.
@@ -63,7 +69,7 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 ### Proof + snapshot
 
-- `prove-item0.json` — `sealed prove --run run-25864-stale-artifact.json
+- `prove-item0.json` — `sealed prove --run run-25864-v2-artifact.json
   --item 0`: a chunk-level Merkle proof that output 0 was in the committed
   root. Verify:
 
@@ -72,14 +78,14 @@ while that ledger is up; the artifacts are also self-checking offline.
   node scripts/verify-proof.mjs docs/evidence/prove-item0.json
   # bound to the on-chain Run account (while that ledger is live):
   node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
-    --run 4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1 \
+    --run 3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka \
     --rpc http://127.0.0.1:8899
   # or paste it into the explorer's verify widget — "load example" loads a copy
   ```
 
 - `snapshot.json` — `node scripts/snapshot.mjs` dump of every sealed +
-  market program account on this ledger (65 + 27 accounts: banks, chunks,
-  runs, grants, markets, positions). The explorer renders the full UI from
+  market program account on this ledger (banks, chunks, runs, grants,
+  markets, positions). The explorer renders the full UI from
   it offline (`?snapshot=` param, "load snapshot", or the bundled
   `web/snapshot.json` auto-fallback) — no localnet needed.
 
@@ -110,10 +116,11 @@ private bank, selective disclosure, two runs (incl. a separate-runner run),
 binary + 3-way + duel markets, resolution, payouts, leaderboard.
 
 For a real model: `export SEALED_API_BASE=<openai-compatible-endpoint>
-SEALED_API_KEY=<key>` and `--model <id>` (e.g. `openai` on the free
-Pollinations endpoint was gpt-oss-20b; anonymous callers are capped at one
-in-flight request). NOTE: the anonymous Pollinations tier is now
-credit-walled — it returns a billing notice as a normal 200 reply, which the
-harness now rejects (`ModelClient` provider-error signatures + the
-identical-replies guard in `runModel`). Any funded OpenAI-compatible
-endpoint works the same way.
+SEALED_API_KEY=<key>` and `--model <id>`. The headline run above used
+`openai` on the anonymous Pollinations tier
+(`SEALED_API_BASE=https://text.pollinations.ai/openai
+SEALED_API_KEY=anonymous`, `--max-tokens 512 --concurrency 1`) — the free
+tier credit-walls in bursts (a billing notice returned as a normal 200
+reply, which the harness rejects via provider-error signatures + the
+identical-replies guard), so `scripts/real-run-v2.sh` retries through the
+gaps. Any funded OpenAI-compatible endpoint works the same way.

@@ -97,20 +97,21 @@ since been wiped and redeployed during hardening. The evidence bundle in
   The delegated-runner path is verified too: `chain delegate-bank` rebuilds a
   private bank entirely from a wallet's grants — verified byte-identical to
   the authority's own decryption (prompts, answer hashes, items_root).
-- **Real model through a minted bank:** `gpt-oss-20b` (Pollinations free
-  OpenAI endpoint — since credit-walled for anonymous callers, so the
-  reproduction command below now needs any funded OpenAI-compatible
-  endpoint) answered all 32 items of an MPC-generated bank; the run
-  committed its output root (`e64f04fd…`), scored inside MPC, and
-  finalized **32/32 — on-chain score identical to the local pre-score**
-  (run `7pcbA5hE…`, verified live at the time; artifact in
-  `docs/evidence/run-real-99003-artifact.json`). The current evidence ledger
-  has generated bank 25864 (`items_root 4eae8312…`, minted by a full
-  `demo.sh` pass) scored by `mock/oracle-0.75` at 47/64 — run
-  `4uns99WD…`, proof verifiable against the live account. A second
-  separate-runner run (35/64) settled a duel market; private bank
-  25865's specs exist on-chain only as ciphertext.
-  Earlier real-model evidence through OpenCode Zen: ling-3.0 58/64,
+- **Real model through a minted bank — fresh and on the current ledger:**
+  `gpt-oss-20b` (`openai` on the anonymous Pollinations tier) answered all
+  64 items of MPC-minted bank 25864 (`items_root e6a614da…`); the run
+  committed `outputs_root f6aa29a3…`, scored inside MPC, and finalized
+  **64/64 — on-chain score identical to the local pre-score** (run
+  `3CKnMa8X…`, account + artifact + Merkle proof in `docs/evidence/`).
+  The same bank carries the counter-case: an earlier artifact built on a
+  stale bank file claimed 64/64 locally and MPC scored it **1/64** (run
+  `4uns99WD…`) — the local pre-score is never trusted, and the harness
+  now binds artifacts to `items_root` to reject the mismatch outright.
+  Also live from the `demo.sh` pass: generated bank 6750 scored by two
+  runners (49/64 and 32/64 — the second created by a separate judge
+  wallet), binary + 3-way + duel markets resolved (duel: A wins 49–32),
+  and private bank 6751 whose specs exist on-chain only as ciphertext.
+  Historical: bank 99003 32/32 (epoch rotated), ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
   that output `i` was in the committed `outputs_root`; the web explorer

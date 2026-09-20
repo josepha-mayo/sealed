@@ -1,0 +1,525 @@
+{
+  "schema": "sealed.run/1",
+  "benchmarkId": 25864,
+  "itemsRoot": "e6a614daab67fa6ff63fd9b6db45a78c3e559640aef1cadf91c645e0af3663ae",
+  "model": "openai",
+  "harnessHash": "e47a7f60f3f28eb3f75ae94dc62008bd9fdc1b47d29dc8f0bcee83156e2856ae",
+  "outputsRoot": "f6aa29a3d74c92e69ef3476a684ef5b0ec6470d0af82eedfc718b5e0b89bb506",
+  "startedAt": "2026-09-20T13:52:06.136Z",
+  "finishedAt": "2026-09-20T14:15:47.219Z",
+  "items": [
+    {
+      "index": 0,
+      "raw": "ANSWER: 8109",
+      "canonical": "8109",
+      "outputHash": "2101513691113990057",
+      "correct": true,
+      "latencyMs": 1952
+    },
+    {
+      "index": 1,
+      "raw": "ANSWER: 92",
+      "canonical": "92",
+      "outputHash": "12284931966989288264",
+      "correct": true,
+      "latencyMs": 333
+    },
+    {
+      "index": 2,
+      "raw": "ANSWER: 97",
+      "canonical": "97",
+      "outputHash": "14897318067296987874",
+      "correct": true,
+      "latencyMs": 376
+    },
+    {
+      "index": 3,
+      "raw": "ANSWER: 289",
+      "canonical": "289",
+      "outputHash": "325519611891280165",
+      "correct": true,
+      "latencyMs": 298
+    },
+    {
+      "index": 4,
+      "raw": "ANSWER: 2630",
+      "canonical": "2630",
+      "outputHash": "15651827487216030577",
+      "correct": true,
+      "latencyMs": 288
+    },
+    {
+      "index": 5,
+      "raw": "ANSWER: 107",
+      "canonical": "107",
+      "outputHash": "13438478053513811377",
+      "correct": true,
+      "latencyMs": 296
+    },
+    {
+      "index": 6,
+      "raw": "ANSWER: 76",
+      "canonical": "76",
+      "outputHash": "11745127846773198267",
+      "correct": true,
+      "latencyMs": 269
+    },
+    {
+      "index": 7,
+      "raw": "ANSWER: 420",
+      "canonical": "420",
+      "outputHash": "3840685376549012179",
+      "correct": true,
+      "latencyMs": 307
+    },
+    {
+      "index": 8,
+      "raw": "ANSWER: 5832",
+      "canonical": "5832",
+      "outputHash": "4078257991500369126",
+      "correct": true,
+      "latencyMs": 428
+    },
+    {
+      "index": 9,
+      "raw": "ANSWER: 7",
+      "canonical": "7",
+      "outputHash": "11341565960465612948",
+      "correct": true,
+      "latencyMs": 392
+    },
+    {
+      "index": 10,
+      "raw": "ANSWER: 437",
+      "canonical": "437",
+      "outputHash": "13431362639190331694",
+      "correct": true,
+      "latencyMs": 317
+    },
+    {
+      "index": 11,
+      "raw": "ANSWER: -3",
+      "canonical": "-3",
+      "outputHash": "14374852581718131890",
+      "correct": true,
+      "latencyMs": 294
+    },
+    {
+      "index": 12,
+      "raw": "ANSWER: 249",
+      "canonical": "249",
+      "outputHash": "8943899321849828578",
+      "correct": true,
+      "latencyMs": 281
+    },
+    {
+      "index": 13,
+      "raw": "ANSWER: 53",
+      "canonical": "53",
+      "outputHash": "3052101994495319403",
+      "correct": true,
+      "latencyMs": 273
+    },
+    {
+      "index": 14,
+      "raw": "ANSWER: 1285",
+      "canonical": "1285",
+      "outputHash": "18175500923901221141",
+      "correct": true,
+      "latencyMs": 344
+    },
+    {
+      "index": 15,
+      "raw": "ANSWER: 979",
+      "canonical": "979",
+      "outputHash": "12420118903401449724",
+      "correct": true,
+      "latencyMs": 363
+    },
+    {
+      "index": 16,
+      "raw": "ANSWER: 586",
+      "canonical": "586",
+      "outputHash": "10722660426904581049",
+      "correct": true,
+      "latencyMs": 1068
+    },
+    {
+      "index": 17,
+      "raw": "ANSWER: 156",
+      "canonical": "156",
+      "outputHash": "5969337062792761309",
+      "correct": true,
+      "latencyMs": 31403
+    },
+    {
+      "index": 18,
+      "raw": "ANSWER: 107",
+      "canonical": "107",
+      "outputHash": "1665298796579368800",
+      "correct": true,
+      "latencyMs": 30284
+    },
+    {
+      "index": 19,
+      "raw": "ANSWER: 903",
+      "canonical": "903",
+      "outputHash": "8063417648445175760",
+      "correct": true,
+      "latencyMs": 30668
+    },
+    {
+      "index": 20,
+      "raw": "ANSWER: 13920",
+      "canonical": "13920",
+      "outputHash": "6384018693184803112",
+      "correct": true,
+      "latencyMs": 29633
+    },
+    {
+      "index": 21,
+      "raw": "ANSWER: 1256",
+      "canonical": "1256",
+      "outputHash": "11916082649370226106",
+      "correct": true,
+      "latencyMs": 30031
+    },
+    {
+      "index": 22,
+      "raw": "ANSWER: 5",
+      "canonical": "5",
+      "outputHash": "16676678495802973963",
+      "correct": true,
+      "latencyMs": 30905
+    },
+    {
+      "index": 23,
+      "raw": "ANSWER: 2244",
+      "canonical": "2244",
+      "outputHash": "6206811126169168550",
+      "correct": true,
+      "latencyMs": 29216
+    },
+    {
+      "index": 24,
+      "raw": "ANSWER: -20",
+      "canonical": "-20",
+      "outputHash": "2101421592875795766",
+      "correct": true,
+      "latencyMs": 30368
+    },
+    {
+      "index": 25,
+      "raw": "ANSWER: 79",
+      "canonical": "79",
+      "outputHash": "15308357229667419496",
+      "correct": true,
+      "latencyMs": 29349
+    },
+    {
+      "index": 26,
+      "raw": "ANSWER: 50",
+      "canonical": "50",
+      "outputHash": "9883888471451011333",
+      "correct": true,
+      "latencyMs": 30020
+    },
+    {
+      "index": 27,
+      "raw": "ANSWER: 55",
+      "canonical": "55",
+      "outputHash": "3499966799043246701",
+      "correct": true,
+      "latencyMs": 29712
+    },
+    {
+      "index": 28,
+      "raw": "ANSWER: 18",
+      "canonical": "18",
+      "outputHash": "14135189552546770908",
+      "correct": true,
+      "latencyMs": 30505
+    },
+    {
+      "index": 29,
+      "raw": "ANSWER: 1716",
+      "canonical": "1716",
+      "outputHash": "7536691005682622414",
+      "correct": true,
+      "latencyMs": 30019
+    },
+    {
+      "index": 30,
+      "raw": "ANSWER: -16",
+      "canonical": "-16",
+      "outputHash": "16412201282335946086",
+      "correct": true,
+      "latencyMs": 29825
+    },
+    {
+      "index": 31,
+      "raw": "ANSWER: -63",
+      "canonical": "-63",
+      "outputHash": "2015816489672931469",
+      "correct": true,
+      "latencyMs": 30814
+    },
+    {
+      "index": 32,
+      "raw": "ANSWER: 2065",
+      "canonical": "2065",
+      "outputHash": "12101594561479211396",
+      "correct": true,
+      "latencyMs": 29619
+    },
+    {
+      "index": 33,
+      "raw": "ANSWER: 785",
+      "canonical": "785",
+      "outputHash": "13450033979127066434",
+      "correct": true,
+      "latencyMs": 29519
+    },
+    {
+      "index": 34,
+      "raw": "ANSWER: 90",
+      "canonical": "90",
+      "outputHash": "14343666986897717005",
+      "correct": true,
+      "latencyMs": 30359
+    },
+    {
+      "index": 35,
+      "raw": "ANSWER: -27",
+      "canonical": "-27",
+      "outputHash": "16101465934975784369",
+      "correct": true,
+      "latencyMs": 29764
+    },
+    {
+      "index": 36,
+      "raw": "ANSWER: 67",
+      "canonical": "67",
+      "outputHash": "10639508586821093526",
+      "correct": true,
+      "latencyMs": 29836
+    },
+    {
+      "index": 37,
+      "raw": "ANSWER: 2319",
+      "canonical": "2319",
+      "outputHash": "13468052847302830439",
+      "correct": true,
+      "latencyMs": 31514
+    },
+    {
+      "index": 38,
+      "raw": "ANSWER: -62",
+      "canonical": "-62",
+      "outputHash": "10826010866691793488",
+      "correct": true,
+      "latencyMs": 28832
+    },
+    {
+      "index": 39,
+      "raw": "ANSWER: 63",
+      "canonical": "63",
+      "outputHash": "9810010075366675290",
+      "correct": true,
+      "latencyMs": 29766
+    },
+    {
+      "index": 40,
+      "raw": "ANSWER: 624",
+      "canonical": "624",
+      "outputHash": "3729294264984762679",
+      "correct": true,
+      "latencyMs": 29706
+    },
+    {
+      "index": 41,
+      "raw": "ANSWER: 116",
+      "canonical": "116",
+      "outputHash": "17336420797426698843",
+      "correct": true,
+      "latencyMs": 29947
+    },
+    {
+      "index": 42,
+      "raw": "ANSWER: 92",
+      "canonical": "92",
+      "outputHash": "8898126520539853329",
+      "correct": true,
+      "latencyMs": 30355
+    },
+    {
+      "index": 43,
+      "raw": "ANSWER: 4130",
+      "canonical": "4130",
+      "outputHash": "5153197329406681451",
+      "correct": true,
+      "latencyMs": 30914
+    },
+    {
+      "index": 44,
+      "raw": "ANSWER: 496",
+      "canonical": "496",
+      "outputHash": "15437643946447332649",
+      "correct": true,
+      "latencyMs": 28787
+    },
+    {
+      "index": 45,
+      "raw": "ANSWER: 129",
+      "canonical": "129",
+      "outputHash": "14847930163872284482",
+      "correct": true,
+      "latencyMs": 30523
+    },
+    {
+      "index": 46,
+      "raw": "ANSWER: 29754",
+      "canonical": "29754",
+      "outputHash": "5680073198752560434",
+      "correct": true,
+      "latencyMs": 30906
+    },
+    {
+      "index": 47,
+      "raw": "ANSWER: 14",
+      "canonical": "14",
+      "outputHash": "11388886191598123600",
+      "correct": true,
+      "latencyMs": 29552
+    },
+    {
+      "index": 48,
+      "raw": "ANSWER: 405",
+      "canonical": "405",
+      "outputHash": "2645704946634686067",
+      "correct": true,
+      "latencyMs": 29534
+    },
+    {
+      "index": 49,
+      "raw": "ANSWER: 1888",
+      "canonical": "1888",
+      "outputHash": "60313870616022124",
+      "correct": true,
+      "latencyMs": 30382
+    },
+    {
+      "index": 50,
+      "raw": "ANSWER: 104",
+      "canonical": "104",
+      "outputHash": "7370861055239504701",
+      "correct": true,
+      "latencyMs": 29600
+    },
+    {
+      "index": 51,
+      "raw": "ANSWER: -75",
+      "canonical": "-75",
+      "outputHash": "11581542418841412095",
+      "correct": true,
+      "latencyMs": 29737
+    },
+    {
+      "index": 52,
+      "raw": "ANSWER: 40",
+      "canonical": "40",
+      "outputHash": "2270392210556218521",
+      "correct": true,
+      "latencyMs": 31692
+    },
+    {
+      "index": 53,
+      "raw": "ANSWER: -46",
+      "canonical": "-46",
+      "outputHash": "747339549026843985",
+      "correct": true,
+      "latencyMs": 28803
+    },
+    {
+      "index": 54,
+      "raw": "ANSWER: 3",
+      "canonical": "3",
+      "outputHash": "6673264671734307423",
+      "correct": true,
+      "latencyMs": 29363
+    },
+    {
+      "index": 55,
+      "raw": "ANSWER: 237",
+      "canonical": "237",
+      "outputHash": "3626281191313654773",
+      "correct": true,
+      "latencyMs": 30547
+    },
+    {
+      "index": 56,
+      "raw": "ANSWER: 0",
+      "canonical": "0",
+      "outputHash": "1792978465249539619",
+      "correct": true,
+      "latencyMs": 29426
+    },
+    {
+      "index": 57,
+      "raw": "ANSWER: 1868",
+      "canonical": "1868",
+      "outputHash": "4098792775395760697",
+      "correct": true,
+      "latencyMs": 30082
+    },
+    {
+      "index": 58,
+      "raw": "ANSWER: 1632",
+      "canonical": "1632",
+      "outputHash": "1210927821077670896",
+      "correct": true,
+      "latencyMs": 30409
+    },
+    {
+      "index": 59,
+      "raw": "ANSWER: 43",
+      "canonical": "43",
+      "outputHash": "15258904155427208960",
+      "correct": true,
+      "latencyMs": 29492
+    },
+    {
+      "index": 60,
+      "raw": "ANSWER: -60",
+      "canonical": "-60",
+      "outputHash": "1431864165062948739",
+      "correct": true,
+      "latencyMs": 30276
+    },
+    {
+      "index": 61,
+      "raw": "ANSWER: 1398",
+      "canonical": "1398",
+      "outputHash": "16812286311455506576",
+      "correct": true,
+      "latencyMs": 30461
+    },
+    {
+      "index": 62,
+      "raw": "ANSWER: 11600",
+      "canonical": "11600",
+      "outputHash": "10276687976108564161",
+      "correct": true,
+      "latencyMs": 30101
+    },
+    {
+      "index": 63,
+      "raw": "ANSWER: 12300",
+      "canonical": "12300",
+      "outputHash": "14442920772839744824",
+      "correct": true,
+      "latencyMs": 30608
+    }
+  ],
+  "localCorrect": 64
+}

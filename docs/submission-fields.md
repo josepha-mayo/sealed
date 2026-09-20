@@ -36,10 +36,12 @@ A second program hosts parimutuel markets — binary, N-way score bands,
 head-to-head duels — resolving permissionlessly on `Run.correct`, with
 fees, deadlines, void, and expiry; bets latch shut before the first scored
 chunk. Verified: 9/9 E2E + 12/12 unit on a real MPC localnet; a real model
-(gpt-oss-20b) finalized 32/32 — on-chain score == local pre-score.
+(gpt-oss-20b) finalized 64/64 on the current evidence ledger — on-chain
+score == local pre-score (run 3CKnMa8X).
 
 Traction: 30+ sealed evaluations executed on the evidence ledger
-(generated, private, and delegated runs), incl. three real models — every
+(generated, private, and delegated runs), incl. real models — gpt-oss-20b
+64/64 (fresh, MPC-finalized), ling-3.0 58/64, nemotron-3.5 59/64 — every
 MPC score identical to the local pre-score. `scripts/demo.sh` reproduces the
 full arc (mint → disclose → run → market → settle) in one command; the
 explorer renders everything from a committed snapshot — no localnet needed.

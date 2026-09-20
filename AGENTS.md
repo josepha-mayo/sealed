@@ -64,11 +64,14 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   `SEALED_API_BASE`/`SEALED_API_KEY`/`--model`. Anonymous Pollinations
   (`SEALED_API_BASE=https://text.pollinations.ai/openai`,
   `SEALED_API_KEY=anonymous` — sends NO auth header, keyed calls are
-  credit-walled) still serves gpt-oss-20b BUT caps `max_tokens` at ~512 —
-  larger values get a billing notice back as a normal 200 reply.
+  credit-walled) serves gpt-oss-20b BUT caps `max_tokens` at ~512 and
+  credit-walls in bursts (billing notice as a normal 200 reply).
   `ModelClient` rejects provider-error signatures and `runModel` refuses an
-  artifact when one reply dominates the bank; `scripts/real-model-run.sh`
-  is the working retry loop (`--max-tokens 512 --concurrency 1`).
+  artifact when one reply dominates the bank; `scripts/real-run-v2.sh`
+  retries through the gaps (`--max-tokens 512 --concurrency 1`). Fresh
+  MPC-verified evidence: run `3CKnMa8X…` scored **64/64 on-chain** on bank
+  25864; the stale-artifact run `4uns99WD…` on the same bank scored 1/64
+  (local claim 64 — the anti-cheat demonstration).
 - Bank files are mutable on disk: re-minting an id or `chain items` rewrites
   `bank/gen-<id>.json`. A run started before a rewrite answers STALE items —
   MPC then scores it honestly but low (observed: local 64/64 → on-chain

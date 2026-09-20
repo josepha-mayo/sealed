@@ -49,12 +49,14 @@ declare_id!("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 /// (`Account<T>` would demand the market program as owner).
 /// INVARIANT: `sealed::Run` may only ever grow by TAIL-APPEND — shrinking or
 /// reordering a field before `first_pending_at` Borsh-bricks every open market
-/// (resolve AND expire both route through this fn). Mirror below must match.
+/// (resolve AND expire both route through this fn). Mirror below must match
+/// through `first_pending_at`; `try_deserialize_unchecked` deliberately
+/// ignores TRAILING bytes so a future tail-append can't brick this reader.
 fn load_run(info: &AccountInfo) -> Result<Run> {
     require!(info.owner == &SEALED_PROGRAM, ErrorCode::WrongRun);
     let data = info.try_borrow_data()?;
     require!(data.len() > 8 && data[..8] == RUN_DISC, ErrorCode::WrongRun);
-    let run = Run::try_deserialize(&mut &data[..])?;
+    let run = Run::try_deserialize_unchecked(&mut &data[..])?;
     Ok(run)
 }
 
@@ -941,4 +943,48 @@ pub enum ErrorCode {
     DeadlineOrder,
     #[msg("deadline too close — markets must live at least 60s")]
     DeadlineTooSoon,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// sealed::Run may only grow by TAIL-APPEND. Prove the mirror reader
+    /// tolerates trailing bytes — a future field must not brick open markets.
+    #[test]
+    fn run_mirror_tolerates_tail_appended_fields() {
+        #[derive(AnchorSerialize)]
+        struct FutureRun {
+            run: Run,
+            extra_field: u64,
+        }
+        let future = FutureRun {
+            run: Run {
+                benchmark: Pubkey::default(),
+                runner: Pubkey::default(),
+                index: 0,
+                bump: 0,
+                status: 1,
+                chunk_count: 2,
+                pending_mask: 0,
+                scored_mask: 0,
+                correct: 42,
+                created_at: 0,
+                finalized_at: 0,
+                harness_hash: [0; 32],
+                outputs_root: [0; 32],
+                model_id: "m".into(),
+                attested: false,
+                attested_at: 0,
+                pending_since: 0,
+                first_pending_at: 0,
+            },
+            extra_field: 0xdeadbeef,
+        };
+        let mut buf = RUN_DISC.to_vec();
+        future.serialize(&mut buf).unwrap();
+        // Tail-appended bytes are ignored — this is the upgrade path.
+        let parsed = Run::try_deserialize_unchecked(&mut &buf[..]).unwrap();
+        assert_eq!(parsed.correct, 42);
+    }
 }
