@@ -164,7 +164,7 @@ async function main() {
   sealed chain market resolve --market <pk>                                permissionless once the run finalizes
   sealed chain market claim   --market <pk> [--bettor keypair.json]        pays out (0 for losers) + closes position
   sealed chain market void    --market <pk> [--bettor keypair.json]        authority cancels, only before scoring starts
-  sealed chain market expire  --market <pk>                                after resolve_by: refunds a never-queued run, settles a stalled one on its partial score
+  sealed chain market expire  --market <pk>                                after resolve_by: refunds never-queued/uncommitted runs, settles a fully-committed stall on its proven partial
   sealed chain market claim-fee --market <pk> [--bettor keypair.json]      authority collects the accrued fee
   sealed chain market show    --market <pk>
   sealed chain reset-sealing  --bank-id <n> --chunk <i>          clear a part stuck by a dropped MPC computation

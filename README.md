@@ -101,10 +101,10 @@ claim_fee()                       authority collects fees_accrued once resolved;
 void_market()                     authority cancels — only while the run is still
                                   pending AND unscored (no free-look cancels)
 expire_market()                   permissionless cleanup once resolve_by passes —
-                                  never-queued runs refund in full; a run that
-                                  stalled past the 24h first-queue cap settles on
-                                  its proven partial score (no runner stall-veto);
-                                  NOT callable once the run finalized
+                                  never-queued/uncommitted runs refund in full; a
+                                  run that committed every chunk AND stalled past
+                                  its 24h landing window settles on the proven
+                                  partial score; NOT callable once finalized
 ```
 
 The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and deserialized inside `resolve`, so the settlement source is the MPC-scored field itself. Betting closes the moment the first scoring computation is queued — before that, all a bettor can see is the model id and the committed `outputs_root`.
@@ -197,9 +197,9 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Localnet end-to-end: `arcium test` seals 2 chunks, scores a run (45/64 planted), finalizes
 - [x] **Generated banks**: `gen_part` circuit mints items inside MPC — 4 comps mint a 32-item chunk, bank goes LIVE, specs public in `ItemChunk`, answers born `Enc<Mxe>`; E2E mint→live→score 17/32 planted, plus CLI `chain gen --id 77` -> mock run -> MPC score 24/32 == local pre-score
 - [x] **Private generated banks**: `gen_part_private` mints the same items but returns them `Enc<Shared, Pack<GenPart>>` to the authority's x25519 key — `PrivItemChunk` holds ciphertext only, `items_root` commits to the ciphertext; E2E proves ciphertext-only onchain state, authority-side decrypt→render, wrong-key rejection, public-path `WrongBankKind`, and MPC score 21/32 planted + CLI `gen-private` → mock run → MPC score 23/32 == local pre-score
-- [x] CLI pipeline on localnet: authored bank -> mock run -> MPC score 40/64, equal to the local pre-score
-- [x] Real models through OpenCode Zen (free tier, `x-opencode-session` header): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
-- [x] **Real model on an MPC-minted bank**: gpt-oss-20b (Pollinations anonymous tier) answered all 64 minted items; MPC finalized **64/64 == local pre-score** on the live evidence ledger (run `3CKnMa8X…`) — and a stale-artifact run on the same bank scored **1/64**, proving the chain never trusts self-reported scores
+- [x] CLI pipeline on localnet: authored bank -> mock run -> MPC score 40/64, equal to the local pre-score (earlier epoch)
+- [x] Real models through OpenCode Zen (earlier epoch, before Zen free-tier gating): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
+- [x] **Real model on a sealed bank**: gpt-oss-20b (Pollinations anonymous tier) answered all 64 items; MPC finalized **64/64 == local pre-score** on the live evidence ledger (run `4uns99WD…`) — and a stale-bank artifact scored **1/64** on the same bank (run `3CKnMa8X…`), proving the chain never trusts self-reported scores
 - [x] **Delegated runner**: `chain delegate-bank` rebuilds a private bank entirely from a wallet's ShareGrants — verified byte-identical to the authority's decryption (prompts, answer hashes, items_root); a model provider can be granted the exam, run it, and get scored without the questions ever being public
 - [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] **Duel markets**: `create_duel`/`bet_duel`/`resolve_duel` — head-to-head "does run A outscore run B on the same bank?" with A-wins/B-wins/tie buckets; bets close once EITHER run starts scoring, settle reads both finalized `Run.correct`, E2E proves 25–19 resolution + pro-rata claim

@@ -83,8 +83,8 @@ not the commands.
   Arcium-MPC ciphertext. Models commit outputs publicly; the cluster reveals
   only aggregate scores; parimutuel markets settle directly on `Run.correct`.
 - **Stack:** Solana (commitments, fees, settlement) + Arcium MPC (confidential
-  scoring) + a TypeScript harness driving real model APIs (OpenRouter /
-  OpenCode Zen compatible).
+  scoring) + a TypeScript harness driving real model APIs (any
+  OpenAI-compatible endpoint — Pollinations, OpenRouter, Zen).
 - **Status:** localnet end-to-end verified — public generated banks minted in
   MPC (specs public, answers born encrypted), **private generated banks whose
   specs are ciphertext-only onchain** (`Enc<Shared, Pack<GenPart>>` to the
@@ -92,10 +92,10 @@ not the commands.
   question disclosure to delegate keys (`reshare_part` — one-directional,
   grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
   binary + N-way markets resolved and paid out, fingerprint reveal audits,
-  mocha suite 9/9 + 12/12 unit tests green. Authored banks work too (seal+score).
+  mocha suite 9/9 + 13/13 unit tests green. Authored banks work too (seal+score).
 - **Traction evidence:** 30+ sealed evaluations executed on the evidence
   ledger (generated + private + delegated runs), incl. real models — gpt-oss-20b
-  64/64 fresh on the evidence ledger (run 3CKnMa8X), ling-3.0 58/64,
+  64/64 fresh on the evidence ledger (run 4uns99WD), ling-3.0 58/64,
   nemotron-3.5 59/64 — every MPC score identical to the
   local pre-score, artifacts + tx proofs in `docs/evidence/`.
 - **Business:** per-run fee to the benchmark authority (live on-chain); market

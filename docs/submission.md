@@ -10,7 +10,7 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel support; upgradeable under `4RUW4pDm…` |
 
 **Deploy state:** the devnet binaries were upgraded to the current
-hardened build on 2026-09-19 (sealed `4zNMgJno…`, market `5fKofCZq…` —
+hardened build on 2026-09-22 (sealed `3a9Cgven…`, market `5Y3aTSAB…` —
 `solana -u devnet program show <id>` reports the deploy slots). All protocol
 features are verified end-to-end on localnet; the only devnet caveat left is
 the Arcium callback outage (below).
@@ -46,13 +46,15 @@ since been wiped and redeployed during hardening. The evidence bundle in
   ONLY while the run is pending and unscored (no free-look cancels);
   `expire_market` lets anyone clean up once `resolve_by` passes — but NOT
   after the run finalized (`MarketResolvable`), so a losing bettor cannot
-  veto a pending resolution for a refund. And a run that STARTED scoring
-  then stalled past the 24h first-queue cap settles on its proven partial
-  score instead of refunding — the runner cannot veto a losing market by
-  withholding chunks mid-flight. Refund is reserved for runs with no
-  proven signal (never queued, or zero chunks ever landed). Markets
-  resolving with any unbacked bucket cancel (full refunds) instead of
-  stranding the pot.
+  veto a pending resolution for a refund. A run that committed EVERY chunk
+  (`all_queued_at` set) and then stalled past its 24h landing window
+  settles on the proven partial score — the cluster's fault, not a chosen
+  truncation. Refund covers never-queued runs, uncommitted stalls (the
+  runner withheld chunks — settling a chosen truncation would let them
+  freeze a favorable bucket), and fully-queued runs where nothing ever
+  landed. A just-in-time commit+expire bundle is blocked because the
+  post-commit window is still open. Markets resolving with any unbacked
+  bucket cancel (full refunds) instead of stranding the pot.
 - **Duel markets — "who mogs whom":** `create_duel(run_a, run_b, salt,
   fee_bps, closes_at, resolve_by)` opens a
   head-to-head on two pending runs of the SAME benchmark (outcomes: A wins /
@@ -102,21 +104,24 @@ since been wiped and redeployed during hardening. The evidence bundle in
   The delegated-runner path is verified too: `chain delegate-bank` rebuilds a
   private bank entirely from a wallet's grants — verified byte-identical to
   the authority's own decryption (prompts, answer hashes, items_root).
-- **Real model through a minted bank — fresh and on the current ledger:**
+- **Real model through a sealed bank — fresh and on the current ledger:**
   `gpt-oss-20b` (`openai` on the anonymous Pollinations tier) answered all
-  64 items of MPC-minted bank 25864 (`items_root e6a614da…`); the run
-  committed `outputs_root f6aa29a3…`, scored inside MPC, and finalized
+  64 items of bank 25864 (`items_root e6a614da…` — its specs were minted
+  inside MPC and re-sealed verbatim on this ledger); the run committed
+  `outputs_root f6aa29a3…`, scored inside MPC, and finalized
   **64/64 — on-chain score identical to the local pre-score** (run
-  `3CKnMa8X…`, account + artifact + Merkle proof in `docs/evidence/`).
+  `4uns99WD…`, account + artifact + Merkle proof in `docs/evidence/`).
   The same bank carries the counter-case: an earlier artifact built on a
   stale bank file claimed 64/64 locally and MPC scored it **1/64** (run
-  `4uns99WD…`) — the local pre-score is never trusted, and the harness
-  now binds artifacts to `items_root` to reject the mismatch outright.
-  Also live from the `demo.sh` pass: generated bank 6750 scored by two
-  runners (49/64 and 32/64 — the second created by a separate judge
-  wallet), binary + 3-way + duel markets resolved (duel: A wins 49–32),
-  and private bank 6751 whose specs exist on-chain only as ciphertext.
-  Historical: bank 99003 32/32 (epoch rotated), ling-3.0 58/64,
+  `3CKnMa8X…`) — the local pre-score is never trusted. The harness now
+  binds artifacts to `items_root` and refuses the mismatch outright; the
+  1/64 run was reproduced via a deliberate insecure-bypass script to show
+  the check is UX — MPC is the boundary.
+  Also live from the `demo.sh` pass: generated bank 77163 scored by two
+  runners (43/64 and 29/64 — the second created by a separate judge
+  wallet), binary + 3-way + duel markets resolved (duel: A wins 43–29),
+  and private bank 77164 whose specs exist on-chain only as ciphertext.
+  Historical: bank 99003 32/32 (earlier epoch), ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
   that output `i` was in the committed `outputs_root`; the web explorer
@@ -140,7 +145,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   rejected, edge bounds, double-attestation rejected, duel dead-run expiry
   bail, retired-bank mutation rejected). The suite salts bank ids per run so it's
   re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a run).
-  `yarn harness:test` — 12/12.
+  `yarn harness:test` — 13/13.
 
 ## Reproduce
 
@@ -158,7 +163,8 @@ python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ res
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
 verify with `solana -u devnet program show`; binaries upgraded to the current
-build 2026-09-19 — sealed `4zNMgJno…`, market `5fKofCZq…`). The one honest
+build — sealed `cvTyuKgu…`, market `4jiRxqN1…` (2026-09-22, includes
+committed-settle expiry + deadline floor)). The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts

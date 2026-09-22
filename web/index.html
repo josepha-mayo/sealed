@@ -55,7 +55,7 @@
 <div class="sub">sealed benchmark oracle &middot; answers encrypted in Arcium MPC &middot; scores posted by the cluster &middot; markets resolve on <code>Run.correct</code></div>
 
 <div class="cfg">
-  <input id="rpc" size="42"> <button onclick="load()">connect</button>
+  <input id="rpc" size="42"> <button onclick="connectLive()">connect</button>
   <button onclick="document.getElementById('snapPick').click()">load snapshot</button>
   <input type="file" id="snapPick" accept=".json" style="display:none" onchange="this.files[0] && loadSnapshot(this.files[0])">
   <span id="net" class="kv"></span>
@@ -224,11 +224,13 @@ function parseRun(d) {
   const outputsRoot = d.slice(o, o + 32); o += 32;
   const ml = v.getUint32(o, true); o += 4;
   const modelId = new TextDecoder().decode(d.slice(o, o + ml)); o += ml;
-  let attested = false, attestedAt = 0, pendingSince = 0, firstPendingAt = 0;
+  let attested = false, attestedAt = 0, pendingSince = 0, firstPendingAt = 0, everQueuedMask = 0n, allQueuedAt = 0;
   if (o + 9 <= d.length) { attested = d[o++] !== 0; attestedAt = Number(v.getBigInt64(o, true)); o += 8; }
   if (o + 8 <= d.length) { pendingSince = Number(v.getBigInt64(o, true)); o += 8; }
   if (o + 8 <= d.length) { firstPendingAt = Number(v.getBigInt64(o, true)); o += 8; }
-  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId, attested, attestedAt, pendingSince, firstPendingAt };
+  if (o + 8 <= d.length) { everQueuedMask = v.getBigUint64(o, true); o += 8; }
+  if (o + 8 <= d.length) { allQueuedAt = Number(v.getBigInt64(o, true)); o += 8; }
+  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId, attested, attestedAt, pendingSince, firstPendingAt, everQueuedMask, allQueuedAt };
 }
 // Market: disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
 // + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
@@ -307,6 +309,13 @@ const link = (pk) => clusterTag
 const BSTATUS = ["DRAFT", "LIVE", "RETIRED"];
 const MSTATUS = ["open", "resolved", "cancelled"];
 
+function connectLive() {
+  // Explicit user intent — unfreeze a manually loaded snapshot and go live.
+  window.__snapFrozen = false;
+  window.__nowRef = undefined; // live mode: wall clock drives staleness pills
+  load();
+}
+
 async function load() {
   const url = rpcIn.value.trim();
   if (window.__snapFrozen) return; // a manually loaded snapshot stays frozen
@@ -315,7 +324,7 @@ async function load() {
   if (!window.solanaWeb3) { document.getElementById("err").textContent = "web3.js CDN unreachable — live RPC needs it; snapshot loading still works"; return; }
   const conn = new solanaWeb3.Connection(url, "confirmed");
   clusterTag = clusterOf(url);
-  document.getElementById("net").textContent = " " + url;
+  document.getElementById("net").textContent = " LIVE — " + url;
   let sealedAccs, marketAccs;
   try {
     [sealedAccs, marketAccs] = await Promise.all([
@@ -362,8 +371,11 @@ function applySnapshot(snap) {
     clusterTag = null;
   }
   // "Now" for staleness pills is the snapshot's own timestamp, not wall clock —
-  // a week-old dump shouldn't mark every pending run "stuck".
-  window.__nowRef = meta.takenAt ? Date.parse(meta.takenAt) / 1000 : undefined;
+  // a week-old dump shouldn't mark every pending run "stuck". A malformed
+  // takenAt parses to NaN — fall back to wall clock instead of poisoning
+  // every staleness comparison (NaN > x is always false).
+  const parsedTaken = meta.takenAt ? Date.parse(meta.takenAt) / 1000 : NaN;
+  window.__nowRef = Number.isFinite(parsedTaken) ? parsedTaken : undefined;
   window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
   document.getElementById("net").textContent =
@@ -510,11 +522,14 @@ function renderAll(sealedAccs, marketAccs) {
         The answers were computed in-circuit and stored only as MXE ciphertext: <b>no answer key exists</b>.</div>`;
       h += `<div style="margin-top:6px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px">`;
       let shown = 0;
-      for (const c of bics) for (const s of c.specs) {
+      // Only specs from actually-written parts are real — an unwritten part's
+      // spec bytes are zeros and would render as phantom "0+0" items.
+      for (const c of bics) for (let si = 0; si < c.specs.length; si++) {
+        if (!(c.partsWritten & (1 << Math.floor(si / 8)))) continue;
         if (shown++ >= 16) break;
-        h += `<span class="kv mono" style="font-size:12px">${specExpr(s)}</span>`;
+        h += `<span class="kv mono" style="font-size:12px">${specExpr(c.specs[si])}</span>`;
       }
-      h += `</div><div class="proof" style="margin-top:4px">${items > 16 ? `+ ${items - 16} more — ` : ""}values like <span class="mono">${specExpr(bics[0].specs[0])} = ${specVal(bics[0].specs[0])}</span> were hashed inside MPC; only the count leaves the enclave.</div>`;
+      h += `</div><div class="proof" style="margin-top:4px">${minted > 16 ? `+ ${minted - 16} more — ` : ""}values like <span class="mono">${specExpr(bics[0].specs[0])} = ${specVal(bics[0].specs[0])}</span> were hashed inside MPC; only the count leaves the enclave.</div>`;
     }
     const bpcs = privChunks.filter(c => c.bench === b.pk).sort((a, b2) => a.index - b2.index);
     if (bpcs.length) {
@@ -547,9 +562,21 @@ function renderAll(sealedAccs, marketAccs) {
         const pct = items ? (100 * r.correct) / items : 0;
         const nowRef = window.__nowRef ?? Date.now() / 1000;
         const stale = r.status !== 1 && r.pendingSince > 0 && r.pendingMask !== 0n && (nowRef - r.pendingSince) > 900;
+        const fullMask = r.chunkCount >= 64 ? 0xFFFFFFFFFFFFFFFFn : (1n << BigInt(r.chunkCount)) - 1n;
+        const committed = r.everQueuedMask === fullMask && fullMask !== 0n;
+        // v4: a committed run's partial settles only after its full landing
+        // window (allQueuedAt + 24h) — inside the window a JIT commit+expire
+        // bundle is still blocked.
+        const settleableAt = committed && r.allQueuedAt ? r.allQueuedAt + 86400 : 0;
+        const windowOpen = settleableAt && nowRef < settleableAt;
+        const commitTitle = settleableAt
+          ? (windowOpen
+            ? `runner queued every chunk — partial settles only after its landing window (${fmtTs(settleableAt)})`
+            : "runner queued every chunk and the landing window elapsed — expiry settles this partial")
+          : "runner queued every chunk — a stall is provably cluster-side";
         h += `<tr><td>#${i + 1}</td><td>${esc(r.modelId)}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
           <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
-          <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vres').innerHTML='';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "scored " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}</td>
+          <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vres').innerHTML='';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "scored " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${committed && r.status !== 1 ? ` <span class="pill resolved" title="${commitTitle}">committed${settleableAt && !windowOpen ? " · settleable" : ""}</span>` : ""}${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}</td>
           <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;
       });
       h += `</table>`;
@@ -708,13 +735,24 @@ async function verify() {
         onchain = snapRun.outputsRoot;
         onchainNote = "vs snapshot";
       } else {
-        let info = null;
+        // Distinguish the three failure modes a judge cares about:
+        // (1) RPC answered, account does not exist — the pasted PDA is wrong
+        //     or from a wiped ledger (hard fail, NOT self-consistent);
+        // (2) RPC unreachable — transport failure, degrade to self-consistency;
+        // (3) account exists but fails owner/disc checks — hard fail below.
+        let rpcOk = false, info = null;
         try {
           if (!window.solanaWeb3) throw new Error("web3 CDN unreachable");
           const conn = new solanaWeb3.Connection(rpcIn.value.trim(), "confirmed");
           info = await conn.getAccountInfo(runKey);
+          rpcOk = true;
         } catch (e) { /* RPC unreachable — degrade below */ }
-        if (info) {
+        if (rpcOk && !info) {
+          // A live RPC says the account is absent — this is a definite
+          // "not found", not a transport issue. Self-consistent would be
+          // misleading (it implies "we couldn't check"); report it plainly.
+          onchainNote = "ACCOUNT NOT FOUND — this run does not exist at " + rpcIn.value.trim() + " (wiped ledger? wrong PDA? try the bundled snapshot)";
+        } else if (info) {
           // Only a real sealed Run account may supply the on-chain root —
           // without this check any ≥184-byte account with crafted bytes at
           // the outputs_root offset could forge a VERIFIED result.
@@ -724,7 +762,7 @@ async function verify() {
           onchain = parseRun(d).outputsRoot;
           onchainNote = "vs on-chain";
         }
-        if (!onchain) onchainNote = "SELF-CONSISTENT only — run not in snapshot and RPC unreachable";
+        if (!onchain && !onchainNote) onchainNote = "SELF-CONSISTENT only — run not in snapshot and RPC unreachable";
       }
     }
     const want = onchain || p.outputsRoot;

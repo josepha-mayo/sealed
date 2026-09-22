@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # Regenerate docs/evidence account dumps from the live localnet.
+# v4-epoch identifiers (all_queued_at build):
+#   bank 25864 (authored re-seal of MPC-minted specs) + its clean/stale run pair,
+#   gen bank 6932 + its two mock runs + 3 resolved markets,
+#   private bank 6933 + one delegate grant.
 set -u
 cd /home/joseph/code/sealed/docs/evidence
 for pk in \
   6ZTikUCZ4tAEtcMai29X7bNLBjJU5RDqHcv6xXBnH9Cd \
-  9Pkx2TkW6FAxLzvR1nR8HX1jHehuQPhUBqGqQj6HqDc3 \
-  6VFa9SqksupE6EQZMPn2wJ2K2ki3iYPkSoKPG9GvDjQE \
+  EQsejQ899p9ZjrBfXKT8LRW1dyZdNgTKbGqMjRGDaJkW \
+  VyAAjrsBiUkMumc8PqpA9nTzMyBsQ7uHMDf1AWQHFk3 \
   4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1 \
-  F75o5JjAk17YnrQTwf61FE5rCywpWjXAAaGU536rMBcV \
-  ADJz27sF71rhMRK1AT8CngqEd5L3AdcoTj4wPVheaZ21 \
-  EcgwuxexDW7ZmrQMape8vZvQv3KQPGUNW3N5vpduB32D \
-  EH3wCWEdaQwH1Nze7ZARV72fsydFLHsdNDwrZguk8CAD \
-  7mPoyFpbRCvWxLz9m4FsVf798v384wgQxFVD5JD5ok2W ; do
+  3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka \
+  FPsmr36jVjHk1X6DnPG21WrrZJ1fUGQGhDdcxaJw1bod \
+  zbgZVGwLLvi9YcUsy3VZTpVLuw2qf6bHcdVsbZjEydj \
+  Cesn1pNBLAJt1ymyaAahfwzh77bZbgPXCrcarxJKFXqw \
+  52tXNbsXCrCfm8RRDd7JhwYhmJfLeypCcJEMvqcu1wfL \
+  5wtfwEkEaQWLsp7ofunskbnq2TW9GWSZpQGp3HXrZsnc \
+  3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG ; do
   solana account "$pk" --output json -u http://127.0.0.1:8899 > "acct-$pk.json" 2>/dev/null \
     && echo "$pk OK" || echo "$pk FAIL"
 done

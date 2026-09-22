@@ -12,7 +12,7 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 12/12 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 13/13 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 
@@ -41,10 +41,13 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 
 ## Devnet
 
-- Cluster offset 456. Both programs upgraded to the hardened build on
-  2026-09-19: sealed `4zNMgJno8WNfyHjfezSz2A4USkkdyofxdjWB1ouhozzNYqU8swdgnkCr46S9J2p2QBdjXDajpLfD3FMJC8JPYiUK`,
-  market `5fKofCZqJFKuut4bnJTNjrkVMNKVzce469vMB77NUYpEgnUARA4XkG1GL8i1nQGxwnNG7kwYM9rZY6CzHGYbHxVq`
-  (both upgradeable — same program IDs).
+- Cluster offset 456. Both programs upgraded to the v4 committed-settle
+  build (all_queued_at landing window) 2026-09-22: sealed
+  `3a9Cgvenu3g1XJ4mnkpUHQmWjRD1trjSRHfYN4JonnYQbRNgLb2WiezmGWPqAq9LDhibSkJyuf6F2QRknAuFcHn1`,
+  market `5Y3aTSAB4K9V5ps5fvZ9gxCzUiQtjZj6tJVr9frduyDSnH4d7SDm1qHb3sFgW6cXMu32ec23frpsVdYtWjJRMzHi`.
+  Both upgradeable — same program IDs. Binary growth past a program-data
+  account needs `solana program extend <id> 10240` FIRST (ExtendProgram
+  requires >= 10240-byte steps, not just the delta).
 - Accounts created under the pre-upgrade layout (e.g. bank 99004) are
   Borsh-EOF bricked — mint fresh banks on the new binaries; there is no
   migration ix.
@@ -67,11 +70,16 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   credit-walled) serves gpt-oss-20b BUT caps `max_tokens` at ~512 and
   credit-walls in bursts (billing notice as a normal 200 reply).
   `ModelClient` rejects provider-error signatures and `runModel` refuses an
-  artifact when one reply dominates the bank; `scripts/real-run-v2.sh`
+  artifact when one reply dominates the bank; `scripts/real-model-run.sh`
   retries through the gaps (`--max-tokens 512 --concurrency 1`). Fresh
-  MPC-verified evidence: run `3CKnMa8X…` scored **64/64 on-chain** on bank
-  25864; the stale-artifact run `4uns99WD…` on the same bank scored 1/64
+  MPC-verified evidence: run `4uns99WD…` scored **64/64 on-chain** on bank
+  25864; the stale-artifact run `3CKnMa8X…` on the same bank scored 1/64
   (local claim 64 — the anti-cheat demonstration).
+- Borsh `String` fields serialize at ACTUAL length (`u32 len + bytes`), not
+  `#[max_len]` — accounts are ALLOCATED at max_len but the bytes after the
+  string are variable-offset. Any fixed-offset tail read past `model_id`
+  (e.g. `pending_since`, `ever_queued_mask`) reads zeros; walk the length
+  prefix like web/index.html does (`o += 4 + ml`).
 - Bank files are mutable on disk: re-minting an id or `chain items` rewrites
   `bank/gen-<id>.json`. A run started before a rewrite answers STALE items —
   MPC then scores it honestly but low (observed: local 64/64 → on-chain

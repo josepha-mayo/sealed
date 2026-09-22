@@ -88,15 +88,32 @@ after sealing, and nobody can fabricate a score.
   on the first score queue and never refreshed, so a refresh-cycling
   runner cannot extend it. Past `resolve_by`, expiry acts as:
   (a) run never queued (`first_pending_at == 0`) → cancel + refund;
-  (b) queued but zero chunks ever landed past `EXPIRE_HARD_CAP_SECS`
-      (24 h) → cancel + refund (a zero score is no proven signal);
-  (c) run landed chunks then stalled past the 24 h cap → **settle on the
-      proven partial score** — this kills the stall-veto: a runner
-      watching the public `correct` accumulator cannot convert a losing
-      position into a refund by withholding the remaining chunks.
-  For duels each leg independently contributes its current `correct`
-  (finalized or stalled; a never-queued leg forfeits 0), and the market
-  cancels only when NO chunk ever landed on either leg.
+  (b) in-flight inside `EXPIRE_HARD_CAP_SECS` (24 h from first queue)
+      → expiry blocked;
+  (c) **committed** run whose landing window fully elapsed with ≥1 landed
+      chunk → **settle on the proven partial score**. Commitment is
+      proven by `ever_queued_mask` covering every chunk AND
+      `all_queued_at` (write-once, set the moment the mask fills) being
+      older than the cap — i.e. every queued chunk had a full 24 h to
+      land. A queued computation executes regardless of later bit sweeps,
+      so a committed stall is the cluster's fault and the partial is an
+      honest sample;
+  (d) past the cap on an UNCOMMITTED run (the runner withheld unqueued
+      chunks — they chose where to stop), a committed run still inside
+      its post-commit window, or one where nothing ever landed → cancel +
+      refund. The post-commit window is load-bearing: without it a runner
+      could queue chunk 0, wait past the cap, then atomically bundle
+      `score_chunk` on the rest + `expire_market` — the run reads
+      "committed" while the truncation point was still theirs to choose,
+      and they freeze whichever bucket the partial lands in. With it, no
+      transaction can both complete commitment and satisfy the window, so
+      the JIT-commit is impossible. Settling a chosen truncation is never
+      allowed — refunding is the only safe answer; the residual wash is
+      documented below.
+  For duels a leg contributes its `correct` only when finalized or a
+  committed-stall past its landing window; any never-queued, uncommitted,
+  or still-in-window leg cancels the whole duel — forfeiting it at 0
+  would let a sybil'd ringer leg steal the other side's stake.
   A computation landing into an already-settled-or-refunded market still
   posts its score on-chain — the record stays honest either way.
 
@@ -105,16 +122,24 @@ after sealing, and nobody can fabricate a score.
 - **Expiry is a bounded tradeoff, not a guarantee** — every market must set
   `resolve_by` at creation (at least 60 s out, at most `now + 90d`), so
   bettors always have a permissionless exit: refund for never-queued or
-  never-landed runs, settlement on the proven partial score for stalled
-  ones. Residual — the runner can still *freeze* a currently-winning
-  partial score by withholding the rest (a 30/64 stall settles at 30), so
-  a runner holding a winning position can lock it early; they can never
-  rescue a losing one. Nothing on-chain can distinguish a stalled runner
-  from a dead cluster — the cap is the bound.
+  uncommitted/early stalls, settlement on the proven partial for
+  committed stalls past the landing window. Residual — a runner who never
+  commits every chunk can always force a refund by withholding the rest
+  (the stall-veto wash), denying winners their payout. Killing the wash
+  requires distinguishing "chose to stop" from "cluster died" —
+  impossible on-chain for unqueued chunks — or a slashable runner bond,
+  which we deliberately left out of scope. What the commitment + window
+  gate DOES kill is the theft direction: no path — including a bundled
+  just-in-time commit — lets a runner convert a chosen truncation into a
+  pot win.
 - **Partial-settle trusts `Run.correct` mid-flight** — chunks only ever
   add, so a partial score is a strict lower bound of the true final; the
-  market settles on it as the best proven truth. Bettors accept that an
-  MPC outage >24 h converts "final score" into "score at cap".
+  market settles on it as the best proven truth, and only when the runner
+  committed to all chunks AND that commitment aged past a full landing
+  window (`all_queued_at + 24h`). Bettors accept that an MPC outage >24 h
+  converts "final score" into "score at cap", and that a cancelled book
+  (any empty bucket) still refunds even a committed stall — the
+  `all_backed` guard is load-bearing.
 - **`pending_since` is a permanent latch** — once a run queues even one
   scoring computation, `pending_since`/`first_pending_at` stay set forever
   (sweeps clear only `pending_mask`; swept callbacks can still land, so a

@@ -917,6 +917,8 @@ pub mod sealed {
         r.attested_at = 0;
         r.pending_since = 0;
         r.first_pending_at = 0;
+        r.ever_queued_mask = 0;
+        r.all_queued_at = 0;
         b.run_count += 1;
         emit!(RunCreated {
             run: r.key(),
@@ -946,6 +948,7 @@ pub mod sealed {
         require!(r.status == RUN_PENDING, ErrorCode::RunAlreadyFinalized);
         require!(c.parts_sealed == ALL_PARTS, ErrorCode::ChunkNotSealed);
         require!(c.index == chunk_index, ErrorCode::InvalidChunkIndex);
+        require!(chunk_index < r.chunk_count, ErrorCode::InvalidChunkIndex);
         let bit = 1u64 << chunk_index;
         require!(r.scored_mask & bit == 0, ErrorCode::ChunkAlreadyScored);
         require!(r.pending_mask & bit == 0, ErrorCode::ChunkScorePending);
@@ -977,11 +980,24 @@ pub mod sealed {
             ErrorCode::OutputsRootMismatch
         );
         r.pending_mask |= bit;
+        r.ever_queued_mask |= bit;
         let now = Clock::get()?.unix_timestamp;
         if r.first_pending_at == 0 {
             r.first_pending_at = now;
         }
         r.pending_since = now;
+        // First moment the runner committed to every chunk — the JIT-commit
+        // check in `expire_decision` measures the landing window from here.
+        if r.all_queued_at == 0 {
+            let full = if r.chunk_count >= 64 {
+                u64::MAX
+            } else {
+                (1u64 << r.chunk_count) - 1
+            };
+            if r.ever_queued_mask == full {
+                r.all_queued_at = now;
+            }
+        }
 
         // Circuit signature: (outputs: [u64; CHUNK], p0..p3: Enc<Mxe, AnswerPart>).
         let mut args = outputs
@@ -1270,6 +1286,23 @@ pub struct Run {
     /// `pending_since` but cannot keep a market un-expirable past
     /// `EXPIRE_HARD_CAP_SECS` from the first queue.
     pub first_pending_at: i64,
+    /// Every chunk the runner has EVER submitted to `score_chunk` — set with
+    /// `pending_mask`, never cleared by `reset_pending`. A runner cannot
+    /// truncate a fully-queued run (queued computations execute regardless),
+    /// so `ever_queued_mask == full` proves a stall is the cluster's fault,
+    /// not a chosen truncation point. Markets may settle the proven partial
+    /// score on committed runs; uncommitted stalls refund (the runner picked
+    /// where to stop — settling that would let them freeze a favorable
+    /// bucket).
+    pub ever_queued_mask: u64,
+    /// When `ever_queued_mask` first became full — write-once, never
+    /// refreshed by sweeps or re-queues. Markets settle a stalled partial
+    /// only once `all_queued_at + EXPIRE_HARD_CAP_SECS` has elapsed: every
+    /// queued chunk must have had the same 24h landing window a first-queue
+    /// run gets. Without this, a runner could withhold all-but-one chunks
+    /// past the cap, commit them + fire expiry in the same transaction, and
+    /// settle a truncation they chose (the JIT-commit freeze-win).
+    pub all_queued_at: i64,
 }
 
 // ------------------------------------------------------------------ plain ixs

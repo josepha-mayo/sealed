@@ -35,16 +35,32 @@ entirely. Six Arcis circuits run inside the MPC cluster:
 A second program hosts parimutuel markets — binary, N-way score bands,
 head-to-head duels — resolving permissionlessly on `Run.correct`, with
 fees, deadlines, void, and expiry; bets latch shut before the first scored
-chunk. Verified: 9/9 E2E + 12/12 unit on a real MPC localnet; a real model
+chunk. Verified: 9/9 E2E + 13/13 unit on a real MPC localnet; a real model
 (gpt-oss-20b) finalized 64/64 on the current evidence ledger — on-chain
-score == local pre-score (run 3CKnMa8X).
+score == local pre-score (run 4uns99WD).
 
-Traction: 30+ sealed evaluations executed on the evidence ledger
-(generated, private, and delegated runs), incl. real models — gpt-oss-20b
-64/64 (fresh, MPC-finalized), ling-3.0 58/64, nemotron-3.5 59/64 — every
-MPC score identical to the local pre-score. `scripts/demo.sh` reproduces the
-full arc (mint → disclose → run → market → settle) in one command; the
-explorer renders everything from a committed snapshot — no localnet needed.
+## solanaIntegration
+
+Two Anchor programs on Solana: `sealed` owns benchmark banks, item chunks,
+sealed answer fingerprints, runs, share grants, and reveals; `market` hosts
+parimutuel score-band and duel markets resolved from `Run.correct`. The
+programs compose with the Arcium stack — MXE account, cluster, mempool/
+execpool, comp defs, `queue_computation` + callback instructions — via six
+Arcis circuits (seal/score/gen/gen_private/reveal/reshare). x25519 +
+RescueCipher encrypt staged parts to the MXE key and shared grants to
+delegates. Tooling: @solana/web3.js + @coral-xyz/anchor + arcium-anchor
+client libs; `solana program deploy` for upgrades; a single-file explorer
+reads program accounts or a committed snapshot and verifies Merkle proofs
+against on-chain `outputs_root` in-browser.
+
+## tractionMilestones
+
+30+ sealed evaluations executed on the evidence ledger (generated, private,
+and delegated runs), incl. real models — gpt-oss-20b 64/64 (fresh,
+MPC-finalized), ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score
+identical to the local pre-score. `scripts/demo.sh` reproduces the full arc
+(mint → disclose → run → market → settle) in one command; the explorer
+renders everything from a committed snapshot — no localnet needed.
 
 ## targetAudience
 

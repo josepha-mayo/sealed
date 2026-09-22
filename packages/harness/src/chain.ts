@@ -602,7 +602,15 @@ export async function listGrants(benchmarkPk: PublicKey, ctx = setup()) {
 
 // ------------------------------------------------------------------ score
 
-export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, createOnly = false, runIndexOverride?: bigint, ctx = setup()) {
+export async function score(
+  bank: Bank,
+  run: RunArtifact,
+  authority: PublicKey,
+  createOnly = false,
+  runIndexOverride?: bigint,
+  ctx = setup(),
+  insecureAllowUnbound = false,
+) {
   const { program, provider, wallet } = ctx;
   if (run.benchmarkId !== bank.benchmarkId) throw new Error("run/bank benchmark id mismatch");
   const { benchmark, chunk, run: runPda } = pdas(ctx, authority, bank.benchmarkId);
@@ -615,13 +623,20 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
   const onchainRoot = Buffer.from(b.itemsRoot).toString("hex");
   if (bank.itemsRoot !== onchainRoot)
     throw new Error(`bank file items_root ${bank.itemsRoot} != on-chain ${onchainRoot} — stale bank file`);
-  if (run.itemsRoot && run.itemsRoot !== onchainRoot)
-    throw new Error(
-      `run artifact answered items_root ${run.itemsRoot} but the on-chain bank is ${onchainRoot} — ` +
-        `the bank changed after this run; re-run the model against the current bank`,
-    );
-  if (!run.itemsRoot)
-    console.log("warning: run artifact predates items_root binding — cannot verify bank revision");
+  if (run.itemsRoot !== onchainRoot) {
+    // Deliberate escape hatch (scripts/score-artifact-insecure.mts): proves
+    // the items_root check is a UX guard — MPC remains the security boundary
+    // and scores the mismatched outputs honestly anyway.
+    if (!insecureAllowUnbound)
+      throw new Error(
+        run.itemsRoot
+          ? `run artifact answered items_root ${run.itemsRoot} but the on-chain bank is ${onchainRoot} — ` +
+              `the bank changed after this run; re-run the model against the current bank`
+          : "run artifact has no items_root — it predates bank-revision binding, so there is no " +
+              "way to verify it answered THIS bank. Re-run the model against the current bank file.",
+      );
+    console.log("WARNING: scoring an unbound/stale artifact — MPC will tally it honestly, likely low");
+  }
   // Authored banks: re-derive the leaf fold — itemsRoot is a claimed string
   // in a mutable file, so verify it actually commits to these items.
   // Generated banks can't refold from rendered items (raw spec bytes aren't
@@ -659,20 +674,18 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
     return r;
   }
 
-  let correct = Number(state.correct);
   if (run.items.length !== bank.chunkCount * CHUNK)
     throw new Error(`run artifact has ${run.items.length} outputs; benchmark expects ${bank.chunkCount * CHUNK}`);
   const outLeaves = chunkOutLeaves(run.items.map((r) => BigInt(r.outputHash)));
-  for (let i = 0; i < bank.chunkCount; i++) {
-    state = await acct.run.fetch(r);
-    const bit = 1n << BigInt(i);
-    const scored = BigInt(state.scoredMask.toString()) & bit;
-    const pending = BigInt(state.pendingMask.toString()) & bit;
-    if (scored) {
-      console.log(`chunk ${i}: already scored`);
-      continue;
-    }
-    if (!pending) {
+  // Queue every un-scored chunk UP FRONT. A queued computation executes
+  // regardless of later bit sweeps, so once `ever_queued_mask` is full any
+  // further stall is the cluster's fault — markets can then settle the honest
+  // partial on expiry instead of refunding a runner-chosen truncation point.
+  {
+    const snap: any = await acct.run.fetch(r);
+    const masks = BigInt(snap.scoredMask.toString()) | BigInt(snap.pendingMask.toString());
+    for (let i = 0; i < bank.chunkCount; i++) {
+      if (masks & (1n << BigInt(i))) continue;
       const outputs = runChunkOutputs(run, i).map((h) => new anchor.BN(h.toString()));
       const proof = merkleProof(outLeaves, i).map((p) => Array.from(p));
       const offset = new anchor.BN(randomBytes(8), "hex");
@@ -680,12 +693,19 @@ export async function score(bank: Bank, run: RunArtifact, authority: PublicKey, 
         .scoreChunk(offset, new anchor.BN(runIndex.toString()), i, outputs, proof)
         .accountsPartial({ payer: wallet.publicKey, run: r, runner: wallet.publicKey, chunk: chunk(i), ...arciumAccounts(ctx, offset, "score_chunk") })
         .rpc({ commitment: "confirmed" });
+      console.log(`chunk ${i}: queued in MPC`);
     }
-    process.stdout.write(`chunk ${i}: ${pending ? "scoring already in flight" : "scoring in MPC"}...`);
+  }
+  for (let i = 0; i < bank.chunkCount; i++) {
+    const bit = 1n << BigInt(i);
+    state = await acct.run.fetch(r);
+    if (BigInt(state.scoredMask.toString()) & bit) {
+      console.log(`chunk ${i}: scored (total ${state.correct})`);
+      continue;
+    }
+    process.stdout.write(`chunk ${i}: scoring in MPC...`);
     state = await waitFor(acct.run, r, (s) => (BigInt(s.scoredMask.toString()) & bit) !== 0n);
-    const delta = Number(state.correct) - correct;
-    correct = Number(state.correct);
-    console.log(scored || (BigInt(state.scoredMask.toString()) & bit) ? ` +${delta} (total ${correct})` : " STILL PENDING");
+    console.log(` scored (total ${state.correct})`);
   }
   const final = await acct.run.fetch(r);
   const items = bank.chunkCount * CHUNK;

@@ -41,5 +41,6 @@
   "proof": [
     "e9bc2cc3049494ffd7c6da07b0dae3ce48e92dce68934ec8bc214ac0e80bb9ee"
   ],
-  "outputsRoot": "f6aa29a3d74c92e69ef3476a684ef5b0ec6470d0af82eedfc718b5e0b89bb506"
+  "outputsRoot": "f6aa29a3d74c92e69ef3476a684ef5b0ec6470d0af82eedfc718b5e0b89bb506",
+  "runPda": "4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1"
 }

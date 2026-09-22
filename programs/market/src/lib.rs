@@ -48,9 +48,9 @@ declare_id!("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
 /// Deserialize a Sealed `Run` account: owner + discriminator checked by hand
 /// (`Account<T>` would demand the market program as owner).
 /// INVARIANT: `sealed::Run` may only ever grow by TAIL-APPEND — shrinking or
-/// reordering a field before `first_pending_at` Borsh-bricks every open market
+/// reordering a field before `ever_queued_mask` Borsh-bricks every open market
 /// (resolve AND expire both route through this fn). Mirror below must match
-/// through `first_pending_at`; `try_deserialize_unchecked` deliberately
+/// through `ever_queued_mask`; `try_deserialize_unchecked` deliberately
 /// ignores TRAILING bytes so a future tail-append can't brick this reader.
 fn load_run(info: &AccountInfo) -> Result<Run> {
     require!(info.owner == &SEALED_PROGRAM, ErrorCode::WrongRun);
@@ -113,6 +113,34 @@ fn past_cap(r: &Run, now: i64) -> bool {
     r.first_pending_at != 0 && now > r.first_pending_at + EXPIRE_HARD_CAP_SECS
 }
 
+/// A leg whose score may still legitimately improve: inside the 24h window
+/// from its FIRST queue (`first_pending_at`, ungameable), or fully committed
+/// but its post-commit landing window hasn't elapsed yet. The second case
+/// covers just-in-time commits: a runner who queues the remaining chunks at
+/// the last moment must still give the cluster a full cap-window to land
+/// them before any partial may settle — a live cluster finalizes the run
+/// (the honest outcome), and only a genuinely dead one leaves the partial.
+fn still_moving(r: &Run, now: i64) -> bool {
+    if r.status == RUN_FINALIZED {
+        return false;
+    }
+    if r.first_pending_at != 0 && !past_cap(r, now) {
+        return true;
+    }
+    r.all_queued_at != 0 && now <= r.all_queued_at + EXPIRE_HARD_CAP_SECS
+}
+
+/// A run whose current `correct` is a fair settle value: finalized, or fully
+/// committed long enough ago that every queued chunk had a complete
+/// landing window (a live cluster would have produced the true score), with
+/// at least one landed chunk to prove signal.
+fn proven(r: &Run, now: i64) -> bool {
+    r.status == RUN_FINALIZED
+        || (r.all_queued_at != 0
+            && now > r.all_queued_at + EXPIRE_HARD_CAP_SECS
+            && r.scored_mask != 0)
+}
+
 fn expire_decision(ra: &Run, rb: Option<&Run>, now: i64) -> ExpireAction {
     match rb {
         None => {
@@ -122,31 +150,29 @@ fn expire_decision(ra: &Run, rb: Option<&Run>, now: i64) -> ExpireAction {
             if ra.first_pending_at == 0 {
                 return ExpireAction::Cancel; // never queued — nothing proven
             }
-            if !past_cap(ra, now) {
-                return ExpireAction::Blocked; // in-flight inside the window
+            if still_moving(ra, now) {
+                return ExpireAction::Blocked; // in-window or committed-in-grace
             }
-            if ra.scored_mask == 0 {
-                ExpireAction::Cancel // queued but the cluster never landed a chunk
+            if proven(ra, now) {
+                ExpireAction::SettleScore(ra.correct) // honest partial
             } else {
-                ExpireAction::SettleScore(ra.correct) // stall-veto fix: settle partial
+                ExpireAction::Cancel // uncommitted/nothing landed: refund
             }
         }
         Some(rb) => {
             if ra.status == RUN_FINALIZED && rb.status == RUN_FINALIZED {
                 return ExpireAction::Blocked;
             }
-            let still_moving =
-                |r: &Run| r.status != RUN_FINALIZED && r.first_pending_at != 0 && !past_cap(r, now);
-            if still_moving(ra) || still_moving(rb) {
+            if still_moving(ra, now) || still_moving(rb, now) {
                 return ExpireAction::Blocked;
             }
-            if ra.scored_mask == 0 && rb.scored_mask == 0 {
-                ExpireAction::Cancel // nothing landed on either leg — refund
-            } else {
-                // A never-queued leg contributes its initial 0 — a forfeit, not
-                // a refund, so the other side's runner can't wash a lost duel by
-                // withholding their own run.
+            if proven(ra, now) && proven(rb, now) {
                 ExpireAction::SettleDuel(ra.correct, rb.correct)
+            } else {
+                // A never-queued or uncommitted leg is dead — refund. Settling
+                // it at 0 would let a sybil'd attacker mint a ringer leg and
+                // steal the other side's stake.
+                ExpireAction::Cancel
             }
         }
     }
@@ -661,6 +687,15 @@ pub struct Run {
     /// Sealed tail: first-ever score queue timestamp, never refreshed —
     /// `expire_market`'s idleness horizon, immune to sweep+requeue cycling.
     pub first_pending_at: i64,
+    /// Sealed tail: every chunk ever submitted to `score_chunk`. Only a fully
+    /// committed run may settle its proven partial on expiry — an uncommitted
+    /// stall refunds (the runner chose the truncation point).
+    pub ever_queued_mask: u64,
+    /// Sealed tail: when `ever_queued_mask` first became full. A committed
+    /// run settles only once `all_queued_at + EXPIRE_HARD_CAP_SECS` elapses —
+    /// every queued chunk gets a full landing window, which defeats
+    /// just-in-time commit+expire bundles.
+    pub all_queued_at: i64,
 }
 
 #[account]
@@ -1031,6 +1066,8 @@ mod tests {
                 attested_at: 0,
                 pending_since: 0,
                 first_pending_at: 0,
+                ever_queued_mask: 0,
+                all_queued_at: 0,
             },
             extra_field: 0xdeadbeef,
         };
@@ -1041,7 +1078,14 @@ mod tests {
         assert_eq!(parsed.correct, 42);
     }
 
-    fn run(status: u8, first_pending_at: i64, scored_mask: u64, correct: u32) -> Run {
+    fn run(
+        status: u8,
+        first_pending_at: i64,
+        scored_mask: u64,
+        ever_queued_mask: u64,
+        all_queued_at: i64,
+        correct: u32,
+    ) -> Run {
         Run {
             benchmark: Pubkey::default(),
             runner: Pubkey::default(),
@@ -1061,20 +1105,35 @@ mod tests {
             attested_at: 0,
             pending_since: 0,
             first_pending_at,
+            ever_queued_mask,
+            all_queued_at,
         }
     }
 
-    /// The expire predicate's full branch table — the stall-veto fix lives here:
-    /// a run that LANDED chunks then stalled past the 24h cap settles on its
-    /// partial score instead of refunding.
+    /// The expire predicate's full branch table. A stalled partial settles
+    /// only when the runner committed to EVERY chunk AND the commit is at
+    /// least one full cap-window old — every queued chunk had a real chance
+    /// to land. A just-in-time commit (queued the rest at expiry time) is
+    /// still in its landing window → Blocked, which converts the JIT
+    /// freeze-win back into a race the attacker can't win while the cluster
+    /// is alive.
     #[test]
     fn expire_decision_covers_every_branch() {
         let now = 1_000_000i64;
-        let pending_never_queued = run(0, 0, 0, 0);
-        let inflight = run(0, now - 60, 0, 0); // queued a minute ago, nothing landed
-        let stalled_no_chunks = run(0, now - EXPIRE_HARD_CAP_SECS - 1, 0, 0);
-        let stalled_partial = run(0, now - EXPIRE_HARD_CAP_SECS - 1, 1, 30);
-        let finalized = run(1, now - EXPIRE_HARD_CAP_SECS - 1, 3, 64);
+        let cap = EXPIRE_HARD_CAP_SECS;
+        let pending_never_queued = run(0, 0, 0, 0, 0, 0);
+        let inflight = run(0, now - 60, 0, 1, 0, 0); // queued a minute ago, nothing landed
+        let stalled_no_chunks = run(0, now - 2 * cap, 0, 3, now - 2 * cap, 0);
+        // Committed at first queue, stalled past the cap — honest partial.
+        let stalled_partial = run(0, now - 2 * cap, 1, 3, now - 2 * cap, 30);
+        // Queued+landed chunk 0, never queued chunk 1 — chose the truncation.
+        let uncommitted_partial = run(0, now - 2 * cap, 1, 1, 0, 30);
+        // JIT-commit: held chunks back past the cap, committed 10s ago —
+        // still inside its post-commit landing window → NOT settleable.
+        let jit_commit = run(0, now - 2 * cap, 1, 3, now - 10, 30);
+        // Committed in-window, cluster died mid-scoring — honest stall.
+        let committed_in_grace = run(0, now - cap - 60, 1, 3, now - cap - 60, 30);
+        let finalized = run(1, now - 2 * cap, 3, 3, now - 2 * cap, 64);
 
         // Score market branches.
         assert!(matches!(
@@ -1094,6 +1153,26 @@ mod tests {
             ExpireAction::SettleScore(30)
         ));
         assert!(matches!(
+            expire_decision(&uncommitted_partial, None, now),
+            ExpireAction::Cancel
+        ));
+        // JIT-commit is Blocked — its post-commit window is still open, and a
+        // live cluster lands the queued chunks inside it (finalizing the run).
+        assert!(matches!(
+            expire_decision(&jit_commit, None, now),
+            ExpireAction::Blocked
+        ));
+        // Committed but still inside the post-commit window → Blocked.
+        assert!(matches!(
+            expire_decision(&committed_in_grace, None, now - cap + 60),
+            ExpireAction::Blocked
+        ));
+        // ...and past the window it settles its honest partial.
+        assert!(matches!(
+            expire_decision(&committed_in_grace, None, now + 60),
+            ExpireAction::SettleScore(30)
+        ));
+        assert!(matches!(
             expire_decision(&finalized, None, now),
             ExpireAction::Blocked
         ));
@@ -1103,13 +1182,19 @@ mod tests {
             expire_decision(&finalized, Some(&finalized), now),
             ExpireAction::Blocked
         ));
-        // A never-queued leg forfeits its 0 — the other side's runner can't
-        // wash a lost duel by withholding their own scoring.
+        // A never-queued leg cannot be forfeited at 0 — settling would let a
+        // sybil'd ringer leg steal the other side's stake. Refund instead.
         assert!(matches!(
             expire_decision(&finalized, Some(&pending_never_queued), now),
-            ExpireAction::SettleDuel(64, 0)
+            ExpireAction::Cancel
         ));
-        // Nothing landed on either leg -> refund, not a 0-0 settle.
+        // Proven leg + uncommitted stall -> refund (never settle a chosen
+        // truncation).
+        assert!(matches!(
+            expire_decision(&finalized, Some(&uncommitted_partial), now),
+            ExpireAction::Cancel
+        ));
+        // Nothing proven on either leg -> refund, not a 0-0 settle.
         assert!(matches!(
             expire_decision(&pending_never_queued, Some(&stalled_no_chunks), now),
             ExpireAction::Cancel
@@ -1119,8 +1204,18 @@ mod tests {
             expire_decision(&finalized, Some(&inflight), now),
             ExpireAction::Blocked
         ));
-        // Both stalled with proven chunks -> partial-vs-partial settle.
-        let stalled_b = run(0, now - EXPIRE_HARD_CAP_SECS - 5, 3, 40);
+        // A committed-but-in-grace leg also blocks — its landing window is open.
+        assert!(matches!(
+            expire_decision(&stalled_partial, Some(&jit_commit), now),
+            ExpireAction::Blocked
+        ));
+        // Finalized vs committed-stall -> the headline duel settle path.
+        assert!(matches!(
+            expire_decision(&finalized, Some(&stalled_partial), now),
+            ExpireAction::SettleDuel(64, 30)
+        ));
+        // Both committed-and-stalled with proven chunks -> partial-vs-partial.
+        let stalled_b = run(0, now - 2 * cap - 5, 3, 3, now - 2 * cap - 5, 40);
         assert!(matches!(
             expire_decision(&stalled_partial, Some(&stalled_b), now),
             ExpireAction::SettleDuel(30, 40)
