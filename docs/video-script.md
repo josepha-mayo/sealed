@@ -1,5 +1,13 @@
 # Demo video script — ~2 minutes
 
+**Pre-recorded artifacts committed:** `docs/demo.cast` (asciinema),
+`docs/demo.gif` (embedded in README), `docs/demo.mp4` (114s — the full
+`scripts/demo.sh` run with MPC waits capped at 2s, upload-ready). To
+re-record: `asciinema rec --idle-time-limit 2 docs/demo.cast -c "bash
+scripts/demo.sh"` then `agg --speed 1.25 docs/demo.cast docs/demo.gif`.
+For a narrated cut, play `docs/demo.mp4` under voiceover per the beat
+table below — every beat shown is a real command with real output.
+
 Recorded against `arcium localnet` (or devnet once callbacks recover). Every
 beat is a real command with real output — no mockups. `scripts/demo.sh` runs
 the whole arc end-to-end; this script splits it into narrated segments.

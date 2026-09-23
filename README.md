@@ -8,6 +8,10 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
 > **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. With `arcium localnet` running, `scripts/demo.sh` runs the whole flow end-to-end; `web/index.html` is the public explorer (leaderboard, proof verification, market board, ciphertext + grant views) and renders the committed `docs/evidence/snapshot.json` offline — no localnet needed.
 
+![Full demo: MPC-minted bank → private bank → selective disclosure → 3 runners → binary/band/duel/ladder markets → settle + claim](docs/demo.gif)
+
+*([asciicast](docs/demo.cast) · [mp4](docs/demo.mp4) — the real `scripts/demo.sh` run, MPC waits capped at 2s)*
+
 ## Why
 
 Prediction markets on AI progress settle against leaderboards run by single companies, and lab-reported benchmark numbers are unverifiable and increasingly contaminated by training data. There is no neutral referee. Sealed makes the referee a protocol:

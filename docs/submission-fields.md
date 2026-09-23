@@ -56,14 +56,17 @@ against on-chain `outputs_root` in-browser.
 
 ## tractionMilestones
 
-Dozens of MPC computations executed on the evidence ledger — gen/seal/
-score/reshare/reveal circuits across generated, private, and delegated
-banks — including real models: gpt-oss-20b 64/64 on an MPC-minted bank
-(run HW5H5bT7) and 64/64 on a sealed authored bank (run 4uns99WD),
-ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score identical to the
-local pre-score. `scripts/demo.sh` reproduces the full arc
-(mint → disclose → run → market → settle) in one command; the explorer
-renders everything from a committed snapshot — no localnet needed.
+Hundreds of MPC computations executed on the committed evidence ledger —
+29 banks minted (generated + private + authored), 70 runs created and 61
+finalized by the cluster, 39 markets resolved on-chain (36 score/duel +
+3 ladder races) paying 12.56 SOL pro-rata, 38 selective-disclosure grants,
+7 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
+models: gpt-oss-20b 64/64 on an MPC-minted bank (run HW5H5bT7) and 64/64
+on a sealed authored bank (run 4uns99WD), ling-3.0 58/64, nemotron-3.5
+59/64 — every MPC score identical to the local pre-score.
+`scripts/demo.sh` reproduces the full arc (mint → disclose → run → 4
+market types → settle) in one command; the explorer renders everything
+from a committed snapshot — no localnet needed.
 
 ## targetAudience
 
@@ -137,10 +140,13 @@ background is a listed submission mistake.>
 
 - Demo video (≤3 min, product running — not a pitch): record `scripts/demo.sh`
   per `docs/video-script.md`; every beat is a real command with real output.
+  An asciinema capture is pre-recorded at `docs/demo.cast` — render with
+  `agg docs/demo.cast docs/demo.gif` or convert to mp4; embed in README.
 - Public URL: serve the explorer with its committed snapshot so judges can
   click without a localnet — `python3 -m http.server -d . 8788` →
   `http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json`
   (the bundled `web/snapshot.json` also auto-fallbacks when RPC is down).
-  For a hosted link, deploy `web/` + `web/snapshot.json` + `web/sample-proof.json`
-  to any static host — the page needs no backend.
+  Zero-config hosting is wired: `.github/workflows/pages.yml` publishes
+  `web/` to GitHub Pages on every push — flip repo public, enable
+  Settings → Pages → "GitHub Actions", and the URL mints itself.
 - Repo must be public or judges invited — most common disqualifying mistake.
