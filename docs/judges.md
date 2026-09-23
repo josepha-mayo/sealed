@@ -16,7 +16,7 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 |---|---|---|
 | **Insight / novelty** | The eval-honesty problem is that every trusted party in the loop can leak or rig. Sealed removes the trusted *data* party entirely: the questions are born in MPC, the answers never leave it, and disclosure is selective and recorded. | `docs/pitch.md`, README "Why" table |
 | **Product / execution** | Six Arcis circuits + two Anchor programs + TS harness + web explorer, all live: `seal_part`, `score_chunk`, `gen_part`, `gen_part_private`, `reveal_part`, `reshare_part`. | `encrypted-ixs/src/lib.rs`, `programs/sealed/src/lib.rs` |
-| **Does it work?** | `yarn test` — 10/10 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder markets, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 13/13 unit. | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
+| **Does it work?** | `yarn test` — 11/11 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder markets, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 13/13 unit. | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
 | **Real model evidence** | gpt-oss-20b (`openai` on the anonymous Pollinations tier) answered all 64 items of **MPC-minted bank 6932** — no answer key exists; on-chain MPC score **64/64 == local pre-score** (run `HW5H5bT7…`). Same model, authored bank 25864: **64/64** (run `4uns99WD…`) — and a stale-bank artifact claiming 64/64 scored **1/64** (`3CKnMa8X…`, reproduced via a deliberate insecure-bypass — the client check refuses it, MPC is the boundary). Artifacts + accounts + Merkle proofs in `docs/evidence/`, verifiable on the live ledger. Historical: 99003 32/32, ling-3.0 58/64, nemotron-3.5 59/64 — all MPC-scored, all matching. | `docs/submission.md` |
 | **Why crypto is load-bearing** | Solana = the commitment layer (roots, PDAs, market settlement). Arcium MPC = the only reason data can be on-chain yet unreadable. Without either, this is a database + a promise. | `docs/threat-model.md` |
 | **Privacy depth** | Three disclosure levels, all proven: public specs (generated), delegate-only specs (`reshare_part` → `ShareGrant` PDAs — one-directional, grant trail on-chain), sealed answers (MXE-only, fingerprints declassifiable via `reveal_part`). | `docs/threat-model.md` tables |
@@ -56,7 +56,7 @@ python3 -m http.server -d . 8788
 # for attest/reset-pending/market open (verify-proof.mjs also takes --run-pda)
 
 # 3. verify the suites yourself
-yarn test                      # 10/10 E2E
+yarn test                      # 11/11 E2E
 yarn harness:test              # 13/13 unit
 
 # 4. verify a committed output independently (two-level Merkle proof)

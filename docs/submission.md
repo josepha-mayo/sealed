@@ -152,11 +152,13 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 10/10 passing (seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 11/11 passing (seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim incl. expiry,
   claim-fee-first solvency, and post-finalize expiry rejection; duel market
   open→bet→score-both→resolve→claim + gates; 3-way ladder open→bet→latch→
   resolve→claim + LegMismatch/DeadlineTooSoon/RunsMustDiffer gates;
+  ladder dead-heat: two legs tie at 25 → result_mask 0b011 → the whole pot
+  splits pro-rata over winning stakes, loser's claim fails;
   generated-bank mint→live→score;
   private-bank mint→decrypt→score + privacy negatives; reshare
   delegate-decrypt + one-directional disclosure + gates; delegated-runner

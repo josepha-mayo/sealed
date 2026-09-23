@@ -35,7 +35,7 @@ entirely. Six Arcis circuits run inside the MPC cluster:
 A second program hosts parimutuel markets — binary, N-way score bands,
 head-to-head duels, K-way ladder races — resolving permissionlessly on
 `Run.correct`; bets latch shut before the first scored chunk. Verified:
-10/10 E2E + 13/13 unit on a real MPC localnet; a real model (gpt-oss-20b)
+11/11 E2E + 13/13 unit on a real MPC localnet; a real model (gpt-oss-20b)
 finalized 64/64 on an MPC-minted bank — on-chain score == local pre-score
 (run HW5H5bT7).
 
