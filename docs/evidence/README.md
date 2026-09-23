@@ -91,6 +91,10 @@ while that ledger is up; the artifacts are also self-checking offline.
   beat run B (28/64) → outcome "A wins", pool paid out.
 - `acct-3Kv748WJ….json` — a `ShareGrant` PDA: selective-disclosure record
   delegating chunk-0 part-0 of the private bank to a judge wallet.
+- `acct-7XGyUoc3….json` — a resolved **ladder race** (K-way argmax market):
+  three runs of generated bank `GM1nPcr7…` scored 46/30/17 by MPC →
+  `result_mask=0b1`, winning score 46, pot paid pro-rata. Legs:
+  `acct-DhWJ4n86…` (46), `acct-HHYFCPT2…` (30), `acct-HnM9ffHU…` (17).
 
 ### Proof + snapshot
 

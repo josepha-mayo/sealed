@@ -117,6 +117,24 @@ after sealing, and nobody can fabricate a score.
   A computation landing into an already-settled-or-refunded market still
   posts its score on-chain — the record stays honest either way.
 
+- **Ladder races (`create_ladder` / `resolve_ladder`, 2–8 legs).** Argmax
+  settlement: the highest leg score takes the pot and co-leaders split it
+  dead-heat pro-rata (`result_mask`). Unlike duels, a dead leg does NOT
+  cancel the race — a never-queued or uncommitted leg contributes 0 and the
+  race resolves among the rest, because cancelling on a dead leg would hand
+  every losing leg operator a free exit (poison one leg → refund a losing
+  bet). The same committed-stall invariant applies per leg: `proven` legs
+  (finalized, or fully committed past `all_queued_at + 24h`) contribute their
+  partial `correct`; a leg still inside its landing window blocks resolution
+  even past `resolve_by` (bounded — `all_queued_at` is write-once, so a
+  just-in-time commit buys at most one window and a live cluster finalizes
+  the leg inside it). Bets latch at `closes_at` (required — an open-ended
+  board on a public leg list invites sniping) or the first leg leaving
+  pending, whichever is earlier. Disclosed residual: an authority can pack
+  the board with dormant-runner "ringer" legs whose backers' stake flows to
+  live legs — forfeiture is the correct anti-exit rule, so leg-runner
+  diligence is priced by bettors (the CLI prints each leg's runner/model).
+
 ## What is *not* protected (yet)
 
 - **Expiry is a bounded tradeoff, not a guarantee** — every market must set

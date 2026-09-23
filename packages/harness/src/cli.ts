@@ -167,6 +167,14 @@ async function main() {
   sealed chain market expire  --market <pk>                                after resolve_by: refunds never-queued/uncommitted runs, settles a fully-committed stall on its proven partial
   sealed chain market claim-fee --market <pk> [--bettor keypair.json]      authority collects the accrued fee
   sealed chain market show    --market <pk>
+  sealed chain market ladder open    --legs <pk,pk,...> [--salt n]         K-way race: argmax over leg scores, dead-heat ties
+                                     [--fee-bps 0..1000] --closes-at +secs|ts (required) --resolve-by +secs|ts (required)
+  sealed chain market ladder bet     --market <pk> --outcome <i> --lamports <n> [--bettor keypair.json]
+  sealed chain market ladder resolve --market <pk>                       argmax settle once every leg is terminal (or past resolve_by)
+  sealed chain market ladder claim   --market <pk> [--bettor keypair.json]
+  sealed chain market ladder void    --market <pk> [--bettor keypair.json] authority cancels, only before any leg starts
+  sealed chain market ladder claim-fee --market <pk> [--bettor keypair.json]
+  sealed chain market ladder show    --market <pk>
   sealed chain reset-sealing  --bank-id <n> --chunk <i>          clear a part stuck by a dropped MPC computation
   sealed chain reset-pending  --run <pk> --chunk <i>             sweep a stuck scoring bit (runner anytime, anyone after 15min stale)
   sealed prove  --run <file> --item <i>               Merkle proof that output i was committed`);

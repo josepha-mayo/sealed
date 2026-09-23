@@ -71,6 +71,7 @@ not the commands.
 | 7. Explorer | open `web/index.html` | "Leaderboard from raw chain state — minted specs, items root, outputs root, MPC score. On bank 25864: `openai` 1/64 sits under `openai` 64/64 — a stale artifact claimed 64/64 locally and MPC said 1. The enclave's count is the score." |
 | 8. Resolve + claim | `chain market resolve` / `claim` | "The market read `Run.correct` itself. Winner withdraws; the loser has nothing to claim." |
 | 9. Duel (optional beat) | `sealed chain market duel --run-a <pk> --run-b <pk> --resolve-by +86400` | "Two runs, one sealed bank: 'who outscores whom?' — bets close once either side starts scoring, so nobody trades on a half-known result." |
+| 9b. Ladder (optional beat) | `sealed chain market ladder open --legs <pk,pk,pk> --closes-at +86400 --resolve-by +86400` | "Or a K-way race: three models, one pot, argmax takes it — dead-heat splits ties, and a leg that never shows up forfeits at 0 instead of refunding its backers out." |
 
 ## One-pager for the submission form
 

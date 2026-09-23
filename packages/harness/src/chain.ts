@@ -1032,6 +1032,122 @@ function provider0(kp: Keypair) {
   return new Connection(url, "confirmed");
 }
 
+// ------------------------------------------------------------------ ladders
+
+const ladderPda = (firstLeg: PublicKey, salt = 0n, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync([Buffer.from("ladder"), firstLeg.toBuffer(), Buffer.from(new anchor.BN(salt.toString()).toArray("le", 8))], pid)[0];
+const legMeta = (pubkey: PublicKey) => ({ pubkey, isSigner: false, isWritable: false });
+const ladderLegs = (l: any): PublicKey[] => (l.legs as PublicKey[]).slice(0, l.legCount as number);
+
+/** K-way race market: argmax over leg scores, dead-heat split on ties. */
+async function ladderOpen(legs: PublicKey[], salt: bigint, t: MarketTiming, kpPath?: string) {
+  if (t.closesAt === 0n) throw new Error("--closes-at is required for ladders (e.g. --closes-at +3600)");
+  const { market, kp } = marketProgram(kpPath);
+  const ctx = setup();
+  const l = ladderPda(legs[0], salt, market.programId);
+  // Print each leg's runner + model before opening: a leg whose runner never
+  // scores forfeits at 0 — bettors must be able to spot dormant-runner legs.
+  const legRows = await Promise.all(legs.map(async (x, i) => {
+    const r: any = await (ctx.program.account as any).run.fetch(x);
+    return `  [${i}] ${x.toBase58()} runner=${(r.runner as PublicKey).toBase58()} model=${r.modelId}`;
+  }));
+  await (market.methods as any)
+    .createLadder(legs[0], new anchor.BN(salt.toString()), t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()))
+    .accounts({ authority: kp.publicKey, ladder: l })
+    .remainingAccounts(legs.map(legMeta))
+    .rpc({ commitment: "confirmed" });
+  console.log(`ladder ${l.toBase58()} opened: ${legs.length}-way race${t.feeBps ? ` fee=${t.feeBps}bps` : ""}`);
+  legRows.forEach((r) => console.log(r));
+  console.log(`  outcome index = leg order above — a leg whose runner never scores forfeits at 0`);
+  return l;
+}
+
+async function ladderBet(ladderPk: PublicKey, outcome: number, lamports: bigint, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const l: any = await (market.account as any).ladder.fetch(ladderPk);
+  const position = positionPda(ladderPk, kp.publicKey, market.programId);
+  const sig = await (market.methods as any)
+    .betLadder(outcome, new anchor.BN(lamports.toString()))
+    .accounts({ bettor: kp.publicKey, ladder: ladderPk, position })
+    .remainingAccounts(ladderLegs(l).map(legMeta))
+    .rpc({ commitment: "confirmed" });
+  console.log(`bet leg [${outcome}] ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
+}
+
+async function ladderResolve(ladderPk: PublicKey, kpPath?: string) {
+  const { market } = marketProgram(kpPath);
+  const l: any = await (market.account as any).ladder.fetch(ladderPk);
+  const sig = await (market.methods as any)
+    .resolveLadder()
+    .accounts({ ladder: ladderPk })
+    .remainingAccounts(ladderLegs(l).map(legMeta))
+    .rpc({ commitment: "confirmed" });
+  const after: any = await (market.account as any).ladder.fetch(ladderPk);
+  const what = after.status === 2
+    ? "CANCELLED (wash — nobody backed a leader, or all legs tied)"
+    : `mask=0b${(after.resultMask as number).toString(2)} winning_score=${after.resolvedScore}`;
+  console.log(`ladder resolved (${sig}): ${ladderPk.toBase58()} — ${what}`);
+}
+
+async function ladderClaim(ladderPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const position = positionPda(ladderPk, kp.publicKey, market.programId);
+  const before = await provider0(kp).getBalance(kp.publicKey);
+  const sig = await (market.methods as any)
+    .claimLadder()
+    .accounts({ bettor: kp.publicKey, ladder: ladderPk, position })
+    .rpc({ commitment: "confirmed" });
+  const after = await provider0(kp).getBalance(kp.publicKey);
+  console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+}
+
+async function ladderVoid(ladderPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const l: any = await (market.account as any).ladder.fetch(ladderPk);
+  const sig = await (market.methods as any)
+    .voidLadder()
+    .accounts({ authority: kp.publicKey, ladder: ladderPk })
+    .remainingAccounts(ladderLegs(l).map(legMeta))
+    .rpc({ commitment: "confirmed" });
+  console.log(`ladder voided (${sig}): ${ladderPk.toBase58()} — all positions refundable via claim`);
+}
+
+async function ladderClaimFee(ladderPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const before = await provider0(kp).getBalance(kp.publicKey);
+  const sig = await (market.methods as any)
+    .claimFeeLadder()
+    .accounts({ authority: kp.publicKey, ladder: ladderPk })
+    .rpc({ commitment: "confirmed" });
+  const after = await provider0(kp).getBalance(kp.publicKey);
+  console.log(`claim-fee (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+}
+
+async function ladderShow(ladderPk: PublicKey) {
+  const { market } = marketProgram();
+  const ctx = setup();
+  const l: any = await (market.account as any).ladder.fetch(ladderPk);
+  const status = ["OPEN", "RESOLVED", "CANCELLED"][l.status as number];
+  console.log(`ladder ${ladderPk.toBase58()} status=${status} legs=${l.legCount} benchmark=${l.benchmark.toBase58()}`);
+  for (let i = 0; i < (l.legCount as number); i++) {
+    const win = l.status === 1 && (l.resultMask & (1 << i)) !== 0 ? "  <- WINNER" : "";
+    let info = "";
+    try {
+      const r: any = await (ctx.program.account as any).run.fetch(l.legs[i]);
+      info = ` model=${r.modelId} runner=${(r.runner as PublicKey).toBase58().slice(0, 8)}… score=${r.status === 1 ? r.correct : "?"}`;
+    } catch { /* leg account unreadable — show the key only */ }
+    console.log(`  [${i}] ${(l.legs[i] as PublicKey).toBase58()}${info}: ${Number(l.totals[i]) / LAMPORTS_PER_SOL} SOL${win}`);
+  }
+  console.log(`  resolved_score=${l.resolvedScore} result_mask=0b${(l.resultMask as number).toString(2)}`);
+  const fmt = (v: bigint) => (v === 0n ? "-" : new Date(Number(v) * 1000).toISOString());
+  console.log(`  fee_bps=${l.feeBps} fees_accrued=${Number(l.feesAccrued) / LAMPORTS_PER_SOL} SOL closes_at=${fmt(l.closesAt)} resolve_by=${fmt(l.resolveBy)}`);
+  const positions = await (market.account as any).position.all([{ memcmp: { offset: 8, bytes: ladderPk.toBase58() } }]);
+  for (const { account: p } of positions) {
+    const bets = p.amounts.slice(0, l.legCount).map((a: bigint, i: number) => `[${i}]=${Number(a) / LAMPORTS_PER_SOL}`).filter((s: string) => !s.endsWith("=0")).join(" ");
+    console.log(`  position ${p.bettor.toBase58()} ${bets}`);
+  }
+}
+
 async function marketShow(marketPk: PublicKey) {
   const { market } = marketProgram();
   const m: any = await (market.account as any).market.fetch(marketPk);
@@ -1230,6 +1346,29 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketExpire(new PublicKey(String(args.market)), bettor);
     } else if (m0 === "claim-fee") {
       await marketClaimFee(new PublicKey(String(args.market)), bettor);
+    } else if (m0 === "ladder") {
+      const [m1] = cmd.slice(2);
+      if (m1 === "open") {
+        // --legs pk1,pk2,... (2..=8 pending runs, distinct runners, same bank)
+        const legs = String(args.legs).split(",").map((s) => new PublicKey(s.trim()));
+        if (legs.length < 2) throw new Error("--legs <pk,pk,...> needs at least 2 runs");
+        await ladderOpen(legs, BigInt(String(args.salt ?? "0")), timing(args), bettor);
+      } else if (m1 === "bet") {
+        const ladderPk = new PublicKey(String(args.market));
+        const outcome = Number(args.outcome);
+        if (!Number.isFinite(outcome)) throw new Error("--outcome <i> — the leg index");
+        await ladderBet(ladderPk, outcome, BigInt(String(args.lamports)), bettor);
+      } else if (m1 === "resolve") {
+        await ladderResolve(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "claim") {
+        await ladderClaim(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "void") {
+        await ladderVoid(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "claim-fee") {
+        await ladderClaimFee(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "show") {
+        await ladderShow(new PublicKey(String(args.market)));
+      } else throw new Error(`unknown ladder command: ${m1}`);
     } else if (m0 === "show") {
       await marketShow(new PublicKey(String(args.market)));
     } else throw new Error(`unknown market command: ${m0}`);

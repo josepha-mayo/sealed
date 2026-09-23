@@ -113,6 +113,7 @@ const DISC = {
   reveal: "fbaa9323ea6c0e95",
   shareGrant: "a47067c1839cb4c0",
   market: "dbbed53700e3c69a",
+  ladder: "7d9223fe2a07ccde",
   position: "aabc8fe47a40f7d0",
 };
 const hex = (u8) => [...u8].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -265,6 +266,30 @@ function parseMarket(d) {
   }
   return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges, status, outcome, totals, resolvedScore, createdAt, resolvedAt, runB, duel, feeBps, feesAccrued, closesAt, resolveBy };
 }
+// Ladder: disc8 + authority32 + benchmark32 + legs[8]×32 + legCount u8
+// + salt u64 + bump + status + resultMask u8 + resolvedScore u32
+// + totals[8]u64 + createdAt i64 + resolvedAt i64
+// + feeBps u16 + feesAccrued u64 + closesAt i64 + resolveBy i64
+function parseLadder(d) {
+  if (d.length < 450) throw new Error("truncated Ladder (" + d.length + "B < 450B)");
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const authority = d.slice(o, o + 32); o += 32;
+  const benchmark = d.slice(o, o + 32); o += 32;
+  const legs = []; for (let i = 0; i < 8; i++) { legs.push(b58(d.slice(o, o + 32))); o += 32; }
+  const legCount = d[o++];
+  const salt = v.getBigUint64(o, true); o += 8;
+  const bump = d[o++]; const status = d[o++];
+  const resultMask = d[o++];
+  const resolvedScore = v.getUint32(o, true); o += 4;
+  const totals = []; for (let i = 0; i < 8; i++) { totals.push(v.getBigUint64(o, true)); o += 8; }
+  const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const resolvedAt = Number(v.getBigInt64(o, true)); o += 8;
+  const feeBps = v.getUint16(o, true); o += 2;
+  const feesAccrued = v.getBigUint64(o, true); o += 8;
+  const closesAt = Number(v.getBigInt64(o, true)); o += 8;
+  const resolveBy = Number(v.getBigInt64(o, true)); o += 8;
+  return { authority: b58(authority), benchmark: b58(benchmark), legs, legCount, salt, status, resultMask, resolvedScore, totals, createdAt, resolvedAt, feeBps, feesAccrued, closesAt, resolveBy };
+}
 // bucket i covers [edges[i-1], edges[i]); last bucket is >= edges[n-2]
 function outcomeLabel(n, edges, i) {
   const lo = i === 0 ? 0 : Number(edges[i - 1]);
@@ -414,7 +439,7 @@ async function loadExampleProof() {
 }
 
 function renderAll(sealedAccs, marketAccs) {
-  const benches = [], runs = [], markets = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [];
+  const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [];
   const skipped = [];
   for (const { pubkey, account } of sealedAccs) {
     try {
@@ -432,6 +457,7 @@ function renderAll(sealedAccs, marketAccs) {
     try {
       const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
       if (disc === DISC.market) markets.push({ pk: pubkey.toBase58(), ...parseMarket(d) });
+      else if (disc === DISC.ladder) ladders.push({ pk: pubkey.toBase58(), ...parseLadder(d) });
       else if (disc === DISC.position) positions.push(parsePosition(d));
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
@@ -449,7 +475,8 @@ function renderAll(sealedAccs, marketAccs) {
   const finalized = runs.filter(r => r.status === 1);
   const mintedPub = itemChunks.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
   const mintedPriv = privChunks.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
-  const potLamports = markets.reduce((s, m) => s + m.totals.reduce((x, t) => x + Number(t), 0), 0);
+  const potLamports = markets.reduce((s, m) => s + m.totals.reduce((x, t) => x + Number(t), 0), 0)
+    + ladders.reduce((s, l) => s + l.totals.reduce((x, t) => x + Number(t), 0), 0);
   const stats = [
     [benches.length, "benchmarks"],
     [finalized.length, "MPC-scored runs"],
@@ -627,6 +654,44 @@ function renderAll(sealedAccs, marketAccs) {
         for (let i = 0; i < n; i++) h += `<th>${lbl(i)}</th>`;
         h += `</tr>`;
         for (const p of mpos) {
+          h += `<tr><td class="mono">${short(p.bettor)}</td>`;
+          for (let i = 0; i < n; i++) h += `<td>${Number(p.amounts[i]) ? sol(p.amounts[i]) : "—"}</td>`;
+          h += `</tr>`;
+        }
+        h += `</table>`;
+      }
+      h += `</div>`;
+    }
+  }
+
+  if (ladders.length) {
+    h += `<h2>ladder races</h2>`;
+    for (const l of ladders.sort((a, b) => b.createdAt - a.createdAt)) {
+      const pot = l.totals.reduce((s, t) => s + Number(t), 0) / 1e9;
+      const lpos = positions.filter(p => p.market === l.pk);
+      const n = l.legCount;
+      const model = (pk) => { const r = runs.find(r => r.pk === pk); return r ? `<span class="mono">${esc(r.modelId)}</span>` : `<span class="mono">${short(pk)}</span>`; };
+      h += `<div class="card"><div class="row">
+        <b>${n}-way race — highest score takes the pot</b>
+        <span class="pill live">ladder</span>
+        <span class="pill ${MSTATUS[l.status] ?? "unknown"}">${MSTATUS[l.status] ?? "state " + l.status}</span>
+        <span class="kv">pot <b>${pot.toFixed(3)} SOL</b></span>
+        <span class="kv">acct ${link(l.pk)}</span></div>
+        <div class="proof">benchmark ${link(l.benchmark)} &middot; argmax settle, dead-heat splits ties${l.status === 1 ? ` &middot; winning score ${l.resolvedScore}` : ""}${l.feeBps ? ` &middot; fee ${(l.feeBps / 100).toFixed(1)}%` : ""} &middot; bets close ${fmtTs(l.closesAt)} &middot; expires ${fmtTs(l.resolveBy)}</div>
+        <table><tr>`;
+      for (let i = 0; i < n; i++) {
+        const legRun = runs.find(r => r.pk === l.legs[i]);
+        const win = l.status === 1 && (l.resultMask & (1 << i)) !== 0;
+        h += `<th>leg ${i} · ${model(l.legs[i])}${legRun ? ` <span class="kv">${legRun.status === 1 ? legRun.correct : "?"}</span>` : ""}${win ? " ✓" : ""}</th>`;
+      }
+      h += `</tr><tr>`;
+      for (let i = 0; i < n; i++) h += `<td>${sol(l.totals[i])} (${pot ? (100 * Number(l.totals[i]) / (pot * 1e9)).toFixed(0) : 0}%)</td>`;
+      h += `</tr></table>`;
+      if (lpos.length) {
+        h += `<table><tr><th>bettor</th>`;
+        for (let i = 0; i < n; i++) h += `<th>leg ${i}</th>`;
+        h += `</tr>`;
+        for (const p of lpos) {
           h += `<tr><td class="mono">${short(p.bettor)}</td>`;
           for (let i = 0; i < n; i++) h += `<td>${Number(p.amounts[i]) ? sol(p.amounts[i]) : "—"}</td>`;
           h += `</tr>`;

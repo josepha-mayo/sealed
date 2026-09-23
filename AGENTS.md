@@ -44,7 +44,8 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 - Cluster offset 456. Both programs upgraded to the v4 committed-settle
   build (all_queued_at landing window) 2026-09-22: sealed
   `3a9Cgvenu3g1XJ4mnkpUHQmWjRD1trjSRHfYN4JonnYQbRNgLb2WiezmGWPqAq9LDhibSkJyuf6F2QRknAuFcHn1`,
-  market `Bqu75nLwqp5a6QPgn3PHJSn7brwXn8QNA8XibHY3JV6LRia5QHP4XmQU15FfujgVNVS71TKh6sChz2g4iGroyk6`.
+  market `2B3SoLvCJQgUtcvre3QkLkoLRbUP8mVWrzqZYHWCvV9iy3sJCDfn7DirrsEKZafCRB8HUabGUKH6eiye3rw11YMh`
+  (2026-09-23 — adds ladder markets).
   Both upgradeable — same program IDs. Binary growth past a program-data
   account needs `solana program extend <id> 10240` FIRST (ExtendProgram
   requires >= 10240-byte steps, not just the delta).
@@ -84,6 +85,12 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   string are variable-offset. Any fixed-offset tail read past `model_id`
   (e.g. `pending_since`, `ever_queued_mask`) reads zeros; walk the length
   prefix like web/index.html does (`o += 4 + ml`).
+- Ladder markets (`Ladder` account) seed `[b"ladder", legs[0], salt]` —
+  legs arrive via `remaining_accounts` and are re-verified in-order on every
+  read (`load_legs`). Leg outcome index == leg order in `legs[]`; dead legs
+  forfeit at 0 (never cancel). Mask math: compare `mask as u16` against
+  `full_leg_mask(len)` — `1u16 << 8` truncates to 0 in u8 (8-leg regression
+  covered by `argmax_mask_flags_every_co_leader`).
 - Bank files are mutable on disk: re-minting an id or `chain items` rewrites
   `bank/gen-<id>.json`. A run started before a rewrite answers STALE items —
   MPC then scores it honestly but low (observed: local 64/64 → on-chain

@@ -6,7 +6,7 @@ const { Connection, PublicKey } = require("@solana/web3.js");
 
 const SEALED_PID = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 const MARKET_PID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
-const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", position: "aabc8fe47a40f7d0" };
+const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0" };
 const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
 const b58 = (u8) => new PublicKey(u8).toBase58();
 
@@ -90,6 +90,27 @@ function parseMarket(d) {
   }
   return { run: b58(run), runB: duel ? runB : undefined, benchmark: b58(benchmark), runIndex, salt, nOutcomes, edges: edges.slice(0, Math.max(0, nOutcomes - 1)), status, outcome, totals: totals.slice(0, nOutcomes), resolvedScore: duel ? `${resolvedScore >> 16}-${resolvedScore & 0xffff}` : resolvedScore, feeBps, feesAccrued, closesAt, resolveBy };
 }
+// Ladder: disc8 + authority32 + benchmark32 + legs[8]×32 + legCount u8
+// + salt u64 + bump + status + resultMask u8 + resolvedScore u32
+// + totals[8]u64 + created/resolved i64 + feeBps u16 + feesAccrued u64
+// + closesAt/resolveBy i64
+function parseLadder(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const authority = b58(d.slice(o, o + 32)); o += 32;
+  const benchmark = b58(d.slice(o, o + 32)); o += 32;
+  const legs = []; for (let i = 0; i < 8; i++) { legs.push(b58(d.slice(o, o + 32))); o += 32; }
+  const legCount = d[o++];
+  const salt = v.getBigUint64(o, true); o += 8;
+  o += 1; const status = d[o++];
+  const resultMask = d[o++];
+  const resolvedScore = v.getUint32(o, true); o += 4;
+  const totals = []; for (let i = 0; i < 8; i++) { totals.push(v.getBigUint64(o, true)); o += 8; }
+  o += 16; const feeBps = v.getUint16(o, true); o += 2;
+  const feesAccrued = v.getBigUint64(o, true); o += 8;
+  const closesAt = v.getBigInt64(o, true); o += 8;
+  const resolveBy = v.getBigInt64(o, true); o += 8;
+  return { authority, benchmark, legs: legs.slice(0, legCount), legCount, salt, status, resultMask: "0b" + resultMask.toString(2), resolvedScore, totals: totals.slice(0, legCount), feeBps, feesAccrued, closesAt, resolveBy };
+}
 
 const url = process.argv[2] || "http://127.0.0.1:8899";
 const J = (x) => JSON.stringify(x, (_, v) => (typeof v === "bigint" ? v.toString() : v));
@@ -109,4 +130,5 @@ for (const { pubkey, account } of sealed) {
 for (const { pubkey, account } of mkt) {
   const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
   if (disc === DISC.market) console.log("market  ", pubkey.toBase58(), J(parseMarket(d)));
+  else if (disc === DISC.ladder) console.log("ladder  ", pubkey.toBase58(), J(parseLadder(d)));
 }

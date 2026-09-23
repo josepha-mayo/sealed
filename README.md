@@ -64,7 +64,7 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 
 ### Markets (`programs/market`)
 
-A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes. It ships two novel settlement primitives: **run duels** (head-to-head "does A outscore B" on the same bank — bets latch the moment either leg's first scoring computation queues, `RunnersMustDiffer` blocks self-duels) and **committed-settle expiry** (`all_queued_at` + a 24h landing window — a stalled run refunds unless the runner committed every chunk and the cluster had a full window to land it; no transaction can both commit and expire).
+A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes. It ships three novel settlement primitives: **run duels** (head-to-head "does A outscore B" on the same bank — bets latch the moment either leg's first scoring computation queues, `RunnersMustDiffer` blocks self-duels), **ladder races** (K-way argmax markets over 2–8 bound runs — co-leaders split the pot dead-heat, dead legs forfeit at 0 instead of cancelling, and bets latch the moment *any* leg leaves pending), and **committed-settle expiry** (`all_queued_at` + a 24h landing window — a stalled run refunds unless the runner committed every chunk and the cluster had a full window to land it; no transaction can both commit and expire).
 
 ```
 create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
@@ -81,6 +81,14 @@ create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
 create_duel(run_a, run_b, salt, fee_bps, closes_at, resolve_by)
                                   head-to-head on the same benchmark: does A
                                   outscore B? 3 outcomes — A wins / B wins / tie
+create_ladder(legs[2..8], salt, fee_bps, closes_at, resolve_by)
+                                  K-way race on one benchmark: highest score
+                                  takes the pot; ties split dead-heat pro-rata.
+                                  closes_at REQUIRED (the leg list is public).
+                                  A leg that never scores forfeits at 0 — dead
+                                  legs never cancel the race (a cancel would be
+                                  a free exit for losing leg operators). Bettors
+                                  should verify every leg has a live runner.
 bet(outcome, lamports)            stake on one bucket; one position PDA per (market, bettor).
                                   Rejects once scoring starts, closes_at passes, or
                                   resolve_by passes.
@@ -91,6 +99,12 @@ resolve()                         permissionless once run.status == FINALIZED:
 resolve_duel()                    permissionless once BOTH runs are FINALIZED:
                                   outcome = larger correct (ties pay the tie bucket);
                                   resolved_score packs (a << 16) | b
+resolve_ladder()                  permissionless once every leg is terminal
+                                  (finalized or proven stall) — a never-queued
+                                  leg doesn't block, it scores 0. Past resolve_by
+                                  anyone forces it, but a leg inside its
+                                  post-commit landing window still gets the
+                                  window (same JIT-commit invariant as expire).
 claim()                           winners split the pot net of fee pro-rata and the
                                   position closes; cancelled markets refund in full;
                                   losing positions close for their rent back
@@ -203,6 +217,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] **Delegated runner**: `chain delegate-bank` rebuilds a private bank entirely from a wallet's ShareGrants — verified byte-identical to the authority's decryption (prompts, answer hashes, items_root); a model provider can be granted the exam, run it, and get scored without the questions ever being public
 - [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] **Duel markets**: `create_duel`/`bet_duel`/`resolve_duel` — head-to-head "does run A outscore run B on the same bank?" with A-wins/B-wins/tie buckets; bets close once EITHER run starts scoring, settle reads both finalized `Run.correct`, E2E proves 25–19 resolution + pro-rata claim
+- [x] **Ladder races**: `create_ladder`/`bet_ladder`/`resolve_ladder` — K-way argmax markets over 2–8 bound runs; dead-heat pro-rata ties, dead legs forfeit at 0 instead of cancelling (a cancel would be a free exit for losing leg operators), any-leg betting latch + required `closes_at`; E2E proves a 30/20/10 race → mask `0b001` → pro-rata claim
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected

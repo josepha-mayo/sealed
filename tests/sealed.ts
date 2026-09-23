@@ -1354,6 +1354,142 @@ describe("Sealed", () => {
     console.log(`duel settled: model-a ${25} vs model-b ${19} — A bettor ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
   });
 
+  it("settles a 3-way ladder race by argmax with dead-heat semantics", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
+      program.programId,
+    );
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
+
+    const truth = decodeItemChunk(Buffer.from((await provider.connection.getAccountInfo(itemsPda))!.data)).specs.map(evalSpec);
+    const runners = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
+    for (const r of runners) await fund(provider, owner, r.publicKey, 0.4 * LAMPORTS_PER_SOL);
+
+    const idx0 = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const mkRun = async (kp: Keypair, model: string, idx: bigint, planted: number) => {
+      const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx)], program.programId);
+      const outputs = truth.map((v, j) => (j < planted ? genAnswerHash(GEN_ID, j, v) : randomU64()));
+      const outLeaves = [chunkOutLeaf(0, outputs)];
+      await program.methods
+        .createRun(model, Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
+        .accountsPartial({ runner: kp.publicKey, authority: owner.publicKey, benchmark, run })
+        .signers([kp])
+        .rpc({ commitment: "confirmed" });
+      return { run, outputs, outLeaves };
+    };
+    const legs = [
+      await mkRun(runners[0], "ladder/model-a", idx0, 30),
+      await mkRun(runners[1], "ladder/model-b", idx0 + 1n, 20),
+      await mkRun(runners[2], "ladder/model-c", idx0 + 2n, 10),
+    ];
+    const legPks = legs.map((x) => x.run);
+    const legMeta = (pk: PublicKey) => ({ pubkey: pk, isSigner: false, isWritable: false });
+
+    const ladderPda = (firstLeg: PublicKey, salt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("ladder"), firstLeg.toBuffer(), u64le(salt)], marketProgram.programId)[0];
+    const posPda = (mkt: PublicKey, bettor: PublicKey) =>
+      PublicKey.findProgramAddressSync([Buffer.from("position"), mkt.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
+
+    const BN0 = new anchor.BN(0);
+    // A leg raced against itself is nonsense.
+    await expectAnchorError(
+      marketProgram.methods
+        .createLadder(legPks[0], new anchor.BN(7), 0, FAR_FUTURE, FAR_FUTURE)
+        .accounts({ authority: owner.publicKey, ladder: ladderPda(legPks[0], 7n) })
+        .remainingAccounts([legMeta(legPks[0]), legMeta(legPks[0])])
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "RunsMustDiffer",
+    );
+    // closes_at is REQUIRED for ladders — an open-ended window invites sniping.
+    await expectAnchorError(
+      marketProgram.methods
+        .createLadder(legPks[0], new anchor.BN(8), 0, BN0, FAR_FUTURE)
+        .accounts({ authority: owner.publicKey, ladder: ladderPda(legPks[0], 8n) })
+        .remainingAccounts(legPks.map(legMeta))
+        .signers([owner])
+        .rpc({ commitment: "confirmed" }),
+      "DeadlineTooSoon",
+    );
+
+    const mkt = ladderPda(legPks[0], 0n);
+    await marketProgram.methods
+      .createLadder(legPks[0], new anchor.BN(0), 0, FAR_FUTURE, FAR_FUTURE)
+      .accounts({ authority: owner.publicKey, ladder: mkt })
+      .remainingAccounts(legPks.map(legMeta))
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    let l = await marketProgram.account.ladder.fetch(mkt);
+    expect(l.legCount).to.equal(3);
+    expect(l.legs[2].toBase58()).to.equal(legPks[2].toBase58());
+
+    const bettors = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
+    await fund(provider, owner, bettors[0].publicKey, 0.4 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, bettors[1].publicKey, 0.3 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, bettors[2].publicKey, 0.2 * LAMPORTS_PER_SOL);
+    const stakes = [0.30, 0.20, 0.10];
+    for (let i = 0; i < 3; i++) {
+      await marketProgram.methods.betLadder(i, new anchor.BN(stakes[i] * LAMPORTS_PER_SOL))
+        .accounts({ bettor: bettors[i].publicKey, ladder: mkt, position: posPda(mkt, bettors[i].publicKey) })
+        .remainingAccounts(legPks.map(legMeta))
+        .signers([bettors[i]]).rpc({ commitment: "confirmed" });
+    }
+    l = await marketProgram.account.ladder.fetch(mkt);
+    expect(Number(l.totals[0]) + Number(l.totals[1]) + Number(l.totals[2])).to.equal(0.6 * LAMPORTS_PER_SOL);
+
+    const score = async (kp: Keypair, run: PublicKey, idx: bigint, outputs: bigint[], outLeaves: Uint8Array[]) => {
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
+        .accountsPartial({ payer: kp.publicKey, run, runner: kp.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
+        .signers([kp])
+        .rpc({ commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    };
+
+    // Once leg 0 leaves pending the whole board latches — no late information.
+    await score(runners[0], legPks[0], idx0, legs[0].outputs, legs[0].outLeaves);
+    expect((await program.account.run.fetch(legPks[0])).correct).to.equal(30);
+    await expectAnchorError(
+      marketProgram.methods.betLadder(1, new anchor.BN(1000))
+        .accounts({ bettor: bettors[1].publicKey, ladder: mkt, position: posPda(mkt, bettors[1].publicKey) })
+        .remainingAccounts(legPks.map(legMeta))
+        .signers([bettors[1]]).rpc({ commitment: "confirmed" }),
+      "RunNotPending",
+    );
+
+    // Reordered legs at resolve are rejected — scores must map to bound legs.
+    await score(runners[1], legPks[1], idx0 + 1n, legs[1].outputs, legs[1].outLeaves);
+    await score(runners[2], legPks[2], idx0 + 2n, legs[2].outputs, legs[2].outLeaves);
+    await expectAnchorError(
+      marketProgram.methods.resolveLadder()
+        .accounts({ ladder: mkt })
+        .remainingAccounts([legMeta(legPks[1]), legMeta(legPks[0]), legMeta(legPks[2])])
+        .rpc({ commitment: "confirmed" }),
+      "LegMismatch",
+    );
+
+    await marketProgram.methods.resolveLadder()
+      .accounts({ ladder: mkt })
+      .remainingAccounts(legPks.map(legMeta))
+      .rpc({ commitment: "confirmed" });
+    l = await marketProgram.account.ladder.fetch(mkt);
+    expect(l.status).to.equal(1, "resolved");
+    expect(l.resultMask).to.equal(0b001, "leg 0 wins outright");
+    expect(l.resolvedScore).to.equal(30);
+
+    const before = await provider.connection.getBalance(bettors[0].publicKey);
+    await marketProgram.methods.claimLadder()
+      .accounts({ bettor: bettors[0].publicKey, ladder: mkt, position: posPda(mkt, bettors[0].publicKey) })
+      .signers([bettors[0]])
+      .rpc({ commitment: "confirmed" });
+    const after = await provider.connection.getBalance(bettors[0].publicKey);
+    expect(after).to.be.greaterThan(before, "winning leg paid pro-rata");
+    console.log(`ladder settled: 30/20/10 — leg-0 bettor ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+  });
+
   it("pending sweeps are liveness-only — markets stay latched, swept computations still land", async () => {
     const marketProgram = anchor.workspace.Market as Program<Market>;
     const [benchmark] = PublicKey.findProgramAddressSync(

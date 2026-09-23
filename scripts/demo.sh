@@ -37,6 +37,8 @@ const pda = kind === "benchmark"
   ? PublicKey.findProgramAddressSync([Buffer.from("run"), new PublicKey(a).toBuffer(), le(i, 8)], SEALED)
   : kind === "duel"
   ? PublicKey.findProgramAddressSync([Buffer.from("duel"), new PublicKey(a).toBuffer(), new PublicKey(i).toBuffer(), le(j ?? 0, 8)], MARKET)
+  : kind === "ladder"
+  ? PublicKey.findProgramAddressSync([Buffer.from("ladder"), new PublicKey(a).toBuffer(), le(i ?? 0, 8)], MARKET)
   : PublicKey.findProgramAddressSync([Buffer.from("market"), new PublicKey(a).toBuffer(), le(i ?? 0, 8)], MARKET);
 console.log(pda[0].toBase58());
 EOF
@@ -67,7 +69,7 @@ echo "grant trail:"; $SEALED chain grants --benchmark "$PBENCH"
 echo "the delegate rebuilds the bank from its grants alone:"
 ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain delegate-bank --benchmark "$PBENCH" --out "/tmp/judge-$PID.json"
 
-say "3/6 create runs 0+1 (mock models 75% vs 50%) — PENDING, outputs committed"
+say "3/6 create runs 0+1+2 (mock models 75% vs 50% vs 25%) — PENDING, outputs committed"
 $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.75 --out /tmp/run-gen.json
 $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --create-only
 $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.50 --out /tmp/run-gen1.json
@@ -77,9 +79,15 @@ $SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.50 --out /tmp/run-g
 # bank authority for the fee recipient. It needs lamports to pay for the run.
 solana airdrop 1 "$JUDGE" --url "$ANCHOR_PROVIDER_URL" >/dev/null 2>&1 || true
 ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --create-only --authority "$(solana address)"
+# Run 2 — a third runner for the ladder race (same distinct-runner rule).
+JUDGE2=$(node -e 'const {Keypair}=require("@solana/web3.js");const k=Keypair.generate();require("fs").writeFileSync("/tmp/judge2-kp.json",JSON.stringify([...k.secretKey]));console.log(k.publicKey.toBase58())')
+$SEALED run --bank "bank/gen-$ID.json" --model mock/oracle-0.25 --out /tmp/run-gen2.json
+solana airdrop 1 "$JUDGE2" --url "$ANCHOR_PROVIDER_URL" >/dev/null 2>&1 || true
+ANCHOR_WALLET=/tmp/judge2-kp.json $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen2.json --create-only --authority "$(solana address)"
 RUN0=$(PDA run "$BENCH" 0)
 RUN1=$(PDA run "$BENCH" 1)
-echo "run PDAs: $RUN0 (model-a) vs $RUN1 (model-b)"
+RUN2=$(PDA run "$BENCH" 2)
+echo "run PDAs: $RUN0 (model-a) vs $RUN1 (model-b) vs $RUN2 (model-c)"
 
 say "4/6 open markets on the pending runs + place bets"
 $SEALED chain market open --run "$RUN0" --threshold 48 --resolve-by +86400
@@ -98,19 +106,29 @@ for oc in 0 1 2; do $SEALED chain market bet --market "$MKT_3WAY" --outcome "$oc
 $SEALED chain market duel --run-a "$RUN0" --run-b "$RUN1" --resolve-by +86400
 DUEL=$(PDA duel "$RUN0" "$RUN1" 0)
 for oc in 0 1 2; do $SEALED chain market bet --market "$DUEL" --outcome "$oc" --lamports 20000000; done
+# The ladder: a K-way race — highest score takes the pot, ties split it
+# dead-heat. Bets latch the moment ANY leg starts scoring; a dead leg scores
+# 0 (killing your own leg forfeits it — it never refunds a losing position).
+$SEALED chain market ladder open --legs "$RUN0,$RUN1,$RUN2" --closes-at +86400 --resolve-by +86400
+LADDER=$(PDA ladder "$RUN0" 0)
+for oc in 0 1 2; do $SEALED chain market ladder bet --market "$LADDER" --outcome "$oc" --lamports 15000000; done
 
-say "5/6 score both runs through MPC (hash-compare vs answers born encrypted)"
+say "5/6 score all three runs through MPC (hash-compare vs answers born encrypted)"
 $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen.json --run-index 0
-# run 1's runner is the judge wallet — only the runner can queue its scoring.
+# run 1/2's runners are the judge wallets — only the runner can queue its scoring.
 ANCHOR_WALLET=/tmp/judge-kp.json $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen1.json --run-index 1 --authority "$(solana address)"
+ANCHOR_WALLET=/tmp/judge2-kp.json $SEALED chain score --bank "bank/gen-$ID.json" --run /tmp/run-gen2.json --run-index 2 --authority "$(solana address)"
 
 say "6/6 resolve markets + claim, then leaderboard"
 $SEALED chain market resolve --market "$MKT_BIN"
 $SEALED chain market resolve --market "$MKT_3WAY"
 $SEALED chain market resolve --market "$DUEL"
+$SEALED chain market ladder resolve --market "$LADDER"
 $SEALED chain market claim --market "$MKT_BIN" || true
 $SEALED chain market claim --market "$MKT_3WAY" || true
 $SEALED chain market claim --market "$DUEL" || true
+$SEALED chain market ladder claim --market "$LADDER" || true
+$SEALED chain market ladder show --market "$LADDER"
 $SEALED chain status --benchmark "$BENCH"
 
 echo

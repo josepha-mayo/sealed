@@ -31,6 +31,8 @@ pub const MARKET_RESOLVED: u8 = 1;
 pub const MARKET_CANCELLED: u8 = 2;
 
 pub const MAX_OUTCOMES: usize = 8;
+/// Most runs a ladder market may race — also the width of `result_mask`.
+pub const MAX_LEGS: usize = 8;
 /// Absolute bound on scoring-liveness delays: a run whose FIRST queue is this
 /// old is expirable unconditionally — pending bits are runner-refreshable,
 /// swept/stale computations can still land, so nothing on-chain can prove a
@@ -139,6 +141,91 @@ fn proven(r: &Run, now: i64) -> bool {
         || (r.all_queued_at != 0
             && now > r.all_queued_at + EXPIRE_HARD_CAP_SECS
             && r.scored_mask != 0)
+}
+
+/// The score a ladder leg contributes at resolution. A finalized or proven
+/// committed-stall run scores `correct`; anything else scores 0 — an
+/// uncommitted or never-queued leg is a forfeit, never a cancel trigger
+/// (cancelling would hand every losing leg operator a free exit).
+fn ladder_leg_score(r: &Run, now: i64) -> u32 {
+    if proven(r, now) {
+        r.correct
+    } else {
+        0
+    }
+}
+
+/// Bitmask of legs tied at the max score (dead-heat). `scores[i]` maps to
+/// bit i; the i-th leg's pool is `totals[i]`.
+fn argmax_mask(scores: &[u32]) -> u8 {
+    let max = scores.iter().copied().max().unwrap_or(0);
+    let mut mask = 0u8;
+    for (i, &s) in scores.iter().enumerate() {
+        if s == max {
+            mask |= 1 << i;
+        }
+    }
+    mask
+}
+
+/// All-legs-tied bitmask for a `len`-leg race, without a u8 round-trip —
+/// `1u16 << 8` truncates to 0 as u8, which made 8-leg ladders unresolvable.
+fn full_leg_mask(len: usize) -> u16 {
+    (1u16 << len) - 1
+}
+
+/// Shared ladder settlement: co-leaders split the pot pro-rata (dead-heat).
+/// Nobody backed any leader, or every leg tied (incl. all-zero) → wash →
+/// cancel so everyone refunds in full.
+fn settle_ladder(m: &mut Account<Ladder>, scores: &[u32]) -> Result<()> {
+    let mask = argmax_mask(scores);
+    m.result_mask = mask;
+    m.resolved_score = scores.iter().copied().max().unwrap_or(0);
+    m.resolved_at = Clock::get()?.unix_timestamp;
+    let winning_stake: u64 = scores
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| mask & (1 << i) != 0)
+        .map(|(i, _)| m.totals[i])
+        .sum();
+    if winning_stake == 0 || mask as u16 == full_leg_mask(scores.len()) {
+        m.status = MARKET_CANCELLED;
+    } else {
+        let pot: u64 = m.totals.iter().sum();
+        m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
+        m.status = MARKET_RESOLVED;
+    }
+    emit!(LadderResolved {
+        ladder: m.key(),
+        result_mask: mask,
+        winning_score: m.resolved_score,
+        scores: scores.to_vec(),
+        cancelled: m.status == MARKET_CANCELLED,
+    });
+    Ok(())
+}
+
+/// Strict ordered leg check — `remaining_accounts` must be exactly the
+/// ladder's bound legs, in order, each a genuine Sealed `Run`. A subset or
+/// reordered set would let a caller dodge the betting latch or feed
+/// `resolve_ladder` inflated scores.
+fn load_legs<'info>(
+    ladder: &Ladder,
+    remaining: &[AccountInfo<'info>],
+) -> Result<Vec<Run>> {
+    require!(
+        remaining.len() == ladder.leg_count as usize,
+        ErrorCode::LegMismatch
+    );
+    let mut runs = Vec::with_capacity(remaining.len());
+    for (i, info) in remaining.iter().enumerate() {
+        require!(
+            info.key() == ladder.legs[i],
+            ErrorCode::LegMismatch
+        );
+        runs.push(load_run(info)?);
+    }
+    Ok(runs)
 }
 
 fn expire_decision(ra: &Run, rb: Option<&Run>, now: i64) -> ExpireAction {
@@ -609,6 +696,260 @@ pub mod market {
         }
     }
 
+    /// Open a K-way race market: legs are `remaining_accounts` (2..=8 pending,
+    /// unscored runs on one benchmark, distinct runs and runners). Resolution
+    /// is argmax — the highest-scoring leg wins; ties split the pot dead-heat.
+    /// `closes_at` is required: the leg list is public, so a market with an
+    /// open-ended betting window is a snipe invitation.
+    ///
+    /// KNOWN RISK, disclosed: a leg whose runner never scores forfeits at 0 —
+    /// it cannot cancel the race (that would hand losing leg operators a free
+    /// exit). An authority can pack the board with dormant-runner "ringer"
+    /// legs whose backers' stake flows to live legs. The leg list and each
+    /// leg's runner are public at creation — bettors should verify every leg
+    /// has a live runner before staking.
+    pub fn create_ladder(
+        ctx: Context<CreateLadder>,
+        first_leg: Pubkey,
+        salt: u64,
+        fee_bps: u16,
+        closes_at: i64,
+        resolve_by: i64,
+    ) -> Result<()> {
+        let legs = &ctx.remaining_accounts;
+        require!(
+            legs.len() >= 2 && legs.len() <= MAX_LEGS,
+            ErrorCode::InvalidLegCount
+        );
+        // The PDA derives from the bound legs (like duels) — the seed arg
+        // must equal remaining_accounts[0] so it can't lie about the race.
+        require!(legs[0].key() == first_leg, ErrorCode::LegMismatch);
+        require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            closes_at >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            resolve_by >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
+            ErrorCode::DeadlineInPast
+        );
+        require!(closes_at <= resolve_by, ErrorCode::DeadlineOrder);
+        let mut runs: Vec<Run> = Vec::with_capacity(legs.len());
+        for info in legs.iter() {
+            let r = load_run(info)?;
+            require!(r.status == RUN_PENDING, ErrorCode::RunNotPending);
+            require!(
+                r.scored_mask == 0 && r.pending_since == 0,
+                ErrorCode::ScoringStarted
+            );
+            for (j, prev) in runs.iter().enumerate() {
+                require!(info.key() != legs[j].key(), ErrorCode::RunsMustDiffer);
+                require!(r.runner != prev.runner, ErrorCode::RunnersMustDiffer);
+                require!(r.benchmark == prev.benchmark, ErrorCode::BenchmarkMismatch);
+            }
+            runs.push(r);
+        }
+        let m = &mut ctx.accounts.ladder;
+        m.authority = ctx.accounts.authority.key();
+        m.benchmark = runs[0].benchmark;
+        m.legs = [Pubkey::default(); MAX_LEGS];
+        for (i, info) in legs.iter().enumerate() {
+            m.legs[i] = info.key();
+        }
+        m.leg_count = legs.len() as u8;
+        m.salt = salt;
+        m.bump = ctx.bumps.ladder;
+        m.status = MARKET_OPEN;
+        m.result_mask = 0;
+        m.resolved_score = 0;
+        m.totals = [0u64; MAX_LEGS];
+        m.created_at = now;
+        m.resolved_at = 0;
+        m.fee_bps = fee_bps;
+        m.fees_accrued = 0;
+        m.closes_at = closes_at;
+        m.resolve_by = resolve_by;
+        emit!(LadderCreated {
+            ladder: m.key(),
+            benchmark: m.benchmark,
+            legs: m.legs[..m.leg_count as usize].to_vec(),
+        });
+        Ok(())
+    }
+
+    /// Stake `lamports` on leg `outcome`. Bets latch shut at `closes_at` OR
+    /// the moment ANY bound leg leaves pending — whichever fires first — so
+    /// no early-finalized leg can leak the race.
+    pub fn bet_ladder(ctx: Context<BetLadder>, outcome: u8, lamports: u64) -> Result<()> {
+        require!(lamports > 0, ErrorCode::ZeroAmount);
+        let m = &mut ctx.accounts.ladder;
+        let legs = load_legs(m, ctx.remaining_accounts)?;
+        for r in &legs {
+            require!(r.status == RUN_PENDING, ErrorCode::RunNotPending);
+            require!(
+                r.scored_mask == 0 && r.pending_since == 0,
+                ErrorCode::ScoringStarted
+            );
+        }
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        let now = Clock::get()?.unix_timestamp;
+        require!(now < m.closes_at, ErrorCode::BettingClosed);
+        require!(now < m.resolve_by, ErrorCode::BettingClosed);
+        require!(outcome < m.leg_count, ErrorCode::InvalidOutcome);
+
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.key(),
+                system_program::Transfer {
+                    from: ctx.accounts.bettor.to_account_info(),
+                    to: m.to_account_info(),
+                },
+            ),
+            lamports,
+        )?;
+
+        let p = &mut ctx.accounts.position;
+        if p.market == Pubkey::default() {
+            p.market = m.key();
+            p.bettor = ctx.accounts.bettor.key();
+            p.bump = ctx.bumps.position;
+            p.amounts = [0u64; MAX_OUTCOMES];
+        }
+        p.amounts[outcome as usize] += lamports;
+        m.totals[outcome as usize] += lamports;
+        emit!(BetPlaced {
+            market: m.key(),
+            bettor: p.bettor,
+            outcome,
+            lamports,
+        });
+        Ok(())
+    }
+
+    /// Settle the race: argmax over leg scores, dead-heat pro-rata on ties.
+    /// Callable once every leg is terminal (finalized or proven stall) — a
+    /// never-queued leg doesn't block; it simply scores 0. Past `resolve_by`
+    /// anyone may force it: stuck legs score what they proved, the rest 0.
+    pub fn resolve_ladder(ctx: Context<ResolveLadder>) -> Result<()> {
+        let m = &mut ctx.accounts.ladder;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        let legs = load_legs(m, ctx.remaining_accounts)?;
+        let now = Clock::get()?.unix_timestamp;
+        if now <= m.resolve_by {
+            for r in &legs {
+                require!(!still_moving(r, now), ErrorCode::LegsStillMoving);
+            }
+        } else {
+            // Past resolve_by, uncommitted legs forfeit — but a leg that
+            // committed every chunk keeps its post-commit landing window:
+            // `all_queued_at` is write-once so this block is bounded (≤24h
+            // past the first full commit), and honoring it is the same
+            // JIT-commit invariant `expire_market` enforces — a live cluster
+            // finalizes the leg inside the window rather than settling a 0.
+            for r in &legs {
+                require!(
+                    r.status == RUN_FINALIZED
+                        || r.all_queued_at == 0
+                        || now > r.all_queued_at + EXPIRE_HARD_CAP_SECS,
+                    ErrorCode::LegsStillMoving
+                );
+            }
+        }
+        let scores: Vec<u32> = legs.iter().map(|r| ladder_leg_score(r, now)).collect();
+        settle_ladder(m, &scores)
+    }
+
+    /// Authority escape hatch — only while every leg is still unknowable
+    /// (pending, nothing queued). Once any leg starts, resolution or
+    /// `resolve_by` owns the outcome.
+    pub fn void_ladder(ctx: Context<VoidLadder>) -> Result<()> {
+        let m = &mut ctx.accounts.ladder;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        let legs = load_legs(m, ctx.remaining_accounts)?;
+        for r in &legs {
+            require!(r.status == RUN_PENDING, ErrorCode::RunNotPending);
+            require!(
+                r.scored_mask == 0 && r.pending_since == 0,
+                ErrorCode::ScoringStarted
+            );
+        }
+        m.status = MARKET_CANCELLED;
+        Ok(())
+    }
+
+    /// Pay out a ladder position. Co-leader outcomes each pay
+    /// `stake × net_pot / Σ totals[mask]` — a dead-heat dilutes winnings,
+    /// it never refunds them. Cancelled ladders refund every lamport.
+    pub fn claim_ladder(ctx: Context<ClaimLadder>) -> Result<()> {
+        let m = &ctx.accounts.ladder;
+        let p = &mut ctx.accounts.position;
+        require!(
+            m.status == MARKET_RESOLVED || m.status == MARKET_CANCELLED,
+            ErrorCode::MarketNotResolved
+        );
+
+        let payout = if m.status == MARKET_CANCELLED {
+            p.amounts.iter().sum()
+        } else {
+            let pot: u64 = m.totals.iter().sum();
+            let fee = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
+            let net_pot = pot.saturating_sub(fee);
+            let mut win_amt = 0u64;
+            let mut win_total = 0u64;
+            for i in 0..m.leg_count as usize {
+                if m.result_mask & (1 << i) != 0 {
+                    win_amt += p.amounts[i];
+                    win_total += m.totals[i];
+                }
+            }
+            if win_amt == 0 || win_total == 0 {
+                0
+            } else {
+                (win_amt as u128)
+                    .checked_mul(net_pot as u128)
+                    .unwrap()
+                    .checked_div(win_total as u128)
+                    .unwrap() as u64
+            }
+        };
+
+        if payout > 0 {
+            **m.to_account_info().try_borrow_mut_lamports()? -= payout;
+            **ctx
+                .accounts
+                .bettor
+                .to_account_info()
+                .try_borrow_mut_lamports()? += payout;
+        }
+        emit!(Claimed {
+            market: m.key(),
+            bettor: p.bettor,
+            payout,
+        });
+        Ok(())
+    }
+
+    /// The ladder authority collects the accrued fee once resolved.
+    pub fn claim_fee_ladder(ctx: Context<ClaimFeeLadder>) -> Result<()> {
+        let m = &mut ctx.accounts.ladder;
+        require!(m.status == MARKET_RESOLVED, ErrorCode::MarketNotResolved);
+        require!(m.fees_accrued > 0, ErrorCode::NoFees);
+        let fee = m.fees_accrued;
+        m.fees_accrued = 0;
+        **m.to_account_info().try_borrow_mut_lamports()? -= fee;
+        **ctx
+            .accounts
+            .authority
+            .to_account_info()
+            .try_borrow_mut_lamports()? += fee;
+        Ok(())
+    }
+
     /// The market authority collects the accrued fee once resolved.
     pub fn claim_fee(ctx: Context<ClaimFee>) -> Result<()> {
         let m = &mut ctx.accounts.market;
@@ -762,6 +1103,45 @@ pub struct Position {
     pub bump: u8,
     /// Lamports staked per outcome.
     pub amounts: [u64; MAX_OUTCOMES],
+}
+
+/// A K-way race market: bound `Run` legs compete on `correct`; the highest
+/// score takes the pot, ties split it dead-heat pro-rata. Legs ride
+/// `remaining_accounts` — never stored twice — and every leg-read goes
+/// through `load_legs` (strict ordered key check + `load_run`).
+///
+/// Unlike duels, a dead leg does NOT cancel the market: it scores 0 and the
+/// race resolves among the rest. Cancelling on a dead leg would hand every
+/// losing leg operator a free exit (poison one leg, refund a losing bet).
+#[account]
+#[derive(InitSpace)]
+pub struct Ladder {
+    pub authority: Pubkey,
+    pub benchmark: Pubkey,
+    /// Bound leg Run PDAs; only the first `leg_count` are live.
+    pub legs: [Pubkey; MAX_LEGS],
+    pub leg_count: u8,
+    /// Distinguishes ladders by the same authority (PDA seed).
+    pub salt: u64,
+    pub bump: u8,
+    pub status: u8,
+    /// Dead-heat: bitmask of co-leader legs once resolved.
+    pub result_mask: u8,
+    /// The winning `correct` once resolved.
+    pub resolved_score: u32,
+    /// Lamports staked on each leg.
+    pub totals: [u64; MAX_LEGS],
+    pub created_at: i64,
+    pub resolved_at: i64,
+    /// Authority take on resolution, in basis points (max 1000 = 10%).
+    pub fee_bps: u16,
+    pub fees_accrued: u64,
+    /// Required betting cutoff — the leg list is public, so an open-ended
+    /// window invites last-second sniping on leaked leg state.
+    pub closes_at: i64,
+    /// Deadline after which `resolve_ladder` may force-settle: stuck legs
+    /// score what they proved, uncommitted legs 0 — funds never lock.
+    pub resolve_by: i64,
 }
 
 #[derive(Accounts)]
@@ -944,6 +1324,94 @@ pub struct Claim<'info> {
     pub position: Account<'info, Position>,
 }
 
+#[derive(Accounts)]
+#[instruction(first_leg: Pubkey, salt: u64)]
+pub struct CreateLadder<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// The PDA derives from the bound legs, like duels — the same authority
+    /// can host many races without salt collisions across test runs.
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + Ladder::INIT_SPACE,
+        seeds = [b"ladder", first_leg.as_ref(), salt.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub ladder: Account<'info, Ladder>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct BetLadder<'info> {
+    #[account(mut)]
+    pub bettor: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"ladder", ladder.legs[0].as_ref(), ladder.salt.to_le_bytes().as_ref()],
+        bump = ladder.bump,
+    )]
+    pub ladder: Account<'info, Ladder>,
+    /// `position.market` doubles as the parent key — a ladder pubkey slots
+    /// into the same PDA space with no collision (different parent key).
+    #[account(
+        init_if_needed,
+        payer = bettor,
+        space = 8 + Position::INIT_SPACE,
+        seeds = [b"position", ladder.key().as_ref(), bettor.key().as_ref()],
+        bump,
+    )]
+    pub position: Account<'info, Position>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveLadder<'info> {
+    #[account(
+        mut,
+        seeds = [b"ladder", ladder.legs[0].as_ref(), ladder.salt.to_le_bytes().as_ref()],
+        bump = ladder.bump,
+    )]
+    pub ladder: Account<'info, Ladder>,
+}
+
+#[derive(Accounts)]
+pub struct VoidLadder<'info> {
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority @ ErrorCode::NotAuthority,
+        seeds = [b"ladder", ladder.legs[0].as_ref(), ladder.salt.to_le_bytes().as_ref()],
+        bump = ladder.bump,
+    )]
+    pub ladder: Account<'info, Ladder>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimLadder<'info> {
+    #[account(mut)]
+    pub bettor: Signer<'info>,
+    #[account(mut)]
+    pub ladder: Account<'info, Ladder>,
+    #[account(
+        mut,
+        has_one = bettor @ ErrorCode::NotBettor,
+        constraint = position.market == ladder.key() @ ErrorCode::WrongMarket,
+        seeds = [b"position", ladder.key().as_ref(), bettor.key().as_ref()],
+        bump = position.bump,
+        close = bettor,
+    )]
+    pub position: Account<'info, Position>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimFeeLadder<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(mut, has_one = authority @ ErrorCode::NotAuthority)]
+    pub ladder: Account<'info, Ladder>,
+}
+
 // ================================================================== events
 
 #[event]
@@ -993,6 +1461,24 @@ pub struct Claimed {
     pub market: Pubkey,
     pub bettor: Pubkey,
     pub payout: u64,
+}
+
+#[event]
+pub struct LadderCreated {
+    pub ladder: Pubkey,
+    pub benchmark: Pubkey,
+    pub legs: Vec<Pubkey>,
+}
+
+#[event]
+pub struct LadderResolved {
+    pub ladder: Pubkey,
+    pub result_mask: u8,
+    pub winning_score: u32,
+    /// Every leg's contributed score — dead legs show as 0, so indexers can
+    /// reconstruct the full race without re-reading run accounts.
+    pub scores: Vec<u32>,
+    pub cancelled: bool,
 }
 
 // ================================================================== errors
@@ -1051,6 +1537,12 @@ pub enum ErrorCode {
     DeadlineOrder,
     #[msg("deadline too close — markets must live at least 60s")]
     DeadlineTooSoon,
+    #[msg("Ladders need 2..=8 legs")]
+    InvalidLegCount,
+    #[msg("Leg accounts must be exactly the ladder's bound legs, in order")]
+    LegMismatch,
+    #[msg("A leg can still legitimately move — resolve must wait")]
+    LegsStillMoving,
 }
 
 #[cfg(test)]
@@ -1240,5 +1732,39 @@ mod tests {
             expire_decision(&stalled_partial, Some(&stalled_b), now),
             ExpireAction::SettleDuel(30, 40)
         ));
+    }
+
+    /// argmax_mask: bit i set for every leg tied at the top score.
+    #[test]
+    fn argmax_mask_flags_every_co_leader() {
+        assert_eq!(argmax_mask(&[64, 30, 10]), 0b001);
+        assert_eq!(argmax_mask(&[10, 64, 64]), 0b110);
+        assert_eq!(argmax_mask(&[5, 5, 5]), 0b111);
+        assert_eq!(argmax_mask(&[0, 0, 0, 0]), 0b1111);
+        assert_eq!(argmax_mask(&[0, 9, 0]), 0b010);
+        // 8-leg regression: the wash check must not truncate 1u16<<8 to u8.
+        assert_eq!(argmax_mask(&[0; 8]), u8::MAX);
+        assert_eq!(full_leg_mask(8), 0xff);
+        assert_eq!(argmax_mask(&[9, 0, 0, 0, 0, 0, 0, 0]) as u16, 0b001);
+        assert_eq!(full_leg_mask(2), 0b11);
+    }
+
+    /// Ladder leg scoring: finalized and proven committed stalls contribute
+    /// `correct`; uncommitted, in-flight, or never-queued legs contribute 0.
+    /// A dead leg forfeits — it never cancels the race.
+    #[test]
+    fn ladder_leg_score_forfeits_dead_legs() {
+        let now = 1_000_000i64;
+        let cap = EXPIRE_HARD_CAP_SECS;
+        let finalized = run(1, now - 2 * cap, 3, 3, now - 2 * cap, 64);
+        let proven_stall = run(0, now - 2 * cap, 1, 3, now - 2 * cap, 30);
+        let uncommitted = run(0, now - 2 * cap, 1, 1, 0, 30);
+        let inflight = run(0, now - 60, 0, 1, 0, 0);
+        let never_queued = run(0, 0, 0, 0, 0, 0);
+        assert_eq!(ladder_leg_score(&finalized, now), 64);
+        assert_eq!(ladder_leg_score(&proven_stall, now), 30);
+        assert_eq!(ladder_leg_score(&uncommitted, now), 0);
+        assert_eq!(ladder_leg_score(&inflight, now), 0);
+        assert_eq!(ladder_leg_score(&never_queued, now), 0);
     }
 }

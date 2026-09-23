@@ -17,7 +17,12 @@ for pk in \
   Cesn1pNBLAJt1ymyaAahfwzh77bZbgPXCrcarxJKFXqw \
   52tXNbsXCrCfm8RRDd7JhwYhmJfLeypCcJEMvqcu1wfL \
   5wtfwEkEaQWLsp7ofunskbnq2TW9GWSZpQGp3HXrZsnc \
-  3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG ; do
+  3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG \
+  GM1nPcr7k43h6ZDPYfUD5tr4f2P13vYCVwhMDTzWetod \
+  DhWJ4n86VVGTrcTVDRQADzNEhAGGCzaRx9AWogWMEgQ3 \
+  HHYFCPT2PptaYEQaJYpsFzH8sAGaW2rFoUmdBJhYaCtm \
+  HnM9ffHULWHBDAP4E8VaFFKRf7ckJCv9JMTvuGsSYkeL \
+  7XGyUoc3GuZCwC8Bhsb6cgiXpkmHBUisSAAkZUATPQx7 ; do
   solana account "$pk" --output json -u http://127.0.0.1:8899 > "acct-$pk.json" 2>/dev/null \
     && echo "$pk OK" || echo "$pk FAIL"
 done

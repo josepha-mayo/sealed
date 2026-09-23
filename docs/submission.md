@@ -7,10 +7,10 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | Program | Devnet address | Status |
 |---|---|---|
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 499939236, authority `4RUW4pDm…` |
-| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel support; upgradeable under `4RUW4pDm…` |
+| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder support; upgradeable under `4RUW4pDm…` |
 
 **Deploy state:** the devnet binaries were upgraded to the current
-hardened build on 2026-09-22 (sealed `3a9Cgven…`, market `Bqu75nLw…` —
+hardened build on 2026-09-23 (sealed `3a9Cgven…`, market `2B3SoLvC…` —
 `solana -u devnet program show <id>` reports the deploy slots). All protocol
 features are verified end-to-end on localnet; the only devnet caveat left is
 the Arcium callback outage (below).
@@ -68,6 +68,22 @@ since been wiped and redeployed during hardening. The evidence bundle in
   bank → MPC-scored 25–19 → outcome A-wins → winner claimed pro-rata
   (0.098 → 0.65 SOL). Negative paths proven: self-duel rejected
   `RunsMustDiffer`, post-scoring bet rejected `RunNotPending`.
+- **Ladder races — K-way argmax markets:** `create_ladder(legs[2..8], salt,
+  fee_bps, closes_at, resolve_by)` binds K pending runs of one benchmark
+  (distinct runners, same bank — legs arrive as `remaining_accounts` and are
+  re-verified on every read). Resolution is the highest leg score; co-leaders
+  split the pot dead-heat pro-rata (`result_mask` bitmask). A leg that never
+  queues or stays uncommitted **forfeits at 0 — it can never cancel the
+  race**, because cancelling on a dead leg would hand every losing leg
+  operator a free exit. `closes_at` is required (the leg list is public; an
+  open-ended board invites sniping) and `bet_ladder` latches the moment ANY
+  leg leaves pending. Verified E2E: a 3-way race scored 30/20/10 by MPC →
+  leg-0 mask `0b001` → winner claimed pro-rata (0.098 → 0.7 SOL). Negative
+  paths proven: duplicate leg rejected `RunsMustDiffer`, `closes_at=0`
+  rejected `DeadlineTooSoon`, reordered legs at resolve rejected
+  `LegMismatch`, post-latch bet rejected `RunNotPending`. Disclosed residual:
+  dormant-runner "ringer" legs are priced by bettors (the CLI prints every
+  leg's runner/model).
 - **Generated banks — the headline feature.** `chain gen` mints a benchmark
   *inside* MPC: the `gen_part` Arcis instruction draws item specs from
   `ArcisRNG`, computes answers in-circuit, fingerprints them (SHA3-256 over
@@ -136,10 +152,12 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 9/9 passing (seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 10/10 passing (seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim incl. expiry,
   claim-fee-first solvency, and post-finalize expiry rejection; duel market
-  open→bet→score-both→resolve→claim + gates; generated-bank mint→live→score;
+  open→bet→score-both→resolve→claim + gates; 3-way ladder open→bet→latch→
+  resolve→claim + LegMismatch/DeadlineTooSoon/RunsMustDiffer gates;
+  generated-bank mint→live→score;
   private-bank mint→decrypt→score + privacy negatives; reshare
   delegate-decrypt + one-directional disclosure + gates; delegated-runner
   rebuild-from-grants + MPC score; pending-sweep liveness — markets stay
@@ -165,8 +183,8 @@ python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ res
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
 verify with `solana -u devnet program show`; binaries upgraded to the current
-build — sealed `3a9Cgven…`, market `Bqu75nLw…` (2026-09-22, includes
-committed-settle expiry + deadline floor)). The one honest
+build — sealed `3a9Cgven…`, market `2B3SoLvC…` (2026-09-23, includes
+committed-settle expiry + deadline floor + ladder races)). The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts

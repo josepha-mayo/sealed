@@ -33,16 +33,18 @@ entirely. Six Arcis circuits run inside the MPC cluster:
 - `seal_part` + `reveal_part` cover authored banks and fingerprint audits.
 
 A second program hosts parimutuel markets — binary, N-way score bands,
-head-to-head duels — resolving permissionlessly on `Run.correct`; bets
-latch shut before the first scored chunk. Verified: 9/9 E2E + 13/13 unit
-on a real MPC localnet; a real model (gpt-oss-20b) finalized 64/64 on an
-MPC-minted bank — on-chain score == local pre-score (run HW5H5bT7).
+head-to-head duels, K-way ladder races — resolving permissionlessly on
+`Run.correct`; bets latch shut before the first scored chunk. Verified:
+10/10 E2E + 13/13 unit on a real MPC localnet; a real model (gpt-oss-20b)
+finalized 64/64 on an MPC-minted bank — on-chain score == local pre-score
+(run HW5H5bT7).
 
 ## solanaIntegration
 
 Two Anchor programs on Solana: `sealed` owns benchmark banks, item chunks,
 sealed answer fingerprints, runs, share grants, and reveals; `market` hosts
-parimutuel score-band and duel markets resolved from `Run.correct`. The
+parimutuel score-band, duel, and ladder-race markets resolved from
+`Run.correct`. The
 programs compose with the Arcium stack — MXE account, cluster, mempool/
 execpool, comp defs, `queue_computation` + callback instructions — via six
 Arcis circuits (seal/score/gen/gen_private/reveal/reshare). x25519 +
@@ -82,26 +84,33 @@ live too (`fee_bps` skimmed at resolution, authority-claimed via `claim_fee`).
 The durable business is sealed-evaluation
 infrastructure: fresh private banks minted on demand (no key custody to sell),
 delegated scoring runs for labs and judges, and the settlement layer every
-"AI capability" market resolves against. The market layer ships two novel
+"AI capability" market resolves against. The market layer ships three novel
 settlement primitives — head-to-head run duels (bets latch shut on either
-leg's first scoring queue, `RunnersMustDiffer` anti-sybil) and
-committed-settle expiry (`all_queued_at` + 24h landing window: a stalled
-run refunds unless the runner committed every chunk and the cluster had a
-full window to land it — no transaction can both commit and expire). Any
-venue can compose on `Run.correct` permissionlessly — the referee is
-infrastructure, not a vendor. Every future claim about what a
+leg's first scoring queue, `RunnersMustDiffer` anti-sybil), K-way ladder
+races (argmax over bound runs, dead-heat pro-rata ties, dead legs forfeit
+at 0 instead of cancelling — a cancel would be a free exit for losing leg
+operators), and committed-settle expiry (`all_queued_at` + 24h landing
+window: a stalled run refunds unless the runner committed every chunk and
+the cluster had a full window to land it — no transaction can both commit
+and expire). Any venue can compose on `Run.correct` permissionlessly — the
+referee is infrastructure, not a vendor. Every future claim about what a
 model can do is addressable surface area.
 
 ## competitiveLandscape
 
-Melee hides your position; Bench hides your stake; Sealed hides the truth
-itself — the market settles on an answer no human ever possessed. Lab
+Melee hides your position; Bench hides your stake; Epoch and Flew hide
+your bets; Sealed hides the truth itself — the market settles on an
+answer no human ever possessed. The other Arcium-market projects encrypt
+user inputs and resolve ordinary opinion events; Sealed's differentiator
+is that the *resolution truth* is confidential until computed — insider
+knowledge is cryptographically impossible, not just discouraged. Lab
 self-reports and leaderboard operators (LMArena, Epoch AI) hold the truth and
 can leak or bias it; trusted-oracle committees just redistribute the trust;
 TEE harnesses (Phala, NVIDIA CC) trust a hardware vendor; zkML/opML prove
 inference transcripts, not the benchmark itself — and the operator still
 holds the key. CrunchDAO (an Arcium partner) runs eval competitions but the
-coordinator holds the answer key. Sealed's primitive is different in kind:
+coordinator holds the answer key; Solarium's blind-judge consensus is
+economic, not confidential. Sealed's primitive is different in kind:
 items are minted inside MPC, so there is no key to leak, sell, or subpoena —
 and settlement is permissionless because the chain itself reads the score.
 
