@@ -1,11 +1,13 @@
-# Evidence bundle — model scored through a sealed bank
+# Evidence bundle — real model scored on an MPC-minted bank
 
 Checkable artifacts for the headline claim: a real model
-(`openai` = gpt-oss-20b) answered 64 items of a sealed bank and the
-on-chain MPC score matched the local pre-score exactly: **64/64**.
-(Bank 25864's item specs were minted inside MPC and re-sealed verbatim on
-this ledger — the authored `kind=0` wrapper carries the identical
-`items_root` and fingerprints the mint produced.)
+(`openai` = gpt-oss-20b) answered all 64 items of bank 6932 — minted
+inside MPC, so no answer key exists anywhere — and the on-chain MPC score
+matched the local pre-score exactly: **64/64** (run `HW5H5bT7…`).
+
+A second real-model run scored **64/64** on authored bank 25864 (run
+`4uns99WD…` — an authored `kind=0` bank; only its answer fingerprints
+live on-chain, sealed to the MXE key).
 
 The same bank also carries the counter-demonstration: a stale artifact
 claiming 64/64 locally was scored **1/64** on-chain. The protocol never
@@ -39,10 +41,21 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 ### Runs
 
-- `acct-4uns99WD….json` — **the headline run.** `openai` (gpt-oss-20b via
-  anonymous Pollinations), run #0 on bank 25864: `correct=64/64`,
-  `outputs_root` `f6aa29a3…`, FINALIZED — every digit written by the MPC
+- `acct-HW5H5bT7….json` — **the headline run.** `openai` (gpt-oss-20b via
+  anonymous Pollinations), run #2 on MPC-minted bank 6932: `correct=64/64`,
+  `outputs_root` `0c305939…`, FINALIZED — every digit written by the MPC
   cluster's callback transactions, matching the local pre-score exactly.
+  The items it answered were born inside the enclave; no plaintext answer
+  key has ever existed.
+- `run-gen6932-real-artifact.json` — its local artifact: raw outputs,
+  canonical answers, per-item output hashes, `itemsRoot` binding it to
+  this exact bank revision.
+- `prove-gen-item0.json` — Merkle proof that output 0 was in this run's
+  committed root (`runPda` field anchors it to the on-chain account —
+  the explorer's "load example" verifies it live).
+- `acct-4uns99WD….json` — second real-model run, `openai` (gpt-oss-20b)
+  on authored bank 25864: `correct=64/64`, `outputs_root` `f6aa29a3…`,
+  FINALIZED.
 - `run-25864-v2-artifact.json` — its local artifact: raw outputs,
   canonical answers, per-item output hashes, `itemsRoot` `e6a614da…`
   binding it to this exact bank revision.
@@ -81,14 +94,17 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 ### Proof + snapshot
 
-- `prove-item0.json` — `sealed prove --run run-25864-v2-artifact.json
-  --item 0`: a chunk-level Merkle proof that output 0 was in the committed
-  root. Verify:
+- `prove-gen-item0.json` / `prove-item0.json` — `sealed prove --run <artifact>
+  --item 0`: chunk-level Merkle proofs that output 0 was in each committed
+  root (gen-bank and 25864 runs respectively). Verify:
 
   ```bash
   # internal consistency (artifact's own outputsRoot):
   node scripts/verify-proof.mjs docs/evidence/prove-item0.json
   # bound to the on-chain Run account (while that ledger is live):
+  node scripts/verify-proof.mjs docs/evidence/prove-gen-item0.json \
+    --run HW5H5bT716jdTL9zVA1WuzqFDpuzAxS4tKWAgxhuyRhU \
+    --rpc http://127.0.0.1:8899
   node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
     --run 4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1 \
     --rpc http://127.0.0.1:8899

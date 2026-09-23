@@ -93,10 +93,11 @@ not the commands.
   grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
   binary + N-way markets resolved and paid out, fingerprint reveal audits,
   mocha suite 9/9 + 13/13 unit tests green. Authored banks work too (seal+score).
-- **Traction evidence:** 30+ sealed evaluations executed on the evidence
-  ledger (generated + private + delegated runs), incl. real models — gpt-oss-20b
-  64/64 fresh on the evidence ledger (run 4uns99WD), ling-3.0 58/64,
-  nemotron-3.5 59/64 — every MPC score identical to the
+- **Traction evidence:** dozens of MPC computations executed on the evidence
+  ledger (mint, seal, score, reshare, reveal circuits; generated + private +
+  delegated runs), incl. real models — gpt-oss-20b 64/64 on an MPC-minted
+  bank (run HW5H5bT7) and 64/64 on a sealed authored bank (run 4uns99WD),
+  ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score identical to the
   local pre-score, artifacts + tx proofs in `docs/evidence/`.
 - **Business:** per-run fee to the benchmark authority (live on-chain); market
   take-rate on settlement (`fee_bps`, capped at 10%, live on-chain);

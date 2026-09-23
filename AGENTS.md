@@ -44,7 +44,7 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 - Cluster offset 456. Both programs upgraded to the v4 committed-settle
   build (all_queued_at landing window) 2026-09-22: sealed
   `3a9Cgvenu3g1XJ4mnkpUHQmWjRD1trjSRHfYN4JonnYQbRNgLb2WiezmGWPqAq9LDhibSkJyuf6F2QRknAuFcHn1`,
-  market `5Y3aTSAB4K9V5ps5fvZ9gxCzUiQtjZj6tJVr9frduyDSnH4d7SDm1qHb3sFgW6cXMu32ec23frpsVdYtWjJRMzHi`.
+  market `Bqu75nLwqp5a6QPgn3PHJSn7brwXn8QNA8XibHY3JV6LRia5QHP4XmQU15FfujgVNVS71TKh6sChz2g4iGroyk6`.
   Both upgradeable — same program IDs. Binary growth past a program-data
   account needs `solana program extend <id> 10240` FIRST (ExtendProgram
   requires >= 10240-byte steps, not just the delta).
@@ -71,10 +71,14 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   credit-walls in bursts (billing notice as a normal 200 reply).
   `ModelClient` rejects provider-error signatures and `runModel` refuses an
   artifact when one reply dominates the bank; `scripts/real-model-run.sh`
-  retries through the gaps (`--max-tokens 512 --concurrency 1`). Fresh
-  MPC-verified evidence: run `4uns99WD…` scored **64/64 on-chain** on bank
-  25864; the stale-artifact run `3CKnMa8X…` on the same bank scored 1/64
-  (local claim 64 — the anti-cheat demonstration).
+  (authored bank) / `scripts/real-gen-run.sh` (MPC-minted gen bank)
+  retry through the gaps (`--max-tokens 512 --concurrency 1`). Fresh
+  MPC-verified evidence: run `HW5H5bT7…` scored **64/64 on-chain** on
+  MPC-minted bank 6932 (the headline); run `4uns99WD…` scored 64/64 on
+  authored bank 25864; the stale-artifact run `3CKnMa8X…` on the same
+  bank scored 1/64 (local claim 64 — the anti-cheat demonstration, run
+  via `scripts/score-artifact-insecure.mts` since `chain score` now
+  rejects unbound artifacts).
 - Borsh `String` fields serialize at ACTUAL length (`u32 len + bytes`), not
   `#[max_len]` — accounts are ALLOCATED at max_len but the bytes after the
   string are variable-offset. Any fixed-offset tail read past `model_id`

@@ -6,7 +6,7 @@ Sealed is a referee for AI-capability claims. Benchmark items can be **minted in
 
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
-> **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. `scripts/demo.sh` runs the whole flow end-to-end on a fresh localnet; `web/index.html` is the public explorer (leaderboard, proof verification, market board, ciphertext + grant views).
+> **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. With `arcium localnet` running, `scripts/demo.sh` runs the whole flow end-to-end; `web/index.html` is the public explorer (leaderboard, proof verification, market board, ciphertext + grant views) and renders the committed `docs/evidence/snapshot.json` offline — no localnet needed.
 
 ## Why
 
@@ -64,7 +64,7 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 
 ### Markets (`programs/market`)
 
-A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes.
+A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes. It ships two novel settlement primitives: **run duels** (head-to-head "does A outscore B" on the same bank — bets latch the moment either leg's first scoring computation queues, `RunnersMustDiffer` blocks self-duels) and **committed-settle expiry** (`all_queued_at` + a 24h landing window — a stalled run refunds unless the runner committed every chunk and the cluster had a full window to land it; no transaction can both commit and expire).
 
 ```
 create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
@@ -124,7 +124,7 @@ programs/market/        Anchor program: parimutuel markets resolving on Run.corr
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
 web/index.html          leaderboard + proof explorer (single file, web3.js via CDN, reads any RPC)
 tests/                  end-to-end test on Arcium localnet
-scripts/                demo.sh (full judge demo), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), run-model.sh, zen-*.sh
+scripts/                demo.sh (full judge demo), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts
 ```
 
 ## Develop
@@ -199,7 +199,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] **Private generated banks**: `gen_part_private` mints the same items but returns them `Enc<Shared, Pack<GenPart>>` to the authority's x25519 key — `PrivItemChunk` holds ciphertext only, `items_root` commits to the ciphertext; E2E proves ciphertext-only onchain state, authority-side decrypt→render, wrong-key rejection, public-path `WrongBankKind`, and MPC score 21/32 planted + CLI `gen-private` → mock run → MPC score 23/32 == local pre-score
 - [x] CLI pipeline on localnet: authored bank -> mock run -> MPC score 40/64, equal to the local pre-score (earlier epoch)
 - [x] Real models through OpenCode Zen (earlier epoch, before Zen free-tier gating): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
-- [x] **Real model on a sealed bank**: gpt-oss-20b (Pollinations anonymous tier) answered all 64 items; MPC finalized **64/64 == local pre-score** on the live evidence ledger (run `4uns99WD…`) — and a stale-bank artifact scored **1/64** on the same bank (run `3CKnMa8X…`), proving the chain never trusts self-reported scores
+- [x] **Real model on an MPC-minted bank**: gpt-oss-20b (`openai` on Pollinations anonymous tier) answered all 64 items of generated bank 6932 — minted inside MPC, no answer key exists; MPC finalized **64/64 == local pre-score** (run `HW5H5bT7…`). Also 64/64 on authored bank 25864 (run `4uns99WD…`) — where a stale-bank artifact scored **1/64** (run `3CKnMa8X…`), proving the chain never trusts self-reported scores
 - [x] **Delegated runner**: `chain delegate-bank` rebuilds a private bank entirely from a wallet's ShareGrants — verified byte-identical to the authority's decryption (prompts, answer hashes, items_root); a model provider can be granted the exam, run it, and get scored without the questions ever being public
 - [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] **Duel markets**: `create_duel`/`bet_duel`/`resolve_duel` — head-to-head "does run A outscore run B on the same bank?" with A-wins/B-wins/tie buckets; bets close once EITHER run starts scoring, settle reads both finalized `Run.correct`, E2E proves 25–19 resolution + pro-rata claim

@@ -677,6 +677,12 @@ export async function score(
   if (run.items.length !== bank.chunkCount * CHUNK)
     throw new Error(`run artifact has ${run.items.length} outputs; benchmark expects ${bank.chunkCount * CHUNK}`);
   const outLeaves = chunkOutLeaves(run.items.map((r) => BigInt(r.outputHash)));
+  // Fail fast on a tampered artifact: if the items were edited after
+  // outputsRoot was committed, every score_chunk reverts OutputsRootMismatch
+  // — catch it locally before paying for create_run + queues.
+  const foldedRoot = Buffer.from(merkleRoot(outLeaves)).toString("hex");
+  if (run.outputsRoot && foldedRoot !== run.outputsRoot)
+    throw new Error(`run artifact items do not fold to its committed outputsRoot (${foldedRoot.slice(0, 16)}… != ${run.outputsRoot.slice(0, 16)}…) — artifact is corrupt or tampered`);
   // Queue every un-scored chunk UP FRONT. A queued computation executes
   // regardless of later bit sweeps, so once `ever_queued_mask` is full any
   // further stall is the cluster's fault — markets can then settle the honest

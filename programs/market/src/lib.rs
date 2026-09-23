@@ -551,14 +551,15 @@ pub mod market {
 
     /// Permissionless deadline: once `resolve_by` passes, anyone can clean up
     /// an open market whose run can no longer finalize normally. The split
-    /// matters — refunding every stalled run hands the runner a free veto:
-    /// `Run.correct` accumulates publicly per chunk, so a runner who sees a
-    /// losing tally could simply stop queueing and wait out the cap for a
-    /// wash. Instead, a run past the 24h first-queue cap that LANDED chunks
-    /// settles on the proven partial score — stalling converts a losing
-    /// position into a certain loss, never into a refund. Refund is reserved
-    /// for runs with no proven signal at all (never queued, or queued but the
-    /// cluster never landed a single chunk).
+    /// matters — settling any stalled partial would let a runner freeze a
+    /// favorable truncation (queue one cheap chunk, stop, steal the high
+    /// buckets). Only a run that COMMITTED every chunk (`all_queued_at` set)
+    /// and then waited out a full 24h landing window settles on its proven
+    /// partial — the truncation was the cluster's, not the runner's, and no
+    /// transaction can both complete commitment and satisfy the window.
+    /// Everything else refunds: never-queued, uncommitted stalls (the
+    /// documented residual wash — refunding a chosen truncation is the only
+    /// safe answer), and committed runs where nothing ever landed.
     pub fn expire_market(ctx: Context<ExpireMarket>) -> Result<()> {
         let ra = load_run(&ctx.accounts.run_a)?;
         let m = &mut ctx.accounts.market;
@@ -580,6 +581,25 @@ pub mod market {
             ExpireAction::Blocked => err!(ErrorCode::MarketResolvable),
             ExpireAction::Cancel => {
                 m.status = MARKET_CANCELLED;
+                // Expire-cancels were invisible to event indexers — emit the
+                // same resolved events the settle paths use, flagged cancelled.
+                if duel {
+                    emit!(DuelResolved {
+                        market: m.key(),
+                        a_correct: ra.correct,
+                        b_correct: rb.map(|r| r.correct).unwrap_or(0),
+                        outcome: m.outcome,
+                        cancelled: true,
+                    });
+                } else {
+                    emit!(MarketResolved {
+                        market: m.key(),
+                        run: ctx.accounts.run_a.key(),
+                        correct: ra.correct,
+                        outcome: m.outcome,
+                        cancelled: true,
+                    });
+                }
                 Ok(())
             }
             ExpireAction::SettleScore(correct) => {

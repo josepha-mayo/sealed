@@ -10,7 +10,7 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel support; upgradeable under `4RUW4pDm…` |
 
 **Deploy state:** the devnet binaries were upgraded to the current
-hardened build on 2026-09-22 (sealed `3a9Cgven…`, market `5Y3aTSAB…` —
+hardened build on 2026-09-22 (sealed `3a9Cgven…`, market `Bqu75nLw…` —
 `solana -u devnet program show <id>` reports the deploy slots). All protocol
 features are verified end-to-end on localnet; the only devnet caveat left is
 the Arcium callback outage (below).
@@ -104,23 +104,25 @@ since been wiped and redeployed during hardening. The evidence bundle in
   The delegated-runner path is verified too: `chain delegate-bank` rebuilds a
   private bank entirely from a wallet's grants — verified byte-identical to
   the authority's own decryption (prompts, answer hashes, items_root).
-- **Real model through a sealed bank — fresh and on the current ledger:**
-  `gpt-oss-20b` (`openai` on the anonymous Pollinations tier) answered all
-  64 items of bank 25864 (`items_root e6a614da…` — its specs were minted
-  inside MPC and re-sealed verbatim on this ledger); the run committed
-  `outputs_root f6aa29a3…`, scored inside MPC, and finalized
-  **64/64 — on-chain score identical to the local pre-score** (run
-  `4uns99WD…`, account + artifact + Merkle proof in `docs/evidence/`).
-  The same bank carries the counter-case: an earlier artifact built on a
-  stale bank file claimed 64/64 locally and MPC scored it **1/64** (run
-  `3CKnMa8X…`) — the local pre-score is never trusted. The harness now
-  binds artifacts to `items_root` and refuses the mismatch outright; the
-  1/64 run was reproduced via a deliberate insecure-bypass script to show
-  the check is UX — MPC is the boundary.
-  Also live from the `demo.sh` pass: generated bank 77163 scored by two
-  runners (43/64 and 29/64 — the second created by a separate judge
-  wallet), binary + 3-way + duel markets resolved (duel: A wins 43–29),
-  and private bank 77164 whose specs exist on-chain only as ciphertext.
+- **Real model through an MPC-minted bank — fresh and on the current
+  ledger:** `gpt-oss-20b` (`openai` on the anonymous Pollinations tier)
+  answered all 64 items of generated bank 6932 (`EQsejQ89…`, `items_root
+  c4e1c840…` — minted inside MPC; no plaintext answer key exists
+  anywhere); the run committed `outputs_root 0c305939…`, scored inside
+  MPC, and finalized **64/64 — on-chain score identical to the local
+  pre-score** (run `HW5H5bT7…`, account + artifact + Merkle proof in
+  `docs/evidence/`). The same model also scored **64/64** on authored
+  bank 25864 (`items_root e6a614da…`, run `4uns99WD…`), which carries the
+  counter-case: an earlier artifact built on a stale bank file claimed
+  64/64 locally and MPC scored it **1/64** (run `3CKnMa8X…`) — the local
+  pre-score is never trusted. The harness now binds artifacts to
+  `items_root` and refuses the mismatch outright; the 1/64 run was
+  reproduced via a deliberate insecure-bypass script to show the check is
+  UX — MPC is the boundary.
+  Also live from the `demo.sh` pass on bank 6932: mock runners 43/64 and
+  28/64 (the second created by a separate judge wallet), binary + 3-way +
+  duel markets resolved (duel: A wins 43–28), and private bank 6933
+  (`VyAAjrsB…`) whose specs exist on-chain only as ciphertext.
   Historical: bank 99003 32/32 (earlier epoch), ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
@@ -163,7 +165,7 @@ python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ res
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
 verify with `solana -u devnet program show`; binaries upgraded to the current
-build — sealed `cvTyuKgu…`, market `4jiRxqN1…` (2026-09-22, includes
+build — sealed `3a9Cgven…`, market `Bqu75nLw…` (2026-09-22, includes
 committed-settle expiry + deadline floor)). The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions

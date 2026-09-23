@@ -22,8 +22,8 @@ Sealed is a Solana + Arcium protocol that removes the trusted data party
 entirely. Six Arcis circuits run inside the MPC cluster:
 
 - `gen_part` mints items inside the enclave — specs from ArcisRNG, answers
-  computed and fingerprinted in-circuit, born `Enc<Mxe>`. No answer key is
-  ever materialized outside the cluster.
+  computed and fingerprinted in-circuit, born `Enc<Mxe>`. No answer key
+  exists anywhere.
 - `gen_part_private` returns specs as `Enc<Shared>` to the authority — the
   questions never appear in plaintext on-chain either.
 - `reshare_part` re-encrypts spec parts to a delegate's key — selective,
@@ -33,11 +33,10 @@ entirely. Six Arcis circuits run inside the MPC cluster:
 - `seal_part` + `reveal_part` cover authored banks and fingerprint audits.
 
 A second program hosts parimutuel markets — binary, N-way score bands,
-head-to-head duels — resolving permissionlessly on `Run.correct`, with
-fees, deadlines, void, and expiry; bets latch shut before the first scored
-chunk. Verified: 9/9 E2E + 13/13 unit on a real MPC localnet; a real model
-(gpt-oss-20b) finalized 64/64 on the current evidence ledger — on-chain
-score == local pre-score (run 4uns99WD).
+head-to-head duels — resolving permissionlessly on `Run.correct`; bets
+latch shut before the first scored chunk. Verified: 9/9 E2E + 13/13 unit
+on a real MPC localnet; a real model (gpt-oss-20b) finalized 64/64 on an
+MPC-minted bank — on-chain score == local pre-score (run HW5H5bT7).
 
 ## solanaIntegration
 
@@ -55,10 +54,12 @@ against on-chain `outputs_root` in-browser.
 
 ## tractionMilestones
 
-30+ sealed evaluations executed on the evidence ledger (generated, private,
-and delegated runs), incl. real models — gpt-oss-20b 64/64 (fresh,
-MPC-finalized), ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score
-identical to the local pre-score. `scripts/demo.sh` reproduces the full arc
+Dozens of MPC computations executed on the evidence ledger — gen/seal/
+score/reshare/reveal circuits across generated, private, and delegated
+banks — including real models: gpt-oss-20b 64/64 on an MPC-minted bank
+(run HW5H5bT7) and 64/64 on a sealed authored bank (run 4uns99WD),
+ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score identical to the
+local pre-score. `scripts/demo.sh` reproduces the full arc
 (mint → disclose → run → market → settle) in one command; the explorer
 renders everything from a committed snapshot — no localnet needed.
 
@@ -81,7 +82,14 @@ live too (`fee_bps` skimmed at resolution, authority-claimed via `claim_fee`).
 The durable business is sealed-evaluation
 infrastructure: fresh private banks minted on demand (no key custody to sell),
 delegated scoring runs for labs and judges, and the settlement layer every
-"AI capability" market resolves against. Every future claim about what a
+"AI capability" market resolves against. The market layer ships two novel
+settlement primitives — head-to-head run duels (bets latch shut on either
+leg's first scoring queue, `RunnersMustDiffer` anti-sybil) and
+committed-settle expiry (`all_queued_at` + 24h landing window: a stalled
+run refunds unless the runner committed every chunk and the cluster had a
+full window to land it — no transaction can both commit and expire). Any
+venue can compose on `Run.correct` permissionlessly — the referee is
+infrastructure, not a vendor. Every future claim about what a
 model can do is addressable surface area.
 
 ## competitiveLandscape
