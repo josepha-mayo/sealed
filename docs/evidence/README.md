@@ -95,6 +95,10 @@ while that ledger is up; the artifacts are also self-checking offline.
   three runs of generated bank `GM1nPcr7…` scored 46/30/17 by MPC →
   `result_mask=0b1`, winning score 46, pot paid pro-rata. Legs:
   `acct-DhWJ4n86…` (46), `acct-HHYFCPT2…` (30), `acct-HnM9ffHU…` (17).
+- `acct-Cej6nELe….json` — a resolved **8-leg ladder** (`scripts/ladder8.sh`):
+  eight runners × eight MPC-finalized runs scored 30/28/27/24/19/14/9/7 →
+  `result_mask=0b1`, leg 0 paid pro-rata. This is the maximum-width path
+  through `load_legs`' ordered account check and the full `u8` result mask.
 
 ### Proof + snapshot
 

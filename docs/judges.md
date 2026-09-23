@@ -43,7 +43,8 @@ export SEALED_CLUSTER_OFFSET=0 ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http:
 #    -> model -> score -> markets)
 arcium localnet &              # first bootstrap; if it times out on backup
                                # nodes, re-run it or use scripts/localnet-up.sh
-scripts/demo.sh
+scripts/demo.sh                 # full arc: mint → disclose → 3 runners → 4 market types → settle
+scripts/ladder8.sh              # optional: maximum-width 8-leg race (the full result-mask path)
 
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
 #    minted specs, scores, resolved markets

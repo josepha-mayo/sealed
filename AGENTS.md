@@ -90,7 +90,9 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   read (`load_legs`). Leg outcome index == leg order in `legs[]`; dead legs
   forfeit at 0 (never cancel). Mask math: compare `mask as u16` against
   `full_leg_mask(len)` — `1u16 << 8` truncates to 0 in u8 (8-leg regression
-  covered by `argmax_mask_flags_every_co_leader`).
+  covered by `argmax_mask_flags_every_co_leader`, and proven live on-chain
+  by `scripts/ladder8.sh` — 8 runners, ladder `Cej6nELe…` resolved 30/28/27/
+  24/19/14/9/7 mask=0b1).
 - Bank files are mutable on disk: re-minting an id or `chain items` rewrites
   `bank/gen-<id>.json`. A run started before a rewrite answers STALE items —
   MPC then scores it honestly but low (observed: local 64/64 → on-chain

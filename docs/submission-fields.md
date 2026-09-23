@@ -88,14 +88,12 @@ The durable business is sealed-evaluation
 infrastructure: fresh private banks minted on demand (no key custody to sell),
 delegated scoring runs for labs and judges, and the settlement layer every
 "AI capability" market resolves against. The market layer ships three novel
-settlement primitives — head-to-head run duels (bets latch shut on either
-leg's first scoring queue, `RunnersMustDiffer` anti-sybil), K-way ladder
-races (argmax over bound runs, dead-heat pro-rata ties, dead legs forfeit
-at 0 instead of cancelling — a cancel would be a free exit for losing leg
-operators), and committed-settle expiry (`all_queued_at` + 24h landing
-window: a stalled run refunds unless the runner committed every chunk and
-the cluster had a full window to land it — no transaction can both commit
-and expire). Any venue can compose on `Run.correct` permissionlessly — the
+settlement primitives — head-to-head duels (bets latch shut on either
+leg's first scoring queue), K-way ladder races (argmax over bound runs,
+dead-heat pro-rata, dead legs forfeit), and committed-settle expiry
+(`all_queued_at` + 24h landing window: a stalled run refunds unless the
+runner committed every chunk — no transaction can both commit and
+expire). Any venue can compose on `Run.correct` permissionlessly — the
 referee is infrastructure, not a vendor. Every future claim about what a
 model can do is addressable surface area.
 
