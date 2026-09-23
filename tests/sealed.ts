@@ -1490,6 +1490,107 @@ describe("Sealed", () => {
     console.log(`ladder settled: 30/20/10 — leg-0 bettor ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
   });
 
+  it("splits a ladder dead-heat pro-rata across co-leaders", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
+      program.programId,
+    );
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
+
+    const truth = decodeItemChunk(Buffer.from((await provider.connection.getAccountInfo(itemsPda))!.data)).specs.map(evalSpec);
+    const runners = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
+    for (const r of runners) await fund(provider, owner, r.publicKey, 0.4 * LAMPORTS_PER_SOL);
+
+    const idx0 = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const mkRun = async (kp: Keypair, model: string, idx: bigint, planted: number) => {
+      const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx)], program.programId);
+      const outputs = truth.map((v, j) => (j < planted ? genAnswerHash(GEN_ID, j, v) : randomU64()));
+      const outLeaves = [chunkOutLeaf(0, outputs)];
+      await program.methods
+        .createRun(model, Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
+        .accountsPartial({ runner: kp.publicKey, authority: owner.publicKey, benchmark, run })
+        .signers([kp])
+        .rpc({ commitment: "confirmed" });
+      return { run, outputs, outLeaves };
+    };
+    // A and B tie at 25 — the dead-heat; C loses at 10.
+    const legs = [
+      await mkRun(runners[0], "ladder/tie-a", idx0, 25),
+      await mkRun(runners[1], "ladder/tie-b", idx0 + 1n, 25),
+      await mkRun(runners[2], "ladder/tie-c", idx0 + 2n, 10),
+    ];
+    const legPks = legs.map((x) => x.run);
+    const legMeta = (pk: PublicKey) => ({ pubkey: pk, isSigner: false, isWritable: false });
+    const [mkt] = PublicKey.findProgramAddressSync([Buffer.from("ladder"), legPks[0].toBuffer(), u64le(0n)], marketProgram.programId);
+    const posPda = (m: PublicKey, b: PublicKey) =>
+      PublicKey.findProgramAddressSync([Buffer.from("position"), m.toBuffer(), b.toBuffer()], marketProgram.programId)[0];
+
+    await marketProgram.methods
+      .createLadder(legPks[0], new anchor.BN(0), 0, FAR_FUTURE, FAR_FUTURE)
+      .accounts({ authority: owner.publicKey, ladder: mkt })
+      .remainingAccounts(legPks.map(legMeta))
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+
+    const bettors = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
+    await fund(provider, owner, bettors[0].publicKey, 0.4 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, bettors[1].publicKey, 0.3 * LAMPORTS_PER_SOL);
+    await fund(provider, owner, bettors[2].publicKey, 0.3 * LAMPORTS_PER_SOL);
+    // Winners split the WHOLE pot pro-rata on their winning stakes:
+    // 0.15 on A + 0.05 on B back co-leaders; 0.10 on C is dead money.
+    const stakes = [0.15, 0.05, 0.10];
+    for (let i = 0; i < 3; i++) {
+      await marketProgram.methods.betLadder(i, new anchor.BN(stakes[i] * LAMPORTS_PER_SOL))
+        .accounts({ bettor: bettors[i].publicKey, ladder: mkt, position: posPda(mkt, bettors[i].publicKey) })
+        .remainingAccounts(legPks.map(legMeta))
+        .signers([bettors[i]]).rpc({ commitment: "confirmed" });
+    }
+
+    const score = async (kp: Keypair, run: PublicKey, idx: bigint, outputs: bigint[], outLeaves: Uint8Array[]) => {
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
+        .accountsPartial({ payer: kp.publicKey, run, runner: kp.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
+        .signers([kp])
+        .rpc({ commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    };
+    for (let i = 0; i < 3; i++) await score(runners[i], legPks[i], idx0 + BigInt(i), legs[i].outputs, legs[i].outLeaves);
+
+    await marketProgram.methods.resolveLadder()
+      .accounts({ ladder: mkt })
+      .remainingAccounts(legPks.map(legMeta))
+      .rpc({ commitment: "confirmed" });
+    const l = await marketProgram.account.ladder.fetch(mkt);
+    expect(l.status).to.equal(1, "resolved");
+    expect(l.resultMask).to.equal(0b011, "legs 0+1 dead-heat");
+    expect(l.resolvedScore).to.equal(25);
+
+    // Pro-rata split: bettor0 takes 0.15/0.20 of the 0.30 pot = 0.225,
+    // bettor1 takes 0.05/0.20 = 0.075, bettor2 (loser) gets nothing.
+    // Claiming also closes the Position PDA — its rent comes back too.
+    const claims = [0.225, 0.075, 0];
+    for (let i = 0; i < 3; i++) {
+      const pos = posPda(mkt, bettors[i].publicKey);
+      const rent = (await provider.connection.getAccountInfo(pos))?.lamports ?? 0;
+      const before = await provider.connection.getBalance(bettors[i].publicKey);
+      try {
+        await marketProgram.methods.claimLadder()
+          .accounts({ bettor: bettors[i].publicKey, ladder: mkt, position: pos })
+          .signers([bettors[i]])
+          .rpc({ commitment: "confirmed" });
+      } catch (e) {
+        expect(claims[i]).to.equal(0, "only losers' claims may fail");
+        continue;
+      }
+      const after = await provider.connection.getBalance(bettors[i].publicKey);
+      expect(after - before).to.be.approximately(claims[i] * LAMPORTS_PER_SOL + rent, 20000, `leg ${i} pro-rata share + rent`);
+    }
+    console.log("dead-heat settled: 25/25/10 — mask 0b011, winners split the loser's stake pro-rata");
+  });
+
   it("pending sweeps are liveness-only — markets stay latched, swept computations still land", async () => {
     const marketProgram = anchor.workspace.Market as Program<Market>;
     const [benchmark] = PublicKey.findProgramAddressSync(
