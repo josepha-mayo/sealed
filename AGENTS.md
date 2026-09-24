@@ -44,7 +44,7 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 - Cluster offset 456. Both programs upgraded to the v4 committed-settle
   build (all_queued_at landing window) 2026-09-22: sealed
   `3a9Cgvenu3g1XJ4mnkpUHQmWjRD1trjSRHfYN4JonnYQbRNgLb2WiezmGWPqAq9LDhibSkJyuf6F2QRknAuFcHn1`,
-  market `24XrtzQ9Ue8mV79EtJifp78aP2saaSaZHUGSsf5jXSucgjcGYXM9PiR6vrzGDK4PzhnXAiac51MZqnoTd53HKZRB`
+  market `3t7b8AZPdzqa2Vxrub6gdG6g5Fby8a2rqAtLYGvfPnM12rWXFCAnYSCmvXcmo74hAde1XVLg2rXoj4CVkQHnEGNF`
   (2026-09-24 — ladder hardening: MIN_LEGS=3, unified still_moving resolve
   gate, landed-partial leg scores, cancel-mask hygiene, FeeClaimed events).
   Both upgradeable — same program IDs. Binary growth past a program-data
@@ -93,7 +93,9 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   land nothing forfeit at 0 (never cancel), but a landed partial counts —
   `correct` is monotone under argmax. Resolution gates on the unified
   `still_moving` (first-queue AND post-commit windows, before AND after
-  `resolve_by`). Mask math: compare `mask as u16` against
+  `resolve_by`). Runner note: `first_pending_at` is write-once — a leg that
+  gaps >24h between chunk-queue txs can settle at partial early; stage all
+  queue txs inside one 24h burst. Mask math: compare `mask as u16` against
   `full_leg_mask(len)` — `1u16 << 8` truncates to 0 in u8 (8-leg regression
   covered by `argmax_mask_flags_every_co_leader`, and proven live on-chain
   by `scripts/ladder8.sh` — 8 runners, ladder `Cej6nELe…` resolved 30/28/27/

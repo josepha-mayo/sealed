@@ -10,7 +10,7 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder support; upgradeable under `4RUW4pDm…` |
 
 **Deploy state:** the devnet binaries were upgraded to the current
-hardened build on 2026-09-24 (sealed `3a9Cgven…`, market `24XrtzQ9…` —
+hardened build on 2026-09-24 (sealed `3a9Cgven…`, market `3t7b8AZP…` —
 `solana -u devnet program show <id>` reports the deploy slots). All protocol
 features are verified end-to-end on localnet; the only devnet caveat left is
 the Arcium callback outage (below).
@@ -193,7 +193,7 @@ python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ res
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
 verify with `solana -u devnet program show`; binaries upgraded to the current
-build — sealed `3a9Cgven…`, market `24XrtzQ9…` (2026-09-24, includes
+build — sealed `3a9Cgven…`, market `3t7b8AZP…` (2026-09-24, includes
 committed-settle expiry + deadline floor + hardened ladder races)). The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions

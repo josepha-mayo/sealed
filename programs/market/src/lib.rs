@@ -724,7 +724,11 @@ pub mod market {
     /// exit). An authority can pack the board with dormant-runner "ringer"
     /// legs whose backers' stake flows to live legs. The leg list and each
     /// leg's runner are public at creation — bettors should verify every leg
-    /// has a live runner before staking.
+    /// has a live runner before staking. OPERATOR NOTE: a leg's first-queue
+    /// window (`first_pending_at`) opens on its first score-queue tx and is
+    /// write-once — a leg that gaps >24h between queue txs can settle at
+    /// partial before `resolve_by`. Stage every chunk's queue tx inside one
+    /// 24h burst.
     pub fn create_ladder(
         ctx: Context<CreateLadder>,
         first_leg: Pubkey,
@@ -1153,8 +1157,10 @@ pub struct Ladder {
     /// Required betting cutoff — the leg list is public, so an open-ended
     /// window invites last-second sniping on leaked leg state.
     pub closes_at: i64,
-    /// Deadline after which `resolve_ladder` may force-settle: stuck legs
-    /// score what they proved, uncommitted legs 0 — funds never lock.
+    /// Advertised settlement deadline for bettors. Resolution is gated by
+    /// `still_moving` alone — a leg inside either landing window blocks
+    /// resolve even past `resolve_by` (one bounded window per leg), and a
+    /// leg past both windows settles at whatever landed, partial included.
     pub resolve_by: i64,
 }
 
@@ -1559,7 +1565,7 @@ pub enum ErrorCode {
     DeadlineOrder,
     #[msg("deadline too close — markets must live at least 60s")]
     DeadlineTooSoon,
-    #[msg("Ladders need 2..=8 legs")]
+    #[msg("Ladders need 3..=8 legs (pairs belong in create_duel)")]
     InvalidLegCount,
     #[msg("Leg accounts must be exactly the ladder's bound legs, in order")]
     LegMismatch,

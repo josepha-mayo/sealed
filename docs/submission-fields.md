@@ -90,7 +90,9 @@ delegated scoring runs for labs and judges, and the settlement layer every
 "AI capability" market resolves against. The market layer ships three novel
 settlement primitives — head-to-head duels (bets latch shut on either
 leg's first scoring queue), K-way ladder races (argmax over bound runs,
-dead-heat pro-rata, dead legs forfeit), and committed-settle expiry
+dead-heat pro-rata, dead legs forfeit), unseen-exam markets (the priced
+event is itself confidential — a market fills on a private-bank run whose
+questions are ciphertext-only end-to-end), and committed-settle expiry
 (`all_queued_at` + 24h landing window: a stalled run refunds unless the
 runner committed every chunk — no transaction can both commit and
 expire). Any venue can compose on `Run.correct` permissionlessly — the

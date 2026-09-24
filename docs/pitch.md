@@ -72,6 +72,7 @@ not the commands.
 | 8. Resolve + claim | `chain market resolve` / `claim` | "The market read `Run.correct` itself. Winner withdraws; the loser has nothing to claim." |
 | 9. Duel (optional beat) | `sealed chain market duel --run-a <pk> --run-b <pk> --resolve-by +86400` | "Two runs, one sealed bank: 'who outscores whom?' — bets close once either side starts scoring, so nobody trades on a half-known result." |
 | 9b. Ladder (optional beat) | `sealed chain market ladder open --legs <pk,pk,pk> --closes-at +86400 --resolve-by +86400` | "Or a K-way race: three models, one pot, argmax takes it — dead-heat splits ties, and a leg that never shows up forfeits at 0 instead of refunding its backers out." |
+| 9c. Unseen exam (optional) | `scripts/unseen.sh` | "And the strangest market here: bettors just filled positions on an exam that was never published — not before the market, not during, not after. The event being priced is itself confidential." |
 
 ## One-pager for the submission form
 
