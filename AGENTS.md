@@ -80,7 +80,10 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   authored bank 25864; the stale-artifact run `3CKnMa8X…` on the same
   bank scored 1/64 (local claim 64 — the anti-cheat demonstration, run
   via `scripts/score-artifact-insecure.mts` since `chain score` now
-  rejects unbound artifacts).
+  rejects unbound artifacts). `scripts/real-unseen-run.sh` runs a real
+  model on a PRIVATE bank it can only see through reshare grants —
+  gpt-oss-20b scored 32/32 on bank `Fa4WS8B1…` (run `9nfKSXnM…`,
+  delegate `9z6CwKCQ…`).
 - Borsh `String` fields serialize at ACTUAL length (`u32 len + bytes`), not
   `#[max_len]` — accounts are ALLOCATED at max_len but the bytes after the
   string are variable-offset. Any fixed-offset tail read past `model_id`

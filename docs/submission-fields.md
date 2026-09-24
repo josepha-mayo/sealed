@@ -63,7 +63,9 @@ finalized by the cluster, 39 markets resolved on-chain (36 score/duel +
 7 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
 models: gpt-oss-20b 64/64 on an MPC-minted bank (run HW5H5bT7) and 64/64
 on a sealed authored bank (run 4uns99WD), ling-3.0 58/64, nemotron-3.5
-59/64 — every MPC score identical to the local pre-score.
+59/64 — every MPC score identical to the local pre-score. Strongest:
+gpt-oss-20b scored 32/32 on a private bank it could only read through
+on-chain disclosure grants (run 9nfKSXnM — the exam was never published).
 `scripts/demo.sh` reproduces the full arc (mint → disclose → run → 4
 market types → settle) in one command; the explorer renders everything
 from a committed snapshot — no localnet needed.
@@ -87,7 +89,7 @@ live too (`fee_bps` skimmed at resolution, authority-claimed via `claim_fee`).
 The durable business is sealed-evaluation
 infrastructure: fresh private banks minted on demand (no key custody to sell),
 delegated scoring runs for labs and judges, and the settlement layer every
-"AI capability" market resolves against. The market layer ships three novel
+"AI capability" market resolves against. The market layer ships four novel
 settlement primitives — head-to-head duels (bets latch shut on either
 leg's first scoring queue), K-way ladder races (argmax over bound runs,
 dead-heat pro-rata, dead legs forfeit), unseen-exam markets (the priced

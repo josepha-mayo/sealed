@@ -102,6 +102,13 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 ### Later ledger generations (post-wipe, not in `snapshot.json`)
 
+- **Real model on a grant-only exam** (`scripts/real-unseen-run.sh`): private
+  bank `Fa4WS8B1…` → 4 `reshare_part` grants to delegate `9z6CwKCQ…`
+  (`DXmdvHCU`, `ANeM4ZCM`, `GjcjUwoi`, `HRhp7e6k`) → delegate rebuilt the
+  full 32-item bank from grants alone → **gpt-oss-20b scored 32/32**
+  on-chain (run `9nfKSXnM…`, MPC == local pre-score). A real model took an
+  exam that was never published anywhere — its only view of the questions
+  was the on-chain grant trail.
 - **Unseen-exam market** (`scripts/unseen.sh`, run twice live): private bank
   `Fa4WS8B1…` (specs ciphertext-only for the market's whole life) → pending
   run `Fdbqwk7A…` → market `HKnKiFTS…` opened + filled both sides → MPC
