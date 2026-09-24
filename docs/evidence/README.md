@@ -100,6 +100,17 @@ while that ledger is up; the artifacts are also self-checking offline.
   `result_mask=0b1`, leg 0 paid pro-rata. This is the maximum-width path
   through `load_legs`' ordered account check and the full `u8` result mask.
 
+### Later ledger generations (post-wipe, not in `snapshot.json`)
+
+- **Unseen-exam market** (`scripts/unseen.sh`, run twice live): private bank
+  `Fa4WS8B1…` (specs ciphertext-only for the market's whole life) → pending
+  run `Fdbqwk7A…` → market `HKnKiFTS…` opened + filled both sides → MPC
+  finalized 16/32 → resolved, sole `< 20` winner paid 0.28 SOL pro-rata.
+  First run of the same script: market `2v2WqSyG…` resolved 19/32 the same
+  way. Full terminal record: `../unseen.cast`.
+- **Dead-heat ladder** (E2E suite): legs tied 25/25 vs 10 → `result_mask
+  0b011`, co-leaders split the loser's stake pro-rata plus rent refunds.
+
 ### Proof + snapshot
 
 - `prove-gen-item0.json` / `prove-item0.json` — `sealed prove --run <artifact>

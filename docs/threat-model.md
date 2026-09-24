@@ -58,7 +58,15 @@ after sealing, and nobody can fabricate a score.
   specs `Enc<Shared>` to the authority — prompts are then confidential to
   whoever holds that wallet, while answers remain MXE-sealed. The residual
   trust is that the authority doesn't publish the decrypted prompts (they
-  hold the questions but still cannot produce answer plaintext).
+  hold the questions but still cannot produce answer plaintext). Markets on
+  private-bank runs ("unseen-exam" markets, `scripts/unseen.sh`) inherit a
+  second disclosed assumption: bettors can verify *that* an exam exists,
+  is ciphertext-bound (`items_root` folds the ciphertext), and was scored
+  by MPC — but cannot audit item quality, so they price the authority's
+  reputation plus the cluster-rendered count. This is the same shape as
+  betting on a sealed grading process in the real world, and it is why
+  grant-based selective disclosure (`reshare_part`) exists as the escape
+  hatch for judges who do need to read items.
 - **Cluster liveness** — sealing and scoring depend on the MPC cluster
   executing computations and submitting callbacks. If the cluster stalls, runs
   stay pending; `void_market` lets the authority refund bettors on dead runs

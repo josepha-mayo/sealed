@@ -203,3 +203,30 @@ most recently probed 2026-09-19: bank `SwG8c3TK…` queued gen_part for chunk 0
 part 0 (computation `3w9kBpRt…`) and no callback landed. The retry loop in
 `scripts/seal-devnet-retry.sh` completes sealing as soon as the cluster
 recovers; the full flow is demonstrated on localnet meanwhile.
+
+## Submission day (deadline: Oct 12, 2026 11:59 PM PT)
+
+Ordered human checklist — everything else in this repo is already done:
+
+1. **Fill `teamBackground`** in `docs/submission-fields.md` (founder-market
+   fit is scored — real names, real credibility, why YOU for this).
+2. **Record the pitch video** against `docs/pitch-video-script.md`
+   (separate from the technical demo — `docs/demo.mp4` is already rendered,
+   114s, upload-ready; `docs/video-script.md` covers a live re-record if
+   you want one).
+3. **Make the repo public** (Settings → General → Danger Zone → Change
+   visibility). Most common disqualifier per Colosseum's own list.
+4. **Enable Pages**: Settings → Pages → Source = "GitHub Actions" — the
+   `.github/workflows/pages.yml` workflow then publishes `web/` to
+   `https://<you>.github.io/<repo>/`; paste that URL into the submission
+   "demo" field (the explorer renders the committed snapshot with zero
+   backend).
+5. **Paste the field values** from `docs/submission-fields.md` into the
+   form — char counts are pre-verified against the limits.
+6. **Upload both videos** (pitch + `docs/demo.mp4`).
+7. *Optional, highest-leverage*: **mainnet deploy** per `docs/mainnet.md`
+   (~2–5 SOL + a reliable RPC, cluster offset 2026) — turns "deployed on
+   devnet" into "live on mainnet."
+8. *Optional*: post the X thread + Arcium outreach DM from
+   `docs/promotion.md` — attention compounds.
+
