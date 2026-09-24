@@ -142,7 +142,7 @@ programs/market/        Anchor program: parimutuel markets resolving on Run.corr
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
 web/index.html          leaderboard + proof explorer (single file, web3.js via CDN, reads any RPC)
 tests/                  end-to-end test on Arcium localnet
-scripts/                demo.sh (full judge demo), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts
+scripts/                demo.sh (full judge demo), unseen.sh (market on a never-published exam), ladder8.sh (max-width race), real-unseen-run.sh (real model on a grant-only exam), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts
 ```
 
 ## Develop
