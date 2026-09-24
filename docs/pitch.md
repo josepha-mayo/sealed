@@ -93,7 +93,7 @@ not the commands.
   question disclosure to delegate keys (`reshare_part` — one-directional,
   grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
   binary + N-way markets resolved and paid out, fingerprint reveal audits,
-  mocha suite 9/9 + 13/13 unit tests green. Authored banks work too (seal+score).
+  mocha suite 11/11 + 13/13 unit tests green. Authored banks work too (seal+score).
 - **Traction evidence:** dozens of MPC computations executed on the evidence
   ledger (mint, seal, score, reshare, reveal circuits; generated + private +
   delegated runs), incl. real models — gpt-oss-20b 64/64 on an MPC-minted

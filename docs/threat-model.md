@@ -117,23 +117,27 @@ after sealing, and nobody can fabricate a score.
   A computation landing into an already-settled-or-refunded market still
   posts its score on-chain — the record stays honest either way.
 
-- **Ladder races (`create_ladder` / `resolve_ladder`, 2–8 legs).** Argmax
-  settlement: the highest leg score takes the pot and co-leaders split it
-  dead-heat pro-rata (`result_mask`). Unlike duels, a dead leg does NOT
-  cancel the race — a never-queued or uncommitted leg contributes 0 and the
-  race resolves among the rest, because cancelling on a dead leg would hand
-  every losing leg operator a free exit (poison one leg → refund a losing
-  bet). The same committed-stall invariant applies per leg: `proven` legs
-  (finalized, or fully committed past `all_queued_at + 24h`) contribute their
-  partial `correct`; a leg still inside its landing window blocks resolution
-  even past `resolve_by` (bounded — `all_queued_at` is write-once, so a
-  just-in-time commit buys at most one window and a live cluster finalizes
-  the leg inside it). Bets latch at `closes_at` (required — an open-ended
-  board on a public leg list invites sniping) or the first leg leaving
-  pending, whichever is earlier. Disclosed residual: an authority can pack
-  the board with dormant-runner "ringer" legs whose backers' stake flows to
-  live legs — forfeiture is the correct anti-exit rule, so leg-runner
-  diligence is priced by bettors (the CLI prints each leg's runner/model).
+- **Ladder races (`create_ladder` / `resolve_ladder`, 3–8 legs — pairs
+  belong in duels, which carry an explicit tie bucket and the proven-leg
+  veto).** Argmax settlement: the highest leg score takes the pot and
+  co-leaders split it dead-heat pro-rata (`result_mask`). Unlike duels, a
+  dead leg does NOT cancel the race — a leg with nothing landed contributes
+  0 and the race resolves among the rest, because cancelling on a dead leg
+  would hand every losing leg operator a free exit (poison one leg → refund
+  a losing bet). A stalled leg that DID land chunks contributes its honest
+  partial: `correct` is monotone non-decreasing in landed chunks, so under
+  argmax a partial can only understate a leg, never inflate it (unlike
+  score-band truncation, which can land a chosen low bucket). Resolution is
+  gated by the unified `still_moving` check — a leg inside either window
+  (first-queue `first_pending_at + 24h`, or post-commit `all_queued_at +
+  24h`, both write-once) blocks rather than forfeits, before AND after
+  `resolve_by` — `resolve_by` advertises the end to bettors, it is not a
+  forfeit switch. Bets latch at `closes_at` (required — an open-ended board
+  on a public leg list invites sniping) or the first leg leaving pending,
+  whichever is earlier. Disclosed residual: an authority can pack the board
+  with dormant-runner "ringer" legs whose backers' stake flows to live legs
+  — forfeiture is the correct anti-exit rule, so leg-runner diligence is
+  priced by bettors (the CLI prints each leg's runner/model).
 
 ## What is *not* protected (yet)
 

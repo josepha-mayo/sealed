@@ -8,7 +8,7 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 
 - `anchor build` (sealed), `anchor build -p market --ignore-keys` (market; its
   keypair file address intentionally differs — do NOT `anchor keys sync`).
-- `yarn test` → 9/9 mocha E2E against a RUNNING localnet; needs env
+- `yarn test` → 11/11 mocha E2E against a RUNNING localnet; needs env
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
@@ -44,8 +44,9 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 - Cluster offset 456. Both programs upgraded to the v4 committed-settle
   build (all_queued_at landing window) 2026-09-22: sealed
   `3a9Cgvenu3g1XJ4mnkpUHQmWjRD1trjSRHfYN4JonnYQbRNgLb2WiezmGWPqAq9LDhibSkJyuf6F2QRknAuFcHn1`,
-  market `2B3SoLvCJQgUtcvre3QkLkoLRbUP8mVWrzqZYHWCvV9iy3sJCDfn7DirrsEKZafCRB8HUabGUKH6eiye3rw11YMh`
-  (2026-09-23 — adds ladder markets).
+  market `24XrtzQ9Ue8mV79EtJifp78aP2saaSaZHUGSsf5jXSucgjcGYXM9PiR6vrzGDK4PzhnXAiac51MZqnoTd53HKZRB`
+  (2026-09-24 — ladder hardening: MIN_LEGS=3, unified still_moving resolve
+  gate, landed-partial leg scores, cancel-mask hygiene, FeeClaimed events).
   Both upgradeable — same program IDs. Binary growth past a program-data
   account needs `solana program extend <id> 10240` FIRST (ExtendProgram
   requires >= 10240-byte steps, not just the delta).
@@ -87,8 +88,12 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   prefix like web/index.html does (`o += 4 + ml`).
 - Ladder markets (`Ladder` account) seed `[b"ladder", legs[0], salt]` —
   legs arrive via `remaining_accounts` and are re-verified in-order on every
-  read (`load_legs`). Leg outcome index == leg order in `legs[]`; dead legs
-  forfeit at 0 (never cancel). Mask math: compare `mask as u16` against
+  read (`load_legs`). 3–8 legs (pairs are duels — explicit tie bucket +
+  proven-leg veto). Leg outcome index == leg order in `legs[]`; legs that
+  land nothing forfeit at 0 (never cancel), but a landed partial counts —
+  `correct` is monotone under argmax. Resolution gates on the unified
+  `still_moving` (first-queue AND post-commit windows, before AND after
+  `resolve_by`). Mask math: compare `mask as u16` against
   `full_leg_mask(len)` — `1u16 << 8` truncates to 0 in u8 (8-leg regression
   covered by `argmax_mask_flags_every_co_leader`, and proven live on-chain
   by `scripts/ladder8.sh` — 8 runners, ladder `Cej6nELe…` resolved 30/28/27/

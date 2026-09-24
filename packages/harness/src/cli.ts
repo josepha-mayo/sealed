@@ -170,7 +170,7 @@ async function main() {
   sealed chain market ladder open    --legs <pk,pk,...> [--salt n]         K-way race: argmax over leg scores, dead-heat ties
                                      [--fee-bps 0..1000] --closes-at +secs|ts (required) --resolve-by +secs|ts (required)
   sealed chain market ladder bet     --market <pk> --outcome <i> --lamports <n> [--bettor keypair.json]
-  sealed chain market ladder resolve --market <pk>                       argmax settle once every leg is terminal (or past resolve_by)
+  sealed chain market ladder resolve --market <pk>                       argmax settle once no leg is inside a landing window
   sealed chain market ladder claim   --market <pk> [--bettor keypair.json]
   sealed chain market ladder void    --market <pk> [--bettor keypair.json] authority cancels, only before any leg starts
   sealed chain market ladder claim-fee --market <pk> [--bettor keypair.json]

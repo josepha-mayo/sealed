@@ -33,6 +33,14 @@ pub const MARKET_CANCELLED: u8 = 2;
 pub const MAX_OUTCOMES: usize = 8;
 /// Most runs a ladder market may race — also the width of `result_mask`.
 pub const MAX_LEGS: usize = 8;
+/// Fewest legs a ladder may race — pairs belong in `create_duel`, which
+/// carries an explicit tie bucket and the proven-leg veto. A 2-leg ladder
+/// has neither, so a dormant-ringer leg's backers' stake would flow to the
+/// live leg deterministically; 3+ keeps dead-heat refunds meaningful.
+pub const MIN_LEGS: usize = 3;
+// `result_mask`/`argmax_mask` shift a u8 by leg index — a wider field would
+// silently wrap at `1u8 << 8`.
+const _: () = assert!(MAX_LEGS <= 8, "result_mask is u8 — MAX_LEGS must stay <= 8");
 /// Absolute bound on scoring-liveness delays: a run whose FIRST queue is this
 /// old is expirable unconditionally — pending bits are runner-refreshable,
 /// swept/stale computations can still land, so nothing on-chain can prove a
@@ -143,12 +151,16 @@ fn proven(r: &Run, now: i64) -> bool {
             && r.scored_mask != 0)
 }
 
-/// The score a ladder leg contributes at resolution. A finalized or proven
-/// committed-stall run scores `correct`; anything else scores 0 — an
-/// uncommitted or never-queued leg is a forfeit, never a cancel trigger
-/// (cancelling would hand every losing leg operator a free exit).
-fn ladder_leg_score(r: &Run, now: i64) -> u32 {
-    if proven(r, now) {
+/// The score a ladder leg contributes at resolution: whatever chunks have
+/// landed. `correct` is monotone non-decreasing in landed chunks, so under
+/// argmax a landed partial can only understate a leg — never inflate it —
+/// which makes partials safe to count even for uncommitted stalls (unlike
+/// score-band markets, where a chosen truncation can land a favorable
+/// bucket). Only a leg with NOTHING landed — never queued, or every queued
+/// computation died unfinalized — scores 0: a forfeit, never a cancel
+/// trigger (cancelling would hand every losing leg operator a free exit).
+fn ladder_leg_score(r: &Run) -> u32 {
+    if r.scored_mask != 0 {
         r.correct
     } else {
         0
@@ -179,8 +191,6 @@ fn full_leg_mask(len: usize) -> u16 {
 /// cancel so everyone refunds in full.
 fn settle_ladder(m: &mut Account<Ladder>, scores: &[u32]) -> Result<()> {
     let mask = argmax_mask(scores);
-    m.result_mask = mask;
-    m.resolved_score = scores.iter().copied().max().unwrap_or(0);
     m.resolved_at = Clock::get()?.unix_timestamp;
     let winning_stake: u64 = scores
         .iter()
@@ -189,15 +199,21 @@ fn settle_ladder(m: &mut Account<Ladder>, scores: &[u32]) -> Result<()> {
         .map(|(i, _)| m.totals[i])
         .sum();
     if winning_stake == 0 || mask as u16 == full_leg_mask(scores.len()) {
+        // A cancelled race has no winners — store a clean zero mask so a
+        // naive indexer can't read the raw argmax as a result.
         m.status = MARKET_CANCELLED;
+        m.result_mask = 0;
+        m.resolved_score = 0;
     } else {
+        m.result_mask = mask;
+        m.resolved_score = scores.iter().copied().max().unwrap_or(0);
         let pot: u64 = m.totals.iter().sum();
         m.fees_accrued = (pot as u128 * m.fee_bps as u128 / 10_000) as u64;
         m.status = MARKET_RESOLVED;
     }
     emit!(LadderResolved {
         ladder: m.key(),
-        result_mask: mask,
+        result_mask: m.result_mask,
         winning_score: m.resolved_score,
         scores: scores.to_vec(),
         cancelled: m.status == MARKET_CANCELLED,
@@ -696,11 +712,12 @@ pub mod market {
         }
     }
 
-    /// Open a K-way race market: legs are `remaining_accounts` (2..=8 pending,
-    /// unscored runs on one benchmark, distinct runs and runners). Resolution
-    /// is argmax — the highest-scoring leg wins; ties split the pot dead-heat.
-    /// `closes_at` is required: the leg list is public, so a market with an
-    /// open-ended betting window is a snipe invitation.
+    /// Open a K-way race market: legs are `remaining_accounts` (3..=8 pending,
+    /// unscored runs on one benchmark, distinct runs and runners — pairs
+    /// belong in `create_duel`, which carries an explicit tie bucket).
+    /// Resolution is argmax — the highest-scoring leg wins; ties split the
+    /// pot dead-heat. `closes_at` is required: the leg list is public, so a
+    /// market with an open-ended betting window is a snipe invitation.
     ///
     /// KNOWN RISK, disclosed: a leg whose runner never scores forfeits at 0 —
     /// it cannot cancel the race (that would hand losing leg operators a free
@@ -718,7 +735,7 @@ pub mod market {
     ) -> Result<()> {
         let legs = &ctx.remaining_accounts;
         require!(
-            legs.len() >= 2 && legs.len() <= MAX_LEGS,
+            legs.len() >= MIN_LEGS && legs.len() <= MAX_LEGS,
             ErrorCode::InvalidLegCount
         );
         // The PDA derives from the bound legs (like duels) — the seed arg
@@ -832,35 +849,22 @@ pub mod market {
     }
 
     /// Settle the race: argmax over leg scores, dead-heat pro-rata on ties.
-    /// Callable once every leg is terminal (finalized or proven stall) — a
-    /// never-queued leg doesn't block; it simply scores 0. Past `resolve_by`
-    /// anyone may force it: stuck legs score what they proved, the rest 0.
+    /// Permissionless — the gate is identical before and after `resolve_by`
+    /// (the deadline is the advertised end for bettors, not a forfeit switch):
+    /// a leg inside EITHER landing window — its 24h first-queue window
+    /// (`first_pending_at`, ungameable) or its post-commit landing window
+    /// (`all_queued_at`, the JIT-commit invariant `expire_market` enforces) —
+    /// blocks resolution rather than forfeiting mid-flight. A leg past both
+    /// windows settles at whatever landed; nothing-landed legs score 0.
     pub fn resolve_ladder(ctx: Context<ResolveLadder>) -> Result<()> {
         let m = &mut ctx.accounts.ladder;
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
         let legs = load_legs(m, ctx.remaining_accounts)?;
         let now = Clock::get()?.unix_timestamp;
-        if now <= m.resolve_by {
-            for r in &legs {
-                require!(!still_moving(r, now), ErrorCode::LegsStillMoving);
-            }
-        } else {
-            // Past resolve_by, uncommitted legs forfeit — but a leg that
-            // committed every chunk keeps its post-commit landing window:
-            // `all_queued_at` is write-once so this block is bounded (≤24h
-            // past the first full commit), and honoring it is the same
-            // JIT-commit invariant `expire_market` enforces — a live cluster
-            // finalizes the leg inside the window rather than settling a 0.
-            for r in &legs {
-                require!(
-                    r.status == RUN_FINALIZED
-                        || r.all_queued_at == 0
-                        || now > r.all_queued_at + EXPIRE_HARD_CAP_SECS,
-                    ErrorCode::LegsStillMoving
-                );
-            }
+        for r in &legs {
+            require!(!still_moving(r, now), ErrorCode::LegsStillMoving);
         }
-        let scores: Vec<u32> = legs.iter().map(|r| ladder_leg_score(r, now)).collect();
+        let scores: Vec<u32> = legs.iter().map(ladder_leg_score).collect();
         settle_ladder(m, &scores)
     }
 
@@ -947,6 +951,11 @@ pub mod market {
             .authority
             .to_account_info()
             .try_borrow_mut_lamports()? += fee;
+        emit!(FeeClaimed {
+            market: m.key(),
+            to: ctx.accounts.authority.key(),
+            amount: fee,
+        });
         Ok(())
     }
 
@@ -963,6 +972,11 @@ pub mod market {
             .authority
             .to_account_info()
             .try_borrow_mut_lamports()? += fee;
+        emit!(FeeClaimed {
+            market: m.key(),
+            to: ctx.accounts.authority.key(),
+            amount: fee,
+        });
         Ok(())
     }
 
@@ -1481,6 +1495,14 @@ pub struct LadderResolved {
     pub cancelled: bool,
 }
 
+#[event]
+pub struct FeeClaimed {
+    /// Market OR ladder PDA the fee was skimmed from.
+    pub market: Pubkey,
+    pub to: Pubkey,
+    pub amount: u64,
+}
+
 // ================================================================== errors
 
 #[error_code]
@@ -1758,13 +1780,15 @@ mod tests {
         let cap = EXPIRE_HARD_CAP_SECS;
         let finalized = run(1, now - 2 * cap, 3, 3, now - 2 * cap, 64);
         let proven_stall = run(0, now - 2 * cap, 1, 3, now - 2 * cap, 30);
+        // Uncommitted but one chunk LANDED — the partial is honest data
+        // (monotone under argmax), so it counts rather than forfeiting.
         let uncommitted = run(0, now - 2 * cap, 1, 1, 0, 30);
         let inflight = run(0, now - 60, 0, 1, 0, 0);
         let never_queued = run(0, 0, 0, 0, 0, 0);
-        assert_eq!(ladder_leg_score(&finalized, now), 64);
-        assert_eq!(ladder_leg_score(&proven_stall, now), 30);
-        assert_eq!(ladder_leg_score(&uncommitted, now), 0);
-        assert_eq!(ladder_leg_score(&inflight, now), 0);
-        assert_eq!(ladder_leg_score(&never_queued, now), 0);
+        assert_eq!(ladder_leg_score(&finalized), 64);
+        assert_eq!(ladder_leg_score(&proven_stall), 30);
+        assert_eq!(ladder_leg_score(&uncommitted), 30);
+        assert_eq!(ladder_leg_score(&inflight), 0);
+        assert_eq!(ladder_leg_score(&never_queued), 0);
     }
 }

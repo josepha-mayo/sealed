@@ -1393,12 +1393,12 @@ describe("Sealed", () => {
       PublicKey.findProgramAddressSync([Buffer.from("position"), mkt.toBuffer(), bettor.toBuffer()], marketProgram.programId)[0];
 
     const BN0 = new anchor.BN(0);
-    // A leg raced against itself is nonsense.
+    // A leg raced against itself is nonsense (3+ legs required — pairs are duels).
     await expectAnchorError(
       marketProgram.methods
         .createLadder(legPks[0], new anchor.BN(7), 0, FAR_FUTURE, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, ladder: ladderPda(legPks[0], 7n) })
-        .remainingAccounts([legMeta(legPks[0]), legMeta(legPks[0])])
+        .remainingAccounts([legMeta(legPks[0]), legMeta(legPks[1]), legMeta(legPks[0])])
         .signers([owner])
         .rpc({ commitment: "confirmed" }),
       "RunsMustDiffer",

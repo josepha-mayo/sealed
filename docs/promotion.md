@@ -31,7 +31,7 @@ Run.correct — no oracle multisig:
 - binary over/under on a score
 - N-way score bands
 - duels: model A vs model B
-- ladder races: 2–8 runners, argmax wins, dead-heat splits
+- ladder races: 3–8 runners, argmax wins, dead-heat splits
 
 5/ The security story is adversarial-reviewed: JIT-commit attacks,
 landing-window expiry, committed-settle semantics, strict ordered leg

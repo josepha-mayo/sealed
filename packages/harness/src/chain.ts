@@ -1349,9 +1349,9 @@ export async function chainMain(cmd: string[], args: Args) {
     } else if (m0 === "ladder") {
       const [m1] = cmd.slice(2);
       if (m1 === "open") {
-        // --legs pk1,pk2,... (2..=8 pending runs, distinct runners, same bank)
+        // --legs pk1,pk2,... (3..=8 pending runs, distinct runners, same bank — pairs are duels)
         const legs = String(args.legs).split(",").map((s) => new PublicKey(s.trim()));
-        if (legs.length < 2) throw new Error("--legs <pk,pk,...> needs at least 2 runs");
+        if (legs.length < 3) throw new Error("--legs <pk,pk,...> needs at least 3 runs (use `market duel` for pairs)");
         await ladderOpen(legs, BigInt(String(args.salt ?? "0")), timing(args), bettor);
       } else if (m1 === "bet") {
         const ladderPk = new PublicKey(String(args.market));
