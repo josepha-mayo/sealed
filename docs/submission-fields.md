@@ -4,6 +4,14 @@ Colosseum's Cerebro engine machine-reads these fields before human judges see
 anything. Keep each field crisp, concrete, and verifiable. This file is the
 canonical copy to paste; update it when claims change.
 
+## shortDescription (the tagline — Cerebro and judges parse this first)
+
+A benchmark whose answer key was never written down, scored by nobody in
+particular: benchmark items are minted inside an Arcium MPC cluster, model
+runs are scored in-MPC and the count lands on Solana, and markets settle
+themselves off that number — the referee for AI capability is now
+infrastructure, not a vendor. (≈330 chars — trim to the form's limit.)
+
 ## problemStatement
 
 AI capability claims are unverifiable. Labs self-report benchmark scores on
@@ -27,18 +35,17 @@ entirely. Six Arcis circuits run inside the MPC cluster:
 - `gen_part_private` returns specs as `Enc<Shared>` to the authority — the
   questions never appear in plaintext on-chain either.
 - `reshare_part` re-encrypts spec parts to a delegate's key — selective,
-  one-directional, recorded in `ShareGrant` PDAs; answers never move.
+  recorded in `ShareGrant` PDAs; answers never move.
 - `score_chunk` compares a run's committed `outputs_root` Merkle proof
   against sealed fingerprints inside MPC; the callback writes `Run.correct`.
 - `seal_part` + `reveal_part` cover authored banks and fingerprint audits.
 
-A second program hosts parimutuel markets — binary, N-way score bands,
-head-to-head duels, K-way ladder races, and commit-reveal dark markets
-(sealed positions, forfeits for no-show winners) — resolving
-permissionlessly on `Run.correct`; bets latch shut before the first
-scored chunk. Verified: 13/13 E2E + 13/13 unit on a real MPC localnet; a
-real model (gpt-oss-20b) finalized 64/64 on an MPC-minted bank — on-chain
-score == local pre-score (run HW5H5bT7).
+A second program hosts parimutuel markets — binary, score bands,
+duels, ladder races, and commit-reveal dark markets (sealed positions,
+no-show forfeits) — resolving permissionlessly on `Run.correct`; bets
+latch before the first scored chunk. Verified: 13/13 E2E + 13/13 unit
+on a real MPC localnet; a real model (gpt-oss-20b) finalized 64/64 on an
+MPC-minted bank — on-chain score == local pre-score (run HW5H5bT7).
 
 ## solanaIntegration
 
@@ -88,21 +95,17 @@ Per-run fees paid to the benchmark authority are live on-chain today
 (`create_run` transfers `fee_lamports`), and market take-rate on settlement is
 live too (`fee_bps` skimmed at resolution, authority-claimed via `claim_fee`).
 The durable business is sealed-evaluation
-infrastructure: fresh private banks minted on demand (no key custody to sell),
-delegated scoring runs for labs and judges, and the settlement layer every
-"AI capability" market resolves against. The market layer ships five novel
-settlement primitives — head-to-head duels (bets latch shut on either
-leg's first scoring queue), K-way ladder races (argmax over bound runs,
-dead-heat pro-rata, dead legs forfeit), unseen-exam markets (the priced
-event is itself confidential — a market fills on a private-bank run whose
-questions are ciphertext-only end-to-end), dark commit-reveal markets
-(`sha256` commitments keep every position sealed until the winner reveals;
-no-show winners forfeit into the pot), and committed-settle expiry
-(`all_queued_at` + 24h landing window: a stalled run refunds unless the
-runner committed every chunk — no transaction can both commit and
-expire). Any venue can compose on `Run.correct` permissionlessly — the
-referee is infrastructure, not a vendor. Every future claim about what a
-model can do is addressable surface area.
+infrastructure: fresh private banks minted on demand (no key custody to
+sell), delegated scoring runs for labs and judges, and the settlement
+layer every "AI capability" market resolves against. Five novel
+settlement primitives ship: run duels (latch on either leg's first queue),
+K-way ladder races (argmax, dead-heat pro-rata, dead legs forfeit),
+unseen-exam markets (a market fills on a private-bank run — the priced
+event is itself confidential), dark commit-reveal markets (sha256
+commitments seal every side; no-shows forfeit), and committed-settle
+expiry (a stalled run refunds unless the runner committed every chunk).
+Any venue composes on `Run.correct` permissionlessly — the referee is
+infrastructure, not a vendor.
 
 ## competitiveLandscape
 
@@ -137,9 +140,21 @@ boundary.
 
 ## teamBackground (fill before submitting — judges score it)
 
-<TODO: 2-3 lines per member — prior ships, domain credibility, why this team.
-Colosseum's criteria explicitly include founder-market fit; omitting team
-background is a listed submission mistake.>
+Colosseum scores founder-market fit; this field is machine-read by Cerebro
+first. Fill in the bracketed bits — 2-3 lines per member, concrete ships
+over adjectives:
+
+```
+[Name] — [role]. Shipped [protocol/product + chain + scale metric, e.g.
+"a Solana program with $X TVL" / "infra used by N teams"]. [Domain
+credibility: security audit background, applied crypto, ML eval work,
+prior hackathon wins]. Built Sealed because [one line: the trusted-eval
+problem you hit firsthand].
+```
+
+If solo, keep the same shape for yourself — one tight paragraph beats a
+thin list. If any prior code was reused (harness patterns, explorer),
+disclose it in the form's prior-work field — allowed but must be declared.
 
 ## demoVideo / publicDemo
 

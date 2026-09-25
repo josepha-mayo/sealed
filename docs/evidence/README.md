@@ -159,7 +159,8 @@ through the protocol (they don't — answers seal to the MXE key).
 
 ## Dark commit-reveal markets — sealed positions on an unseen exam
 
-`scripts/dark.sh` (full transcript in `dark-run.txt`): a dark market on a
+`scripts/dark.sh` (transcript `dark-run.txt`; recorded `../dark.cast` +
+`../dark.gif` — a second full run): a dark market on a
 PRIVATE bank — the exam was ciphertext-only AND every bettor's side was
 sealed while MPC scored the run.
 
