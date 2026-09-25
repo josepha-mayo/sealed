@@ -1,0 +1,110 @@
+
+=== 1/9 wait for MXE, then comp defs + circuits (once per deployment) ===
+MXE key live after ~10s
+seal_part: comp def exists (AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf)
+score_chunk: comp def exists (9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo)
+gen_part: comp def exists (AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ)
+gen_part_private: comp def exists (CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN)
+reveal_part: comp def exists (zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG)
+reshare_part: comp def exists (GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS)
+
+=== 2/9 mint a PRIVATE bank (id=5069) — even the exam under the bet stays ciphertext ===
+create_benchmark id=5069 chunks=1 kind=private-generated
+benchmark 7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD status=0 minted=0/1
+chunk 0 part 0: minting privately in MPC... minted
+chunk 0 part 1: minting privately in MPC... minted
+chunk 0 part 2: minting privately in MPC... minted
+chunk 0 part 3: minting privately in MPC... minted
+benchmark 7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD status=LIVE minted=1/1
+items_root ff1d6c1c65232700532146805824e77e303d316f335632f0bf5a1696cb56b926 (32 private items — ciphertext-only on chain)
+wrote /tmp/dark-bank-5069.json — KEEP IT PRIVATE: this file contains decrypted items
+private benchmark PDA: 7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD
+
+=== 3/9 PENDING run + dark market (binary @ 20/32, reveal window 300s) ===
+mock/oracle-0.65: 4/32mock/oracle-0.65: 8/32mock/oracle-0.65: 12/32mock/oracle-0.65: 16/32mock/oracle-0.65: 20/32mock/oracle-0.65: 24/32mock/oracle-0.65: 28/32mock/oracle-0.65: 32/32
+{
+  "wrote": "/tmp/dark-run-5069.json",
+  "model": "mock/oracle-0.65",
+  "items": 32,
+  "localCorrect": 16,
+  "localAccuracy": 0.5,
+  "outputsRoot": "e52caf64116e2d927aea05c2999b83681ac69ba3c620b9a55328cd04fd05c020",
+  "harnessHash": "6167a62de342308280dd9f9792ab82a78bcaf96c1f76183a9978bcdca6953d9a",
+  "seconds": 0
+}
+create_run #0 model=mock/oracle-0.65 fee=0 SOL
+run DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF created (pending, unscored)
+run PDA (pending, outputs committed, unscored): DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF
+dark market 9QKby3Uap4pjEBkLrPvmh6HSAfFaY7tSjsXgv5SiAbdM opened: run DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF outcomes: < 20 | >= 20 — positions are sealed
+dark market PDA: 9QKby3Uap4pjEBkLrPvmh6HSAfFaY7tSjsXgv5SiAbdM — outcomes sealed from this tx forward
+
+=== 4/9 two fresh bettors stake OPPOSITE sides — the wire shows commitments, not sides ===
+alice: Fb1UGS7zbCMxmLAhN5Bwv3ywx2PZxQzVLqC55vkg34NK   bob: BorMXV5C5nTiDuam8suWPsHxm66Rep6jJ439NFC3R3Rv
+sealed bet 0.25 SOL by Fb1UGS7zbCMxmLAhN5Bwv3ywx2PZxQzVLqC55vkg34NK (2ZFDm2ejKQBRuz9PU3dpwkFh1T86Xx9sjFxtHMdDdhE6n2Rqbpfq6vmJUUuYg7Djm7raWhjZuULKrDfPjAvbt3Kv)
+  position rhgU4GajDsic3AMAFrF4c8juTFVuN2GAPu441nWzf3K — the chain sees only commitment 8fe94f813b69f603…
+  KEEP THIS PREIMAGE — needed to reveal: --pos-salt 0 --outcome 1 --salt 762b2ad47d4b6945c0f31408722122aa6274244b7b27b979345ff231d49ce254
+  (your hidden side: [>= 20] — nobody else can see it until you reveal)
+sealed bet 0.1 SOL by BorMXV5C5nTiDuam8suWPsHxm66Rep6jJ439NFC3R3Rv (5dcRDitJ6Fsu2HgqbfktKpBZ5Amhr2YxKWuNLUUtvJdHo6eUjowUreYknddJ5iRFvuXr9HhBXh3JLLR5FXD7uVxU)
+  position 6H9pvFDhmW4MRKmBXCHf9oBpY2sS1i6PmvLpGhf6e7Nt — the chain sees only commitment 7744353cb29110a0…
+  KEEP THIS PREIMAGE — needed to reveal: --pos-salt 0 --outcome 0 --salt eb27d6b6892df99fd60f328d4aec9890c29ac637354baec2430fe01565004d0d
+  (your hidden side: [< 20] — nobody else can see it until you reveal)
+positions: alice=rhgU4GajDsic3AMAFrF4c8juTFVuN2GAPu441nWzf3K bob=6H9pvFDhmW4MRKmBXCHf9oBpY2sS1i6PmvLpGhf6e7Nt (salt stays off-chain)
+
+=== 5/9 the sealed card — pool and amounts are public, sides are not ===
+dark market 9QKby3Uap4pjEBkLrPvmh6HSAfFaY7tSjsXgv5SiAbdM status=OPEN
+  run=DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF benchmark=7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD run_index=0
+  outcomes: [0] < 20 | [1] >= 20
+  pool=0.35 SOL win_total=0 revealed=0 positions
+  unresolved
+  fee_bps=100 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-09-26T11:22:45.000Z reveal_until=1970-01-01T00:00:00.000Z
+  position Fb1UGS7zbCMxmLAhN5Bwv3ywx2PZxQzVLqC55vkg34NK 0.25 SOL — sealed
+  position BorMXV5C5nTiDuam8suWPsHxm66Rep6jJ439NFC3R3Rv 0.1 SOL — sealed
+
+=== 6/9 score the run through MPC — the pool still can't see who won ===
+run #0 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 16)
+run DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF FINALIZED: 16/32 = 50.0%  (matches local pre-score)
+
+=== 7/9 resolve — outcome is fixed on-chain NOW; the 300s reveal window opens ===
+dark market resolved (2vd1snHCUGxfTshWkHr6XtMzmz2CPehav6ERJRBSnkXYjmCUJ7VXLHdq8wocYC3uUz7G5oKqRAZzVmLc1v5L9kuC): score=16 outcome 0 [< 20] — reveal window open until 2026-09-25T11:28:10.000Z
+resolved outcome: 0
+
+=== 8/9 inside the window: BOTH sides post their preimage — winner counts, loser just proves ===
+revealed (zhbM5KnGF5bTzRSUowywScRBwrYdkzrQRBKgn1M7hSCpWS9hTWTLNSQtg51W5ioMvLqwMNVBRXKx32rFdxB8Lhm): outcome 0 — WINNER — stake counted in win_total
+revealed (57uUYaiexoXpGQ5D9yse2FCag8Pb2i3gcYWdPcbfhyKDC4TEvv7WqSjp7yVLcqDf8pu421DbnHu8cFRGXny6VdmH): outcome 1 — losing side — position recorded
+dark market 9QKby3Uap4pjEBkLrPvmh6HSAfFaY7tSjsXgv5SiAbdM status=RESOLVED
+  run=DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF benchmark=7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD run_index=0
+  outcomes: [0] < 20 | [1] >= 20
+  pool=0.35 SOL win_total=0.1 revealed=2 positions
+  score=16 outcome=0 [< 20]
+  fee_bps=100 fees_accrued=0.0035 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-09-26T11:22:45.000Z reveal_until=2026-09-25T11:28:10.000Z
+  position Fb1UGS7zbCMxmLAhN5Bwv3ywx2PZxQzVLqC55vkg34NK 0.25 SOL — outcome 1 [>= 20]
+  position BorMXV5C5nTiDuam8suWPsHxm66Rep6jJ439NFC3R3Rv 0.1 SOL — outcome 0 [< 20]
+
+=== 9/9 wait out the reveal window, then finalize + claims ===
+sleeping 345s — reveal_until = resolved_at + 300s…
+dark market finalized (422WVjLwQhVxwNUiyHvK3yY5Lq86yT1A67sD8KPrnMYSKETywpdjWqyum5ntkMMCpx7XjLBF2CHr6WR4eQUpbPaJ): tallied: win_total=0.1 SOL of pool=0.35
+claim (5sPL2vKXkrLArjsmmqerpduqjtnuQ5w7rkextBC997FajTyfQ3FEYx1DmEHzkyQ4xSXhFdysNtvFU16sbYrR8nk): BorMXV5C5nTiDuam8suWPsHxm66Rep6jJ439NFC3R3Rv balance 0.39830568 -> 0.746485 SOL
+winner bob balance: 0.746485 SOL
+dark market fees claimed (2GPMJgHXbJatP1gheJ2qKcApB7tno5Q9JR3RFnWU6nUx5LwThseh6RT5cU892zspWWAEn5J7cxqhYsJiWKz2qhKb)
+
+
+=== final card — the winner was paid and swept; the revealed loser lingers ===
+dark market 9QKby3Uap4pjEBkLrPvmh6HSAfFaY7tSjsXgv5SiAbdM status=RESOLVED tallied
+  run=DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF benchmark=7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD run_index=0
+  outcomes: [0] < 20 | [1] >= 20
+  pool=0.35 SOL win_total=0.1 revealed=2 positions
+  score=16 outcome=0 [< 20]
+  fee_bps=100 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-09-26T11:22:45.000Z reveal_until=2026-09-25T11:28:10.000Z
+  position Fb1UGS7zbCMxmLAhN5Bwv3ywx2PZxQzVLqC55vkg34NK 0.25 SOL — outcome 1 [>= 20]
+
+proof summary:
+  bank     7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD — private: the exam stayed ciphertext too
+  run      DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF    — scored by MPC while both sides were sealed
+  market   9QKby3Uap4pjEBkLrPvmh6HSAfFaY7tSjsXgv5SiAbdM — opened + filled on a PENDING run
+  alice    Fb1UGS7zbCMxmLAhN5Bwv3ywx2PZxQzVLqC55vkg34NK pos=rhgU4GajDsic3AMAFrF4c8juTFVuN2GAPu441nWzf3K outcome=1 salt=762b2ad47d4b6945c0f31408722122aa6274244b7b27b979345ff231d49ce254
+  bob      BorMXV5C5nTiDuam8suWPsHxm66Rep6jJ439NFC3R3Rv pos=6H9pvFDhmW4MRKmBXCHf9oBpY2sS1i6PmvLpGhf6e7Nt outcome=0 salt=eb27d6b6892df99fd60f328d4aec9890c29ac637354baec2430fe01565004d0d
+  winner   bob (BorMXV5C5nTiDuam8suWPsHxm66Rep6jJ439NFC3R3Rv) — revealed, claimed, position closed
+  throwaway keypairs + preimages: /tmp/dark-demo-lgfpP4 (never touched the wire — only commitments did)
+verify in the explorer: python3 -m http.server -d . 8788 -> http://localhost:8788/web/?rpc=http://127.0.0.1:8899

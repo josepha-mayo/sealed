@@ -145,7 +145,37 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 `mock/oracle-*` is the deterministic offline model — the same pipeline
 (`run` → `chain score` → `prove`) works verbatim with a real model via
+
+The unseen-exam market flow is also captured as a recording: `../unseen.cast`
+(asciinema) + `../unseen.gif` — market `HKnKiFTS…`/`2v2WqSyG…` filled while
+the run stayed pending.
+
+*Disclosure:* `run-25864-v2-artifact.json` carries `canonical` answers for
+authored bank 25864 — that bank is a disposable localnet fixture whose
+plaintext lived in `bank/` (gitignored); the file is kept to prove the
+run artifact ↔ on-chain binding, not because authored banks leak answers
+through the protocol (they don't — answers seal to the MXE key).
 `--model openai` + endpoint env vars; the on-chain steps are identical.
+
+## Dark commit-reveal markets — sealed positions on an unseen exam
+
+`scripts/dark.sh` (full transcript in `dark-run.txt`): a dark market on a
+PRIVATE bank — the exam was ciphertext-only AND every bettor's side was
+sealed while MPC scored the run.
+
+- bank `7mwkKUHVKrrfzjwYrGqQskbRtGr6dkHFRC7D2vaW1FKD` (private, 32 items)
+- run `DE1FnCRezdeMspAMFJbUXUw7Q9ggiqUpD8BXzdsWvahF` — MPC scored **16/32**
+  → bucket `[0] < 20` while both positions sat sealed
+- market `9QKby3Uap4pjEBkLrPvmh6HSAfFaY7tSjsXgv5SiAbdM` — pool 0.35 SOL,
+  `reveal_secs=300`
+- alice `Fb1UGS7z…` sealed 0.25 on outcome 1 (lost); bob `BorMXV5C…`
+  sealed 0.10 on outcome 0 (won). Only sha256 commitments were on-chain.
+- Both revealed inside the window → `finalize_dark` tallied → bob claimed
+  the net pot (0.348 incl. alice's stake) + position rent; authority swept
+  the 1% fee. The revealed loser's account stays as the audit trail.
+- Bonus: the same sealed-vs-scored flow on the E2E ledger also produced a
+  *forfeited* winner (`5PsgCP4p…` — 0.30 sole-revealed winner took a 0.588
+  net pot after a 0.20 no-show forfeit) and two cancelled markets.
 
 ## Reproduce the whole thing yourself
 

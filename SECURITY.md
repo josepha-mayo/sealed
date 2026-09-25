@@ -18,7 +18,8 @@ report channels matter more than usual.
 
 - `programs/sealed` — banks, chunks, runs, grants, reveals, MPC callback
   gating.
-- `programs/market` — score-band markets, duels, ladder races, positions,
+- `programs/market` — score-band markets, duels, ladder races, dark
+  commit-reveal markets, positions,
   claims, fees, expiry/refund paths.
 - `encrypted-ixs` — the Arcis circuits (gen/seal/score/reshare/reveal).
 - `packages/harness` — client bindings, artifact commitments, encryption.

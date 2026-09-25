@@ -52,8 +52,37 @@ pub const MAX_RESOLVE_HORIZON_SECS: i64 = 90 * 24 * 3600;
 /// Shortest deadline a market may set — a `resolve_by`/`closes_at` seconds
 /// after creation is bait that evaporates before anyone can react to it.
 pub const MIN_RESOLVE_DELAY_SECS: i64 = 60;
+/// Recommended dark-market reveal window — winners get this long to reveal
+/// their preimage before `finalize_dark` lets claims open. The floor is
+/// `MIN_RESOLVE_DELAY_SECS` (a window that short is visible bait — bettors
+/// see `reveal_secs` before staking); real markets should use 24h+.
+pub const REVEAL_WINDOW_SECS: i64 = 24 * 3600;
 
 declare_id!("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
+
+/// Commitment stored on a `DarkPosition`: SHA256 over the tagged preimage.
+/// The outcome space is <= 8 values, so binding alone is not hiding — the
+/// 32-byte salt is what makes the commitment ungrindable. `market` and
+/// `bettor` inside the preimage block replay across markets and wallets,
+/// and `amount` binds the stake size (no "reveal the winning side with a
+/// bigger number" equivocation).
+fn dark_commitment(
+    market: &Pubkey,
+    bettor: &Pubkey,
+    outcome: u8,
+    amount: u64,
+    salt: &[u8; 32],
+) -> [u8; 32] {
+    solana_sha256_hasher::hashv(&[
+        b"sealed/dark",
+        market.as_ref(),
+        bettor.as_ref(),
+        &[outcome],
+        &amount.to_le_bytes(),
+        salt,
+    ])
+    .to_bytes()
+}
 
 /// Deserialize a Sealed `Run` account: owner + discriminator checked by hand
 /// (`Account<T>` would demand the market program as owner).
@@ -1034,6 +1063,389 @@ pub mod market {
         });
         Ok(())
     }
+
+    // ==================== dark markets (sealed positions) ====================
+
+    /// Open a dark score market: same buckets + deadlines as `create_market`,
+    /// but positions are SHA256 commitments — which outcome each bettor
+    /// backed stays sealed until they reveal post-resolution. The pool and
+    /// every position's AMOUNT are public (lamports move visibly); only the
+    /// side is hidden — disclosed limitation: private amounts would need a
+    /// deposit-vault layer so transfers stop correlating with stakes.
+    pub fn create_dark(
+        ctx: Context<CreateDark>,
+        salt: u64,
+        edges: Vec<u32>,
+        fee_bps: u16,
+        closes_at: i64,
+        resolve_by: i64,
+        reveal_secs: i64,
+    ) -> Result<()> {
+        let n = edges.len() + 1;
+        require!(n >= 2 && n <= MAX_OUTCOMES, ErrorCode::InvalidEdges);
+        for w in edges.windows(2) {
+            require!(w[0] < w[1], ErrorCode::InvalidEdges);
+        }
+        require!(fee_bps <= 1000, ErrorCode::FeeTooLarge);
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            closes_at == 0 || closes_at >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            resolve_by >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
+            ErrorCode::DeadlineInPast
+        );
+        require!(
+            closes_at == 0 || closes_at <= resolve_by,
+            ErrorCode::DeadlineOrder
+        );
+        // The reveal window is bettor-visible at open — a sub-minute window
+        // is bait (winners forfeit before they can react), so the floor is
+        // the same 60s markets must live. The cap is the same horizon as
+        // resolve_by: an unbounded window makes finalize_dark unreachable
+        // (or the add overflows) — either way the pool locks forever.
+        require!(
+            reveal_secs >= MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            reveal_secs <= MAX_RESOLVE_HORIZON_SECS,
+            ErrorCode::DeadlineInPast
+        );
+        let run = load_run(&ctx.accounts.run)?;
+        require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(
+            run.scored_mask == 0 && run.pending_since == 0,
+            ErrorCode::ScoringStarted
+        );
+        let max_score = run.chunk_count as u32 * 32;
+        require!(
+            edges[0] > 0 && *edges.last().unwrap() <= max_score,
+            ErrorCode::InvalidEdges
+        );
+        let m = &mut ctx.accounts.dark_market;
+        m.authority = ctx.accounts.authority.key();
+        m.run = ctx.accounts.run.key();
+        m.benchmark = run.benchmark;
+        m.run_index = run.index;
+        m.salt = salt;
+        m.n_outcomes = n as u8;
+        m.edges = [0u32; MAX_OUTCOMES - 1];
+        m.edges[..edges.len()].copy_from_slice(&edges);
+        m.bump = ctx.bumps.dark_market;
+        m.status = MARKET_OPEN;
+        m.outcome = u8::MAX;
+        m.pool_total = 0;
+        m.win_total = 0;
+        m.revealed_count = 0;
+        m.resolved_score = 0;
+        m.created_at = now;
+        m.resolved_at = 0;
+        m.reveal_secs = reveal_secs;
+        m.reveal_until = 0;
+        m.fee_bps = fee_bps;
+        m.fees_accrued = 0;
+        m.closes_at = closes_at;
+        m.resolve_by = resolve_by;
+        m.tallied = false;
+        emit!(DarkMarketCreated {
+            market: m.key(),
+            run: m.run,
+            benchmark: run.benchmark,
+            edges,
+        });
+        Ok(())
+    }
+
+    /// Stake `lamports` behind a commitment. The client computes
+    /// `dark_commitment(market, bettor, outcome, lamports, salt)` off-chain
+    /// and keeps the preimage until reveal — the chain never sees the
+    /// outcome. One position per (market, bettor, pos_salt); a position
+    /// cannot be topped up because the amount is bound inside the
+    /// commitment — place a second sealed position instead. Bets latch on
+    /// the same pre-scoring gate as `bet`.
+    pub fn dark_bet(
+        ctx: Context<DarkBet>,
+        _pos_salt: u64,
+        commitment: [u8; 32],
+        lamports: u64,
+    ) -> Result<()> {
+        require!(lamports > 0, ErrorCode::ZeroAmount);
+        let run = load_run(&ctx.accounts.run)?;
+        require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(
+            run.scored_mask == 0 && run.pending_since == 0,
+            ErrorCode::ScoringStarted
+        );
+        let m = &mut ctx.accounts.dark_market;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            m.closes_at == 0 || now < m.closes_at,
+            ErrorCode::BettingClosed
+        );
+        require!(
+            m.resolve_by == 0 || now < m.resolve_by,
+            ErrorCode::BettingClosed
+        );
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.key(),
+                system_program::Transfer {
+                    from: ctx.accounts.bettor.to_account_info(),
+                    to: m.to_account_info(),
+                },
+            ),
+            lamports,
+        )?;
+        let p = &mut ctx.accounts.position;
+        p.market = m.key();
+        p.bettor = ctx.accounts.bettor.key();
+        p.bump = ctx.bumps.position;
+        p.amount = lamports;
+        p.commitment = commitment;
+        p.revealed = u8::MAX;
+        m.pool_total += lamports;
+        emit!(DarkBetPlaced {
+            market: m.key(),
+            bettor: p.bettor,
+            lamports,
+        });
+        Ok(())
+    }
+
+    /// Settle the buckets from the finalized run and open the reveal window.
+    /// An empty market (no stake) cancels outright — there is nothing to
+    /// reveal. The all-backed check `settle_score` runs is impossible by
+    /// design here: per-outcome totals are sealed until reveals land.
+    pub fn resolve_dark(ctx: Context<ResolveDark>) -> Result<()> {
+        let run = load_run(&ctx.accounts.run)?;
+        require!(run.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
+        let m = &mut ctx.accounts.dark_market;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        if m.pool_total == 0 {
+            m.status = MARKET_CANCELLED;
+        } else {
+            let now = Clock::get()?.unix_timestamp;
+            m.status = MARKET_RESOLVED;
+            m.resolved_score = run.correct;
+            m.resolved_at = now;
+            m.reveal_until = now + m.reveal_secs;
+            m.outcome = outcome_of(&m.edges, m.n_outcomes, run.correct);
+            m.fees_accrued = (m.pool_total as u128 * m.fee_bps as u128 / 10_000) as u64;
+        }
+        emit!(DarkResolved {
+            market: m.key(),
+            run: ctx.accounts.run.key(),
+            correct: run.correct,
+            outcome: m.outcome,
+            cancelled: m.status == MARKET_CANCELLED,
+        });
+        Ok(())
+    }
+
+    /// Reveal (outcome, salt) against the stored commitment inside the
+    /// window. Revealed winners accumulate `win_total`; losers learn nothing
+    /// new — the outcome was fixed at resolve. Revealing is safe: the score
+    /// is already written, so a leaked side cannot be traded on.
+    pub fn reveal_dark(
+        ctx: Context<RevealDark>,
+        _pos_salt: u64,
+        outcome: u8,
+        salt: [u8; 32],
+    ) -> Result<()> {
+        let m = &mut ctx.accounts.market;
+        let p = &mut ctx.accounts.position;
+        require!(m.status == MARKET_RESOLVED, ErrorCode::MarketNotResolved);
+        require!(p.revealed == u8::MAX, ErrorCode::AlreadyRevealed);
+        let now = Clock::get()?.unix_timestamp;
+        require!(now <= m.reveal_until, ErrorCode::RevealWindowClosed);
+        // Keep the u8::MAX sentinel unreachable — revealing outcome 255 would
+        // leave `revealed == u8::MAX`, making every later reveal a no-op.
+        require!(outcome < m.n_outcomes, ErrorCode::InvalidOutcome);
+        require!(
+            dark_commitment(&m.key(), &p.bettor, outcome, p.amount, &salt) == p.commitment,
+            ErrorCode::BadReveal
+        );
+        p.revealed = outcome;
+        m.revealed_count += 1;
+        if outcome == m.outcome {
+            m.win_total += p.amount;
+        }
+        emit!(DarkRevealed {
+            position: p.key(),
+            market: m.key(),
+            bettor: p.bettor,
+            outcome,
+            amount: p.amount,
+        });
+        Ok(())
+    }
+
+    /// Permissionless tally close: past the window, freeze `win_total`.
+    /// Zero reveals cancels the market — every position then refunds its
+    /// public amount through `claim_dark`, no preimage needed (the one case
+    /// where nobody can prove a side, refund-all is the only safe answer).
+    pub fn finalize_dark(ctx: Context<FinalizeDark>) -> Result<()> {
+        let m = &mut ctx.accounts.dark_market;
+        require!(m.status == MARKET_RESOLVED, ErrorCode::MarketNotResolved);
+        require!(!m.tallied, ErrorCode::AlreadyRevealed);
+        let now = Clock::get()?.unix_timestamp;
+        require!(now > m.reveal_until, ErrorCode::RevealWindowClosed);
+        if m.win_total == 0 {
+            // Cancel refunds pay GROSS amounts — the fee must not survive a
+            // resolved→cancelled transition or the pool comes up short.
+            m.fees_accrued = 0;
+            m.status = MARKET_CANCELLED;
+        } else {
+            m.tallied = true;
+        }
+        emit!(DarkFinalized {
+            market: m.key(),
+            win_total: m.win_total,
+            pool_total: m.pool_total,
+            cancelled: m.status == MARKET_CANCELLED,
+        });
+        Ok(())
+    }
+
+    /// Pay a sealed position and close its account. Cancelled markets refund
+    /// the public amount in full — no preimage required (amounts were never
+    /// hidden). Tallied markets pay revealed winners pro-rata over
+    /// `win_total`: an unrevealed winner's stake forfeits into the pot for
+    /// the winners who did reveal. Losing/unrevealed positions pay 0 but
+    /// still close — rent comes back either way.
+    pub fn claim_dark(ctx: Context<ClaimDark>, _pos_salt: u64) -> Result<()> {
+        let m = &ctx.accounts.market;
+        let p = &ctx.accounts.position;
+        require!(
+            m.status == MARKET_CANCELLED || (m.status == MARKET_RESOLVED && m.tallied),
+            ErrorCode::MarketNotResolved
+        );
+        let payout = if m.status == MARKET_CANCELLED {
+            p.amount
+        } else if p.revealed == m.outcome && m.win_total > 0 {
+            let fee = (m.pool_total as u128 * m.fee_bps as u128 / 10_000) as u64;
+            let net_pot = m.pool_total.saturating_sub(fee);
+            (p.amount as u128)
+                .checked_mul(net_pot as u128)
+                .unwrap()
+                .checked_div(m.win_total as u128)
+                .unwrap() as u64
+        } else {
+            0
+        };
+        if payout > 0 {
+            **m.to_account_info().try_borrow_mut_lamports()? -= payout;
+            **ctx
+                .accounts
+                .bettor
+                .to_account_info()
+                .try_borrow_mut_lamports()? += payout;
+        }
+        emit!(DarkClaimed {
+            market: m.key(),
+            bettor: p.bettor,
+            payout,
+        });
+        Ok(())
+    }
+
+    /// The dark-market authority collects the accrued fee once resolved.
+    pub fn claim_fee_dark(ctx: Context<ClaimFeeDark>) -> Result<()> {
+        let m = &mut ctx.accounts.dark_market;
+        // Only a TALLIED market has an earned fee — a resolved market that
+        // later cancels (zero reveals) owes gross refunds, so sweeping the
+        // accrued fee before finalize_dark would leave the pool short and
+        // wedge the tail refunds.
+        require!(
+            m.status == MARKET_RESOLVED && m.tallied,
+            ErrorCode::MarketNotResolved
+        );
+        require!(m.fees_accrued > 0, ErrorCode::NoFees);
+        let fee = m.fees_accrued;
+        m.fees_accrued = 0;
+        **m.to_account_info().try_borrow_mut_lamports()? -= fee;
+        **ctx
+            .accounts
+            .authority
+            .to_account_info()
+            .try_borrow_mut_lamports()? += fee;
+        emit!(FeeClaimed {
+            market: m.key(),
+            to: ctx.accounts.authority.key(),
+            amount: fee,
+        });
+        Ok(())
+    }
+
+    /// Authority escape hatch — same shape as `void_market`: the run must
+    /// still be pending and fully unscored.
+    pub fn void_dark(ctx: Context<VoidDark>) -> Result<()> {
+        let run = load_run(&ctx.accounts.run)?;
+        let m = &mut ctx.accounts.dark_market;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
+        require!(
+            run.scored_mask == 0 && run.pending_since == 0,
+            ErrorCode::ScoringStarted
+        );
+        m.status = MARKET_CANCELLED;
+        Ok(())
+    }
+
+    /// Permissionless deadline — the same `expire_decision` split as
+    /// `expire_market`: a run that committed every chunk and outlived its
+    /// landing window settles on the proven partial (buckets resolve, the
+    /// reveal window opens); everything else cancels and refunds the public
+    /// amounts in full.
+    pub fn expire_dark(ctx: Context<ExpireDark>) -> Result<()> {
+        let ra = load_run(&ctx.accounts.run_a)?;
+        let m = &mut ctx.accounts.dark_market;
+        require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        require!(m.resolve_by != 0, ErrorCode::MarketNotExpired);
+        let now_ts = Clock::get()?.unix_timestamp;
+        require!(now_ts > m.resolve_by, ErrorCode::MarketNotExpired);
+        match expire_decision(&ra, None, now_ts) {
+            ExpireAction::Blocked => err!(ErrorCode::MarketResolvable),
+            ExpireAction::Cancel => {
+                m.status = MARKET_CANCELLED;
+                emit!(DarkResolved {
+                    market: m.key(),
+                    run: ctx.accounts.run_a.key(),
+                    correct: ra.correct,
+                    outcome: m.outcome,
+                    cancelled: true,
+                });
+                Ok(())
+            }
+            ExpireAction::SettleScore(correct) => {
+                m.status = MARKET_RESOLVED;
+                m.resolved_score = correct;
+                m.resolved_at = now_ts;
+                m.reveal_until = now_ts + m.reveal_secs;
+                m.outcome = outcome_of(&m.edges, m.n_outcomes, correct);
+                m.fees_accrued =
+                    (m.pool_total as u128 * m.fee_bps as u128 / 10_000) as u64;
+                emit!(DarkResolved {
+                    market: m.key(),
+                    run: ctx.accounts.run_a.key(),
+                    correct,
+                    outcome: m.outcome,
+                    cancelled: false,
+                });
+                Ok(())
+            }
+            // A dark market binds exactly one run — duel branches are
+            // unreachable by construction.
+            ExpireAction::SettleDuel(_, _) => err!(ErrorCode::NotScoreMarket),
+        }
+    }
 }
 
 // ================================================================== accounts
@@ -1162,6 +1574,75 @@ pub struct Ladder {
     /// resolve even past `resolve_by` (one bounded window per leg), and a
     /// leg past both windows settles at whatever landed, partial included.
     pub resolve_by: i64,
+}
+
+/// A dark score market: the bucket logic of `Market` with sealed positions.
+/// `pool_total` is public (stakes move visibly) but there are NO per-outcome
+/// totals — they cannot exist until winners reveal, which is the point.
+/// `tallied` flips at `finalize_dark`: RESOLVED + !tallied = reveal window
+/// active; RESOLVED + tallied = claimable; CANCELLED = refund-all.
+#[account]
+#[derive(InitSpace)]
+pub struct DarkMarket {
+    pub authority: Pubkey,
+    pub run: Pubkey,
+    pub benchmark: Pubkey,
+    pub run_index: u64,
+    /// Distinguishes dark markets on the same run (PDA seed).
+    pub salt: u64,
+    /// Number of score buckets (2..=8); edges[i] is the upper bound of bucket i.
+    pub n_outcomes: u8,
+    // Literal size: InitSpace can't evaluate `MAX_OUTCOMES - 1` and under-allocates.
+    pub edges: [u32; 7],
+    pub bump: u8,
+    pub status: u8,
+    /// Winning bucket index once resolved (u8::MAX while open).
+    pub outcome: u8,
+    /// All lamports staked across every sealed position (public by design).
+    pub pool_total: u64,
+    /// Revealed winning stake — grows as winners `reveal_dark`, frozen at
+    /// `finalize_dark`. Denominator of the pro-rata split.
+    pub win_total: u64,
+    /// Positions that revealed (informational).
+    pub revealed_count: u32,
+    /// The run's `correct` once resolved.
+    pub resolved_score: u32,
+    pub created_at: i64,
+    pub resolved_at: i64,
+    /// Reveal window length in seconds (floored at `MIN_RESOLVE_DELAY_SECS`).
+    /// `reveal_until = resolved_at + reveal_secs`. Winners who miss it
+    /// forfeit into the pot for revealed winners.
+    pub reveal_secs: i64,
+    /// Reveal deadline: `resolved_at + reveal_secs`.
+    pub reveal_until: i64,
+    /// Authority take on resolution, in basis points (max 1000 = 10%).
+    pub fee_bps: u16,
+    /// Lamports of fee accrued at resolution, claimable via `claim_fee_dark`.
+    pub fees_accrued: u64,
+    /// Optional betting cutoff (unix ts; 0 = bets close when scoring starts).
+    pub closes_at: i64,
+    /// Required deadline after which anyone can `expire_dark`.
+    pub resolve_by: i64,
+    /// True once `finalize_dark` froze `win_total` — claims open.
+    pub tallied: bool,
+}
+
+/// One sealed position in a `DarkMarket`: the outcome is hidden inside
+/// `commitment` until the bettor reveals post-resolution. `amount` is
+/// public — the lamport transfer is visible anyway (disclosed limitation;
+/// private amounts need a deposit-vault layer).
+#[account]
+#[derive(InitSpace)]
+pub struct DarkPosition {
+    pub market: Pubkey,
+    pub bettor: Pubkey,
+    pub bump: u8,
+    /// Lamports staked (public — the transfer is on-chain regardless).
+    pub amount: u64,
+    /// SHA256(b"sealed/dark" ‖ market ‖ bettor ‖ outcome ‖ amount ‖ salt).
+    pub commitment: [u8; 32],
+    /// u8::MAX while sealed; the revealed outcome index after `reveal_dark`.
+    pub revealed: u8,
 }
 
 #[derive(Accounts)]
@@ -1432,6 +1913,142 @@ pub struct ClaimFeeLadder<'info> {
     pub ladder: Account<'info, Ladder>,
 }
 
+#[derive(Accounts)]
+#[instruction(salt: u64)]
+pub struct CreateDark<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    pub run: UncheckedAccount<'info>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + DarkMarket::INIT_SPACE,
+        seeds = [b"dark", run.key().as_ref(), salt.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub dark_market: Account<'info, DarkMarket>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(pos_salt: u64)]
+pub struct DarkBet<'info> {
+    #[account(mut)]
+    pub bettor: Signer<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = dark_market.run @ ErrorCode::WrongRun)]
+    pub run: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"dark", run.key().as_ref(), dark_market.salt.to_le_bytes().as_ref()],
+        bump = dark_market.bump,
+    )]
+    pub dark_market: Account<'info, DarkMarket>,
+    /// One sealed position per (market, bettor, pos_salt) — `init`, never
+    /// re-init: a second bet on the same salt must not overwrite the stored
+    /// commitment (the amounts inside commitments are binding).
+    #[account(
+        init,
+        payer = bettor,
+        space = 8 + DarkPosition::INIT_SPACE,
+        seeds = [b"darkpos", dark_market.key().as_ref(), bettor.key().as_ref(), pos_salt.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub position: Account<'info, DarkPosition>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ResolveDark<'info> {
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = dark_market.run @ ErrorCode::WrongRun)]
+    pub run: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"dark", run.key().as_ref(), dark_market.salt.to_le_bytes().as_ref()],
+        bump = dark_market.bump,
+    )]
+    pub dark_market: Account<'info, DarkMarket>,
+}
+
+#[derive(Accounts)]
+#[instruction(pos_salt: u64)]
+pub struct RevealDark<'info> {
+    #[account(mut)]
+    pub bettor: Signer<'info>,
+    #[account(mut)]
+    pub market: Account<'info, DarkMarket>,
+    #[account(
+        mut,
+        has_one = bettor @ ErrorCode::NotBettor,
+        has_one = market @ ErrorCode::WrongMarket,
+        seeds = [b"darkpos", market.key().as_ref(), bettor.key().as_ref(), pos_salt.to_le_bytes().as_ref()],
+        bump = position.bump,
+    )]
+    pub position: Account<'info, DarkPosition>,
+}
+
+#[derive(Accounts)]
+pub struct FinalizeDark<'info> {
+    #[account(mut)]
+    pub dark_market: Account<'info, DarkMarket>,
+}
+
+#[derive(Accounts)]
+#[instruction(pos_salt: u64)]
+pub struct ClaimDark<'info> {
+    #[account(mut)]
+    pub bettor: Signer<'info>,
+    #[account(mut)]
+    pub market: Account<'info, DarkMarket>,
+    #[account(
+        mut,
+        has_one = bettor @ ErrorCode::NotBettor,
+        has_one = market @ ErrorCode::WrongMarket,
+        seeds = [b"darkpos", market.key().as_ref(), bettor.key().as_ref(), pos_salt.to_le_bytes().as_ref()],
+        bump = position.bump,
+        close = bettor,
+    )]
+    pub position: Account<'info, DarkPosition>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimFeeDark<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(mut, has_one = authority @ ErrorCode::NotAuthority)]
+    pub dark_market: Account<'info, DarkMarket>,
+}
+
+#[derive(Accounts)]
+pub struct VoidDark<'info> {
+    pub authority: Signer<'info>,
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = dark_market.run @ ErrorCode::WrongRun)]
+    pub run: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        has_one = authority @ ErrorCode::NotAuthority,
+        seeds = [b"dark", run.key().as_ref(), dark_market.salt.to_le_bytes().as_ref()],
+        bump = dark_market.bump,
+    )]
+    pub dark_market: Account<'info, DarkMarket>,
+}
+
+#[derive(Accounts)]
+pub struct ExpireDark<'info> {
+    /// CHECK: Sealed Run account; owner + discriminator verified in `load_run`.
+    #[account(address = dark_market.run @ ErrorCode::WrongRun)]
+    pub run_a: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"dark", run_a.key().as_ref(), dark_market.salt.to_le_bytes().as_ref()],
+        bump = dark_market.bump,
+    )]
+    pub dark_market: Account<'info, DarkMarket>,
+}
+
 // ================================================================== events
 
 #[event]
@@ -1509,6 +2126,56 @@ pub struct FeeClaimed {
     pub amount: u64,
 }
 
+#[event]
+pub struct DarkMarketCreated {
+    pub market: Pubkey,
+    pub run: Pubkey,
+    pub benchmark: Pubkey,
+    pub edges: Vec<u32>,
+}
+
+/// A sealed position landed: the event carries NO outcome — that is the
+/// point of the primitive.
+#[event]
+pub struct DarkBetPlaced {
+    pub market: Pubkey,
+    pub bettor: Pubkey,
+    pub lamports: u64,
+}
+
+#[event]
+pub struct DarkResolved {
+    pub market: Pubkey,
+    pub run: Pubkey,
+    pub correct: u32,
+    pub outcome: u8,
+    pub cancelled: bool,
+}
+
+#[event]
+pub struct DarkRevealed {
+    pub position: Pubkey,
+    pub market: Pubkey,
+    pub bettor: Pubkey,
+    pub outcome: u8,
+    pub amount: u64,
+}
+
+#[event]
+pub struct DarkFinalized {
+    pub market: Pubkey,
+    pub win_total: u64,
+    pub pool_total: u64,
+    pub cancelled: bool,
+}
+
+#[event]
+pub struct DarkClaimed {
+    pub market: Pubkey,
+    pub bettor: Pubkey,
+    pub payout: u64,
+}
+
 // ================================================================== errors
 
 #[error_code]
@@ -1571,6 +2238,12 @@ pub enum ErrorCode {
     LegMismatch,
     #[msg("A leg can still legitimately move — resolve must wait")]
     LegsStillMoving,
+    #[msg("Position already revealed")]
+    AlreadyRevealed,
+    #[msg("reveal preimage does not match the stored commitment")]
+    BadReveal,
+    #[msg("reveal window has closed / not yet closed")]
+    RevealWindowClosed,
 }
 
 #[cfg(test)]
@@ -1796,5 +2469,24 @@ mod tests {
         assert_eq!(ladder_leg_score(&uncommitted), 30);
         assert_eq!(ladder_leg_score(&inflight), 0);
         assert_eq!(ladder_leg_score(&never_queued), 0);
+    }
+
+    /// dark_commitment: deterministic, binding on every field — the same
+    /// preimage verifies, any single-field mutation must fail (a bettor who
+    /// could equivocate on outcome OR amount would break the primitive).
+    #[test]
+    fn dark_commitment_binds_every_field() {
+        let market = Pubkey::new_unique();
+        let bettor = Pubkey::new_unique();
+        let salt = [7u8; 32];
+        let c = dark_commitment(&market, &bettor, 2, 1_000_000, &salt);
+        // Correct preimage verifies.
+        assert_eq!(dark_commitment(&market, &bettor, 2, 1_000_000, &salt), c);
+        // Every field mutation must fail.
+        assert_ne!(dark_commitment(&market, &bettor, 3, 1_000_000, &salt), c); // outcome
+        assert_ne!(dark_commitment(&market, &bettor, 2, 1_000_001, &salt), c); // amount
+        assert_ne!(dark_commitment(&market, &bettor, 2, 1_000_000, &[8u8; 32]), c); // salt
+        assert_ne!(dark_commitment(&market, &Pubkey::new_unique(), 2, 1_000_000, &salt), c); // bettor
+        assert_ne!(dark_commitment(&Pubkey::new_unique(), &bettor, 2, 1_000_000, &salt), c); // market
     }
 }

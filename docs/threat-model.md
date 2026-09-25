@@ -147,6 +147,30 @@ after sealing, and nobody can fabricate a score.
   — forfeiture is the correct anti-exit rule, so leg-runner diligence is
   priced by bettors (the CLI prints each leg's runner/model).
 
+- **Dark markets (`create_dark` … `claim_fee_dark`) — commit-reveal sealed
+  positions.** A bettor posts `sha256("sealed/dark" ‖ market ‖ bettor ‖
+  outcome ‖ amount ‖ salt)` at bet time; the outcome never touches the
+  wire. Amounts are public by design (a hidden-amount market needs
+  confidential SPL — noted below) — what is hidden is WHICH SIDE each
+  stake sits on, so the pool, positions, and refund floor are all
+  auditable while directional interest stays sealed. Winners must reveal
+  within `reveal_secs` of resolution (floored at 60 s, capped at the same
+  90-day horizon as `resolve_by` — an unbounded window would lock the
+  pool); a no-show winner forfeits into the pot for revealed winners.
+  Zero reveals cancels the market — every position refunds its public
+  amount in full, no preimage needed, because a commitment nobody can
+  open must not burn stake. Disclosed residuals: (a) preimage custody is
+  the bettor's problem — losing the salt is equivalent to a no-show
+  forfeit; the CLI prints it at bet time and on-chain data cannot
+  recover it. (b) A short `reveal_secs` is visible bait — bettors see it
+  before staking; markets wanting trust use 24 h+. (c) Reveals are
+  public, so a whale whose side is already winning may choose not to
+  reveal small positions rather than expose them — rational, priced by
+  the forfeit. (d) The authority can still `void_dark` only while the
+  run is untouched by scoring, and `claim_fee_dark` is gated on
+  `tallied` — a resolved market that cancels pays gross refunds, so no
+  fee can be skimmed from a market that owes stake back.
+
 ## What is *not* protected (yet)
 
 - **Expiry is a bounded tradeoff, not a guarantee** — every market must set

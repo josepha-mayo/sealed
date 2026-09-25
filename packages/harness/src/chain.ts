@@ -887,7 +887,7 @@ export function outcomeLabel(nOutcomes: number, edges: number[] | bigint[], i: n
   return hi === null ? `>= ${lo}` : lo === 0 ? `< ${hi}` : `${lo}–${hi - 1}`;
 }
 
-interface MarketTiming { feeBps: number; closesAt: bigint; resolveBy: bigint }
+interface MarketTiming { feeBps: number; closesAt: bigint; resolveBy: bigint; revealSecs: bigint }
 
 /** `--flag 0` disables; `+3600` = that many seconds from now; else absolute unix ts. */
 function deadline(v: string | boolean | undefined): bigint {
@@ -901,10 +901,14 @@ function timing(args: Args): MarketTiming {
   const resolveBy = deadline(args["resolve-by"]);
   if (resolveBy === 0n)
     throw new Error("--resolve-by is required (e.g. --resolve-by +86400) — every market needs a refund deadline");
+  const revealSecs = args["reveal-secs"] !== undefined ? BigInt(String(args["reveal-secs"])) : BigInt(24 * 3600);
+  if (revealSecs < 60n || revealSecs > BigInt(90 * 24 * 3600))
+    throw new Error("--reveal-secs must be 60..7776000 — winners need time to reveal (24h recommended)");
   return {
     feeBps: args["fee-bps"] !== undefined ? Number(args["fee-bps"]) : 0,
     closesAt: deadline(args["closes-at"]),
     resolveBy,
+    revealSecs,
   };
 }
 
@@ -1172,6 +1176,163 @@ async function marketShow(marketPk: PublicKey) {
   }
 }
 
+// ------------------------------------------------------------------ dark markets
+
+const darkPda = (run: PublicKey, salt = 0n, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync([Buffer.from("dark"), run.toBuffer(), Buffer.from(new anchor.BN(salt.toString()).toArray("le", 8))], pid)[0];
+const darkPosPda = (market: PublicKey, bettor: PublicKey, posSalt = 0n, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync([Buffer.from("darkpos"), market.toBuffer(), bettor.toBuffer(), Buffer.from(new anchor.BN(posSalt.toString()).toArray("le", 8))], pid)[0];
+
+/** SHA256(b"sealed/dark" ‖ market ‖ bettor ‖ outcome u8 ‖ amount u64le ‖ salt[32])
+ * — the exact preimage the on-chain `dark_commitment` recomputes at reveal. */
+export function darkCommitment(market: PublicKey, bettor: PublicKey, outcome: number, amount: bigint, salt: Buffer): Buffer {
+  const amt = Buffer.alloc(8);
+  amt.writeBigUInt64LE(amount);
+  return createHash("sha256")
+    .update(Buffer.from("sealed/dark"))
+    .update(market.toBuffer())
+    .update(bettor.toBuffer())
+    .update(Buffer.from([outcome]))
+    .update(amt)
+    .update(salt)
+    .digest();
+}
+
+/** Open a dark score market — same buckets/deadlines as `market open`. */
+async function darkOpen(run: PublicKey, edges: number[], salt: bigint, t: MarketTiming, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const m = darkPda(run, salt, market.programId);
+  await (market.methods as any)
+    .createDark(new anchor.BN(salt.toString()), edges, t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()), new anchor.BN(t.revealSecs.toString()))
+    .accounts({ authority: kp.publicKey, run, darkMarket: m })
+    .rpc({ commitment: "confirmed" });
+  const labels = Array.from({ length: edges.length + 1 }, (_, i) => outcomeLabel(edges.length + 1, edges, i)).join(" | ");
+  console.log(`dark market ${m.toBase58()} opened: run ${run.toBase58()} outcomes: ${labels} — positions are sealed`);
+  return m;
+}
+
+/** Stake a sealed position: outcome never hits the wire — only the commitment.
+ *  Prints the preimage; keep it — revealing without it is impossible. */
+async function darkBet(marketPk: PublicKey, outcome: number, lamports: bigint, posSalt: bigint, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const m: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const salt = randomBytes(32);
+  const commitment = darkCommitment(marketPk, kp.publicKey, outcome, lamports, salt);
+  const position = darkPosPda(marketPk, kp.publicKey, posSalt, market.programId);
+  const sig = await (market.methods as any)
+    .darkBet(new anchor.BN(posSalt.toString()), Array.from(commitment), new anchor.BN(lamports.toString()))
+    .accounts({ bettor: kp.publicKey, run: m.run, darkMarket: marketPk, position })
+    .rpc({ commitment: "confirmed" });
+  const label = outcomeLabel(m.nOutcomes, m.edges, outcome);
+  console.log(`sealed bet ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
+  console.log(`  position ${position.toBase58()} — the chain sees only commitment ${commitment.toString("hex").slice(0, 16)}…`);
+  console.log(`  KEEP THIS PREIMAGE — needed to reveal: --pos-salt ${posSalt} --outcome ${outcome} --salt ${salt.toString("hex")}`);
+  console.log(`  (your hidden side: [${label}] — nobody else can see it until you reveal)`);
+}
+
+async function darkResolve(marketPk: PublicKey, kpPath?: string) {
+  const { market } = marketProgram(kpPath);
+  const m: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const sig = await (market.methods as any)
+    .resolveDark()
+    .accounts({ run: m.run, darkMarket: marketPk })
+    .rpc({ commitment: "confirmed" });
+  const after: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const oc = after.status === 2
+    ? "CANCELLED"
+    : `outcome ${after.outcome} [${outcomeLabel(after.nOutcomes, after.edges, after.outcome)}] — reveal window open until ${new Date(Number(after.revealUntil) * 1000).toISOString()}`;
+  console.log(`dark market resolved (${sig}): score=${after.resolvedScore} ${oc}`);
+}
+
+async function darkReveal(marketPk: PublicKey, posSalt: bigint, outcome: number, saltHex: string, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const position = darkPosPda(marketPk, kp.publicKey, posSalt, market.programId);
+  const sig = await (market.methods as any)
+    .revealDark(new anchor.BN(posSalt.toString()), outcome, Array.from(Buffer.from(saltHex, "hex")))
+    .accounts({ bettor: kp.publicKey, market: marketPk, position })
+    .rpc({ commitment: "confirmed" });
+  const m: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const win = m.outcome === outcome ? "WINNER — stake counted in win_total" : "losing side — position recorded";
+  console.log(`revealed (${sig}): outcome ${outcome} — ${win}`);
+}
+
+async function darkFinalize(marketPk: PublicKey, kpPath?: string) {
+  const { market } = marketProgram(kpPath);
+  const sig = await (market.methods as any)
+    .finalizeDark()
+    .accounts({ darkMarket: marketPk })
+    .rpc({ commitment: "confirmed" });
+  const m: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const what = m.status === 2 ? "CANCELLED — nobody revealed; positions refund via claim" : `tallied: win_total=${Number(m.winTotal) / LAMPORTS_PER_SOL} SOL of pool=${Number(m.poolTotal) / LAMPORTS_PER_SOL}`;
+  console.log(`dark market finalized (${sig}): ${what}`);
+}
+
+async function darkClaim(marketPk: PublicKey, posSalt: bigint, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const position = darkPosPda(marketPk, kp.publicKey, posSalt, market.programId);
+  const before = await provider0(kp).getBalance(kp.publicKey);
+  const sig = await (market.methods as any)
+    .claimDark(new anchor.BN(posSalt.toString()))
+    .accounts({ bettor: kp.publicKey, market: marketPk, position })
+    .rpc({ commitment: "confirmed" });
+  const after = await provider0(kp).getBalance(kp.publicKey);
+  console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
+}
+
+/** Authority voids an open market (all positions refundable via claim). */
+async function darkVoid(marketPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const m: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const sig = await (market.methods as any)
+    .voidDark()
+    .accounts({ authority: kp.publicKey, run: m.run, darkMarket: marketPk })
+    .rpc({ commitment: "confirmed" });
+  console.log(`dark market ${marketPk.toBase58()} voided (${sig}) — positions refund via claim`);
+}
+
+/** Permissionless expiry past resolve_by — settles on any landed score or cancels. */
+async function darkExpire(marketPk: PublicKey, kpPath?: string) {
+  const { market } = marketProgram(kpPath);
+  const m: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const sig = await (market.methods as any)
+    .expireDark()
+    .accounts({ runA: m.run, darkMarket: marketPk })
+    .rpc({ commitment: "confirmed" });
+  const after: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const status = ["OPEN", "RESOLVED", "CANCELLED"][after.status as number];
+  console.log(`dark market expired (${sig}): status=${status} score=${after.resolvedScore}`);
+}
+
+/** Authority sweeps accrued dark-market fees after tally. */
+async function darkClaimFee(marketPk: PublicKey, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const sig = await (market.methods as any)
+    .claimFeeDark()
+    .accounts({ authority: kp.publicKey, darkMarket: marketPk })
+    .rpc({ commitment: "confirmed" });
+  console.log(`dark market fees claimed (${sig})`);
+}
+
+async function darkShow(marketPk: PublicKey) {
+  const { market } = marketProgram();
+  const m: any = await (market.account as any).darkMarket.fetch(marketPk);
+  const status = ["OPEN", "RESOLVED", "CANCELLED"][m.status as number];
+  const n = m.nOutcomes as number;
+  console.log(`dark market ${marketPk.toBase58()} status=${status}${m.tallied ? " tallied" : ""}`);
+  console.log(`  run=${m.run.toBase58()} benchmark=${m.benchmark.toBase58()} run_index=${m.runIndex}`);
+  console.log(`  outcomes: ${Array.from({ length: n }, (_, i) => `[${i}] ${outcomeLabel(n, m.edges, i)}`).join(" | ")}`);
+  console.log(`  pool=${Number(m.poolTotal) / LAMPORTS_PER_SOL} SOL win_total=${Number(m.winTotal) / LAMPORTS_PER_SOL} revealed=${m.revealedCount} positions`);
+  const rs = m.status === 1 ? `score=${m.resolvedScore} outcome=${m.outcome} [${outcomeLabel(n, m.edges, m.outcome)}]` : "unresolved";
+  console.log(`  ${rs}`);
+  const fmt = (v: bigint) => (v === 0n ? "-" : new Date(Number(v) * 1000).toISOString());
+  console.log(`  fee_bps=${m.feeBps} fees_accrued=${Number(m.feesAccrued) / LAMPORTS_PER_SOL} SOL closes_at=${fmt(m.closesAt)} resolve_by=${fmt(m.resolveBy)} reveal_until=${fmt(m.revealUntil)}`);
+  const positions = await (market.account as any).darkPosition.all([{ memcmp: { offset: 8, bytes: marketPk.toBase58() } }]);
+  for (const { account: p } of positions) {
+    const side = p.revealed === 255 ? "sealed" : `outcome ${p.revealed} [${outcomeLabel(n, m.edges, p.revealed)}]`;
+    console.log(`  position ${p.bettor.toBase58()} ${Number(p.amount) / LAMPORTS_PER_SOL} SOL — ${side}`);
+  }
+}
+
 // ------------------------------------------------------------------ cli glue
 
 /**
@@ -1369,6 +1530,40 @@ export async function chainMain(cmd: string[], args: Args) {
       } else if (m1 === "show") {
         await ladderShow(new PublicKey(String(args.market)));
       } else throw new Error(`unknown ladder command: ${m1}`);
+    } else if (m0 === "dark") {
+      const [m1] = cmd.slice(2);
+      if (m1 === "open") {
+        // --edges "40,55" or --threshold n — same buckets as `market open`.
+        const run = new PublicKey(String(args.run));
+        const edges = args.edges ? String(args.edges).split(",").map(Number) : [Number(args.threshold)];
+        if (edges.some((e) => !Number.isFinite(e))) throw new Error("--edges 40,55[,64..] or --threshold n");
+        await darkOpen(run, edges, BigInt(String(args.salt ?? "0")), timing(args), bettor);
+      } else if (m1 === "bet") {
+        // Sealed position: --outcome stays OFF the wire; the preimage it
+        // prints (pos-salt + outcome + salt) is the only way to reveal.
+        const marketPk = new PublicKey(String(args.market));
+        const outcome = Number(args.outcome);
+        if (!Number.isFinite(outcome)) throw new Error("--outcome <i> — stays hidden inside the commitment");
+        await darkBet(marketPk, outcome, BigInt(String(args.lamports)), BigInt(String(args["pos-salt"] ?? "0")), bettor);
+      } else if (m1 === "resolve") {
+        await darkResolve(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "reveal") {
+        const outcome = Number(args.outcome);
+        if (!Number.isFinite(outcome)) throw new Error("--outcome <i> --salt <hex> --pos-salt <n>");
+        await darkReveal(new PublicKey(String(args.market)), BigInt(String(args["pos-salt"] ?? "0")), outcome, String(args.salt), bettor);
+      } else if (m1 === "finalize") {
+        await darkFinalize(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "claim") {
+        await darkClaim(new PublicKey(String(args.market)), BigInt(String(args["pos-salt"] ?? "0")), bettor);
+      } else if (m1 === "void") {
+        await darkVoid(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "expire") {
+        await darkExpire(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "claim-fee") {
+        await darkClaimFee(new PublicKey(String(args.market)), bettor);
+      } else if (m1 === "show") {
+        await darkShow(new PublicKey(String(args.market)));
+      } else throw new Error(`unknown dark command: ${m1}`);
     } else if (m0 === "show") {
       await marketShow(new PublicKey(String(args.market)));
     } else throw new Error(`unknown market command: ${m0}`);

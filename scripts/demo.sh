@@ -4,9 +4,9 @@
 # Part A (the headline): mint a benchmark INSIDE MPC — item specs drawn from
 #   ArcisRNG, answers computed + fingerprinted in-circuit, born encrypted to
 #   the MXE key. No answer key ever exists in plaintext.
-# Then: two mock models race through real MPC scoring, and THREE market types
-#   settle on the finalized scores — binary threshold, score bands, and a
-#   head-to-head duel (who outscores whom).
+# Then: two mock models race through real MPC scoring, and market types
+#   settle on the finalized scores — binary threshold, score bands, a
+#   head-to-head duel (who outscores whom), and a 3-way ladder race.
 #
 # Requires: `arcium localnet` already up. Usage: scripts/demo.sh [bank-id-seed]
 set -euo pipefail

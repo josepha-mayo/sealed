@@ -45,8 +45,8 @@ deploy with the required size if the cluster needs more.
 ## 3. Initialize computation definitions
 
 ```bash
-SEALED_RPC=<mainnet-rpc> SEALED_CLUSTER_OFFSET=2026 \
-  node packages/harness/dist/cli.js chain init
+ANCHOR_PROVIDER_URL=<mainnet-rpc> SEALED_CLUSTER_OFFSET=2026 \
+  yarn cli chain init
 ```
 
 This registers `gen_part`, `gen_part_private`, `seal_part`,
@@ -56,10 +56,12 @@ mainnet MXE account.
 ## 4. Smoke test (cheap)
 
 ```bash
-# mint a small generated bank inside MPC (8 items, 1 chunk)
-SEALED_RPC=<mainnet-rpc> sealed chain gen --items 8 --chunks 1
-# score a run against it — a real callback-backed mainnet MPC score
-SEALED_RPC=<mainnet-rpc> sealed chain run --bank <bankPda> --model mock
+# mint a small generated bank inside MPC (32 items, 1 chunk)
+ANCHOR_PROVIDER_URL=<mainnet-rpc> yarn cli chain gen --id <rand-id> --chunks 1
+# answer it with a deterministic mock model (mock/oracle-<p>)
+ANCHOR_PROVIDER_URL=<mainnet-rpc> yarn cli run --bank bank/gen-<id>.json --model mock/oracle-0.65 --out /tmp/mainnet-run.json
+# create + score it — a real callback-backed mainnet MPC score
+ANCHOR_PROVIDER_URL=<mainnet-rpc> yarn cli chain score --bank bank/gen-<id>.json --run /tmp/mainnet-run.json
 ```
 
 If the run reaches `FINALIZED` with `correct > 0`, the pipeline is live

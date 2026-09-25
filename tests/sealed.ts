@@ -1591,6 +1591,246 @@ describe("Sealed", () => {
     console.log("dead-heat settled: 25/25/10 — mask 0b011, winners split the loser's stake pro-rata");
   });
 
+  it("settles a dark market — sealed positions reveal for the pot, no-shows forfeit", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
+      program.programId,
+    );
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
+
+    const truth = decodeItemChunk(Buffer.from((await provider.connection.getAccountInfo(itemsPda))!.data)).specs.map(evalSpec);
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.4 * LAMPORTS_PER_SOL);
+    const idx0 = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx0)], program.programId);
+    const outputs = truth.map((v, j) => (j < 30 ? genAnswerHash(GEN_ID, j, v) : randomU64()));
+    const outLeaves = [chunkOutLeaf(0, outputs)];
+    await program.methods
+      .createRun("dark/model-a", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+
+    const darkPda = (r: PublicKey, salt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("dark"), r.toBuffer(), u64le(salt)], marketProgram.programId)[0];
+    const darkPosPda = (mkt: PublicKey, bettor: PublicKey, posSalt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("darkpos"), mkt.toBuffer(), bettor.toBuffer(), u64le(posSalt)], marketProgram.programId)[0];
+    // sha256("sealed/dark" || market || bettor || outcome u8 || amount u64le || salt[32])
+    const commitment = (mkt: PublicKey, bettor: PublicKey, outcome: number, lamports: bigint, salt: Buffer) =>
+      Buffer.from(sha256(concatBytes(utf8ToBytes("sealed/dark"), mkt.toBuffer(), bettor.toBuffer(), new Uint8Array([outcome]), u64le(lamports), salt)));
+
+    // Binary market: score <20 vs >=20; planted 30 → outcome 1. 60s reveal
+    // window (the on-chain floor) so the test can reach finalize_dark.
+    const mkt = darkPda(run, 0n);
+    await marketProgram.methods
+      .createDark(new anchor.BN(0), [20], 200, new anchor.BN(0), FAR_FUTURE, new anchor.BN(60))
+      .accounts({ authority: owner.publicKey, run, darkMarket: mkt })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    let m: any = await (marketProgram.account as any).darkMarket.fetch(mkt);
+    expect(m.status).to.equal(0, "open");
+    expect(m.revealSecs.toNumber()).to.equal(60);
+
+    // Three sealed positions — the commitment is the only thing on-chain.
+    const bettors = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
+    for (const b of bettors) await fund(provider, owner, b.publicKey, 0.5 * LAMPORTS_PER_SOL);
+    const bets = [
+      { bettor: bettors[0], outcome: 1, lamports: BigInt(0.30 * LAMPORTS_PER_SOL), salt: randomBytes(32) },
+      { bettor: bettors[1], outcome: 1, lamports: BigInt(0.20 * LAMPORTS_PER_SOL), salt: randomBytes(32) }, // never reveals → forfeits
+      { bettor: bettors[2], outcome: 0, lamports: BigInt(0.10 * LAMPORTS_PER_SOL), salt: randomBytes(32) }, // loser
+    ];
+    for (const [i, b] of bets.entries()) {
+      await marketProgram.methods
+        .darkBet(new anchor.BN(0), Array.from(commitment(mkt, b.bettor.publicKey, b.outcome, b.lamports, b.salt)), new anchor.BN(b.lamports.toString()))
+        .accounts({ bettor: b.bettor.publicKey, run, darkMarket: mkt, position: darkPosPda(mkt, b.bettor.publicKey, 0n) })
+        .signers([b.bettor])
+        .rpc({ commitment: "confirmed" });
+    }
+    m = await (marketProgram.account as any).darkMarket.fetch(mkt);
+    expect(m.poolTotal.toNumber()).to.equal(0.6 * LAMPORTS_PER_SOL);
+    // Positions carry commitments, not outcomes — the chain saw nothing.
+    const pos0: any = await (marketProgram.account as any).darkPosition.fetch(darkPosPda(mkt, bettors[0].publicKey, 0n));
+    expect(pos0.revealed).to.equal(255, "still sealed");
+
+    // Revealing before resolution is meaningless — the outcome doesn't exist.
+    await expectAnchorError(
+      marketProgram.methods
+        .revealDark(new anchor.BN(0), 1, Array.from(bets[0].salt))
+        .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
+        .signers([bettors[0]])
+        .rpc({ commitment: "confirmed" }),
+      "MarketNotResolved",
+    );
+
+    // MPC scores the run (planted 30 → bucket 1), then resolve opens the window.
+    const offset = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .scoreChunk(offset, new anchor.BN(idx0.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
+      .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    expect((await program.account.run.fetch(run)).correct).to.equal(30);
+
+    await marketProgram.methods
+      .resolveDark()
+      .accounts({ run, darkMarket: mkt })
+      .rpc({ commitment: "confirmed" });
+    m = await (marketProgram.account as any).darkMarket.fetch(mkt);
+    expect(m.status).to.equal(1, "resolved");
+    expect(m.outcome).to.equal(1, "30 >= 20");
+    expect(m.revealUntil.toNumber()).to.be.greaterThan(0);
+
+    // A wrong preimage or a mis-stated outcome fails the commitment check.
+    await expectAnchorError(
+      marketProgram.methods
+        .revealDark(new anchor.BN(0), 1, Array.from(randomBytes(32)))
+        .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
+        .signers([bettors[0]])
+        .rpc({ commitment: "confirmed" }),
+      "BadReveal",
+    );
+    await expectAnchorError(
+      marketProgram.methods
+        .revealDark(new anchor.BN(0), 0, Array.from(bets[0].salt))
+        .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
+        .signers([bettors[0]])
+        .rpc({ commitment: "confirmed" }),
+      "BadReveal",
+    );
+
+    // Winner reveals → win_total grows; loser reveals → recorded, pot unchanged.
+    await marketProgram.methods
+      .revealDark(new anchor.BN(0), 1, Array.from(bets[0].salt))
+      .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
+      .signers([bettors[0]])
+      .rpc({ commitment: "confirmed" });
+    m = await (marketProgram.account as any).darkMarket.fetch(mkt);
+    expect(m.revealedCount).to.equal(1);
+    expect(m.winTotal.toNumber()).to.equal(0.30 * LAMPORTS_PER_SOL);
+    await expectAnchorError(
+      marketProgram.methods
+        .revealDark(new anchor.BN(0), 1, Array.from(bets[0].salt))
+        .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
+        .signers([bettors[0]])
+        .rpc({ commitment: "confirmed" }),
+      "AlreadyRevealed",
+    );
+    await marketProgram.methods
+      .revealDark(new anchor.BN(0), 0, Array.from(bets[2].salt))
+      .accounts({ bettor: bettors[2].publicKey, market: mkt, position: darkPosPda(mkt, bettors[2].publicKey, 0n) })
+      .signers([bettors[2]])
+      .rpc({ commitment: "confirmed" });
+    m = await (marketProgram.account as any).darkMarket.fetch(mkt);
+    expect(m.revealedCount).to.equal(2);
+    expect(m.winTotal.toNumber()).to.equal(0.30 * LAMPORTS_PER_SOL, "losing reveals don't count");
+
+    // bettor[1] never reveals — their winning stake forfeits into the pot.
+    await new Promise((r) => setTimeout(r, 63_000));
+    await marketProgram.methods.finalizeDark().accounts({ darkMarket: mkt }).rpc({ commitment: "confirmed" });
+    m = await (marketProgram.account as any).darkMarket.fetch(mkt);
+    expect(m.tallied).to.equal(true);
+    await expectAnchorError(
+      marketProgram.methods
+        .revealDark(new anchor.BN(0), 1, Array.from(bets[1].salt))
+        .accounts({ bettor: bettors[1].publicKey, market: mkt, position: darkPosPda(mkt, bettors[1].publicKey, 0n) })
+        .signers([bettors[1]])
+        .rpc({ commitment: "confirmed" }),
+      "RevealWindowClosed",
+    );
+
+    // Sole revealed winner takes the whole net pot (losers' + forfeited stakes):
+    // pool 0.60 − fee 2% (0.012) = 0.588. Loser and no-show close for rent only.
+    const expected = [0.588, 0, 0];
+    for (const [i, b] of bets.entries()) {
+      const pos = darkPosPda(mkt, b.bettor.publicKey, 0n);
+      const rent = (await provider.connection.getAccountInfo(pos))?.lamports ?? 0;
+      const before = await provider.connection.getBalance(b.bettor.publicKey);
+      await marketProgram.methods
+        .claimDark(new anchor.BN(0))
+        .accounts({ bettor: b.bettor.publicKey, market: mkt, position: pos })
+        .signers([b.bettor])
+        .rpc({ commitment: "confirmed" });
+      const after = await provider.connection.getBalance(b.bettor.publicKey);
+      expect(after - before).to.be.approximately(expected[i] * LAMPORTS_PER_SOL + rent, 20000, `position ${i} payout + rent`);
+    }
+    // Authority sweeps the 2% fee.
+    const feeBefore = await provider.connection.getBalance(owner.publicKey);
+    await marketProgram.methods.claimFeeDark().accounts({ authority: owner.publicKey, darkMarket: mkt }).signers([owner]).rpc({ commitment: "confirmed" });
+    const feeAfter = await provider.connection.getBalance(owner.publicKey);
+    expect(feeAfter - feeBefore).to.be.approximately(0.012 * LAMPORTS_PER_SOL, 20000, "2% fee sweep");
+    console.log("dark settled: sealed 0.30/0.20/0.10 → sole revealed winner took 0.588 net pot, no-show forfeited, fee 0.012");
+  });
+
+  it("voids a dark market and refunds sealed positions without a preimage", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(GEN_ID)],
+      program.programId,
+    );
+    const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const truth = decodeItemChunk(Buffer.from((await provider.connection.getAccountInfo(itemsPda))!.data)).specs.map(evalSpec);
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.4 * LAMPORTS_PER_SOL);
+    const idx0 = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [run] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx0)], program.programId);
+    const outputs = truth.map((v, j) => (j < 5 ? genAnswerHash(GEN_ID, j, v) : randomU64()));
+    const outLeaves = [chunkOutLeaf(0, outputs)];
+    await program.methods
+      .createRun("dark/model-b", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+
+    const darkPda = (r: PublicKey, salt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("dark"), r.toBuffer(), u64le(salt)], marketProgram.programId)[0];
+    const darkPosPda = (mkt: PublicKey, bettor: PublicKey, posSalt: bigint) =>
+      PublicKey.findProgramAddressSync([Buffer.from("darkpos"), mkt.toBuffer(), bettor.toBuffer(), u64le(posSalt)], marketProgram.programId)[0];
+    const commitment = (mkt: PublicKey, bettor: PublicKey, outcome: number, lamports: bigint, salt: Buffer) =>
+      Buffer.from(sha256(concatBytes(utf8ToBytes("sealed/dark"), mkt.toBuffer(), bettor.toBuffer(), new Uint8Array([outcome]), u64le(lamports), salt)));
+
+    const mkt = darkPda(run, 0n);
+    await marketProgram.methods
+      .createDark(new anchor.BN(0), [20], 0, new anchor.BN(0), FAR_FUTURE, new anchor.BN(60))
+      .accounts({ authority: owner.publicKey, run, darkMarket: mkt })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    const bettor = Keypair.generate();
+    await fund(provider, owner, bettor.publicKey, 0.3 * LAMPORTS_PER_SOL);
+    const lamports = BigInt(0.05 * LAMPORTS_PER_SOL);
+    await marketProgram.methods
+      .darkBet(new anchor.BN(0), Array.from(commitment(mkt, bettor.publicKey, 1, lamports, randomBytes(32))), new anchor.BN(lamports.toString()))
+      .accounts({ bettor: bettor.publicKey, run, darkMarket: mkt, position: darkPosPda(mkt, bettor.publicKey, 0n) })
+      .signers([bettor])
+      .rpc({ commitment: "confirmed" });
+
+    // Only the market authority can void — and only while the run is unscored.
+    const stranger = Keypair.generate();
+    await fund(provider, owner, stranger.publicKey, 0.05 * LAMPORTS_PER_SOL);
+    await expectAnchorError(
+      marketProgram.methods.voidDark().accounts({ authority: stranger.publicKey, run, darkMarket: mkt }).signers([stranger]).rpc({ commitment: "confirmed" }),
+      "NotAuthority",
+    );
+    await marketProgram.methods.voidDark().accounts({ authority: owner.publicKey, run, darkMarket: mkt }).signers([owner]).rpc({ commitment: "confirmed" });
+    const m: any = await (marketProgram.account as any).darkMarket.fetch(mkt);
+    expect(m.status).to.equal(2, "cancelled");
+
+    // Cancelled → full refund, no preimage needed (amounts were never hidden).
+    const pos = darkPosPda(mkt, bettor.publicKey, 0n);
+    const rent = (await provider.connection.getAccountInfo(pos))?.lamports ?? 0;
+    const before = await provider.connection.getBalance(bettor.publicKey);
+    await marketProgram.methods
+      .claimDark(new anchor.BN(0))
+      .accounts({ bettor: bettor.publicKey, market: mkt, position: pos })
+      .signers([bettor])
+      .rpc({ commitment: "confirmed" });
+    const after = await provider.connection.getBalance(bettor.publicKey);
+    expect(after - before).to.be.approximately(Number(lamports) + rent, 20000, "full refund + rent");
+    console.log("dark voided: sealed 0.05 refunded in full without revealing the preimage");
+  });
+
   it("pending sweeps are liveness-only — markets stay latched, swept computations still land", async () => {
     const marketProgram = anchor.workspace.Market as Program<Market>;
     const [benchmark] = PublicKey.findProgramAddressSync(

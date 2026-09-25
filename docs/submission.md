@@ -160,12 +160,15 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 11/11 passing (seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 13/13 passing (seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim incl. expiry,
   claim-fee-first solvency, and post-finalize expiry rejection; duel market
   open→bet→score-both→resolve→claim + gates; 3-way ladder open→bet→latch→
   resolve→claim + LegMismatch/DeadlineTooSoon/RunsMustDiffer gates;
   ladder dead-heat: two legs tie at 25 → result_mask 0b011 → the whole pot
+  splits pro-rata; dark commit-reveal market: sealed bets → resolve →
+  reveals → forfeit redistribution + tallied fee sweep, plus the void →
+  preimage-free refund path; pending-sweep liveness gates)
   splits pro-rata over winning stakes, loser's claim fails;
   generated-bank mint→live→score;
   private-bank mint→decrypt→score + privacy negatives; reshare
@@ -206,27 +209,43 @@ recovers; the full flow is demonstrated on localnet meanwhile.
 
 ## Submission day (deadline: Oct 12, 2026 11:59 PM PT)
 
-Ordered human checklist — everything else in this repo is already done:
+Ordered human checklist — everything else in this repo is already done.
+Hard-blockers first (each is a documented DQ path in Colosseum's rules):
 
+0. **Every team member registers on colosseum.com** — an unregistered
+   member DQ's the whole team, and only ONE submission per person.
+0b. **Disclose any prior work** on the form — prior code is allowed but
+   undisclosed reuse is a DQ + ban. Only in-window work is judged.
 1. **Fill `teamBackground`** in `docs/submission-fields.md` (founder-market
    fit is scored — real names, real credibility, why YOU for this).
 2. **Record the pitch video** against `docs/pitch-video-script.md`
    (separate from the technical demo — `docs/demo.mp4` is already rendered,
    114s, upload-ready; `docs/video-script.md` covers a live re-record if
-   you want one).
+   you want one). Founder-narrated beats polished voiceover — Colosseum's
+   own guide calls the pitch video the shortlist gate.
 3. **Make the repo public** (Settings → General → Danger Zone → Change
    visibility). Most common disqualifier per Colosseum's own list.
 4. **Enable Pages**: Settings → Pages → Source = "GitHub Actions" — the
    `.github/workflows/pages.yml` workflow then publishes `web/` to
-   `https://<you>.github.io/<repo>/`; paste that URL into the submission
-   "demo" field (the explorer renders the committed snapshot with zero
-   backend).
+   `https://<you>.github.io/<repo>/`; paste that bare URL into the
+   submission "demo" field — no `?snapshot=` param needed, the bundled
+   snapshot auto-loads (only `web/` is published).
 5. **Paste the field values** from `docs/submission-fields.md` into the
-   form — char counts are pre-verified against the limits.
+   form — char counts are pre-verified against the limits. Pick up to 3
+   tracks; Solana is the required one (accelerator is Solana-only).
 6. **Upload both videos** (pitch + `docs/demo.mp4`).
-7. *Optional, highest-leverage*: **mainnet deploy** per `docs/mainnet.md`
+7. **Submit ≥2 days early** — late submissions and timezone errors are
+   documented DQ'd teams (deadline is Pacific Time).
+8. *Cheap signal most teams skip*: **weekly 1-minute update videos** on the
+   project page — Colosseum staff confirm they watch them, and silent teams
+   read as abandoned to track judges (Arcium staff judge the Solana track).
+9. *Optional, highest-leverage*: **mainnet deploy** per `docs/mainnet.md`
    (~2–5 SOL + a reliable RPC, cluster offset 2026) — turns "deployed on
    devnet" into "live on mainnet."
-8. *Optional*: post the X thread + Arcium outreach DM from
-   `docs/promotion.md` — attention compounds.
+10. *Optional*: post the X thread + Arcium outreach DM from
+   `docs/promotion.md` — attention compounds. Arcium's narrative has
+   shifted to confidential AI (Inpher acquisition, Blackthorn engine) —
+   Sealed's "MPC-scored model runs" is the onchain complement; lead with
+   the benchmark oracle, not "another dark prediction market" (Pythia,
+   Epoch, ArxPredict already exist from Cypherpunk's sidetrack).
 

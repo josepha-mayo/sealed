@@ -175,6 +175,19 @@ async function main() {
   sealed chain market ladder void    --market <pk> [--bettor keypair.json] authority cancels, only before any leg starts
   sealed chain market ladder claim-fee --market <pk> [--bettor keypair.json]
   sealed chain market ladder show    --market <pk>
+  sealed chain market dark open      --run <pk> [--threshold n | --edges a,b,c] [--salt n]
+                                     [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts (required)
+                                     [--reveal-secs n]                          commit-reveal market: outcomes stay sealed
+  sealed chain market dark bet       --market <pk> --outcome <i> --lamports <n> [--pos-salt n] [--bettor keypair.json]
+                                     prints the preimage — keep it, revealing without it is impossible
+  sealed chain market dark reveal    --market <pk> --outcome <i> --salt <hex> [--pos-salt n] [--bettor keypair.json]
+  sealed chain market dark finalize  --market <pk>                             tallies revealed winners after the reveal window
+  sealed chain market dark resolve   --market <pk>                             permissionless once the run finalizes
+  sealed chain market dark expire    --market <pk>                             after resolve_by: same committed-settle split as expire
+  sealed chain market dark claim     --market <pk> [--pos-salt n] [--bettor keypair.json]
+  sealed chain market dark void      --market <pk> [--bettor keypair.json]     authority cancels before scoring starts
+  sealed chain market dark claim-fee --market <pk> [--bettor keypair.json]
+  sealed chain market dark show      --market <pk>
   sealed chain reset-sealing  --bank-id <n> --chunk <i>          clear a part stuck by a dropped MPC computation
   sealed chain reset-pending  --run <pk> --chunk <i>             sweep a stuck scoring bit (runner anytime, anyone after 15min stale)
   sealed prove  --run <file> --item <i>               Merkle proof that output i was committed`);

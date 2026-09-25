@@ -6,7 +6,7 @@ const { Connection, PublicKey } = require("@solana/web3.js");
 
 const SEALED_PID = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 const MARKET_PID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
-const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0" };
+const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0", darkMarket: "94562c723ef98ba6", darkPosition: "d8c18faeae9d7715" };
 const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
 const b58 = (u8) => new PublicKey(u8).toBase58();
 
@@ -112,6 +112,46 @@ function parseLadder(d) {
   return { authority, benchmark, legs: legs.slice(0, legCount), legCount, salt, status, resultMask: "0b" + resultMask.toString(2), resolvedScore, totals: totals.slice(0, legCount), feeBps, feesAccrued, closesAt, resolveBy };
 }
 
+// DarkMarket: disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
+// + nOutcomes u8 + edges[7]u32 + bump + status + outcome + pool u64 + winTotal u64
+// + revealedCount u32 + resolvedScore u32 + created/resolved/revealSecs/revealUntil
+// i64s + feeBps u16 + feesAccrued u64 + closesAt/resolveBy i64 + tallied bool
+function parseDarkMarket(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  o += 32;
+  const run = d.slice(o, o + 32); o += 32;
+  const benchmark = d.slice(o, o + 32); o += 32;
+  const runIndex = v.getBigUint64(o, true); o += 8;
+  const salt = v.getBigUint64(o, true); o += 8;
+  const n = d[o++];
+  const edges = []; for (let i = 0; i < 7; i++) { edges.push(v.getUint32(o, true)); o += 4; }
+  o += 1; const status = d[o++]; const outcome = d[o++];
+  const poolTotal = v.getBigUint64(o, true); o += 8;
+  const winTotal = v.getBigUint64(o, true); o += 8;
+  const revealedCount = v.getUint32(o, true); o += 4;
+  const resolvedScore = v.getUint32(o, true); o += 4;
+  o += 16; // created_at + resolved_at
+  const revealSecs = v.getBigInt64(o, true); o += 8;
+  const revealUntil = v.getBigInt64(o, true); o += 8;
+  const feeBps = v.getUint16(o, true); o += 2;
+  const feesAccrued = v.getBigUint64(o, true); o += 8;
+  const closesAt = v.getBigInt64(o, true); o += 8;
+  const resolveBy = v.getBigInt64(o, true); o += 8;
+  const tallied = d[o++] === 1;
+  return { run: b58(run), benchmark: b58(benchmark), runIndex, salt, nOutcomes: n, edges: edges.slice(0, Math.max(0, n - 1)), status, outcome, poolTotal, winTotal, revealedCount, resolvedScore, revealSecs, revealUntil, feeBps, feesAccrued, closesAt, resolveBy, tallied };
+}
+// DarkPosition: disc8 + market32 + bettor32 + bump + amount u64 + commitment[32] + revealed u8
+function parseDarkPosition(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const market = b58(d.slice(o, o + 32)); o += 32;
+  const bettor = b58(d.slice(o, o + 32)); o += 32;
+  o += 1;
+  const amount = v.getBigUint64(o, true); o += 8;
+  const commitment = hex(d.slice(o, o + 32)); o += 32;
+  const revealed = d[o++];
+  return { market, bettor, amount, commitment, revealed: revealed === 255 ? "sealed" : revealed };
+}
+
 const url = process.argv[2] || "http://127.0.0.1:8899";
 const J = (x) => JSON.stringify(x, (_, v) => (typeof v === "bigint" ? v.toString() : v));
 const conn = new Connection(url, "confirmed");
@@ -131,4 +171,6 @@ for (const { pubkey, account } of mkt) {
   const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
   if (disc === DISC.market) console.log("market  ", pubkey.toBase58(), J(parseMarket(d)));
   else if (disc === DISC.ladder) console.log("ladder  ", pubkey.toBase58(), J(parseLadder(d)));
+  else if (disc === DISC.darkMarket) console.log("darkmkt ", pubkey.toBase58(), J(parseDarkMarket(d)));
+  else if (disc === DISC.darkPosition) console.log("darkpos ", pubkey.toBase58(), J(parseDarkPosition(d)));
 }

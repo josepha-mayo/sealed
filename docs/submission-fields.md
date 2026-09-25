@@ -33,11 +33,12 @@ entirely. Six Arcis circuits run inside the MPC cluster:
 - `seal_part` + `reveal_part` cover authored banks and fingerprint audits.
 
 A second program hosts parimutuel markets — binary, N-way score bands,
-head-to-head duels, K-way ladder races — resolving permissionlessly on
-`Run.correct`; bets latch shut before the first scored chunk. Verified:
-11/11 E2E + 13/13 unit on a real MPC localnet; a real model (gpt-oss-20b)
-finalized 64/64 on an MPC-minted bank — on-chain score == local pre-score
-(run HW5H5bT7).
+head-to-head duels, K-way ladder races, and commit-reveal dark markets
+(sealed positions, forfeits for no-show winners) — resolving
+permissionlessly on `Run.correct`; bets latch shut before the first
+scored chunk. Verified: 13/13 E2E + 13/13 unit on a real MPC localnet; a
+real model (gpt-oss-20b) finalized 64/64 on an MPC-minted bank — on-chain
+score == local pre-score (run HW5H5bT7).
 
 ## solanaIntegration
 
@@ -89,12 +90,14 @@ live too (`fee_bps` skimmed at resolution, authority-claimed via `claim_fee`).
 The durable business is sealed-evaluation
 infrastructure: fresh private banks minted on demand (no key custody to sell),
 delegated scoring runs for labs and judges, and the settlement layer every
-"AI capability" market resolves against. The market layer ships four novel
+"AI capability" market resolves against. The market layer ships five novel
 settlement primitives — head-to-head duels (bets latch shut on either
 leg's first scoring queue), K-way ladder races (argmax over bound runs,
 dead-heat pro-rata, dead legs forfeit), unseen-exam markets (the priced
 event is itself confidential — a market fills on a private-bank run whose
-questions are ciphertext-only end-to-end), and committed-settle expiry
+questions are ciphertext-only end-to-end), dark commit-reveal markets
+(`sha256` commitments keep every position sealed until the winner reveals;
+no-show winners forfeit into the pot), and committed-settle expiry
 (`all_queued_at` + 24h landing window: a stalled run refunds unless the
 runner committed every chunk — no transaction can both commit and
 expire). Any venue can compose on `Run.correct` permissionlessly — the

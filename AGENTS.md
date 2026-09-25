@@ -8,7 +8,7 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 
 - `anchor build` (sealed), `anchor build -p market --ignore-keys` (market; its
   keypair file address intentionally differs — do NOT `anchor keys sync`).
-- `yarn test` → 11/11 mocha E2E against a RUNNING localnet; needs env
+- `yarn test` → 13/13 mocha E2E against a RUNNING localnet; needs env
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
@@ -44,9 +44,9 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
 - Cluster offset 456. Both programs upgraded to the v4 committed-settle
   build (all_queued_at landing window) 2026-09-22: sealed
   `3a9Cgvenu3g1XJ4mnkpUHQmWjRD1trjSRHfYN4JonnYQbRNgLb2WiezmGWPqAq9LDhibSkJyuf6F2QRknAuFcHn1`,
-  market `3t7b8AZPdzqa2Vxrub6gdG6g5Fby8a2rqAtLYGvfPnM12rWXFCAnYSCmvXcmo74hAde1XVLg2rXoj4CVkQHnEGNF`
-  (2026-09-24 — ladder hardening: MIN_LEGS=3, unified still_moving resolve
-  gate, landed-partial leg scores, cancel-mask hygiene, FeeClaimed events).
+  market `271eYBWME2iCWwpK1NBSp4XnJ2Rs1tuPcbmPCtZKHDXgbAw5Rb3tV9qZzWBptyPsKiF27dourjs6wGsQfX96N33s`
+  (2026-09-25 — dark commit-reveal markets: sealed positions, reveal window
+  floored 60s / capped 90d, forfeit redistribution, tallied-gated fee claims).
   Both upgradeable — same program IDs. Binary growth past a program-data
   account needs `solana program extend <id> 10240` FIRST (ExtendProgram
   requires >= 10240-byte steps, not just the delta).
@@ -109,4 +109,17 @@ hosts score-band and duel parimutuel markets resolved from `Run.correct`.
   1/64). `RunArtifact.itemsRoot` now binds the artifact to the bank revision
   and `chain score` rejects a mismatch — never re-mint or re-fetch a bank
   while a run against it is in flight.
+- Dark markets (`DarkMarket`/`DarkPosition`) are commit-reveal: the bet tx
+  carries only `sha256("sealed/dark" ‖ market ‖ bettor ‖ outcome u8 ‖
+  amount u64le ‖ salt32)`; the outcome never hits the wire. PDA seeds:
+  `["dark", run, salt]` and `["darkpos", market, bettor, pos_salt]`.
+  `reveal_secs` is floored at 60s and capped at 90d (an unbounded window
+  locks the pool — the cap exists because `resolve_dark` adds
+  `now + reveal_secs` under overflow-checks). Winners reveal inside the
+  window; no-shows forfeit into the pot; zero-reveals cancels → gross
+  refunds (no preimage needed). `claim_fee_dark` requires `tallied` — a
+  resolved market that later cancels owes gross refunds, so a fee swept
+  early would insolvent the tail. Positions close on claim (rent returns);
+  `revealed == 255` is the sealed sentinel, so `reveal_dark` rejects
+  `outcome >= n_outcomes`.
 - Private bank JSON files contain plaintext questions — keep out of git.

@@ -25,7 +25,7 @@ The bank owner can't see it. The score on-chain is the only score.
 - Selective disclosure — show a judge the questions, not the answers
 - MPC scoring — run.correct is written by the cluster, not an oracle
 
-4/ On top: four parimutuel market types resolving straight from
+4/ On top: five parimutuel market types resolving straight from
 Run.correct — no oracle multisig:
 
 - binary over/under on a score
@@ -70,4 +70,4 @@ Title: Sealed — benchmark answer keys that never exist in plaintext
 
 Body: link repo + hosted explorer + the one-paragraph pitch from
 docs/pitch.md. Lead with the 64/64 MPC-minted headline run and the
-four market primitives.
+five market primitives.

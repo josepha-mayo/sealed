@@ -68,7 +68,7 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 
 ### Markets (`programs/market`)
 
-A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes. It ships four novel settlement primitives: **run duels** (head-to-head "does A outscore B" on the same bank — bets latch the moment either leg's first scoring computation queues, `RunnersMustDiffer` blocks self-duels), **ladder races** (K-way argmax markets over 3–8 bound runs — co-leaders split the pot dead-heat, legs that land nothing forfeit at 0 instead of cancelling, and bets latch the moment *any* leg leaves pending), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: questions are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), and **committed-settle expiry** (`all_queued_at` + a 24h landing window — a stalled run refunds unless the runner committed every chunk and the cluster had a full window to land it; no transaction can both commit and expire).
+A second Anchor program hosts N-way parimutuel markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes. It ships five novel settlement primitives: **run duels** (head-to-head "does A outscore B" on the same bank — bets latch the moment either leg's first scoring computation queues, `RunnersMustDiffer` blocks self-duels), **ladder races** (K-way argmax markets over 3–8 bound runs — co-leaders split the pot dead-heat, legs that land nothing forfeit at 0 instead of cancelling, and bets latch the moment *any* leg leaves pending), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: questions are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), **dark commit-reveal markets** (a bettor's side is a `sha256` commitment — sealed until they choose to reveal; no-show winners forfeit into the pot and a zero-reveal market refunds everyone, `scripts/dark.sh`), and **committed-settle expiry** (`all_queued_at` + a 24h landing window — a stalled run refunds unless the runner committed every chunk and the cluster had a full window to land it; no transaction can both commit and expire).
 
 ```
 create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
@@ -85,7 +85,7 @@ create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
 create_duel(run_a, run_b, salt, fee_bps, closes_at, resolve_by)
                                   head-to-head on the same benchmark: does A
                                   outscore B? 3 outcomes — A wins / B wins / tie
-create_ladder(legs[2..8], salt, fee_bps, closes_at, resolve_by)
+create_ladder(legs[3..8], salt, fee_bps, closes_at, resolve_by)
                                   K-way race on one benchmark: highest score
                                   takes the pot; ties split dead-heat pro-rata.
                                   closes_at REQUIRED (the leg list is public).
@@ -192,6 +192,11 @@ sealed chain market void    --market <pk>                            # authority
 sealed chain market expire  --market <pk>                            # anyone, once resolve_by passes (not if finalized)
 sealed chain market claim-fee --market <pk>                          # authority collects the accrued fee
 sealed chain market show    --market <pk>
+sealed chain market ladder open --legs <pk,pk,..> --closes-at +86400 --resolve-by +172800  # 3–8-way race
+sealed chain market ladder bet|resolve|claim|void|claim-fee|show      # argmax settle, dead-heat splits
+sealed chain market dark open  --run <pk> --threshold 20 --resolve-by +86400 [--reveal-secs 86400]
+sealed chain market dark bet|reveal|resolve|finalize|claim|void|expire|claim-fee|show
+                                                                     # commit-reveal: outcomes sealed
 sealed chain reset-sealing  --bank-id <n> --chunk <i>                # clear a part stuck by a dropped MPC computation
 sealed chain reset-pending  --run <pk> --chunk <i>                   # sweep a stuck scoring bit (stale = anyone)
 sealed chain attest        --run <pk>                                 # authority pins an attestation flag on a finalized run
@@ -225,7 +230,7 @@ Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALE
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected
-- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 11/11 tests pass on any ledger
+- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 13/13 tests pass on any ledger
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 

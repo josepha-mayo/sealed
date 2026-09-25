@@ -115,6 +115,8 @@ const DISC = {
   market: "dbbed53700e3c69a",
   ladder: "7d9223fe2a07ccde",
   position: "aabc8fe47a40f7d0",
+  darkMarket: "94562c723ef98ba6",
+  darkPosition: "d8c18faeae9d7715",
 };
 const hex = (u8) => [...u8].map(b => b.toString(16).padStart(2, "0")).join("");
 const b58 = (u8) => new PK(u8).toBase58();
@@ -309,6 +311,52 @@ function parseChunk(d) {
   };
 }
 
+// DarkMarket: disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
+// + nOutcomes u8 + edges[7]u32 + bump + status + outcome + pool u64 + winTotal u64
+// + revealedCount u32 + resolvedScore u32 + created/resolved/revealSecs/revealUntil
+// i64s + feeBps u16 + feesAccrued u64 + closesAt/resolveBy i64 + tallied bool
+function parseDarkMarket(d) {
+  if (d.length < 228) throw new Error("truncated DarkMarket (" + d.length + "B < 228B)");
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const authority = d.slice(o, o + 32); o += 32;
+  const run = d.slice(o, o + 32); o += 32;
+  const benchmark = d.slice(o, o + 32); o += 32;
+  const runIndex = v.getBigUint64(o, true); o += 8;
+  const salt = v.getBigUint64(o, true); o += 8;
+  const n = d[o++];
+  const edges = []; for (let i = 0; i < 7; i++) { edges.push(v.getUint32(o, true)); o += 4; }
+  o += 1; // bump
+  const status = d[o++]; const outcome = d[o++];
+  const poolTotal = v.getBigUint64(o, true); o += 8;
+  const winTotal = v.getBigUint64(o, true); o += 8;
+  const revealedCount = v.getUint32(o, true); o += 4;
+  const resolvedScore = v.getUint32(o, true); o += 4;
+  const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const resolvedAt = Number(v.getBigInt64(o, true)); o += 8;
+  const revealSecs = Number(v.getBigInt64(o, true)); o += 8;
+  const revealUntil = Number(v.getBigInt64(o, true)); o += 8;
+  const feeBps = v.getUint16(o, true); o += 2;
+  const feesAccrued = v.getBigUint64(o, true); o += 8;
+  const closesAt = Number(v.getBigInt64(o, true)); o += 8;
+  const resolveBy = Number(v.getBigInt64(o, true)); o += 8;
+  const tallied = d[o++] === 1;
+  return { authority: b58(authority), run: b58(run), benchmark: b58(benchmark), runIndex, salt, n, edges: edges.slice(0, Math.max(0, n - 1)), status, outcome, poolTotal, winTotal, revealedCount, resolvedScore, createdAt, resolvedAt, revealSecs, revealUntil, feeBps, feesAccrued, closesAt, resolveBy, tallied };
+}
+
+// DarkPosition: disc8 + market32 + bettor32 + bump + amount u64 + commitment[32] + revealed u8
+// (revealed = 255 means still sealed — the commitment is all the chain knows)
+function parseDarkPosition(d) {
+  if (d.length < 115) throw new Error("truncated DarkPosition (" + d.length + "B < 115B)");
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const market = d.slice(o, o + 32); o += 32;
+  const bettor = d.slice(o, o + 32); o += 32;
+  o += 1; // bump
+  const amount = v.getBigUint64(o, true); o += 8;
+  const commitment = hex(d.slice(o, o + 32)); o += 32;
+  const revealed = d[o++];
+  return { market: b58(market), bettor: b58(bettor), amount, commitment, revealed: revealed === 255 ? null : revealed };
+}
+
 // Position: disc8 + market32 + bettor32 + bump + amounts[8]u64
 // (positions close on claim — an open account is unclaimed by definition)
 function parsePosition(d) {
@@ -439,7 +487,7 @@ async function loadExampleProof() {
 }
 
 function renderAll(sealedAccs, marketAccs) {
-  const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [];
+  const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [], darkMarkets = [], darkPositions = [];
   const skipped = [];
   for (const { pubkey, account } of sealedAccs) {
     try {
@@ -458,6 +506,8 @@ function renderAll(sealedAccs, marketAccs) {
       const d = new Uint8Array(account.data), disc = hex(d.slice(0, 8));
       if (disc === DISC.market) markets.push({ pk: pubkey.toBase58(), ...parseMarket(d) });
       else if (disc === DISC.ladder) ladders.push({ pk: pubkey.toBase58(), ...parseLadder(d) });
+      else if (disc === DISC.darkMarket) darkMarkets.push({ pk: pubkey.toBase58(), ...parseDarkMarket(d) });
+      else if (disc === DISC.darkPosition) darkPositions.push(parseDarkPosition(d));
       else if (disc === DISC.position) positions.push(parsePosition(d));
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
@@ -476,7 +526,8 @@ function renderAll(sealedAccs, marketAccs) {
   const mintedPub = itemChunks.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
   const mintedPriv = privChunks.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
   const potLamports = markets.reduce((s, m) => s + m.totals.reduce((x, t) => x + Number(t), 0), 0)
-    + ladders.reduce((s, l) => s + l.totals.reduce((x, t) => x + Number(t), 0), 0);
+    + ladders.reduce((s, l) => s + l.totals.reduce((x, t) => x + Number(t), 0), 0)
+    + darkMarkets.reduce((s, m) => s + Number(m.poolTotal), 0);
   const stats = [
     [benches.length, "benchmarks"],
     [finalized.length, "MPC-scored runs"],
@@ -695,6 +746,39 @@ function renderAll(sealedAccs, marketAccs) {
           h += `<tr><td class="mono">${short(p.bettor)}</td>`;
           for (let i = 0; i < n; i++) h += `<td>${Number(p.amounts[i]) ? sol(p.amounts[i]) : "—"}</td>`;
           h += `</tr>`;
+        }
+        h += `</table>`;
+      }
+      h += `</div>`;
+    }
+  }
+
+  if (darkMarkets.length) {
+    h += `<h2>dark markets</h2>`;
+    for (const m of darkMarkets.sort((a, b) => b.createdAt - a.createdAt)) {
+      const dpos = darkPositions.filter(p => p.market === m.pk);
+      const n = m.n;
+      h += `<div class="card"><div class="row">
+        <b>sealed-score market — positions committed hidden, revealed post-resolution</b>
+        <span class="pill live">dark</span>
+        <span class="pill ${MSTATUS[m.status] ?? "unknown"}">${MSTATUS[m.status] ?? "state " + m.status}</span>
+        ${m.tallied ? `<span class="pill resolved">tallied</span>` : ""}
+        <span class="kv">pool <b>${sol(m.poolTotal)} SOL</b></span>
+        <span class="kv">acct ${link(m.pk)}</span></div>
+        <div class="proof">run ${link(m.run)} &middot; benchmark ${link(m.benchmark)} &middot; commit→reveal: outcome sealed until the winner reveals${m.status === 1 ? ` &middot; settled score ${m.resolvedScore} → [${outcomeLabel(n, m.edges, m.outcome)}]` : ""}${m.feeBps ? ` &middot; fee ${(m.feeBps / 100).toFixed(1)}%` : ""} &middot; reveal window ${m.status === 1 ? fmtTs(m.revealUntil) : (m.revealSecs / 3600).toFixed(0) + "h"} &middot; expires ${fmtTs(m.resolveBy)}</div>
+        <table><tr>`;
+      for (let i = 0; i < n; i++) {
+        const win = m.status === 1 && m.outcome === i;
+        h += `<th>[${i}] ${outcomeLabel(n, m.edges, i)}${win ? " ✓" : ""}</th>`;
+      }
+      h += `</tr><tr>`;
+      for (let i = 0; i < n; i++) h += `<td>${m.status === 1 ? (win ? "revealed " + sol(m.winTotal) : "sealed") : "sealed"}</td>`;
+      h += `</tr></table>`;
+      if (dpos.length) {
+        h += `<table><tr><th>bettor</th><th>stake</th><th>commitment</th><th>side</th></tr>`;
+        for (const p of dpos) {
+          const side = p.revealed === null ? `<i>sealed</i>` : `[${p.revealed}] ${outcomeLabel(n, m.edges, p.revealed)}${m.status === 1 && p.revealed === m.outcome ? " ✓" : ""}`;
+          h += `<tr><td class="mono">${short(p.bettor)}</td><td>${sol(p.amount)}</td><td class="mono">${p.commitment.slice(0, 16)}…</td><td>${side}</td></tr>`;
         }
         h += `</table>`;
       }
