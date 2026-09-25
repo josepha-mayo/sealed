@@ -66,15 +66,16 @@ against on-chain `outputs_root` in-browser.
 
 Hundreds of MPC computations executed on the committed evidence ledger —
 29 banks minted (generated + private + authored), 70 runs created and 61
-finalized by the cluster, 39 markets resolved on-chain (36 score/duel +
-3 ladder races) paying 12.56 SOL pro-rata, 38 selective-disclosure grants,
+finalized by the cluster, 45+ markets resolved on-chain across five
+primitives (score-band, duel, ladder race, unseen-exam, dark
+commit-reveal) paying pro-rata, 38 selective-disclosure grants,
 7 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
 models: gpt-oss-20b 64/64 on an MPC-minted bank (run HW5H5bT7) and 64/64
 on a sealed authored bank (run 4uns99WD), ling-3.0 58/64, nemotron-3.5
 59/64 — every MPC score identical to the local pre-score. Strongest:
 gpt-oss-20b scored 32/32 on a private bank it could only read through
 on-chain disclosure grants (run 9nfKSXnM — the exam was never published).
-`scripts/demo.sh` reproduces the full arc (mint → disclose → run → 4
+`scripts/demo.sh` reproduces the full arc (mint → disclose → run → 5
 market types → settle) in one command; the explorer renders everything
 from a committed snapshot — no localnet needed.
 
