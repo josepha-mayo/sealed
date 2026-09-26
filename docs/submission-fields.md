@@ -42,9 +42,9 @@ entirely. Six Arcis circuits run inside the MPC cluster:
 
 A second program hosts parimutuel markets — score bands, duels,
 ladder races, unseen-exam markets, and commit-reveal dark markets
-(sealed positions, no-show forfeits) — resolving permissionlessly
-on `Run.correct`; bets
-latch before the first scored chunk. Verified: 13/13 E2E + 13/13 unit
+(sealed positions, no-show forfeits) — resolving permissionlessly on
+`Run.correct`; bets latch before the first scored chunk.
+Verified: 13/13 E2E + 13/13 unit
 on a real MPC localnet; a real model (gpt-oss-20b) finalized 64/64 on an
 MPC-minted bank — on-chain score == local pre-score (run HW5H5bT7).
 

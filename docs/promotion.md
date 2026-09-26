@@ -63,7 +63,8 @@ Built for @colosseum Crypto World's Fair on @arcium.
 > top (argmax + dead-heat mask), which lines up with the novel-mechanisms
 > ask. 61 MPC-finalized runs on localnet; devnet deployment is live but
 > the shared cluster's callback outage is blocking flows — flagging in
-> case it helps: <devnet sigs>. Would love a pointer if there's a
+> case it helps: sealed `3a9Cgven…` (2026-09-22), market `271eYBWM…`
+(2026-09-25). Would love a pointer if there's a
 > recommended workaround or a mainnet-cluster path for the demo.
 
 ## Colosseum forum post (if a project channel exists)
