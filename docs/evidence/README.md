@@ -197,8 +197,9 @@ $CLI prove --run /tmp/run.json --item 0         # Merkle proof vs committed root
 ```
 
 …or run the full narrative in one shot: `scripts/demo.sh` — generated bank,
-private bank, selective disclosure, two runs (incl. a separate-runner run),
-binary + 3-way + duel markets, resolution, payouts, leaderboard.
+private bank, selective disclosure, three runs (two from separate judge
+wallets), binary + 3-way + duel + ladder markets, resolution, payouts,
+leaderboard.
 
 For a real model: `export SEALED_API_BASE=<openai-compatible-endpoint>
 SEALED_API_KEY=<key>` and `--model <id>`. The headline run above used

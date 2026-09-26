@@ -40,9 +40,10 @@ entirely. Six Arcis circuits run inside the MPC cluster:
   against sealed fingerprints inside MPC; the callback writes `Run.correct`.
 - `seal_part` + `reveal_part` cover authored banks and fingerprint audits.
 
-A second program hosts parimutuel markets — binary, score bands,
-duels, ladder races, and commit-reveal dark markets (sealed positions,
-no-show forfeits) — resolving permissionlessly on `Run.correct`; bets
+A second program hosts parimutuel markets — score bands, duels,
+ladder races, unseen-exam markets, and commit-reveal dark markets
+(sealed positions, no-show forfeits) — resolving permissionlessly
+on `Run.correct`; bets
 latch before the first scored chunk. Verified: 13/13 E2E + 13/13 unit
 on a real MPC localnet; a real model (gpt-oss-20b) finalized 64/64 on an
 MPC-minted bank — on-chain score == local pre-score (run HW5H5bT7).
@@ -51,8 +52,8 @@ MPC-minted bank — on-chain score == local pre-score (run HW5H5bT7).
 
 Two Anchor programs on Solana: `sealed` owns benchmark banks, item chunks,
 sealed answer fingerprints, runs, share grants, and reveals; `market` hosts
-parimutuel score-band, duel, and ladder-race markets resolved from
-`Run.correct`. The
+parimutuel score-band, duel, ladder-race, unseen-exam, and dark
+commit-reveal markets resolved from `Run.correct`. The
 programs compose with the Arcium stack — MXE account, cluster, mempool/
 execpool, comp defs, `queue_computation` + callback instructions — via six
 Arcis circuits (seal/score/gen/gen_private/reveal/reshare). x25519 +
@@ -66,7 +67,7 @@ against on-chain `outputs_root` in-browser.
 
 Hundreds of MPC computations executed on the committed evidence ledger —
 29 banks minted (generated + private + authored), 70 runs created and 61
-finalized by the cluster, 45+ markets resolved on-chain across five
+finalized by the cluster, 39+ markets resolved on-chain across five
 primitives (score-band, duel, ladder race, unseen-exam, dark
 commit-reveal) paying pro-rata, 38 selective-disclosure grants,
 7 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
@@ -75,7 +76,7 @@ on a sealed authored bank (run 4uns99WD), ling-3.0 58/64, nemotron-3.5
 59/64 — every MPC score identical to the local pre-score. Strongest:
 gpt-oss-20b scored 32/32 on a private bank it could only read through
 on-chain disclosure grants (run 9nfKSXnM — the exam was never published).
-`scripts/demo.sh` reproduces the full arc (mint → disclose → run → 5
+`scripts/demo.sh` reproduces the full arc (mint → disclose → run → 4
 market types → settle) in one command; the explorer renders everything
 from a committed snapshot — no localnet needed.
 

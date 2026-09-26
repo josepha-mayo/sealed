@@ -14,8 +14,8 @@ after sealing, and nobody can fabricate a score.
 - **Runner** — submits a model's outputs as public hashes (`outputs_root` +
   per-chunk hashes), pays the run fee.
 - **Arcium MPC cluster** — executes `seal_part` / `gen_part` /
-  `gen_part_private` / `score_chunk` / `reveal_part` under MPC and posts
-  results back via callback transactions.
+  `gen_part_private` / `score_chunk` / `reveal_part` / `reshare_part`
+  under MPC and posts results back via callback transactions.
 - **Market participants** — bet on `run.correct` outcomes.
 - **Anyone** — can call `resolve` on a market once the run finalizes, can
   verify output proofs against `outputs_root`, can read every account.

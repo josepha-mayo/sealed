@@ -7,10 +7,10 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | Program | Devnet address | Status |
 |---|---|---|
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 499939236, authority `4RUW4pDm…` |
-| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder support; upgradeable under `4RUW4pDm…` |
+| market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder + dark commit-reveal support; upgradeable under `4RUW4pDm…` |
 
-**Deploy state:** the devnet binaries were upgraded to the current
-hardened build on 2026-09-24 (sealed `3a9Cgven…`, market `3t7b8AZP…` —
+**Deploy state:** the devnet binaries carry the current hardened build
+(sealed `3a9Cgven…` 2026-09-22, market `271eYBWM…` 2026-09-25 —
 `solana -u devnet program show <id>` reports the deploy slots). All protocol
 features are verified end-to-end on localnet; the only devnet caveat left is
 the Arcium callback outage (below).
@@ -196,8 +196,9 @@ python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ res
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
 verify with `solana -u devnet program show`; binaries upgraded to the current
-build — sealed `3a9Cgven…`, market `3t7b8AZP…` (2026-09-24, includes
-committed-settle expiry + deadline floor + hardened ladder races)). The one honest
+build — sealed `3a9Cgven…` (2026-09-22), market `271eYBWM…` (2026-09-25,
+includes committed-settle expiry + deadline floor + hardened ladder races
++ dark commit-reveal markets)). The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts
@@ -240,8 +241,9 @@ Hard-blockers first (each is a documented DQ path in Colosseum's rules):
    project page — Colosseum staff confirm they watch them, and silent teams
    read as abandoned to track judges (Arcium staff judge the Solana track).
 9. *Optional, highest-leverage*: **mainnet deploy** per `docs/mainnet.md`
-   (~2–5 SOL + a reliable RPC, cluster offset 2026) — turns "deployed on
-   devnet" into "live on mainnet."
+   (~21–22 SOL + a reliable RPC, cluster offset 2026 — the six on-chain
+   circuits dominate the rent) — turns "deployed on devnet" into "live on
+   mainnet."
 10. *Optional*: post the X thread + Arcium outreach DM from
    `docs/promotion.md` — attention compounds. Arcium's narrative has
    shifted to confidential AI (Inpher acquisition, Blackthorn engine) —

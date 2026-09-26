@@ -32,6 +32,8 @@ Run.correct — no oracle multisig:
 - N-way score bands
 - duels: model A vs model B
 - ladder races: 3–8 runners, argmax wins, dead-heat splits
+- unseen-exam markets: the priced event is itself ciphertext
+- dark commit-reveal: your side is a sha256 commitment until reveal
 
 5/ The security story is adversarial-reviewed: JIT-commit attacks,
 landing-window expiry, committed-settle semantics, strict ordered leg

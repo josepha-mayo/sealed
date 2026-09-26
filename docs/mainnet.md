@@ -44,7 +44,7 @@ export ANCHOR_WALLET="$HOME/.config/solana/id.json"  # harness wallet: deployer 
 export SEALED_CLUSTER_OFFSET=2026                    # Arcium mainnet cluster offset
 export ARCIUM_CLUSTER_OFFSET=2026                    # same value; the getArciumEnv() fallback reads this
 solana config set --url "$RPC" --keypair "$ANCHOR_WALLET"
-solana balance                                       # want ≥ ~22 SOL
+solana balance                                       # want ≥ ~24 SOL
 CLI="yarn -s --cwd packages/harness cli"
 ```
 
@@ -113,7 +113,7 @@ public key appears on-chain when the cluster finalizes it. Poll until LIVE
 (this is the same `getMXEPublicKey` check the harness gates on):
 
 ```bash
-scripts/wait-mxe.sh    # polls probe-mxe-live.mts using $ANCHOR_PROVIDER_URL / $ANCHOR_WALLET
+scripts/wait-mxe.sh    # polls probe-mxe-live.mts using $ANCHOR_PROVIDER_URL / $ANCHOR_WALLET (~15 min cap)
 # or one-shot:
 npx tsx scripts/probe-mxe-live.mts "$RPC" "$ANCHOR_WALLET"   # prints LIVE or PENDING
 arcium mxe-info FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ -u "$RPC"  # status, keys, recovery peers
@@ -254,7 +254,7 @@ arcium close-computation-definition-buffers -o <comp-offset> -p FGVu… -i <raw-
 # once all user comp defs are closed:
 arcium close-mxe -p FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ -k "$ANCHOR_WALLET" -u "$RPC"
 # program + program-data rent back:
-solana program close FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ --bypass-warning
+solana program close FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ --bypass-warning --url "$RPC"
 ```
 
 Comp-def offsets for the `-o` flag (`sha256(name)` truncated to a LE u32 —

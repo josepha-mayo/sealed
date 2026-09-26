@@ -2,7 +2,8 @@
 
 Privacy-preserving benchmark oracle + prediction markets on Solana + Arcium MPC.
 Programs: `sealed` (FGVuEoWp…) owns banks/runs/circuits; `market` (8VSHkhNL…)
-hosts score-band and duel parimutuel markets resolved from `Run.correct`.
+hosts score-band, duel, ladder, unseen-exam, and dark commit-reveal
+parimutuel markets resolved from `Run.correct`.
 
 ## Build / test
 

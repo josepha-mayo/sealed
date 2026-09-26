@@ -10,7 +10,7 @@ the "evidence" column is what goes on-screen.
 | 2 | Sealed deletes the trusted party — the answer key never exists | One-line architecture: items minted INSIDE Arcium MPC → answers born encrypted to the cluster key |
 | 3 | The exam is ciphertext end-to-end | Explorer private-bank card: `PrivItemChunk` ciphertext blobs, `items_root` commitment, "questions never in plaintext" |
 | 4 | Real models get real scores — verifiably | Leaderboard: gpt-oss-20b **64/64** MPC-minted bank (run `HW5H5bT7`); 32/32 grant-only exam (`9nfKSXnM`); stale artifact 64→**1/64** anti-cheat |
-| 5 | Markets settle themselves off the MPC count | Market board: 5 settlement primitives (binary, bands, duels, ladder races, dark commit-reveal) resolving on `Run.correct` — no oracle multisig |
+| 5 | Markets settle themselves off the MPC count | Market board: 5 settlement primitives (score bands, duels, ladder races, unseen-exam, dark commit-reveal) resolving on `Run.correct` — no oracle multisig |
 | 6 | The wedge: the TRUTH is encrypted, not just the bet | Competitive grid — Pythia/Epoch/ArxPredict hide the *position*; Sealed hides the *resolution truth*; insider edge is cryptographically impossible |
 | 7 | Confidential AI needs an onchain referee — now | Arcium × Inpher/Blackthorn confidential-inference narrative; Sealed is the settlement layer underneath it |
 | 8 | Live business: fees + take-rate on-chain today | `create_run` fee_lamports + `fee_bps` skim; buyers: market venues, eval orgs, judges/insurers |
