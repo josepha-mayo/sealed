@@ -1,5 +1,8 @@
 # Sealed
 
+[![CI](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml/badge.svg)](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml)
+[![explorer](https://img.shields.io/badge/explorer-live-4ef0a8)](https://josepha-mayo.github.io/sealed/)
+
 **A benchmark whose answer key was never written down, scored by nobody in particular.**
 
 Sealed is a referee for AI-capability claims. Benchmark items can be **minted inside the MPC cluster itself** — drawn from `ArcisRNG`, answered and fingerprinted in-circuit, and stored encrypted to the cluster key. The answer key never exists in plaintext anywhere on Earth: there is nothing to leak, sell, or subpoena. Models are scored inside an [Arcium](https://arcium.com) MPC cluster; the score is written to Solana by the cluster's callback, not by us. Anyone can build a market on "does model X clear 70% on Sealed v1 by date D" and settle it without trusting a leaderboard operator.
