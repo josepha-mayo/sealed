@@ -708,10 +708,16 @@ pub mod sealed {
             vec![RevealPartCallback::callback_ix(
                 computation_offset,
                 &ctx.accounts.mxe_account,
-                &[CallbackAccount {
-                    pubkey: ctx.accounts.reveal.key(),
-                    is_writable: true,
-                }],
+                &[
+                    CallbackAccount {
+                        pubkey: ctx.accounts.reveal.key(),
+                        is_writable: true,
+                    },
+                    CallbackAccount {
+                        pubkey: ctx.accounts.benchmark.key(),
+                        is_writable: true,
+                    },
+                ],
             )?],
             1,
             0,
@@ -740,6 +746,10 @@ pub mod sealed {
             reveal.hashes[k] = *h;
         }
         reveal.revealed_at = Clock::get()?.unix_timestamp;
+        // Permanent spoilage marker: fingerprints are scoring targets, so a
+        // landed reveal burns this bank for any run created afterwards.
+        ctx.accounts.benchmark.reveal_count =
+            ctx.accounts.benchmark.reveal_count.saturating_add(1);
         emit!(PartRevealed {
             benchmark: reveal.benchmark,
             chunk_index: reveal.chunk_index,
@@ -919,6 +929,7 @@ pub mod sealed {
         r.first_pending_at = 0;
         r.ever_queued_mask = 0;
         r.all_queued_at = 0;
+        r.post_reveal = u8::from(b.reveal_count > 0);
         b.run_count += 1;
         emit!(RunCreated {
             run: r.key(),
@@ -1141,6 +1152,11 @@ pub struct Benchmark {
     /// Total parts minted so far; stamped into each chunk's `mint_order` so the
     /// items_root fold can be replayed in true landing order off-chain.
     pub mint_seq: u16,
+    /// Parts whose answer fingerprints have been declassified by `reveal_part`.
+    /// `>0` means the bank's scoring targets are public — `create_run` stamps
+    /// `post_reveal` on any run minted from here on, and markets refuse to
+    /// settle on flagged runs. Audit is permanent; spoilage must be too.
+    pub reveal_count: u32,
 }
 
 /// One minted item spec, 5 bytes packed onchain. Mirrors `ItemSpec` in the
@@ -1303,6 +1319,12 @@ pub struct Run {
     /// past the cap, commit them + fire expiry in the same transaction, and
     /// settle a truncation they chose (the JIT-commit freeze-win).
     pub all_queued_at: i64,
+    /// 1 when this run was created after `reveal_part` declassified an answer
+    /// fingerprint on its bank (benchmark.reveal_count > 0 at creation). Such a
+    /// run's `outputs_root` could commit to the now-public fingerprints —
+    /// markets reject flagged runs at open; pre-reveal runs stay clean because
+    /// their outputs were committed before the disclosure.
+    pub post_reveal: u8,
 }
 
 // ------------------------------------------------------------------ plain ixs
@@ -1817,7 +1839,7 @@ pub struct GenPartPrivateCallback<'info> {
 pub struct RevealPart<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
+    #[account(mut, constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
     pub benchmark: Box<Account<'info, Benchmark>>,
     #[account(
         seeds = [b"chunk", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
@@ -1881,6 +1903,10 @@ pub struct RevealPartCallback<'info> {
     pub instructions_sysvar: UncheckedAccount<'info>,
     #[account(mut)]
     pub reveal: Box<Account<'info, Reveal>>,
+    /// Bumps `reveal_count` when a fingerprint lands — permanent bank spoilage
+    /// marker that `create_run` stamps onto later runs (`post_reveal`).
+    #[account(mut, address = reveal.benchmark @ ErrorCode::WrongBenchmark)]
+    pub benchmark: Box<Account<'info, Benchmark>>,
 }
 
 #[queue_computation_accounts("reshare_part", payer)]
@@ -2159,4 +2185,6 @@ pub enum ErrorCode {
     InvalidItemsRoot,
     #[msg("No computation is pending on this chunk")]
     ChunkNotPending,
+    #[msg("Account does not match the expected benchmark")]
+    WrongBenchmark,
 }

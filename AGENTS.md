@@ -123,10 +123,17 @@ parimutuel markets resolved from `Run.correct`.
   early would insolvent the tail. Positions close on claim (rent returns);
   `revealed == 255` is the sealed sentinel, so `reveal_dark` rejects
   `outcome >= n_outcomes`.
-- `reveal_part` is audit-and-burn: the published `Reveal.hashes` are the
-  exact u64s `score_chunk` compares, so revealed items are spoiled for any
-  run created after the reveal (the explorer flags those runs "post-reveal
-  ⚠"). Only reveal on banks you don't intend to score again.
+- `reveal_part` is audit-and-burn, enforced on-chain: the published
+  `Reveal.hashes` are the exact u64s `score_chunk` compares. A landed reveal
+  bumps `benchmark.reveal_count` in the callback; `create_run` then stamps
+  `run.post_reveal=1` and all four market creators reject flagged runs
+  (`PostRevealRun`). Only reveal on banks you don't intend to score again —
+  and note the reveal test must run LAST in `tests/sealed.ts` for the same
+  reason (it spoils AUTH_ID for anything after it). `Benchmark`/`Run` got
+  tail-appended fields (`reveal_count`, `post_reveal`); pre-upgrade accounts
+  EOF-brick under `Account<T>` — same no-migration stance as before. The
+  market program tail-reads the flag at `229 + model_id_len` rather than
+  mirroring the field, so old-layout runs still load (flag absent ⇒ 0).
 - `pending_since` refreshes on EVERY `score_chunk` for the run — a public
   third-party sweep of an older dead bit waits ~15 min past the LAST queue,
   not the dead bit's own queue time (runner self-sweep is always allowed;

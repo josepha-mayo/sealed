@@ -227,13 +227,18 @@ function parseRun(d) {
   const outputsRoot = d.slice(o, o + 32); o += 32;
   const ml = v.getUint32(o, true); o += 4;
   const modelId = new TextDecoder().decode(d.slice(o, o + ml)); o += ml;
-  let attested = false, attestedAt = 0, pendingSince = 0, firstPendingAt = 0, everQueuedMask = 0n, allQueuedAt = 0;
+  let attested = false, attestedAt = 0, pendingSince = 0, firstPendingAt = 0, everQueuedMask = 0n, allQueuedAt = 0, postReveal = false;
   if (o + 9 <= d.length) { attested = d[o++] !== 0; attestedAt = Number(v.getBigInt64(o, true)); o += 8; }
   if (o + 8 <= d.length) { pendingSince = Number(v.getBigInt64(o, true)); o += 8; }
   if (o + 8 <= d.length) { firstPendingAt = Number(v.getBigInt64(o, true)); o += 8; }
   if (o + 8 <= d.length) { everQueuedMask = v.getBigUint64(o, true); o += 8; }
   if (o + 8 <= d.length) { allQueuedAt = Number(v.getBigInt64(o, true)); o += 8; }
-  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId, attested, attestedAt, pendingSince, firstPendingAt, everQueuedMask, allQueuedAt };
+  // F1 tail flag: on-chain stamp set at creation when the bank already has a
+  // declassified fingerprint (benchmark.reveal_count > 0). Markets refuse to
+  // open on flagged runs — the byte is authoritative; timestamp inference is
+  // only a fallback for pre-upgrade accounts that lack it.
+  if (o + 1 <= d.length) postReveal = d[o++] !== 0;
+  return { benchmark: b58(benchmark), runner: b58(runner), index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, harnessHash: hex(harnessHash), outputsRoot: hex(outputsRoot), modelId, attested, attestedAt, pendingSince, firstPendingAt, everQueuedMask, allQueuedAt, postReveal };
 }
 // Market: disc8 + authority32 + run32 + benchmark32 + runIndex u64 + salt u64
 // + nOutcomes u8 + edges[7]u32 + bump + status + outcome + totals[8]u64
@@ -628,7 +633,7 @@ function renderAll(sealedAccs, marketAccs) {
     }
     const brv = reveals.filter(r => r.bench === b.pk).sort((a, b2) => a.chunk - b2.chunk || a.part - b2.part);
     if (brv.length) {
-      h += `<div class="proof" style="margin-top:6px">spot-check audits — answer fingerprints declassified by the authority inside MPC. <b>Revealed fingerprints are the scoring targets — those items are spoiled for any run created after the reveal.</b>`;
+      h += `<div class="proof" style="margin-top:6px">spot-check audits — answer fingerprints declassified by the authority inside MPC. <b>Revealed fingerprints are the scoring targets — those items are spoiled for any run created after the reveal. On-chain: such runs stamp post_reveal=1 and markets refuse to open on them.</b>`;
       for (const r of brv) {
         h += `<div class="mono" style="font-size:11px;margin-top:2px">chunk ${r.chunk} part ${r.part}: ${r.hashes.slice(0, 4).map(x => x.slice(0, 8)).join(" ")}… (${r.hashes.length} hashes, ${fmtTs(r.revealedAt)})</div>`;
       }
@@ -643,7 +648,9 @@ function renderAll(sealedAccs, marketAccs) {
         // F1: the run committed its outputs AFTER a fingerprint reveal on this
         // bank — the revealed u64 targets are public, so its outputs on those
         // items could be stuffed rather than generated.
-        const postReveal = brv.some(x => r.createdAt > x.revealedAt);
+        // On-chain flag is authoritative (post_reveal tail byte); timestamp
+        // inference remains for pre-upgrade accounts that lack the flag.
+        const postReveal = r.postReveal || brv.some(x => r.createdAt > x.revealedAt);
         const fullMask = r.chunkCount >= 64 ? 0xFFFFFFFFFFFFFFFFn : (1n << BigInt(r.chunkCount)) - 1n;
         const committed = r.everQueuedMask === fullMask && fullMask !== 0n;
         // v4: a committed run's partial settles only after its full landing

@@ -214,18 +214,26 @@ after sealing, and nobody can fabricate a score.
 - **Granular answer disclosure** — `reveal_part` declassifies 8 fingerprints at
   a time at the authority's discretion. A per-item variant and threshold-gated
   reveal (e.g. after a market resolves, or multi-sig) are small extensions.
-- **A reveal permanently spoils those items for scoring** — the declassified
-  `Reveal.hashes` *are* the values `score_chunk` compares, so after a reveal
-  anyone can mint a run whose outputs are stuffed to match on those items
-  (8 guaranteed points per revealed part). Mitigations: only the authority can
-  reveal, it is public + timestamped (`Reveal` PDA, `PartRevealed` event),
-  and it cannot help a run whose `outputs_root` predates the reveal. There is
-  deliberately no on-chain taint flag — consumers must compare
-  `reveal.revealed_at` against `run.created_at` (the explorer flags
-  post-reveal runs ⚠ and calls spoiled items out on the bank card). The
-  honest reading: `reveal_part` is an *audit-and-burn* primitive — the
-  authority publicly sacrifices those items' future scoring value to let
-  anyone verify what was counted.
+- **A reveal permanently spoils those items for scoring — now enforced
+  on-chain.** The declassified `Reveal.hashes` *are* the values `score_chunk`
+  compares, so after a reveal anyone can mint a run whose outputs are stuffed
+  to match on those items (8 guaranteed points per revealed part). The
+  protocol now closes that surface end-to-end: a landed reveal bumps
+  `benchmark.reveal_count` inside `reveal_part_callback`, `create_run` stamps
+  `post_reveal` on every run minted afterwards, and **all four market
+  creators (`create_market`/`create_duel`/`create_ladder`/`create_dark`)
+  reject flagged runs** (`PostRevealRun`) — no stake can ever be priced
+  against a spoiled score. Runs committed *before* the reveal stay clean:
+  their `outputs_root` predates the disclosure, which is why the flag is a
+  creation-time stamp rather than a score-time check. The explorer reads the
+  on-chain byte directly (timestamp inference remains as a fallback for
+  pre-upgrade accounts), and `scripts/verify.mjs` cross-checks flags against
+  reveal times. Residual: a run can still be *created and scored* on a
+  spoiled bank — the flag makes that self-evident — and only the authority
+  can reveal (public, timestamped, `PartRevealed` event). The honest
+  reading: `reveal_part` is an *audit-and-burn* primitive — the authority
+  publicly sacrifices those items' future scoring value to let anyone verify
+  what was counted, and the burn is now machine-enforced.
 - **Private-bank prompt custody** — the authority wallet decrypts private
   specs; key compromise leaks the prompts (but never answer plaintext, which
   stays MXE-sealed). `reshare_part` already narrows exposure — the authority

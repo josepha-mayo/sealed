@@ -357,71 +357,6 @@ describe("Sealed", () => {
     );
   });
 
-  it("declassifies one part's fingerprints for a spot-check audit", async () => {
-    await initCompDef("reveal_part", () => program.methods.initRevealPartCompDef());
-    const BENCH_ID = AUTH_ID;
-    const [benchmark] = PublicKey.findProgramAddressSync(
-      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(BENCH_ID)],
-      program.programId,
-    );
-    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
-    const [reveal] = PublicKey.findProgramAddressSync(
-      [Buffer.from("reveal"), benchmark.toBuffer(), u16le(0), Uint8Array.of(0)],
-      program.programId,
-    );
-
-    // a stranger cannot queue a reveal — authority gate
-    const stranger = Keypair.generate();
-    await fund(provider, owner, stranger.publicKey, 0.1 * LAMPORTS_PER_SOL);
-    const badOffset = new anchor.BN(randomBytes(8), "hex");
-    const [badReveal] = PublicKey.findProgramAddressSync(
-      [Buffer.from("reveal"), benchmark.toBuffer(), u16le(0), Uint8Array.of(3)],
-      program.programId,
-    );
-    await expectAnchorError(
-      program.methods
-        .revealPart(badOffset, 0, 3)
-        .accountsPartial({
-          payer: stranger.publicKey,
-          benchmark,
-          chunk,
-          reveal: badReveal,
-          ...arciumAccounts(badOffset, "reveal_part"),
-        })
-        .signers([stranger])
-        .rpc(),
-      "NotAuthority",
-    );
-
-    // authority declassifies chunk 0 part 0 — MPC returns the fingerprints
-    const offset = new anchor.BN(randomBytes(8), "hex");
-    await program.methods
-      .revealPart(offset, 0, 0)
-      .accountsPartial({ payer: owner.publicKey, benchmark, chunk, reveal, ...arciumAccounts(offset, "reveal_part") })
-      .signers([owner])
-      .rpc({ commitment: "confirmed" });
-    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
-    const rv: any = await program.account.reveal.fetch(reveal);
-    expect(rv.revealedAt.toNumber()).to.be.greaterThan(0);
-    // The test planted these answer hashes — the declassified fingerprints must
-    // equal them exactly. This is the audit: anyone can now check which of the
-    // run's committed output hashes match on the revealed positions.
-    const revealed = rv.hashes.map((h: anchor.BN) => BigInt(h.toString()));
-    expect(revealed).to.deep.equal(answers[0].slice(0, PART));
-    console.log(`reveal verified: ${revealed.length} fingerprints match planted answers`);
-
-    // revealing the same part again fails — the Reveal PDA already exists
-    const again = new anchor.BN(randomBytes(8), "hex");
-    await expectAnchorError(
-      program.methods
-        .revealPart(again, 0, 0)
-        .accountsPartial({ payer: owner.publicKey, benchmark, chunk, reveal, ...arciumAccounts(again, "reveal_part") })
-        .signers([owner])
-        .rpc(),
-      "PartAlreadyRevealed",
-    );
-  });
-
   it("settles a parimutuel market on an MPC-scored run", async () => {
     const marketProgram = anchor.workspace.Market as Program<Market>;
     const [benchmark] = PublicKey.findProgramAddressSync(
@@ -2098,6 +2033,112 @@ describe("Sealed", () => {
       "BenchmarkRetired",
     );
     console.log("sweep latch, swept-callback landing, edges bound, double-attest, duel-expire bail, retire guard — all verified");
+  });
+
+  // LAST on purpose: spoils AUTH_ID for new runs — every earlier consumer of
+  // that bank must already have created what it needs.
+  it("declassifies one part's fingerprints for a spot-check audit", async () => {
+    await initCompDef("reveal_part", () => program.methods.initRevealPartCompDef());
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(AUTH_ID)],
+      program.programId,
+    );
+    const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
+    const [reveal] = PublicKey.findProgramAddressSync(
+      [Buffer.from("reveal"), benchmark.toBuffer(), u16le(0), Uint8Array.of(0)],
+      program.programId,
+    );
+
+    // a stranger cannot queue a reveal — authority gate
+    const stranger = Keypair.generate();
+    await fund(provider, owner, stranger.publicKey, 0.1 * LAMPORTS_PER_SOL);
+    const badOffset = new anchor.BN(randomBytes(8), "hex");
+    const [badReveal] = PublicKey.findProgramAddressSync(
+      [Buffer.from("reveal"), benchmark.toBuffer(), u16le(0), Uint8Array.of(3)],
+      program.programId,
+    );
+    await expectAnchorError(
+      program.methods
+        .revealPart(badOffset, 0, 3)
+        .accountsPartial({
+          payer: stranger.publicKey,
+          benchmark,
+          chunk,
+          reveal: badReveal,
+          ...arciumAccounts(badOffset, "reveal_part"),
+        })
+        .signers([stranger])
+        .rpc(),
+      "NotAuthority",
+    );
+
+    // authority declassifies chunk 0 part 0 — MPC returns the fingerprints
+    const offset = new anchor.BN(randomBytes(8), "hex");
+    await program.methods
+      .revealPart(offset, 0, 0)
+      .accountsPartial({ payer: owner.publicKey, benchmark, chunk, reveal, ...arciumAccounts(offset, "reveal_part") })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    const rv: any = await program.account.reveal.fetch(reveal);
+    expect(rv.revealedAt.toNumber()).to.be.greaterThan(0);
+    // The test planted these answer hashes — the declassified fingerprints must
+    // equal them exactly. This is the audit: anyone can now check which of the
+    // run's committed output hashes match on the revealed positions.
+    const revealed = rv.hashes.map((h: anchor.BN) => BigInt(h.toString()));
+    expect(revealed).to.deep.equal(answers[0].slice(0, PART));
+    console.log(`reveal verified: ${revealed.length} fingerprints match planted answers`);
+
+    // revealing the same part again fails — the Reveal PDA already exists
+    const again = new anchor.BN(randomBytes(8), "hex");
+    await expectAnchorError(
+      program.methods
+        .revealPart(again, 0, 0)
+        .accountsPartial({ payer: owner.publicKey, benchmark, chunk, reveal, ...arciumAccounts(again, "reveal_part") })
+        .signers([owner])
+        .rpc(),
+      "PartAlreadyRevealed",
+    );
+
+    // F1 closed on-chain: the landed reveal bumps benchmark.reveal_count; any
+    // run minted from here is permanently stamped post_reveal=1, and market
+    // creation rejects flagged runs outright. Runs minted BEFORE the reveal
+    // stay untainted — their outputs_root was committed pre-disclosure.
+    const bAcc: any = await program.account.benchmark.fetch(benchmark);
+    expect(bAcc.revealCount).to.equal(1);
+    const nRuns = bAcc.runCount.toNumber();
+    for (let idx = 0; idx < nRuns; idx++) {
+      const [rp] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(BigInt(idx))], program.programId);
+      const r: any = await program.account.run.fetch(rp);
+      expect(r.postReveal, `run ${idx} predates the reveal`).to.equal(0);
+    }
+    const spoiled = Keypair.generate();
+    await fund(provider, owner, spoiled.publicKey, 0.5 * LAMPORTS_PER_SOL);
+    const [runNext] = PublicKey.findProgramAddressSync(
+      [Buffer.from("run"), benchmark.toBuffer(), u64le(BigInt(nRuns))],
+      program.programId,
+    );
+    await program.methods
+      .createRun("test/post-reveal", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
+      .accountsPartial({ runner: spoiled.publicKey, authority: owner.publicKey, benchmark, run: runNext })
+      .signers([spoiled])
+      .rpc({ commitment: "confirmed" });
+    const r2: any = await program.account.run.fetch(runNext);
+    expect(r2.postReveal).to.equal(1);
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [mkt] = PublicKey.findProgramAddressSync(
+      [Buffer.from("market"), runNext.toBuffer(), u64le(0n)],
+      marketProgram.programId,
+    );
+    await expectAnchorError(
+      marketProgram.methods
+        .createMarket(new anchor.BN(0), [30], 0, new anchor.BN(0), FAR_FUTURE)
+        .accounts({ authority: owner.publicKey, run: runNext, market: mkt })
+        .signers([owner])
+        .rpc(),
+      "PostRevealRun",
+    );
+    console.log("F1 closed: post-reveal run stamped post_reveal=1 on-chain; create_market rejects it (PostRevealRun)");
   });
 });
 

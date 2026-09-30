@@ -65,12 +65,16 @@ function parseRun(d) {
   o += 32; const outputsRoot = hex(d.slice(o, o + 32)); o += 32;
   const ml = v.getUint32(o, true); o += 4;
   const modelId = new TextDecoder().decode(d.slice(o, o + ml)); o += ml;
-  let everQueuedMask = 0n;
+  let everQueuedMask = 0n, postReveal = false;
   if (o + 9 <= d.length) o += 9;
   if (o + 8 <= d.length) o += 8;
   if (o + 8 <= d.length) o += 8;
   if (o + 8 <= d.length) { everQueuedMask = v.getBigUint64(o, true); o += 8; }
-  return { benchmark, runner, index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, outputsRoot, modelId, everQueuedMask };
+  if (o + 8 <= d.length) o += 8;
+  // F1 tail flag (post-upgrade accounts): run minted after a fingerprint
+  // reveal on its bank — markets must refuse it. Absent on old layouts.
+  if (o + 1 <= d.length) postReveal = d[o] !== 0;
+  return { benchmark, runner, index, status, chunkCount, pendingMask, scoredMask, correct, createdAt, finalizedAt, outputsRoot, modelId, everQueuedMask, postReveal };
 }
 function parseMarket(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
@@ -302,14 +306,25 @@ for (const f of proofs) {
 }
 pfBad === 0 ? ok("merkle proofs", `${pfOk} proof files verify end-to-end`) : bad("merkle proofs", `${pfBad} failed`);
 
-console.log("\n[8] reveal-burn (F1) report");
+console.log("\n[8] reveal-burn (F1) report — on-chain flag vs timestamp inference");
 const revealByBench = new Map();
 for (const r of reveals) { const l = revealByBench.get(r.bench) || []; l.push(r); revealByBench.set(r.bench, l); }
+let flagBad = 0;
 for (const [bench, rs] of revealByBench) {
   const minT = Math.min(...rs.map((r) => r.revealedAt));
-  const tainted = [...runs.entries()].filter(([, r]) => r.benchmark === bench && r.createdAt > minT);
-  note(`bank ${bench.slice(0, 8)}`, `${rs.length} reveal(s) — ${tainted.length} post-reveal run(s) flagged`);
+  const benchRuns = [...runs.entries()].filter(([, r]) => r.benchmark === bench);
+  const inferred = benchRuns.filter(([, r]) => r.createdAt > minT);
+  const flagged = benchRuns.filter(([, r]) => r.postReveal);
+  // On post-upgrade accounts the flag is authoritative: it must agree with
+  // the timestamp inference exactly. (Pre-upgrade runs lack the byte —
+  // inference alone covers them; the sets can only diverge on old data.)
+  const flagSet = new Set(flagged.map(([p]) => p));
+  const inferredSet = new Set(inferred.map(([p]) => p));
+  const disagree = [...flagSet].filter((p) => !inferredSet.has(p)).length;
+  if (disagree) { flagBad++; console.log(`    ! bank ${bench}: ${disagree} flagged run(s) not explainable by timestamps`); }
+  note(`bank ${bench.slice(0, 8)}`, `${rs.length} reveal(s) — ${flagged.length} flagged on-chain, ${inferred.length} inferred`);
 }
+flagBad === 0 ? ok("post_reveal flags", "on-chain flags consistent with reveal timestamps") : bad("post_reveal flags", `${flagBad} inconsistencies`);
 
 console.log(`\n═══ ${pass} PASS / ${fail} FAIL / ${skip} notes ═══`);
 process.exit(fail ? 1 : 0);

@@ -99,6 +99,27 @@ fn load_run(info: &AccountInfo) -> Result<Run> {
     Ok(run)
 }
 
+/// Tail-read sealed's `post_reveal` byte (F1 hardening): a run created after
+/// `reveal_part` declassified a fingerprint on its bank could commit to the
+/// now-public scoring targets — markets refuse to open on flagged runs.
+/// The byte sits one slot past the mirror struct's end, behind the
+/// variable-length `model_id`: disc8 + 176B fixed + u32 len + model_id +
+/// 41B tail (attested1+attested_at8+pending_since8+first_pending_at8+
+/// ever_queued_mask8+all_queued_at8) + post_reveal1. Pre-upgrade accounts
+/// lack the byte — `get()` returns None and they read untainted.
+fn run_post_reveal(info: &AccountInfo) -> Result<bool> {
+    let data = info.try_borrow_data()?;
+    Ok(run_post_reveal_bytes(&data))
+}
+
+fn run_post_reveal_bytes(data: &[u8]) -> bool {
+    if data.len() < 188 {
+        return false;
+    }
+    let ml = u32::from_le_bytes(data[184..188].try_into().unwrap()) as usize;
+    data.get(229 + ml).copied().unwrap_or(0) != 0
+}
+
 /// Bucket index that `score` falls into: count of edges <= score.
 /// edges are nondecreasing upper bounds; outcome i covers [edges[i-1], edges[i]).
 fn outcome_of(edges: &[u32; MAX_OUTCOMES - 1], n: u8, score: u32) -> u8 {
@@ -389,6 +410,7 @@ pub mod market {
             run.scored_mask == 0 && run.pending_since == 0,
             ErrorCode::ScoringStarted
         );
+        require!(!run_post_reveal(&ctx.accounts.run)?, ErrorCode::PostRevealRun);
         // Every bucket must be reachable: edges[0]==0 makes bucket 0 unwinnable,
         // an edge past the max score makes the top bucket a guaranteed win —
         // both are bait shapes we refuse to host.
@@ -507,6 +529,10 @@ pub mod market {
         require!(
             ctx.accounts.run_a.key() != ctx.accounts.run_b.key(),
             ErrorCode::RunsMustDiffer
+        );
+        require!(
+            !run_post_reveal(&ctx.accounts.run_a)? && !run_post_reveal(&ctx.accounts.run_b)?,
+            ErrorCode::PostRevealRun
         );
         // One runner scoring both legs knows both outcomes on any bank whose
         // answers they can see — a self-dealing duel. Distinct runner keys are
@@ -797,6 +823,7 @@ pub mod market {
                 r.scored_mask == 0 && r.pending_since == 0,
                 ErrorCode::ScoringStarted
             );
+            require!(!run_post_reveal(info)?, ErrorCode::PostRevealRun);
             for (j, prev) in runs.iter().enumerate() {
                 require!(info.key() != legs[j].key(), ErrorCode::RunsMustDiffer);
                 require!(r.runner != prev.runner, ErrorCode::RunnersMustDiffer);
@@ -1123,6 +1150,7 @@ pub mod market {
             run.scored_mask == 0 && run.pending_since == 0,
             ErrorCode::ScoringStarted
         );
+        require!(!run_post_reveal(&ctx.accounts.run)?, ErrorCode::PostRevealRun);
         let max_score = run.chunk_count as u32 * 32;
         require!(
             edges[0] > 0 && *edges.last().unwrap() <= max_score,
@@ -2244,6 +2272,8 @@ pub enum ErrorCode {
     BadReveal,
     #[msg("reveal window has closed / not yet closed")]
     RevealWindowClosed,
+    #[msg("Run was created after a fingerprint reveal on its bank — spoiled scoring target")]
+    PostRevealRun,
 }
 
 #[cfg(test)]
@@ -2289,6 +2319,30 @@ mod tests {
         // Tail-appended bytes are ignored — this is the upgrade path.
         let parsed = Run::try_deserialize_unchecked(&mut &buf[..]).unwrap();
         assert_eq!(parsed.correct, 42);
+    }
+
+    /// The tail byte sealed appends for F1 (`post_reveal`) sits at
+    /// 229 + model_id_len — one byte past the mirror's declared end.
+    #[test]
+    fn run_post_reveal_reads_tail_byte() {
+        let base = run(1, 0, 0, 0, 0, 0);
+        let mut buf = RUN_DISC.to_vec();
+        base.serialize(&mut buf).unwrap();
+        assert!(!run_post_reveal_bytes(&buf)); // no flag byte yet
+        buf.push(1);
+        assert!(run_post_reveal_bytes(&buf));
+        buf.pop();
+        buf.push(0);
+        assert!(!run_post_reveal_bytes(&buf));
+        // A different model_id length must not shift the read off the flag.
+        let mut long = RUN_DISC.to_vec();
+        let mut r2 = run(1, 0, 0, 0, 0, 0);
+        r2.model_id = "a-fairly-long-model-identifier-string".into();
+        r2.serialize(&mut long).unwrap();
+        long.push(1);
+        assert!(run_post_reveal_bytes(&long));
+        // Truncated pre-upgrade accounts read untainted, never panic.
+        assert!(!run_post_reveal_bytes(&buf[..100]));
     }
 
     fn run(
