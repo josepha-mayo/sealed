@@ -150,6 +150,14 @@ while that ledger is up; the artifacts are also self-checking offline.
   markets, positions). The explorer renders the full UI from
   it offline (`?snapshot=` param, "load snapshot", or the bundled
   `web/snapshot.json` auto-fallback) — no localnet needed.
+- **`node scripts/verify.mjs`** — one-command cryptographic audit of the
+  bundle, fully offline: re-derives every account's PDA from its own
+  fields (a fabricated account would land on a different address),
+  replays every gen/private bank's `items_root` commitment fold
+  bit-exact, re-checks that every resolved market's outcome is a pure
+  function of the MPC-written `Run.correct` (bands, duel argmax, ladder
+  masks, dark), and re-verifies each `prove-*.json` Merkle path.
+  Current bundle: **9 PASS / 0 FAIL**.
 
 `mock/oracle-*` is the deterministic offline model — the same pipeline
 (`run` → `chain score` → `prove`) works verbatim with a real model via

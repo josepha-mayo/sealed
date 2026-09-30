@@ -61,6 +61,12 @@ python3 -m http.server -d . 8788
 yarn test                      # 13/13 E2E
 yarn harness:test              # 13/13 unit
 
+# 3b. cryptographic audit of the evidence bundle — fully offline:
+#     re-derives every account's PDA, replays items_root commitment folds
+#     bit-exact, re-checks that every market resolution is a pure function
+#     of the MPC-scored run, and re-verifies the Merkle proofs.
+node scripts/verify.mjs        # 9 PASS / 0 FAIL on the committed snapshot
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).
