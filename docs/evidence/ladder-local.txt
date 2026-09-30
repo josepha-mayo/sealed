@@ -1,0 +1,132 @@
+
+=== 0/6 endpoint sanity — all 4 model endpoints must answer before we mint ===
+  leg 0: :8083 model=qwen2.5-3b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"create
+  leg 1: :8081 model=qwen2.5-1.5b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"create
+  leg 2: :8084 model=llama-3.2-1b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"create
+  leg 3: :8082 model=qwen2.5-0.5b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"create
+
+=== 1/6 wait for MXE, then comp defs + circuits (once per deployment) ===
+MXE key live after ~10s
+seal_part: comp def exists (AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf)
+score_chunk: comp def exists (9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo)
+gen_part: comp def exists (AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ)
+gen_part_private: comp def exists (CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN)
+reveal_part: comp def exists (zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG)
+reshare_part: comp def exists (GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS)
+
+=== 2/6 mint the exam INSIDE MPC (id=87635, 32 items — no answer key exists) ===
+create_benchmark id=87635 chunks=1 kind=generated
+benchmark BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij status=0 sealed=0/1
+chunk 0 part 0: minting in MPC... minted
+chunk 0 part 1: minting in MPC... minted
+chunk 0 part 2: minting in MPC... minted
+chunk 0 part 3: minting in MPC... minted
+benchmark BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij status=LIVE minted=1/1
+items_root 6c823331dafe10e108c5e1d1c6f75fb34e9f76e7692bffd857b2b530b154e933 (32 minted items, answers never existed in plaintext)
+wrote bank/gen-87635.json
+benchmark PDA: BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij
+
+=== 3/6 4 real models answer — one runner wallet per leg (parallel) ===
+leg 0 localCorrect: 6 / None
+leg 1 localCorrect: 6 / None
+leg 2 localCorrect: 1 / None
+leg 3 localCorrect: 0 / None
+
+=== 4/6 create all 4 runs (pending, unscored) + open the ladder ===
+create_run #0 model=qwen2.5-3b-instruct fee=0 SOL
+run 5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw created (pending, unscored)
+create_run #1 model=qwen2.5-1.5b-instruct fee=0 SOL
+run VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL created (pending, unscored)
+create_run #2 model=llama-3.2-1b-instruct fee=0 SOL
+run 7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj created (pending, unscored)
+create_run #3 model=qwen2.5-0.5b-instruct fee=0 SOL
+run BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7 created (pending, unscored)
+  leg 0 run PDA: 5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw (qwen2.5-3b-instruct)
+  leg 1 run PDA: VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL (qwen2.5-1.5b-instruct)
+  leg 2 run PDA: 7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj (llama-3.2-1b-instruct)
+  leg 3 run PDA: BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7 (qwen2.5-0.5b-instruct)
+ladder A4fMA7eKKC6gJ7pDJAaGJcmgYfWiA64mWxu4aUZmHMHw opened: 4-way race
+  [0] 5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw runner=4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc model=qwen2.5-3b-instruct
+  [1] VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL runner=jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY model=qwen2.5-1.5b-instruct
+  [2] 7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj runner=FkhbqqdiogMEBUk7yHCmPwCRjmscrMPovjE8afhxqCke model=llama-3.2-1b-instruct
+  [3] BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7 runner=H9v4UUToyAXMLx6pTf7d5vNaQwE3e9trmna8giELXvT model=qwen2.5-0.5b-instruct
+  outcome index = leg order above — a leg whose runner never scores forfeits at 0
+ladder PDA: A4fMA7eKKC6gJ7pDJAaGJcmgYfWiA64mWxu4aUZmHMHw
+
+=== 5/6 back legs while ALL are pending — spreads across the field ===
+bet leg [0] 0.12 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (55kFdjBUcqvzgn8yN6XQhfASVsiLgbCcuwMtVzuZuPV5yRT7vnWDDdYJsiFX78VQkFrgkL3L5eaaAhgMsigVtybP)
+bet leg [1] 0.1 SOL by jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY (JqzZvd5YPb8esRwrj7Xqkwz5s5AMhBnaBbqUU4UCYeCeoKXhZ6h2H4MyoVTyJMW61DMgAicAGoEX6d5AMnvVHLd)
+bet leg [2] 0.08 SOL by FkhbqqdiogMEBUk7yHCmPwCRjmscrMPovjE8afhxqCke (5szmuemq4Q22c6x4gx2ZMS7uLJPvFMwreabQGUwNWPPEq6PNSPyi8rvaa2m42aH4WsTprVdsfRZPoszgD8pmcJhx)
+bet leg [3] 0.06 SOL by H9v4UUToyAXMLx6pTf7d5vNaQwE3e9trmna8giELXvT (5kFhcL2oTKcXi7dJPgiBuUU3CTVmpqfnezBpbv2YPgRFtKTW631wwLov6Ba9srFMhtfqgXbU5MYeYaKVLXhbd8i8)
+bet leg [0] 0.05 SOL by jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY (5ERjJJGn1sbDQ3FJToyhKNkrawBtgKzmqn452rKKaxkf1L6ERw4ymSu2cMcdjBpozkmcpWC4yB8FUTKZdw93p3Ww)
+
+=== 5b/6 dark market on leg 0's pending run — sealed positions ===
+dark market BrFdXAxYgqNHnkGzDJfRsnteDfYRTUD7T9pZMmoD6v3v opened: run 5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw outcomes: < 4 | >= 4 — positions are sealed
+dark market PDA: BrFdXAxYgqNHnkGzDJfRsnteDfYRTUD7T9pZMmoD6v3v (buckets < 4 | >= 4 on leg 0's score)
+sealed bet 0.07 SOL by jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY (mSBi6HqoVv2L3jGUipaY1xokVkSFUweSXqmPS8r14Ha8k7CNfreHkkzhJERaAFp7VZsTxnRgFt6DCYKCEsHxurB)
+  position 14fQMWDHF3nRERFm53rc5xSW2pxKGb8WY5gGAF4QU8NB — the chain sees only commitment 95ed4d814941c9c2…
+  KEEP THIS PREIMAGE — needed to reveal: --pos-salt 41 --outcome 0 --salt ea2d14a75c77a8c007e4e6efcb405c7c44e65d092336bf2a4693cdc0d4b90bd1
+  (your hidden side: [< 4] — nobody else can see it until you reveal)
+sealed bet 0.11 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (Wxkm3SuaS2Fyzxz8ZedkhHAaThiucwCQj1FzbdNw6AJ73MMgjgvpUAP3YruxaYo81dSirQ7ZgjF2oWjKL9jY7E7)
+  position D6TvZYhAdCiWvtECzR4UNpRWDBJKFBPTjfkyDJmgHxdF — the chain sees only commitment 70cafc1435fece5c…
+  KEEP THIS PREIMAGE — needed to reveal: --pos-salt 42 --outcome 1 --salt c8608a5468b453e9280ef705bc0d79749b69b19c8c71f63d5ebfef7204be4faf
+  (your hidden side: [>= 4] — nobody else can see it until you reveal)
+
+=== 6/6 score every leg through MPC, then argmax-settle the race ===
+run #0 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 6)
+run 5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw FINALIZED: 6/32 = 18.8%  (matches local pre-score)
+run #1 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 6)
+run VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL FINALIZED: 6/32 = 18.8%  (matches local pre-score)
+run #2 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 1)
+run 7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj FINALIZED: 1/32 = 3.1%  (matches local pre-score)
+run #3 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 0)
+run BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7 FINALIZED: 0/32 = 0.0%  (matches local pre-score)
+ladder resolved (5anqF9dvykDyLg5wbi6oWRJT2dDyQ9J7ZmHkZmbAQgdiy2ZjFiFSSsEst4MaYZ3uzvc18ex2s7NbhPWswMVgkh4G): A4fMA7eKKC6gJ7pDJAaGJcmgYfWiA64mWxu4aUZmHMHw — mask=0b11 winning_score=6
+claim (37ieRPkystEzrk6tkoP4GfmpRv9BAUsKhreLQGT9Jay6zpmLjQTaGHaXFwTcMpHgew97LQrxzFz97nVe7LQ9sN88): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999972.4892922 -> 499999972.6733538 SOL
+claim (3JGVdKuJmjyorQzVdKR4Ag98u2EEaEHvqgEVsdSj2TTFoZrhhhQc8tGZsC5FWBcAvQPVdo6jLykS14zsziXxPM98): jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY balance 0.76557172 -> 0.995188897 SOL
+claim (5jfPkeTmYrx9qtKffAXuKpk5A2nxdKkvzg3woWFeY4tpsHoyMzySW6sAX22JexyS2SrwuWSHZeM2NUmmVc6kTfzY): FkhbqqdiogMEBUk7yHCmPwCRjmscrMPovjE8afhxqCke balance 0.90726604 -> 0.90910544 SOL
+claim (2kAF3sWXgH1C1V8SMhsoMrugdUh3f84GzPQXFwWuRNekFWaPD4FffUAgtgMZbmdCqCUQu2mAxgferGeJSkNjFKi2): H9v4UUToyAXMLx6pTf7d5vNaQwE3e9trmna8giELXvT balance 0.92726604 -> 0.92910544 SOL
+
+=== 6b/6 dark market resolves off the same MPC score → reveal → finalize → claim ===
+dark market resolved (2FdNPA2qkzT42RMbx4kJejZAboa1qqwGCpp6Hva41NK9pjFgr8GirEJMVvPyW4g1ftFn2AYemNsNCS5mxmt3jEKG): score=6 outcome 1 [>= 4] — reveal window open until 2026-09-30T11:24:23.000Z
+revealed (5ky2FzsWjgCnte7sxU3jYQH1DXPczq3GJxKuYYcoYRie5B8nXpk1ZXFJmx9Ev8foDc5rzaDaCfRaDe6vx7uJMKuA): outcome 1 — WINNER — stake counted in win_total
+waiting out the 60s reveal window so finalize can tally…
+dark market finalized (2JeUxHiUecKLWcXeS4H551xAFrJ6GgmoyLwNhopa7y3VzUn917KsJdXTV5bXFE2MPptVTZZnCty8eFJHQeeAaMMU): tallied: win_total=0.11 SOL of pool=0.18
+claim (5UZYsBR82VxtSPnjUFoMFi2CmjfGATT8Wh9mVJFvx6rumXbiYViKdR29HWX8o2tYteQeRNwecTNDRXBoXojutWc7): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999972.67333883 -> 499999972.85501814 SOL
+dark market BrFdXAxYgqNHnkGzDJfRsnteDfYRTUD7T9pZMmoD6v3v status=RESOLVED tallied
+  run=5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw benchmark=BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij run_index=0
+  outcomes: [0] < 4 | [1] >= 4
+  pool=0.18 SOL win_total=0.11 revealed=1 positions
+  score=6 outcome=1 [>= 4]
+  fee_bps=0 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-10-01T11:22:09.000Z reveal_until=2026-09-30T11:24:23.000Z
+  position jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY 0.07 SOL — sealed
+ladder A4fMA7eKKC6gJ7pDJAaGJcmgYfWiA64mWxu4aUZmHMHw status=RESOLVED legs=4 benchmark=BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij
+  [0] 5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw model=qwen2.5-3b-instruct runner=4RUW4pDm… score=6: 0.17 SOL  <- WINNER
+  [1] VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL model=qwen2.5-1.5b-instruct runner=jxUtVDvx… score=6: 0.1 SOL  <- WINNER
+  [2] 7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj model=llama-3.2-1b-instruct runner=Fkhbqqdi… score=1: 0.08 SOL
+  [3] BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7 model=qwen2.5-0.5b-instruct runner=H9v4UUTo… score=0: 0.06 SOL
+  resolved_score=6 result_mask=0b11
+  fee_bps=0 fees_accrued=0 SOL closes_at=2026-09-30T13:21:41.000Z resolve_by=2026-10-01T11:21:41.000Z
+benchmark BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij "sealed-gen-v87635" status=1 items=32 runs=4 root=6c823331dafe10e108c5e1d1c6f75fb34e9f76e7692bffd857b2b530b154e933
+rank  score      model                                   run
+   1   18.8%     6/32  qwen2.5-1.5b-instruct                  #1
+   2   18.8%     6/32  qwen2.5-3b-instruct                    #0
+   3    3.1%     1/32  llama-3.2-1b-instruct                  #2
+   4    0.0%     0/32  qwen2.5-0.5b-instruct                  #3
+
+proof summary:
+  bank   BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij — MPC-minted; no answer key ever existed
+  ladder A4fMA7eKKC6gJ7pDJAaGJcmgYfWiA64mWxu4aUZmHMHw — 4 real-model legs, argmax-settled off MPC scores
+  dark   BrFdXAxYgqNHnkGzDJfRsnteDfYRTUD7T9pZMmoD6v3v — sealed positions on leg 0's pending run, settled on its MPC score
+  leg 0   5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw — qwen2.5-3b-instruct @ :8083
+  leg 1   VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL — qwen2.5-1.5b-instruct @ :8081
+  leg 2   7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj — llama-3.2-1b-instruct @ :8084
+  leg 3   BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7 — qwen2.5-0.5b-instruct @ :8082

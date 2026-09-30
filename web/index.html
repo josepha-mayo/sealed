@@ -357,7 +357,7 @@ function parseDarkMarket(d) {
 // DarkPosition: disc8 + market32 + bettor32 + bump + amount u64 + commitment[32] + revealed u8
 // (revealed = 255 means still sealed — the commitment is all the chain knows)
 function parseDarkPosition(d) {
-  if (d.length < 115) throw new Error("truncated DarkPosition (" + d.length + "B < 115B)");
+  if (d.length < 114) throw new Error("truncated DarkPosition (" + d.length + "B < 114B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const market = d.slice(o, o + 32); o += 32;
   const bettor = d.slice(o, o + 32); o += 32;

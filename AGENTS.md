@@ -99,10 +99,15 @@ parimutuel markets resolved from `Run.correct`.
   scored 8/32 on private bank `F1owH6zE…`, run `7S9ZmxrT…`, MPC == local
   pre-score). `scripts/duel-local.sh` duels two local llama.cpp endpoints:
   `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 on MPC-minted bank
-  `2RPWrmbq…`, duel `7p32UT6s…` resolved A-wins and settled — both
-  transcripts in `docs/evidence/` (`duel-local.txt`, `unseen-local.txt`).
-  Small-model arithmetic scores are genuinely weak — that IS the
-  evidence: the benchmark measures, not flatters.
+  `2RPWrmbq…`, duel `7p32UT6s…` resolved A-wins and settled.
+  `scripts/ladder-local.sh` races FOUR local models (qwen2.5-3b/1.5b/0.5b
+  + llama-3.2-1b, `scripts/serve-local.sh` stands up all endpoints) on
+  bank `BoKj4kY1…` — ladder `A4fMA7eK…` resolved `mask=0b11` (a REAL
+  dead-heat: 3b and 1.5b both 6/32) and dark market `BrFdXAxY…` on leg 0
+  paid a revealed winner with the sealed loser forfeiting. All
+  transcripts in `docs/evidence/` (`duel-local.txt`, `ladder-local.txt`,
+  `unseen-local.txt`). Small-model arithmetic scores are genuinely weak —
+  that IS the evidence: the benchmark measures, not flatters.
 - Borsh `String` fields serialize at ACTUAL length (`u32 len + bytes`), not
   `#[max_len]` — accounts are ALLOCATED at max_len but the bytes after the
   string are variable-offset. Any fixed-offset tail read past `model_id`

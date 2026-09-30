@@ -143,6 +143,35 @@ $SEALED chain market ladder bet --market "$LADDER" --outcome 3 --lamports 600000
 $SEALED chain market ladder bet --market "$LADDER" --outcome 0 --lamports 50000000 \
   --bettor "${WAL[1]}"
 
+# Bonus primitive on the SAME real-model event: a dark commit-reveal market
+# on leg 0's pending run. Bettor sides stay sealed (sha256 commitments) while
+# MPC scores the run — the exact thing no transparent venue can do.
+say "5b/6 dark market on leg 0's pending run — sealed positions"
+DARK_THRESHOLD="${DARK_THRESHOLD:-4}"
+DARK_PRE=/tmp/ladder-dark-pre.json
+$SEALED chain market dark open --run "$FIRST_LEG" --salt "$((SALT + 1))" \
+  --threshold "$DARK_THRESHOLD" --resolve-by +86400 --reveal-secs 60
+DARK=$(PDA market "$FIRST_LEG" "$((SALT + 1))" 2>/dev/null || true)
+# dark PDA seeds are [b"dark", run, salt] — compute it directly:
+DARK=$(node - "$FIRST_LEG" "$((SALT + 1))" <<'EOF'
+const { PublicKey } = require("@solana/web3.js");
+const MARKET = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
+const le = (n) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
+const pda = PublicKey.findProgramAddressSync([Buffer.from("dark"), new PublicKey(process.argv[2]).toBuffer(), le(process.argv[3])], MARKET);
+console.log(pda[0].toBase58());
+EOF
+)
+echo "dark market PDA: $DARK (buckets < $DARK_THRESHOLD | >= $DARK_THRESHOLD on leg 0's score)"
+# Two sealed positions on opposite sides; capture each printed preimage.
+DARK_BET_OUT=$(ANCHOR_WALLET="${WAL[1]}" $SEALED chain market dark bet \
+  --market "$DARK" --outcome 0 --lamports 70000000 --pos-salt 41 --bettor "${WAL[1]}")
+echo "$DARK_BET_OUT"
+DARK_SALT_0=$(echo "$DARK_BET_OUT" | grep -oP '(?<=--salt )[0-9a-f]{64}')
+DARK_BET_OUT2=$($SEALED chain market dark bet \
+  --market "$DARK" --outcome 1 --lamports 110000000 --pos-salt 42)
+echo "$DARK_BET_OUT2"
+DARK_SALT_1=$(echo "$DARK_BET_OUT2" | grep -oP '(?<=--salt )[0-9a-f]{64}')
+
 say "6/6 score every leg through MPC, then argmax-settle the race"
 for i in "${!LEG_MODELS[@]}"; do
   EXTRA=""
@@ -155,6 +184,31 @@ for i in 0 1 2 3; do
   ANCHOR_WALLET="${WAL[$i]:-$ANCHOR_WALLET}" \
     $SEALED chain market ladder claim --market "$LADDER" || true
 done
+
+say "6b/6 dark market resolves off the same MPC score → reveal → finalize → claim"
+DARK_RESOLVE_OUT=$($SEALED chain market dark resolve --market "$DARK")
+echo "$DARK_RESOLVE_OUT"
+DARK_OUTCOME=$(echo "$DARK_RESOLVE_OUT" | grep -oP '(?<=outcome )[0-9]+' | head -1)
+# The WINNING side reveals inside the 60s window; the loser stays sealed and
+# forfeits into the pot — the forfeit-redistribution path, live.
+if [ "$DARK_OUTCOME" = "0" ]; then
+  ANCHOR_WALLET="${WAL[1]}" $SEALED chain market dark reveal --market "$DARK" \
+    --pos-salt 41 --outcome 0 --salt "$DARK_SALT_0" --bettor "${WAL[1]}" || true
+else
+  $SEALED chain market dark reveal --market "$DARK" --pos-salt 42 \
+    --outcome 1 --salt "$DARK_SALT_1" || true
+fi
+echo "waiting out the 60s reveal window so finalize can tally…"
+sleep 65
+$SEALED chain market dark finalize --market "$DARK"
+if [ "$DARK_OUTCOME" = "0" ]; then
+  ANCHOR_WALLET="${WAL[1]}" $SEALED chain market dark claim --market "$DARK" \
+    --pos-salt 41 --bettor "${WAL[1]}" || true
+else
+  $SEALED chain market dark claim --market "$DARK" --pos-salt 42 || true
+fi
+$SEALED chain market dark show --market "$DARK"
+
 $SEALED chain market ladder show --market "$LADDER"
 $SEALED chain status --benchmark "$BENCH"
 
@@ -162,6 +216,7 @@ echo
 echo "proof summary:"
 echo "  bank   $BENCH — MPC-minted; no answer key ever existed"
 echo "  ladder $LADDER — $NLEGS real-model legs, argmax-settled off MPC scores"
+echo "  dark   $DARK — sealed positions on leg 0's pending run, settled on its MPC score"
 for i in "${!LEG_MODELS[@]}"; do
   echo "  leg $i   $(PDA run "$BENCH" "$i") — ${LEG_MODELS[$i]} @ :${LEG_PORTS[$i]}"
 done

@@ -100,6 +100,26 @@ while that ledger is up; the artifacts are also self-checking offline.
   `result_mask=0b1`, leg 0 paid pro-rata. This is the maximum-width path
   through `load_legs`' ordered account check and the full `u8` result mask.
 
+### Flagship: four real open-weights models race — dead-heat + dark market (in `snapshot.json`)
+
+`scripts/ladder-local.sh` (transcript `ladder-local.txt`) — the widest
+primitive exercised end-to-end with zero external API: four local llama.cpp
+models, two families, one runner wallet each:
+
+- exam minted inside MPC: bank `BoKj4kY1…` (id 87635, 32 items,
+  `items_root` `6c823331…` — no answer key ever existed);
+- `qwen2.5-3b` **6/32**, `qwen2.5-1.5b` **6/32** — a REAL dead-heat;
+  `llama-3.2-1b` **1/32**; `qwen2.5-0.5b` **0/32**;
+- ladder `A4fMA7eK…` opened + five bets filled while ALL four runs were
+  pending (positions on every leg);
+- MPC finalized each leg == its local pre-score → argmax resolved
+  `result_mask=0b11` — the co-leader dead-heat path paying both backers
+  pro-rata, live;
+- bonus: dark commit-reveal market `BrFdXAxY…` on leg 0's pending run —
+  sealed positions (0.07 SOL `<4` / 0.11 SOL `>=4`) sat as sha256
+  commitments while MPC scored; resolved `>=4` (score 6), the winner
+  revealed in-window, the loser stayed sealed and forfeited into the pot.
+
 ### Flagship: two real open-weights models duel under MPC (in `snapshot.json`)
 
 `scripts/duel-local.sh` (transcript `duel-local.txt`) — zero external API

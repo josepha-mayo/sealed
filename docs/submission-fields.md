@@ -68,13 +68,15 @@ finalized by the cluster, 27 markets resolved on-chain across five
 primitives (score-band, duel, ladder race, unseen-exam, dark
 commit-reveal) paying pro-rata, 14 selective-disclosure grants,
 2 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
-open-weights models, no external API: qwen2.5-1.5b beat qwen2.5-0.5b
-3–1 on an MPC-minted exam inside a live duel market (7p32UT6s), and
-the 1.5b scored 8/32 on a private exam it could only read through
-reshare grants (7S9ZmxrT — the exam was never published). Prior
-gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (HW5H5bT7), 64/64 on
-authored 25864 (4uns99WD) — and a stale-artifact claim scored 1/64
-(3CKnMa8X), proving the chain never trusts self-reported scores.
+open-weights models, no external API: FOUR local models raced an
+MPC-minted exam — qwen2.5-3b 6/32 tied qwen2.5-1.5b 6/32 (dead-heat,
+result_mask=0b11), llama-3.2-1b 1/32, qwen2.5-0.5b 0/32 — ladder
+A4fMA7eK settled argmax pro-rata and a dark market on one leg paid a
+revealed winner while a sealed loser forfeited; the 1.5b also scored
+8/32 on a private exam readable only via reshare grants (7S9ZmxrT).
+Prior gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (HW5H5bT7),
+64/64 on authored 25864 (4uns99WD) — and a stale-artifact claim scored
+1/64 (3CKnMa8X), proving the chain never trusts self-reported scores.
 `node scripts/verify.mjs` re-audits the whole bundle offline (10/10
 checks); the hosted explorer runs the same audit in-browser.
 
