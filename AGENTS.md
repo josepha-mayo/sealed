@@ -113,9 +113,19 @@ parimutuel markets resolved from `Run.correct`.
   <endpoint>` runs a score-band market on a private bank's pending run —
   first pass cancelled on unbacked buckets (`H3RGMd3N…`, gross refunds,
   the `all_backed` guard live), second with a full six-bucket book
-  resolved `[1] 1–7` on 0.5b's 2/32 (`497kuApd…`). All transcripts in
+  resolved `[1] 1–7` on 0.5b's 2/32 (`497kuApd…`).
+  `scripts/duel-private.sh <bench>` runs the blind private duel — two
+  grant-delegates race different models on the same ciphertext-only
+  bank: 3b 5/32 vs 1.5b 4/32, duel `EHiTUjmP…` resolved A-wins. Bank
+  `8HHm4HgA…` now carries 6 runs + 12 grants (4 to a delegate whose
+  keypair was overwritten mid-first-attempt — orphaned grants are
+  permanent records, not sessions). WSL gotchas learned the hard way:
+  llama.cpp needs `setsid` to survive the `wsl -d` wrapper teardown,
+  and `/mnt/d` 9P reads D-state under concurrent mmap — serve models
+  from ext4 (`~/models`). All transcripts in
   `docs/evidence/` (`duel-local.txt`, `ladder-local.txt`,
-  `unseen-local.txt`, `dark-local.txt`, `band-local*.txt`). Every market
+  `unseen-local.txt`, `dark-local.txt`, `band-local*.txt`,
+  `duel-private.txt`). Every market
   primitive has now settled a real model's MPC-written score.
   Small-model arithmetic scores are genuinely weak —
   that IS the evidence: the benchmark measures, not flatters.

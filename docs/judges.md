@@ -50,6 +50,7 @@ scripts/unseen.sh               # optional: a market on an exam that is never pu
 scripts/duel-local.sh           # two real models duel on an MPC-minted exam
 scripts/ladder-local.sh         # four real models race + dark leg (dead-heat fired naturally)
 scripts/dark-local.sh           # double-sealed: dark market on a private exam's real-model run
+scripts/duel-private.sh <bench> # blind duel: two grant-delegates race models on a ciphertext-only bank
 
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
 #    minted specs, scores, resolved markets

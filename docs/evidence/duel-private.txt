@@ -1,0 +1,110 @@
+
+=== 0/7 endpoint sanity — both legs must answer before anything is minted ===
+  leg A: http://127.0.0.1:8083/v1 model=qwen2.5-3b-instruct -> HTTP 200
+  leg B: http://127.0.0.1:8081/v1 model=qwen2.5-1.5b-instruct -> HTTP 200
+
+=== 1/7 grant delegate B every part of chunk 0 (delegate A already holds grants) ===
+reshare_part chunk=0 part=0 → DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh (grant Cjjiax62zTXvV1vJewmUqLmWZaY2NagCWFwRg8AdyeXE)
+waiting for MPC re-encryption... shared at 1790791440
+reshare_part chunk=0 part=1 → DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh (grant GCky1YnkJTFvseznGXYT8gzdbQpMnaH3TfebWLHbwP8x)
+waiting for MPC re-encryption... shared at 1790791451
+reshare_part chunk=0 part=2 → DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh (grant AkU21QEBcvvK7U9y9sj8WDViFm9FnFu9fbbUHFZJK1xx)
+waiting for MPC re-encryption... shared at 1790791461
+reshare_part chunk=0 part=3 → DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh (grant BkbYMdDrAG6Q5t5uZiT1tPKkBu4gxnvG8fTgt7q1ZcbQ)
+waiting for MPC re-encryption... shared at 1790791471
+chunk 0 part 3 → viewer 79acb36b5fba2dea… at 1790771686 (8TQV4CC3wVLRPyN88qiFA2xzzjbr8WF1jSA9EkVGLFGM)
+chunk 0 part 0 → viewer a62e40646abd762c… at 1790789546 (9UoLXBED9jj3yJoaYAB9SC2hPq2KRjdFfUqoeyU8Ex8t)
+chunk 0 part 2 → viewer e037d5c8207ba3d3… at 1790791461 (AkU21QEBcvvK7U9y9sj8WDViFm9FnFu9fbbUHFZJK1xx)
+chunk 0 part 3 → viewer e037d5c8207ba3d3… at 1790791471 (BkbYMdDrAG6Q5t5uZiT1tPKkBu4gxnvG8fTgt7q1ZcbQ)
+chunk 0 part 1 → viewer 79acb36b5fba2dea… at 1790771666 (CMpM63gtQV1EXrBc3mjYaRxuU5S9iSB7Jw9tBU9vYABc)
+chunk 0 part 0 → viewer e037d5c8207ba3d3… at 1790791440 (Cjjiax62zTXvV1vJewmUqLmWZaY2NagCWFwRg8AdyeXE)
+chunk 0 part 0 → viewer 79acb36b5fba2dea… at 1790771658 (ET5ay5Mo1rCCCWa2vTGLEJdKEMM5P2VBZ5rvYh7NR5Gx)
+chunk 0 part 1 → viewer e037d5c8207ba3d3… at 1790791451 (GCky1YnkJTFvseznGXYT8gzdbQpMnaH3TfebWLHbwP8x)
+chunk 0 part 2 → viewer 79acb36b5fba2dea… at 1790771676 (GNYt9A1Cf2gjQASoJTQZo98vMZjT8PZrsDVmsHFd9G4c)
+chunk 0 part 2 → viewer a62e40646abd762c… at 1790789581 (HVmus8chMyyo7Y6eRPx3i4WWJbJohxtH9rXEAx9kmqTG)
+
+=== 2/7 each delegate rebuilds the bank from ITS OWN grants alone ===
+wrote /tmp/duel-priv-bank-a.json (32 items) — reconstructed from grants, KEEP PRIVATE
+wrote /tmp/duel-priv-bank-b.json (32 items) — reconstructed from grants, KEEP PRIVATE
+A itemsRoot: 27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066
+B itemsRoot: 27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066
+both delegates reconstructed the SAME exam — grants are consistent
+
+=== 3/7 both delegates answer in PARALLEL — same hidden exam, different models ===
+qwen2.5-1.5b-instruct: 4/32qwen2.5-1.5b-instruct: 8/32qwen2.5-3b-instruct: 4/32qwen2.5-1.5b-instruct: 12/32qwen2.5-1.5b-instruct: 16/32qwen2.5-3b-instruct: 8/32qwen2.5-1.5b-instruct: 20/32qwen2.5-1.5b-instruct: 24/32qwen2.5-3b-instruct: 12/32qwen2.5-1.5b-instruct: 28/32qwen2.5-1.5b-instruct: 32/32
+{
+  "wrote": "/tmp/duel-priv-art-b.json",
+  "model": "qwen2.5-1.5b-instruct",
+  "items": 32,
+  "localCorrect": 4,
+  "localAccuracy": 0.125,
+  "outputsRoot": "50aa57228e2d83eec5681587cdb4351b2874b3f3850c32c3d3f2961f662ba1bd",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 100
+}
+qwen2.5-3b-instruct: 16/32qwen2.5-3b-instruct: 20/32qwen2.5-3b-instruct: 24/32qwen2.5-3b-instruct: 28/32qwen2.5-3b-instruct: 32/32
+{
+  "wrote": "/tmp/duel-priv-art-a.json",
+  "model": "qwen2.5-3b-instruct",
+  "items": 32,
+  "localCorrect": 5,
+  "localAccuracy": 0.1563,
+  "outputsRoot": "677f47a696b9ca17ff0541feab01d30506d1c61a2719f70e0b379eed52ae1877",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 169
+}
+None localCorrect: 5 / None
+None localCorrect: 4 / None
+
+=== 4/7 both runs created PENDING + duel market opens and fills blind ===
+create_run #4 model=qwen2.5-3b-instruct fee=0 SOL
+run 76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ created (pending, unscored)
+create_run #5 model=qwen2.5-1.5b-instruct fee=0 SOL
+run 9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS created (pending, unscored)
+run A: 76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ (#4, qwen2.5-3b-instruct) — run B: 9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS (#5, qwen2.5-1.5b-instruct)
+both run PDAs confirmed on-chain
+duel market EHiTUjmP6EijVoyGd4qoj6Qggjtoawk5xMLJ3MXrTdzW opened: run 76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ vs 9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS — outcomes: A wins | B wins | tie
+duel PDA: EHiTUjmP6EijVoyGd4qoj6Qggjtoawk5xMLJ3MXrTdzW — three-way book: A wins | B wins | tie
+bet [A wins] 0.15 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (2kchqj5vAGUKp5eXsgfzaLcBXcuo4QP1vizbxZsFwjcXpsd98GGE3BSJr26bCe5T2fntDdDZxzvdwEcnouLGtcdh)
+bet [tie] 0.04 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (47b7uo7KqE84TPv9X7WbC5nNGRkrz74o22xD3ZkwWJdemiMZwdgnR9L1nAuxttxfXETdaEc3X1nj3v3bFeYXHHHf)
+bet [B wins] 0.1 SOL by DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh (4qyKtcixW6iYE9VNEnSwG71czQXd3mvU8n8B5SaQBaYXoJWTsM5rvwRZve56c6i7onoJLxd2cANcGTRC1ACtzBQo)
+
+=== 5/7 score BOTH runs through MPC — the answer key never left the enclave ===
+run #4 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 5)
+run 76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ FINALIZED: 5/32 = 15.6%  (matches local pre-score)
+run #5 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 4)
+run 9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS FINALIZED: 4/32 = 12.5%  (matches local pre-score)
+
+=== 6/7 resolve the blind duel straight from Run.correct ===
+market resolved (3Mj85tCtHut2krEnjh7Z2R6CJSFsHn5gPhRFRiW9EjsPJYUC11sr6ckRdsjUt58L6SAvyjkVsdCs7xY9fW3StjTx): score=327684 outcome 0 [A wins] a=5 b=4
+market EHiTUjmP6EijVoyGd4qoj6Qggjtoawk5xMLJ3MXrTdzW status=RESOLVED (duel)
+  run=76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ vs=9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS benchmark=8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug run_index=4
+  [0] A wins: 0.15 SOL  <- WINNER
+  [1] B wins: 0.1 SOL
+  [2] tie: 0.04 SOL
+  resolved_score=5-4 outcome=0
+  fee_bps=0 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-10-01T18:07:47.000Z
+  position DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh B wins=0.1
+  position 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc A wins=0.15 tie=0.04
+
+=== 7/7 winners claim ===
+claim (4sBhGF4AdsCSXXxjccgKHjdr3NdJxxDARJpo1GrkkjHmNb3HkUWNJTWtShFFSh49aWFy7siVKeeDZga8KzeEU2sn): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999972.6746612 -> 499999972.9665006 SOL
+claim (2g1ZzJTT18hatAiD964HoVbZrgpc3AP5rPAoqZpmEU4kHNumyerMXXAYrgg23fZcNV6fnyY8P23Uy2Jes7Q11rKi): DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh balance 0.88726604 -> 0.88910544 SOL
+benchmark 8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug "sealed-pgen-v10019" status=1 items=32 runs=6 root=27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066
+rank  score      model                                   run
+   1   18.8%     6/32  qwen2.5-3b-instruct                    #3
+   2   15.6%     5/32  qwen2.5-3b-instruct                    #4
+   3   15.6%     5/32  qwen2.5-3b-instruct                    #0
+   4   12.5%     4/32  qwen2.5-1.5b-instruct                  #5
+   5   12.5%     4/32  qwen2.5-1.5b-instruct                  #1
+   6    6.3%     2/32  qwen2.5-0.5b-instruct                  #2
+
+proof summary:
+  bank  8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug — private; ciphertext-only specs; two delegates saw it via grants
+  duel  EHiTUjmP6EijVoyGd4qoj6Qggjtoawk5xMLJ3MXrTdzW — blind head-to-head settled on MPC scores
+  A     76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ — qwen2.5-3b-instruct
+  B     9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS — qwen2.5-1.5b-instruct

@@ -100,6 +100,29 @@ while that ledger is up; the artifacts are also self-checking offline.
   `result_mask=0b1`, leg 0 paid pro-rata. This is the maximum-width path
   through `load_legs`' ordered account check and the full `u8` result mask.
 
+### Flagship: blind duel on a private exam — two delegates, two models (in `snapshot.json`)
+
+`scripts/duel-private.sh` (transcript `duel-private.txt`) — the deepest
+composition: two delegates each see the exam only through their own
+`reshare_part` grants, run different models against it, and a head-to-head
+market prices the race blind:
+
+- bank `8HHm4HgA…` (the same private exam as below — now 8 grant records
+  to two delegate keys; each rebuilt `items_root` `27f9acdd…` independently,
+  a live consistency proof that grants converge);
+- delegate A ran `qwen2.5-3b` → run #4 finalized **5/32**; delegate B ran
+  `qwen2.5-1.5b` → run #5 finalized **4/32** — both matching local
+  pre-scores exactly;
+- duel `EHiTUjmP…` opened + three-way book filled (A / B / tie) while both
+  runs were pending → resolved `[0] A wins` straight off `Run.correct`,
+  winner claimed pro-rata.
+
+Two models raced an exam nobody could read without a grant — and the
+market never saw the questions. (Note: an earlier attempt created 4
+grants to a delegate key whose keypair was overwritten mid-run — those
+grants remain on-chain as orphans, honest evidence that grants are
+permanent records, not revocable sessions.)
+
 ### Flagship: double-sealed — dark market on a private exam, real model (in `snapshot.json`)
 
 `scripts/dark-local.sh` (transcript `dark-local.txt`) — the purest privacy

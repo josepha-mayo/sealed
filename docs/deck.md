@@ -9,12 +9,12 @@ the "evidence" column is what goes on-screen.
 | 1 | Every AI score you trust was made by a party who could fake it | 3 logos: lab self-report, leaked benchmark, leaderboard — each crossed out |
 | 2 | Sealed deletes the trusted party — the answer key never exists | One-line architecture: items minted INSIDE Arcium MPC → answers born encrypted to the cluster key |
 | 3 | The exam is ciphertext end-to-end | Explorer private-bank card: `PrivItemChunk` ciphertext blobs, `items_root` commitment, "questions never in plaintext" |
-| 4 | Real models get real scores — verifiably | Leaderboard: gpt-oss-20b **64/64** MPC-minted bank (run `HW5H5bT7`); 32/32 grant-only exam (`9nfKSXnM`); stale artifact 64→**1/64** anti-cheat |
-| 5 | Markets settle themselves off the MPC count | Market board: 5 settlement primitives (score bands, duels, ladder races, unseen-exam, dark commit-reveal) resolving on `Run.correct` — no oracle multisig |
+| 4 | Real models get real scores — verifiably | Leaderboard screenshot: FOUR open-weights models raced one MPC-minted exam — `qwen2.5-3b` **6/32** tied `qwen2.5-1.5b` **6/32**, `llama-3.2-1b` 1/32, `qwen2.5-0.5b` 0/32 — every digit written by the cluster, zero external API; stale-artifact claim scored **1/64** anti-cheat (`3CKnMa8X`) |
+| 5 | Markets settle themselves off the MPC count | Ladder `A4fMA7eK`: dead-heat `result_mask=0b11` paid both co-leaders; dark market on a ciphertext-only private bank resolved blind (`7TVjSaFD`) — exam sealed + positions sealed + MPC score; private-bank duel between two grant-delegates. 5 primitives, all settling real-model scores |
 | 6 | The wedge: the TRUTH is encrypted, not just the bet | Competitive grid — Pythia/Epoch/ArxPredict hide the *position*; Sealed hides the *resolution truth*; insider edge is cryptographically impossible |
 | 7 | Confidential AI needs an onchain referee — now | Arcium × Inpher/Blackthorn confidential-inference narrative; Sealed is the settlement layer underneath it |
 | 8 | Live business: fees + take-rate on-chain today | `create_run` fee_lamports + `fee_bps` skim; buyers: market venues, eval orgs, judges/insurers. Unit economics: a 64-item exam ≈0.02 SOL total rent; a bettor seat ≈0.002 SOL (refunded on claim/close) |
-| 9 | Proven, not promised | Numbers strip: 61 finalized runs, 39 settled markets, 38 disclosure grants, 13/13 E2E, 6 Arcis circuits, devnet deployed |
+| 9 | Proven, not promised | Numbers strip: 40 MPC-finalized runs (46 created), 21 markets settled across 5 primitives, 18 disclosure grants, 13/13 E2E + 13/13 unit + 9/9 market Rust tests, 6 Arcis circuits, offline + in-browser audit 10/10 & 9/9, CI green on every push, devnet deployed |
 | 10 | The resolution layer for AI capability | Roadmap: confidential stakes, quorum disclosure panels, TEE-attested runners, private banks-as-a-service; team line + repo/Pages QR |
 
 ## Regulatory posture (keep as a backup slide or appendix)
