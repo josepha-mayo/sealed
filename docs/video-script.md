@@ -38,3 +38,44 @@ audit close.
 Devnet: the shared Arcium devnet cluster currently finalizes computations but
 withholds callback transactions — the full loop is proven on localnet and the
 devnet retry watchers land the moment callbacks resume.
+
+## YouTube upload — paste-ready metadata
+
+**Title:**
+Sealed — a benchmark the MPC cluster wrote, scored, and settled (Solana ×
+Arcium, Crypto World's Fair)
+
+**Description:**
+
+Every AI score you trust was made by a party who could fake it. Sealed
+removes that party: benchmark questions are minted *inside* an Arcium MPC
+cluster, the answers are computed and fingerprinted in-circuit — no answer
+key ever exists in plaintext — and a second program settles parimutuel
+markets straight from the MPC-written score. No oracle operator, no admin
+key, nothing to leak.
+
+0:00 the problem — trusted evaluators can lie
+0:10 `chain gen` — items minted inside MPC, answers born encrypted
+0:25 public minted items — specs anyone can re-render and re-commit
+0:35 `gen-private` — the bank is ciphertext on-chain, end to end
+0:50 `reshare` — selective disclosure: the judge gets questions, not answers
+1:05 delegate rebuild — the bank reconstructed from grant PDAs alone
+1:15 real model scoring — MPC compares committed outputs, posts only a count
+1:25 the anti-cheat beat — gpt-oss-20b 64/64 vs a stale artifact's honest 1/64
+1:35 markets — threshold, score bands, duels, K-way ladder races
+1:50 permissionless settle — resolve straight from `Run.correct`, claim
+1:55 audit beat — fingerprint reveal without plaintext
+2:00 close — a benchmark nobody can read, a market that settles itself
+
+Also shipped: dark commit-reveal markets (bettor sides stay sha256-sealed
+until reveal — `docs/dark.cast`) and a head-to-head duel market
+(`docs/duel.cast`).
+
+Everything shown is a real run on `arcium localnet` — transcripts and
+account snapshots are in `docs/evidence/`. Source:
+https://github.com/<ORG-OR-USER>/sealed (program IDs + explorer link in
+README). Devnet note: the shared Arcium cluster currently withholds callback
+transactions; the full loop is proven on localnet.
+
+**Tags:** solana, arcium, mpc, confidential computing, prediction markets,
+ai evals, zero knowledge, anchor, colosseum, crypto worlds fair
