@@ -49,6 +49,7 @@ scripts/unseen.sh               # optional: a market on an exam that is never pu
 
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
 #    minted specs, scores, resolved markets
+#   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
 python3 -m http.server -d . 8788
 #   → http://localhost:8788/web/?rpc=http://127.0.0.1:8899
 #   offline (no localnet): http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json

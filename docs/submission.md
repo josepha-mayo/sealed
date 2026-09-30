@@ -224,12 +224,12 @@ Hard-blockers first (each is a documented DQ path in Colosseum's rules):
    114s, upload-ready; `docs/video-script.md` covers a live re-record if
    you want one). Founder-narrated beats polished voiceover — Colosseum's
    own guide calls the pitch video the shortlist gate.
-3. **Make the repo public** (Settings → General → Danger Zone → Change
-   visibility). Most common disqualifier per Colosseum's own list.
-4. **Enable Pages**: Settings → Pages → Source = "GitHub Actions" — the
-   `.github/workflows/pages.yml` workflow then publishes `web/` to
-   `https://<you>.github.io/<repo>/`; paste that bare URL into the
-   submission "demo" field — no `?snapshot=` param needed, the bundled
+3. ~~Make the repo public~~ ✅ DONE — https://github.com/josepha-mayo/sealed
+   is public (main branch, pushed 2026-09-30).
+4. ~~Enable Pages~~ ✅ DONE — Pages is live at
+   **https://josepha-mayo.github.io/sealed/** via `pages.yml` (deploy run
+   green). Paste that bare URL into the submission "demo" field — no
+   `?snapshot=` param needed, the bundled
    snapshot auto-loads (only `web/` is published).
 5. **Paste the field values** from `docs/submission-fields.md` into the
    form — char counts are pre-verified against the limits. Pick up to 3

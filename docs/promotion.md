@@ -48,8 +48,9 @@ attempt on the same pipeline scored 1/64 honestly.
 
 The model can't cheat what it can't see.
 
-7/ Explorer: <HOSTED-URL> — banks, runs, markets, ladders, Merkle-proof
-verification, all rendered from on-chain data. Zero backend.
+7/ Explorer: https://josepha-mayo.github.io/sealed/ — banks, runs, markets,
+ladders, Merkle-proof verification, all rendered from on-chain data.
+Zero backend.
 
 Built for @colosseum Crypto World's Fair on @arcium.
 

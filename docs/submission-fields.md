@@ -166,11 +166,9 @@ disclose it in the form's prior-work field — allowed but must be declared.
   per `docs/video-script.md`; every beat is a real command with real output.
   An asciinema capture is pre-recorded at `docs/demo.cast` — render with
   `agg docs/demo.cast docs/demo.gif` or convert to mp4; embed in README.
-- Public URL: serve the explorer with its committed snapshot so judges can
-  click without a localnet — `python3 -m http.server -d . 8788` →
-  `http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json`
-  (the bundled `web/snapshot.json` also auto-fallbacks when RPC is down).
-  Zero-config hosting is wired: `.github/workflows/pages.yml` publishes
-  `web/` to GitHub Pages on every push — flip repo public, enable
-  Settings → Pages → "GitHub Actions", and the URL mints itself.
+- Public URL: **https://josepha-mayo.github.io/sealed/** — live explorer,
+  auto-loads the bundled snapshot (no localnet needed). Served by
+  `.github/workflows/pages.yml` on every push. Local fallback:
+  `python3 -m http.server -d . 8788` →
+  `http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json`.
 - Repo must be public or judges invited — most common disqualifying mistake.
