@@ -19,6 +19,10 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
 *([asciicast](docs/dark.cast) — the real `scripts/dark.sh` run: a dark commit-reveal market on an exam that was never published)*
 
+![Flagship: four real open-weights models race an MPC-minted exam — dead-heat ladder, a double-sealed dark market, then the offline audit](docs/flagship.gif)
+
+*([asciicast](docs/flagship.cast) — live commands on the evidence ledger: the 4-model leaderboard, `result_mask=0b11` paying both co-leader backers, the dark market on a ciphertext-only bank, and `verify.mjs` re-deriving every account + replaying every resolution)*
+
 ## Why
 
 Prediction markets on AI progress settle against leaderboards run by single companies, and lab-reported benchmark numbers are unverifiable and increasingly contaminated by training data. There is no neutral referee. Sealed makes the referee a protocol:

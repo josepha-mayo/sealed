@@ -39,8 +39,10 @@ for row in "${MODELS[@]}"; do
     echo "port $port already serving ($alias)"
     continue
   fi
+  # --timeout bounds a request whose client vanished — without it a killed
+  # curl leaves the server churning forever and serializes every later call.
   nohup "$LLAMA_BIN" -m "$gguf" --alias "$alias" --port "$port" \
-    -t "$THREADS" -c "$CTX" >/tmp/llama-$port.log 2>&1 &
+    -t "$THREADS" -c "$CTX" --timeout 120 >/tmp/llama-$port.log 2>&1 &
   echo "launching $alias on :$port (pid $!)"
 done
 

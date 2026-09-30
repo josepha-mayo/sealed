@@ -588,7 +588,7 @@ function renderAll(sealedAccs, marketAccs) {
   for (const b of benches.sort((a, b2) => a.id - b2.id)) {
     const items = b.chunkCount * 32;
     const brs = runs.filter(r => r.benchmark === b.pk).sort((a, b2) => b2.correct - a.correct);
-    h += `<div class="card"><div class="row">
+    h += `<div class="card" id="bank-${b.pk}"><div class="row">
       <b class="score">${esc(b.name)}</b>
       <span class="pill ${(BSTATUS[b.status] ?? "unknown").toLowerCase()}">${BSTATUS[b.status] ?? "state " + b.status}</span>
       ${b.kind === 1 ? `<span class="pill live">MPC-minted</span>` : ``}
@@ -703,7 +703,7 @@ function renderAll(sealedAccs, marketAccs) {
       const rs = m.status === 1
         ? m.duel ? `${m.resolvedScore >> 16}–${m.resolvedScore & 0xffff}` : String(m.resolvedScore)
         : "—";
-      h += `<div class="card"><div class="row">
+      h += `<div class="card" id="mkt-${m.pk}"><div class="row">
         <b>${q}</b>
         ${m.duel ? `<span class="pill live">duel</span>` : ``}
         <span class="pill ${MSTATUS[m.status] ?? "unknown"}">${MSTATUS[m.status] ?? "state " + m.status}</span>
@@ -741,7 +741,7 @@ function renderAll(sealedAccs, marketAccs) {
       const lpos = positions.filter(p => p.market === l.pk);
       const n = l.legCount;
       const model = (pk) => { const r = runs.find(r => r.pk === pk); return r ? `<span class="mono">${esc(r.modelId)}</span>` : `<span class="mono">${short(pk)}</span>`; };
-      h += `<div class="card"><div class="row">
+      h += `<div class="card" id="lad-${l.pk}"><div class="row">
         <b>${n}-way race — highest score takes the pot</b>
         <span class="pill live">ladder</span>
         <span class="pill ${MSTATUS[l.status] ?? "unknown"}">${MSTATUS[l.status] ?? "state " + l.status}</span>
@@ -777,7 +777,7 @@ function renderAll(sealedAccs, marketAccs) {
     for (const m of darkMarkets.sort((a, b) => b.createdAt - a.createdAt)) {
       const dpos = darkPositions.filter(p => p.market === m.pk);
       const n = m.n;
-      h += `<div class="card"><div class="row">
+      h += `<div class="card" id="dark-${m.pk}"><div class="row">
         <b>sealed-score market — positions committed hidden, revealed post-resolution</b>
         <span class="pill live">dark</span>
         <span class="pill ${MSTATUS[m.status] ?? "unknown"}">${MSTATUS[m.status] ?? "state " + m.status}</span>
@@ -806,6 +806,11 @@ function renderAll(sealedAccs, marketAccs) {
   }
   document.getElementById("out").innerHTML = h;
   maybeAudit();
+  // deep links: #bank-/<pk>id pattern survives innerHTML rewrites; scroll once.
+  if (location.hash && !window.__scrolled) {
+    const t = document.getElementById(location.hash.slice(1));
+    if (t) { window.__scrolled = true; setTimeout(() => t.scrollIntoView({ block: "start" }), 50); }
+  }
 }
 function popcount(b) { let n = 0, x = BigInt(b); while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
 
