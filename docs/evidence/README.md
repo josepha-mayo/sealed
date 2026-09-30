@@ -117,6 +117,14 @@ while that ledger is up; the artifacts are also self-checking offline.
   way. Full terminal record: `../unseen.cast`.
 - **Dead-heat ladder** (E2E suite): legs tied 25/25 vs 10 → `result_mask
   0b011`, co-leaders split the loser's stake pro-rata plus rent refunds.
+- **Head-to-head duel** (`scripts/duel-real.sh`, transcript `duel-real.txt`,
+  recorded `../duel.cast`): fresh MPC-minted bank `HheVzccx…` → two PENDING
+  runs (mock/oracle-0.65 vs mock/oracle-0.40 — the real-endpoint leg was
+  credit-walled at capture time; the script retries then degrades loudly)
+  → duel `8ALBq8hQ…` opened + filled while both runs were pending → MPC
+  finalized 22/32 vs 13/32 (both == local pre-scores) → outcome `[A wins]`
+  paid both backers pro-rata. A second cast run bank `78tKSVM9…` reproduced
+  the same flow.
 
 ### Proof + snapshot
 

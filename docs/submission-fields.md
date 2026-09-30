@@ -106,8 +106,10 @@ unseen-exam markets (a market fills on a private-bank run — the priced
 event is itself confidential), dark commit-reveal markets (sha256
 commitments seal every side; no-shows forfeit), and committed-settle
 expiry (a stalled run refunds unless the runner committed every chunk).
-Any venue composes on `Run.correct` permissionlessly — the referee is
-infrastructure, not a vendor.
+Unit economics: a 64-item exam ≈0.02 SOL total account rent; a bettor
+seat ≈0.002 SOL, refunded on claim/close. Any venue composes on
+`Run.correct` permissionlessly — the referee is infrastructure, not a
+vendor.
 
 ## competitiveLandscape
 
