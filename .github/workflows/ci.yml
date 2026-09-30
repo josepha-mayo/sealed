@@ -1,0 +1,34 @@
+name: CI
+
+# Everything that doesn't need the Arcium localnet, on every push:
+# harness unit tests, typecheck, the offline cryptographic audit of the
+# committed snapshot, the headless browser-audit regression, and the
+# submission pre-flight. The 13-test E2E needs `arcium localnet` and runs
+# locally — see tests/sealed.ts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - name: harness unit tests (13)
+        run: yarn harness:test
+      - name: harness typecheck
+        run: npx tsc -p packages/harness --noEmit
+      - name: offline cryptographic audit of the evidence snapshot
+        run: node scripts/verify.mjs
+      - name: in-browser audit regression (headless)
+        run: node scripts/audit-browser-test.mjs
+      - name: submission pre-flight
+        run: node scripts/check-submission.mjs
