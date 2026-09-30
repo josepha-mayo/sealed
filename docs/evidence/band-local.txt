@@ -1,0 +1,65 @@
+
+=== 0/5 endpoint sanity — qwen2.5-0.5b-instruct ===
+  http://127.0.0.1:8082/v1 model=qwen2.5-0.5b-instruct -> HTTP 200
+
+=== 1/5 qwen2.5-0.5b-instruct answers the private exam (accessed only via grants) ===
+qwen2.5-0.5b-instruct: 4/32qwen2.5-0.5b-instruct: 8/32qwen2.5-0.5b-instruct: 12/32qwen2.5-0.5b-instruct: 16/32qwen2.5-0.5b-instruct: 20/32qwen2.5-0.5b-instruct: 24/32qwen2.5-0.5b-instruct: 28/32qwen2.5-0.5b-instruct: 32/32
+{
+  "wrote": "/tmp/band-run.json",
+  "model": "qwen2.5-0.5b-instruct",
+  "items": 32,
+  "localCorrect": 2,
+  "localAccuracy": 0.0625,
+  "outputsRoot": "f1f47dbd15b75eeb47e6a6ca95dcfac95e2ead2173c426a5dc306dcfa1136024",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 612
+}
+localCorrect: 2 / None
+
+=== 2/5 create the run PENDING, then open a score-band market on it ===
+create_run #2 model=qwen2.5-0.5b-instruct fee=0 SOL
+run 3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d created (pending, unscored)
+pending run PDA: 3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d (index 2)
+market 497kuApdvQKEia6xP3sSoMDbbBEZcTYGzJMu3bCNnB4n opened: run 3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d outcomes: < 1 | 1–7 | 8–15 | 16–23 | 24–31 | >= 32
+band market PDA: 497kuApdvQKEia6xP3sSoMDbbBEZcTYGzJMu3bCNnB4n (bands 0 | 1–8 | 9–16 | 17–24 | 25–32)
+
+=== 3/5 two backers disagree — every bucket must be backed or the market cancels ===
+bet [< 1] 0.005 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (3PNfXCYxcHubGeJU3JLiCcb14crAKL6AoXyQGURFzSir3oeq5Cr3Gd99p9Y5Qy4nuXKGKz9yiAhSsa9rEhph2JhE)
+bet [16–23] 0.005 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (46TovC8PxJRE1R8WYgb6GDmNBFhsYCiob3t9sUWCM3Ds6Tuv7aRTz5jnWLLzzthqoJmw3yiqE3oaQ28Ht3Nkjq55)
+bet [24–31] 0.005 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (5F5TEstMY5ZG9eXLxXzx8LFrvj9CcVgCqkhgx7cxew3aATqfpHPtmCPnEdChjyVMNQrwabKbwZd3pLt5fEzkFr2e)
+bet [>= 32] 0.005 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (wNoH6cv2j21dJuYL3et556TGzB4zfudrm6dEqPwc61qfq3EgSm1qmt1fib2sVujHcGhBvYNHDk6N5GCVoL7SzFp)
+bet [1–7] 0.1 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (s2qwmjgCFhnBtvg3yrsPRmbiRH1vx8TBF2W2CvSm32qMBcr4HBxTnxBkmbtmDZUfRprjvCG9YNQoBLfe9zicWDK)
+bet [8–15] 0.06 SOL by N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B (XSKumaFyye8uQsZsDpiZJHADqkegFXJGnNC4VF5hxKVtxstZRHoH1tXo7RmVbGia9ZPV8eRbpUMKYHQAkqpdxix)
+
+=== 4/5 MPC scores the run → permissionless resolve ===
+run #2 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 2)
+run 3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d FINALIZED: 2/32 = 6.3%  (matches local pre-score)
+market resolved (3H9AGbcS8DZkhw6h9oMxbEnZbHMV52Un5PTM7NSGSMEFufPrTE59PTUvw3WtBzsgbdnBpKRWdfySqvMY7mD8LVUG): score=2 outcome 1 [1–7]
+market 497kuApdvQKEia6xP3sSoMDbbBEZcTYGzJMu3bCNnB4n status=RESOLVED
+  run=3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d benchmark=8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug run_index=2
+  [0] < 1: 0.005 SOL
+  [1] 1–7: 0.1 SOL  <- WINNER
+  [2] 8–15: 0.06 SOL
+  [3] 16–23: 0.005 SOL
+  [4] 24–31: 0.005 SOL
+  [5] >= 32: 0.005 SOL
+  resolved_score=2 outcome=1
+  fee_bps=0 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-10-01T13:20:13.000Z
+  position N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B 8–15=0.06
+  position 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc < 1=0.005 1–7=0.1 16–23=0.005 24–31=0.005 >= 32=0.005
+
+=== 5/5 winners claim ===
+claim (3MqtpHmMxiuLdWfkroUQMtNhVuSUutyBbE1GzQhiBFNvnH3r447KiHKQfYZ1jJSA2cit8w1c8UZM8WopvZqP1vHG): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999972.743312 -> 499999972.92515135 SOL
+claim (5sWn8zwtDz5pVmYCqye6XwWufAmZ5VsJrmLLbdYiEuM31JKkYVXYccjrma3kPcpf9w6N9t7XKoMVDMPWiybPFsy5): N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B balance 0.8237976 -> 0.825637 SOL
+benchmark 8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug "sealed-pgen-v10019" status=1 items=32 runs=3 root=27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066
+rank  score      model                                   run
+   1   15.6%     5/32  qwen2.5-3b-instruct                    #0
+   2   12.5%     4/32  qwen2.5-1.5b-instruct                  #1
+   3    6.3%     2/32  qwen2.5-0.5b-instruct                  #2
+
+proof summary:
+  bank  8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug — private, ciphertext-only
+  band  497kuApdvQKEia6xP3sSoMDbbBEZcTYGzJMu3bCNnB4n — score-band market settled on the MPC-written score
+  run   3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d — qwen2.5-0.5b-instruct (index 2)

@@ -100,6 +100,48 @@ while that ledger is up; the artifacts are also self-checking offline.
   `result_mask=0b1`, leg 0 paid pro-rata. This is the maximum-width path
   through `load_legs`' ordered account check and the full `u8` result mask.
 
+### Flagship: double-sealed — dark market on a private exam, real model (in `snapshot.json`)
+
+`scripts/dark-local.sh` (transcript `dark-local.txt`) — the purest privacy
+composition in the repo: a commit-reveal market priced a run on an exam
+whose questions exist only as ciphertext, while every bettor's *side* was
+itself a sha256 commitment:
+
+- private bank `8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug` (id 10019)
+  minted inside MPC — specs ciphertext-only on chain;
+- all 4 parts re-shared to a fresh delegate `N4q2ySTQj…` inside MPC
+  (4 `ShareGrant` records); delegate rebuilt the 32-item bank from grants
+  alone — no plaintext ever touched the authority's disk in this flow;
+- `qwen2.5-3b-instruct` answered → pending run `EQkXCFGS…`;
+- dark market `7TVjSaFD…` opened on the pending run (`<5` | `>=5`),
+  two sealed positions filled (0.08 `<5` / 0.12 `>=5`);
+- MPC finalized **5/32** == local pre-score → resolved `[1] >= 5`;
+- the winner revealed in-window and claimed the tallied pot; the losing
+  position stayed sealed and forfeited.
+
+Exam sealed + positions sealed + score written by MPC: three independent
+hiding guarantees on one artifact.
+
+### Flagship: score-band market on the same sealed exam (in `snapshot.json`)
+
+`scripts/band-local.sh` (transcripts `band-local.txt`, and
+`band-local-cancelled.txt` — the first run intentionally documents the
+unbacked-bucket cancel path live) — private bank `8HHm4HgA…` hosts a
+three-model leaderboard (`qwen2.5-3b` 5/32, `qwen2.5-1.5b` 4/32,
+`qwen2.5-0.5b` 2/32 — every score written by MPC, each matching its local
+pre-score):
+
+- market `H3RGMd3N…` on the 1.5b run: only two buckets backed →
+  **CANCELLED** at resolve, gross refunds — the `all_backed` guard firing
+  for real;
+- market `497kuApd…` on the 0.5b run: full six-bucket book →
+  resolved `[1] 1–7` on MPC score 2/32, winner claimed pro-rata.
+
+That completes the coverage matrix — **every market primitive has now
+settled a real open-weights model's score written by MPC**: score-band,
+duel, ladder (dead-heat), and dark commit-reveal, on both public
+MPC-minted banks and a grant-only private exam.
+
 ### Flagship: four real open-weights models race — dead-heat + dark market (in `snapshot.json`)
 
 `scripts/ladder-local.sh` (transcript `ladder-local.txt`) — the widest

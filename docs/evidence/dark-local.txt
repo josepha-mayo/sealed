@@ -1,0 +1,83 @@
+
+=== 0/6 endpoint sanity — qwen2.5-3b-instruct must answer before we mint ===
+  http://127.0.0.1:8083/v1 model=qwen2.5-3b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"create
+
+=== 1/6 mint a PRIVATE bank inside MPC — specs ciphertext-only on chain ===
+create_benchmark id=10019 chunks=1 kind=private-generated
+benchmark 8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug status=0 minted=0/1
+chunk 0 part 0: minting privately in MPC... minted
+chunk 0 part 1: minting privately in MPC... minted
+chunk 0 part 2: minting privately in MPC... minted
+chunk 0 part 3: minting privately in MPC... minted
+benchmark 8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug status=LIVE minted=1/1
+items_root 27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066 (32 private items — ciphertext-only on chain)
+wrote bank/pgen-10019.json — KEEP IT PRIVATE: this file contains decrypted items
+private benchmark PDA: 8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug
+
+=== 2/6 reshare all 4 parts of chunk 0 to a fresh delegate inside MPC ===
+reshare_part chunk=0 part=0 → N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B (grant ET5ay5Mo1rCCCWa2vTGLEJdKEMM5P2VBZ5rvYh7NR5Gx)
+waiting for MPC re-encryption... shared at 1790771658
+reshare_part chunk=0 part=1 → N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B (grant CMpM63gtQV1EXrBc3mjYaRxuU5S9iSB7Jw9tBU9vYABc)
+waiting for MPC re-encryption... shared at 1790771666
+reshare_part chunk=0 part=2 → N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B (grant GNYt9A1Cf2gjQASoJTQZo98vMZjT8PZrsDVmsHFd9G4c)
+waiting for MPC re-encryption... shared at 1790771676
+reshare_part chunk=0 part=3 → N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B (grant 8TQV4CC3wVLRPyN88qiFA2xzzjbr8WF1jSA9EkVGLFGM)
+waiting for MPC re-encryption... shared at 1790771686
+
+=== 3/6 delegate rebuilds the bank from grants alone → real model answers ===
+wrote /tmp/dark-delegate-bank.json (32 items) — reconstructed from grants, KEEP PRIVATE
+qwen2.5-3b-instruct: 4/32qwen2.5-3b-instruct: 8/32qwen2.5-3b-instruct: 12/32qwen2.5-3b-instruct: 16/32qwen2.5-3b-instruct: 20/32qwen2.5-3b-instruct: 24/32qwen2.5-3b-instruct: 28/32qwen2.5-3b-instruct: 32/32
+{
+  "wrote": "/tmp/dark-run.json",
+  "model": "qwen2.5-3b-instruct",
+  "items": 32,
+  "localCorrect": 5,
+  "localAccuracy": 0.1563,
+  "outputsRoot": "677f47a696b9ca17ff0541feab01d30506d1c61a2719f70e0b379eed52ae1877",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 100
+}
+localCorrect: 5 / None
+
+=== 4/6 create the run PENDING + open a dark market on it (positions sealed) ===
+create_run #0 model=qwen2.5-3b-instruct fee=0 SOL
+run EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw created (pending, unscored)
+pending run PDA: EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw (index 0 on the private bank)
+dark market 7TVjSaFDnQknFvcw9LRNiGd2iEGRe5bLnvtJom4JjSyG opened: run EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw outcomes: < 5 | >= 5 — positions are sealed
+dark market PDA: 7TVjSaFDnQknFvcw9LRNiGd2iEGRe5bLnvtJom4JjSyG (sealed bets on whether qwen2.5-3b-instruct scores >= 5 — on an exam nobody can read)
+
+=== 5/6 two sealed positions on opposite sides — sides never hit the wire ===
+sealed bet 0.08 SOL by N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B (2Uxvc45Ns62gpYEy5RkjC98pk7os9jEATcs4d6nWQrAXaZBXcPiXdVwVCtQv6uDXjD1RhyXWFM3AiEmieuqfnWmL)
+  position zSSmpqej3r1cRWoD6hHxsj1rmhHWDJwGSVQMpwnrY6P — the chain sees only commitment 63be78a95862f8ce…
+  KEEP THIS PREIMAGE — needed to reveal: --pos-salt 51 --outcome 0 --salt b2495b2d92f4a5d2377650a2c4d0adaefe73b26e2937943a82a7f8b21c83a559
+  (your hidden side: [< 5] — nobody else can see it until you reveal)
+sealed bet 0.12 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (4Bjz3CssTRizLfaYdGWYnojHEE9syFFRKv16YWYoNbX1UQvPYL4vmcZUCLnFMFeBsH7o2NRFE84HfodLXwtuHMK3)
+  position FBhpEUrNgmSNEN9uU8yMxVQ4qsmhmCHhKkt1S9zubHTn — the chain sees only commitment cd535bfa9458a48d…
+  KEEP THIS PREIMAGE — needed to reveal: --pos-salt 52 --outcome 1 --salt adcfa5fd2fa05a8f2e4ed259c446b2a3a093f4ca0e3c5cdc27293df19ad90b6d
+  (your hidden side: [>= 5] — nobody else can see it until you reveal)
+
+=== 6/6 MPC scores the run → resolve → winner reveals → loser forfeits ===
+run #0 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 5)
+run EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw FINALIZED: 5/32 = 15.6%  (matches local pre-score)
+dark market resolved (2tnqrpN64y1cWRJSKUwyvUtfJvDBpf8JGbDx7xHeeaXdoMXo3uKWobBS2G6XTpKSPjsyR6Pai9uCiQVfW5mYYaaV): score=5 outcome 1 [>= 5] — reveal window open until 2026-09-30T12:38:34.000Z
+revealed (4UCSUCUKsAm9ipSxmGm5dt9k1SoEAnXw5GAymVRryRmfzJqryDioaVC2uHaKY9agZYsjWGRr6vChDhbvYmGmkGom): outcome 1 — WINNER — stake counted in win_total
+waiting out the 60s reveal window so finalize can tally…
+dark market finalized (5V2vHyZuXdqi4kNfnKerhprWtS4SFkn98BJNjjShc2hz6wzpQfiNW6jmDVjeiC6tUF83MkBSufZow5gUXVSUEype): tallied: win_total=0.12 SOL of pool=0.2
+claim (33Lr2Akm7QCqe827U9w8ykqxgTwi2fZy4oRbgmssU8zC1dvkNSYvojAMKciTrp9WgEntV4tLxTpo2D4QYqetdHdw): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999972.6694063 -> 499999972.87108564 SOL
+dark market 7TVjSaFDnQknFvcw9LRNiGd2iEGRe5bLnvtJom4JjSyG status=RESOLVED tallied
+  run=EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw benchmark=8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug run_index=0
+  outcomes: [0] < 5 | [1] >= 5
+  pool=0.2 SOL win_total=0.12 revealed=1 positions
+  score=5 outcome=1 [>= 5]
+  fee_bps=0 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-10-01T12:36:56.000Z reveal_until=2026-09-30T12:38:34.000Z
+  position N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B 0.08 SOL — sealed
+benchmark 8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug "sealed-pgen-v10019" status=1 items=32 runs=1 root=27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066
+rank  score      model                                   run
+   1   15.6%     5/32  qwen2.5-3b-instruct                    #0
+
+proof summary:
+  bank   8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug — private; specs ciphertext-only on chain
+  dark   7TVjSaFDnQknFvcw9LRNiGd2iEGRe5bLnvtJom4JjSyG — sealed positions priced a sealed exam, settled on MPC score
+  run    EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw — qwen2.5-3b-instruct (index 0), could only read the exam via grants

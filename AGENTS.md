@@ -104,9 +104,20 @@ parimutuel markets resolved from `Run.correct`.
   + llama-3.2-1b, `scripts/serve-local.sh` stands up all endpoints) on
   bank `BoKj4kY1…` — ladder `A4fMA7eK…` resolved `mask=0b11` (a REAL
   dead-heat: 3b and 1.5b both 6/32) and dark market `BrFdXAxY…` on leg 0
-  paid a revealed winner with the sealed loser forfeiting. All
-  transcripts in `docs/evidence/` (`duel-local.txt`, `ladder-local.txt`,
-  `unseen-local.txt`). Small-model arithmetic scores are genuinely weak —
+  paid a revealed winner with the sealed loser forfeiting.
+  `scripts/dark-local.sh` is the double-sealed composition — a dark
+  commit-reveal market on a PRIVATE bank's pending real-model run:
+  private bank `8HHm4HgA…` (exam ciphertext-only + positions sealed +
+  MPC score), 3b scored 5/32, dark `7TVjSaFD…` resolved `>=5`, loser
+  forfeited sealed. `scripts/band-local.sh <bench> <bank-json> <model>
+  <endpoint>` runs a score-band market on a private bank's pending run —
+  first pass cancelled on unbacked buckets (`H3RGMd3N…`, gross refunds,
+  the `all_backed` guard live), second with a full six-bucket book
+  resolved `[1] 1–7` on 0.5b's 2/32 (`497kuApd…`). All transcripts in
+  `docs/evidence/` (`duel-local.txt`, `ladder-local.txt`,
+  `unseen-local.txt`, `dark-local.txt`, `band-local*.txt`). Every market
+  primitive has now settled a real model's MPC-written score.
+  Small-model arithmetic scores are genuinely weak —
   that IS the evidence: the benchmark measures, not flatters.
 - Borsh `String` fields serialize at ACTUAL length (`u32 len + bytes`), not
   `#[max_len]` — accounts are ALLOCATED at max_len but the bytes after the

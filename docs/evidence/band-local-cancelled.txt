@@ -1,0 +1,60 @@
+
+=== 0/5 endpoint sanity — qwen2.5-1.5b-instruct ===
+  http://127.0.0.1:8081/v1 model=qwen2.5-1.5b-instruct -> HTTP 200
+
+=== 1/5 qwen2.5-1.5b-instruct answers the private exam (accessed only via grants) ===
+qwen2.5-1.5b-instruct: 4/32qwen2.5-1.5b-instruct: 8/32qwen2.5-1.5b-instruct: 12/32qwen2.5-1.5b-instruct: 16/32qwen2.5-1.5b-instruct: 20/32qwen2.5-1.5b-instruct: 24/32qwen2.5-1.5b-instruct: 28/32qwen2.5-1.5b-instruct: 32/32
+{
+  "wrote": "/tmp/band-run.json",
+  "model": "qwen2.5-1.5b-instruct",
+  "items": 32,
+  "localCorrect": 4,
+  "localAccuracy": 0.125,
+  "outputsRoot": "50aa57228e2d83eec5681587cdb4351b2874b3f3850c32c3d3f2961f662ba1bd",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 910
+}
+localCorrect: 4 / None
+
+=== 2/5 create the run PENDING, then open a score-band market on it ===
+create_run #1 model=qwen2.5-1.5b-instruct fee=0 SOL
+run G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt created (pending, unscored)
+pending run PDA: G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt (index 1)
+market H3RGMd3No1fqHBJQ27FKTYmhEwdJwYti1Ron43aXTcES opened: run G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt outcomes: < 1 | 1–7 | 8–15 | 16–23 | 24–31 | >= 32
+band market PDA: H3RGMd3No1fqHBJQ27FKTYmhEwdJwYti1Ron43aXTcES (bands 0 | 1–8 | 9–16 | 17–24 | 25–32)
+
+=== 3/5 two backers disagree about where the score lands ===
+bet [1–7] 0.1 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (67id8cTxYy8ohtgCx8n673ykpv6C2AcKKYaF6kB6fZdfsHsNqpXH8cywa4vqvzCvkPiu32oppsidQoaZibs8cCiB)
+bet [8–15] 0.06 SOL by N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B (yh3NpJc8Pc5yFHi4KWBv6s9CNVucMq88fFL1xMA7pTo19YYDhftKS3NDpMfuRW6mfBTc7dWFCqgnNpQLETVYC9S)
+
+=== 4/5 MPC scores the run → permissionless resolve ===
+run #1 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 4)
+run G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt FINALIZED: 4/32 = 12.5%  (matches local pre-score)
+market resolved (33Jq2p2QiUhVV8oUBRYyZXz6QaJ9beQQ97tX7P4papKLsLCFS89ukQ9coSc1xuN1yCw4cdMpwLmfheUcWihgduT8): score=0 CANCELLED
+market H3RGMd3No1fqHBJQ27FKTYmhEwdJwYti1Ron43aXTcES status=CANCELLED
+  run=G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt benchmark=8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug run_index=1
+  [0] < 1: 0 SOL
+  [1] 1–7: 0.1 SOL
+  [2] 8–15: 0.06 SOL
+  [3] 16–23: 0 SOL
+  [4] 24–31: 0 SOL
+  [5] >= 32: 0 SOL
+  resolved_score=0 outcome=-
+  fee_bps=0 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-10-01T12:56:35.000Z
+  position 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc 1–7=0.1
+  position N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B 8–15=0.06
+
+=== 5/5 winners claim ===
+claim (4c6EKAVRpEVf6z1SZeVxLgX9aReb8VpAJpZCqx1RdQj4PEzd9fPHntYP7617SK5g7UNh9Ke5dajEL8tA1yg8wTr3): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999972.7662891 -> 499999972.86812854 SOL
+claim (3NpgQTN2Xi2xwCmE16HFezvi7pXLXh4rAHYF9bGVTSC8ATDr5jU4VEjyWdii75ccXDN1Utue79rSYNtCS7WTRs7c): N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B balance 0.83469216 -> 0.89653156 SOL
+benchmark 8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug "sealed-pgen-v10019" status=1 items=32 runs=2 root=27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066
+rank  score      model                                   run
+   1   15.6%     5/32  qwen2.5-3b-instruct                    #0
+   2   12.5%     4/32  qwen2.5-1.5b-instruct                  #1
+
+proof summary:
+  bank  8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug — private, ciphertext-only
+  band  H3RGMd3No1fqHBJQ27FKTYmhEwdJwYti1Ron43aXTcES — score-band market settled on the MPC-written score
+  run   G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt — qwen2.5-1.5b-instruct (index 1)

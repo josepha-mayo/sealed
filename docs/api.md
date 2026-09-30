@@ -14,7 +14,7 @@ Plain instructions:
 | `create_benchmark(items_root, kind, …)` | registers a bank PDA `[benchmark, authority, id]` | items_root commits to questions (authored) or ciphertext (generated) |
 | `init_chunk` / `init_items` / `init_items_private` | allocates `AnswerChunk` / `ItemChunk` / `PrivItemChunk` for chunk `index` | seeds bind benchmark + index |
 | `stage_part(index, part, …)` | author writes 8 items' encrypted answers + spec commitments | authority-only; rejected once sealing starts for that part |
-| `create_run(model_id, harness_hash, outputs_root)` | mints `Run` PDA `[run, benchmark, run_index]` committing to every output hash | stamps `post_reveal=1` if `benchmark.reveal_count > 0` (F1) |
+| `create_run(model_id, harness_hash, outputs_root)` | mints `Run` PDA `[run, benchmark, run_index]` committing to every output hash | stamps `post_reveal=1` if `benchmark.reveal_count > 0` (F1); `model_id` is self-reported runner metadata — the scored outputs + runner key are the trust-bearing fields |
 | `attest_run(run_index)` | authority vouches for a run's model identity | benchmark authority only |
 | `reset_pending` / `reset_sealing` | liveness sweeps: clear stalled pending bits / sealing locks | permissionless — a stalled queue can be cleared by anyone |
 | `retire_benchmark` | stops new runs/chunks on the bank | authority; refused while runs pending |

@@ -39,11 +39,11 @@ against sealed fingerprints inside MPC; the callback writes `Run.correct`.
 A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, and commit-reveal dark markets — resolving
 permissionlessly on `Run.correct`; bets latch before the first scored
-chunk. Verified: 13/13 E2E + 13/13 unit on a real MPC localnet. Real
-open-weights models, zero external API: qwen2.5-1.5b 3/32 vs qwen2.5-0.5b
-1/32 dueled on an MPC-minted exam — market opened and filled on pending
-runs, settled straight off MPC scores; the 1.5b also scored 8/32 on a
-private bank readable only via reshare grants.
+chunk. Verified: 13/13 E2E + 13/13 unit on a real MPC localnet, plus
+four open-weights models raced, dueled, and settled through MPC — a
+dead-heat, a private exam via reshare grants, and a dark market on a
+ciphertext-only bank's pending run. Every market primitive has settled
+a real model's MPC score.
 
 ## solanaIntegration
 
@@ -62,23 +62,21 @@ against on-chain `outputs_root` in-browser.
 
 ## tractionMilestones
 
-Hundreds of MPC computations executed on the committed evidence ledger —
-11 banks minted (generated + private + authored), 39 runs created and 33
-finalized by the cluster, 27 markets resolved on-chain across five
-primitives (score-band, duel, ladder race, unseen-exam, dark
-commit-reveal) paying pro-rata, 14 selective-disclosure grants,
-2 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
-open-weights models, no external API: FOUR local models raced an
-MPC-minted exam — qwen2.5-3b 6/32 tied qwen2.5-1.5b 6/32 (dead-heat,
-result_mask=0b11), llama-3.2-1b 1/32, qwen2.5-0.5b 0/32 — ladder
-A4fMA7eK settled argmax pro-rata and a dark market on one leg paid a
-revealed winner while a sealed loser forfeited; the 1.5b also scored
-8/32 on a private exam readable only via reshare grants (7S9ZmxrT).
-Prior gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (HW5H5bT7),
-64/64 on authored 25864 (4uns99WD) — and a stale-artifact claim scored
-1/64 (3CKnMa8X), proving the chain never trusts self-reported scores.
-`node scripts/verify.mjs` re-audits the whole bundle offline (10/10
-checks); the hosted explorer runs the same audit in-browser.
+Hundreds of MPC computations on the committed evidence ledger — 13 banks
+minted, 46 runs created and 40 MPC-finalized, 21 markets resolved across
+five primitives (12 score-band/duel, 5 ladders, 4 dark) paying pro-rata,
+plus live cancel/refund paths; 18 selective-disclosure grants, 2 reveal
+audits — 0 plaintext answer keys. Every primitive has settled a REAL
+open-weights model's MPC-written score: four local models raced an
+MPC-minted exam — qwen2.5-3b 6/32 tied 1.5b 6/32 (dead-heat mask=0b11),
+llama-3.2-1b 1/32, 0.5b 0/32 — argmax pro-rata plus a dark leg with a
+sealed forfeit. On a PRIVATE exam (ciphertext-only specs): 1.5b scored
+8/32 via grants; a double-sealed dark market priced the 3b's pending run
+(exam + positions both sealed); a full-book band market resolved on the
+0.5b's 2/32. Prior gpt-oss-20b: 64/64 on MPC-minted 6932, 64/64 on
+authored 25864 — and a stale-artifact claim scored 1/64, proving the
+chain never trusts self-reported scores. `verify.mjs` re-audits the
+bundle offline (10/10); the hosted explorer runs it in-browser.
 
 ## targetAudience
 

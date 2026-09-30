@@ -46,9 +46,17 @@ report channels matter more than usual.
 
 ## Adversarial review history
 
-Three independent adversarial passes have run over the programs and MPC
+Four independent adversarial passes have run over the programs and MPC
 circuits; found-and-fixed issues include the just-in-time commit/expire
 gap (`all_queued_at` landing window), the 8-leg result-mask truncation,
 forced-resolution inside a leg's landing window, and the
 fingerprint-reveal spoilage path above (disclosed → enforced on-chain).
-See `docs/threat-model.md` for the full model.
+Pass 4 re-checked the sealed program's access control end-to-end — every
+bank-mutating instruction is `has_one = authority`-gated, `create_run`'s
+fee recipient is pinned to `benchmark.authority`, `score_chunk` is
+runner-only with `pending_mask`/`scored_mask` blocking double-queue, and
+outputs are Merkle-bound to the committed `outputs_root` at queue time.
+One noted non-issue: `Run.model_id` is self-reported runner metadata
+(like a leaderboard handle) — the scored outputs and the runner key are
+the trust-bearing fields; a runner can name its run anything without
+affecting settlement. See `docs/threat-model.md` for the full model.
