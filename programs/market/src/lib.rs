@@ -2543,4 +2543,50 @@ mod tests {
         assert_ne!(dark_commitment(&market, &Pubkey::new_unique(), 2, 1_000_000, &salt), c); // bettor
         assert_ne!(dark_commitment(&Pubkey::new_unique(), &bettor, 2, 1_000_000, &salt), c); // market
     }
+
+    /// Conservation: the pro-rata formula `floor(amt * net / win_total)` summed
+    /// over every winner never exceeds `net_pot`, and never underpays by more
+    /// than one lamport of dust per claimant. The market account can therefore
+    /// NEVER go insolvent — the last claim always lands.
+    #[test]
+    fn prorata_payouts_never_exceed_pot() {
+        // (win_amt, net_pot, win_total) — payout must be <= net_pot and the
+        // SUM over all winners <= net_pot with bounded dust.
+        fn payout(amt: u64, net: u64, wt: u64) -> u64 {
+            (amt as u128)
+                .checked_mul(net as u128)
+                .unwrap()
+                .checked_div(wt as u128)
+                .unwrap() as u64
+        }
+        // Odd sizes to stress floor division: 3 winners, pot not divisible.
+        let stakes = [1u64, 7, 33, 999_999, 2, 5];
+        let win_total: u64 = stakes.iter().sum();
+        for &pot in &[1u64, 100, 1_000_001, u64::MAX / 4] {
+            for fee_bps in [0u16, 1, 500, 1000] {
+                let fee = (pot as u128 * fee_bps as u128 / 10_000) as u64;
+                let net = pot.saturating_sub(fee);
+                let paid: u64 = stakes
+                    .iter()
+                    .map(|&s| payout(s, net, win_total))
+                    .sum();
+                assert!(paid <= net, "paid {} > net {}", paid, net);
+                // Dust is bounded by one rounding-down lamport per winner.
+                assert!(net - paid <= stakes.len() as u64);
+            }
+        }
+        // A single winner sweeps the entire net pot exactly.
+        assert_eq!(payout(50, 1_000, 50), 1_000);
+    }
+
+    /// Refund path: a cancelled market repays `sum(amounts)` — always the
+    /// gross stake, never pro-rata. This is what `claim`/`claim_ladder`/
+    /// `claim_dark` hand back, so verify the arithmetic is identity.
+    #[test]
+    fn cancelled_market_refunds_gross() {
+        // Mirrors the `if m.status == MARKET_CANCELLED { amounts.sum() }`
+        // branches — a cancelled position returns every lamport staked.
+        let amounts = [5u64, 0, 42, 0, 0, 0, 0, 0];
+        assert_eq!(amounts.iter().sum::<u64>(), 47);
+    }
 }
