@@ -1,0 +1,95 @@
+
+=== 0/6 endpoint sanity — both model endpoints must answer before we mint ===
+  leg A: http://127.0.0.1:8081/v1 model=qwen2.5-1.5b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"created":1790757914,"model
+  leg B: http://127.0.0.1:8082/v1 model=qwen2.5-0.5b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"created":1790757919,"model
+
+=== 1/6 wait for MXE, then comp defs + circuits (once per deployment) ===
+MXE key live after ~10s
+seal_part: comp def exists (AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf)
+score_chunk: comp def exists (9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo)
+gen_part: comp def exists (AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ)
+gen_part_private: comp def exists (CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN)
+reveal_part: comp def exists (zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG)
+reshare_part: comp def exists (GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS)
+
+=== 2/6 mint the exam INSIDE MPC (id=33297, 32 items — no answer key exists) ===
+create_benchmark id=33297 chunks=1 kind=generated
+benchmark 2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW status=0 sealed=0/1
+chunk 0 part 0: minting in MPC... minted
+chunk 0 part 1: minting in MPC... minted
+chunk 0 part 2: minting in MPC... minted
+chunk 0 part 3: minting in MPC... minted
+benchmark 2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW status=LIVE minted=1/1
+items_root 7ba36716dd2e34d9fc4ec1f5e2771f1b7104675ef6ef06a166a0b33dc50bac84 (32 minted items, answers never existed in plaintext)
+wrote bank/gen-33297.json
+benchmark PDA: 2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW
+
+=== 3/6 leg A: qwen2.5-1.5b-instruct vs leg B: qwen2.5-0.5b-instruct — two real models, two runner wallets ===
+qwen2.5-1.5b-instruct: 4/32qwen2.5-1.5b-instruct: 8/32qwen2.5-1.5b-instruct: 12/32qwen2.5-1.5b-instruct: 16/32qwen2.5-1.5b-instruct: 20/32qwen2.5-1.5b-instruct: 24/32qwen2.5-1.5b-instruct: 28/32qwen2.5-1.5b-instruct: 32/32
+{
+  "wrote": "/tmp/duel-local-A.json",
+  "model": "qwen2.5-1.5b-instruct",
+  "items": 32,
+  "localCorrect": 3,
+  "localAccuracy": 0.0938,
+  "outputsRoot": "e1dcf6a802b908f246a740c6570772a076182776ae1e1a7e1256cedf8929c270",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 616
+}
+leg A localCorrect: 3 / None
+create_run #0 model=qwen2.5-1.5b-instruct fee=0 SOL
+Transaction was not confirmed in 30.00 seconds. It is unknown if it succeeded or failed. Check signature 4pNfDeN43ykGjpfxgk36SJcfmCH2qU3kufujcGvAHqgFjkt6b6iHd6H8gQE38pxKqfURo7gAKDbNuB2X8wtuYxs5 using the Solana Explorer or CLI tools.
+qwen2.5-0.5b-instruct: 4/32qwen2.5-0.5b-instruct: 8/32qwen2.5-0.5b-instruct: 12/32qwen2.5-0.5b-instruct: 16/32qwen2.5-0.5b-instruct: 20/32qwen2.5-0.5b-instruct: 24/32qwen2.5-0.5b-instruct: 28/32qwen2.5-0.5b-instruct: 32/32
+{
+  "wrote": "/tmp/duel-local-B.json",
+  "model": "qwen2.5-0.5b-instruct",
+  "items": 32,
+  "localCorrect": 1,
+  "localAccuracy": 0.0313,
+  "outputsRoot": "276da18a8f0d5c58c56e82490e34f5209388a0af5614cd88341c5c400f2332e9",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 604
+}
+leg B localCorrect: 1 / None
+create_run #1 model=qwen2.5-0.5b-instruct fee=0 SOL
+run E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4 created (pending, unscored)
+run PDAs: A=2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J (qwen2.5-1.5b-instruct) vs B=E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4 (qwen2.5-0.5b-instruct) — both PENDING
+
+=== 4/6 open the duel while both runs are pending + back both sides ===
+duel market 7p32UT6sT8DGs8LsgpWAWPko7f5NgRfe4FGwPE5piYSs opened: run 2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J vs E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4 — outcomes: A wins | B wins | tie
+duel PDA: 7p32UT6sT8DGs8LsgpWAWPko7f5NgRfe4FGwPE5piYSs
+bet [A wins] 0.2 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (3PzwrBMwwDKDsJdn3o4bEoMhUGHZ81bBCbcuEMixocLxQGZX6Bqd7mfjK1FxHBbpp1jdMG55fNoaSHdYnC3cwihS)
+bet [tie] 0.05 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (4ZSrMEYSLJP3mtDbALPf7xVMT3AERddvoeDZQRR5yseDJgEAF7qr9Hz4rz23eDn37wjzUQ749gfobVS7RavWBp3s)
+bet [B wins] 0.15 SOL by kQ4JzqnLiqHmDnNgCSw9JfYSeE4ruDybTAieb1qMnMq (5qh16A4g7b9tbhkxZ8mLe5pfUCiwhmCGQWYu4vnw59YmWAKnnMEqEZEbSnBe9FbeUSfVift9s1CoMebQRaWp1rNF)
+
+=== 5/6 score BOTH legs through MPC — every answer hash-compared against the sealed key ===
+run #0 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 3)
+run 2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J FINALIZED: 3/32 = 9.4%  (matches local pre-score)
+run #1 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 1)
+run E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4 FINALIZED: 1/32 = 3.1%  (matches local pre-score)
+
+=== 6/6 resolve the duel straight from Run.correct + settle the pot ===
+market resolved (5579vr3hWpyEoXQaFdzGZcPRQBLsRSaFLouHaJVjaDrTjGaBjQwRjkiHRLsNANaQFEXjt37iGqFAd7Zb798yoNP3): score=196609 outcome 0 [A wins] a=3 b=1
+claim (5mMMu6ykdwrcAUSjxjSjzkCTYUQeW7BzJBR4ocWe5X87xL9eBni3iMkvAE6bZiKJez3jc77VaRQHGN6fwSU6kNq5): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999972.4310653 -> 499999972.8329047 SOL
+claim (6GDXwMkpsWZ3z76o6W8ttc5pEkqh2q8dEr4ZY7FvAEWVsKz5s7wmjPjYTAjH9WbDTsKHMpUo6aoCAnCyWTkxB4f): kQ4JzqnLiqHmDnNgCSw9JfYSeE4ruDybTAieb1qMnMq balance 0.83726604 -> 0.83910544 SOL
+market 7p32UT6sT8DGs8LsgpWAWPko7f5NgRfe4FGwPE5piYSs status=RESOLVED (duel)
+  run=2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J vs=E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4 benchmark=2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW run_index=0
+  [0] A wins: 0.2 SOL  <- WINNER
+  [1] B wins: 0.15 SOL
+  [2] tie: 0.05 SOL
+  resolved_score=3-1 outcome=0
+  fee_bps=0 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-10-01T09:07:53.000Z
+benchmark 2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW "sealed-gen-v33297" status=1 items=32 runs=2 root=7ba36716dd2e34d9fc4ec1f5e2771f1b7104675ef6ef06a166a0b33dc50bac84
+rank  score      model                                   run
+   1    9.4%     3/32  qwen2.5-1.5b-instruct                  #0
+   2    3.1%     1/32  qwen2.5-0.5b-instruct                  #1
+
+proof summary:
+  bank   2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW — MPC-minted; no answer key ever existed
+  duel   7p32UT6sT8DGs8LsgpWAWPko7f5NgRfe4FGwPE5piYSs — opened + filled on PENDING runs, settled on MPC scores
+  leg A  2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J — qwen2.5-1.5b-instruct @ http://127.0.0.1:8081/v1
+  leg B  E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4 — qwen2.5-0.5b-instruct @ http://127.0.0.1:8082/v1

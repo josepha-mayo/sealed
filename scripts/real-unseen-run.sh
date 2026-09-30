@@ -16,6 +16,7 @@ export SEALED_API_BASE="${SEALED_API_BASE:-https://text.pollinations.ai/openai}"
 export SEALED_API_KEY="${SEALED_API_KEY:-anonymous}"
 SEALED="yarn -s --cwd packages/harness cli"
 PBENCH="${1:?usage: real-unseen-run.sh <benchmark-pda>}"
+MODEL="${MODEL:-openai}"
 
 say() { printf '\n=== %s ===\n' "$*"; }
 
@@ -29,11 +30,11 @@ say "2/4 delegate rebuilds the bank from grants alone"
 JBANK=/tmp/rt-judge-bank.json
 ANCHOR_WALLET=/tmp/rt-judge.json $SEALED chain delegate-bank --benchmark "$PBENCH" --out "$JBANK"
 
-say "3/4 real model (gpt-oss-20b) answers items it could only see via grant"
+say "3/4 real model ($MODEL) answers items it could only see via grant"
 ART=/tmp/rt-run.json
 for att in 1 2 3 4 5 6 7 8; do
   echo "--- attempt $att $(date -u +%T) ---"
-  ANCHOR_WALLET=/tmp/rt-judge.json $SEALED run --bank "$JBANK" --model openai \
+  ANCHOR_WALLET=/tmp/rt-judge.json $SEALED run --bank "$JBANK" --model "$MODEL" \
     --concurrency 1 --retries 15 --timeout 90000 --max-tokens 512 --out "$ART" && break
   sleep 20
 done

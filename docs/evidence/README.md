@@ -100,6 +100,42 @@ while that ledger is up; the artifacts are also self-checking offline.
   `result_mask=0b1`, leg 0 paid pro-rata. This is the maximum-width path
   through `load_legs`' ordered account check and the full `u8` result mask.
 
+### Flagship: two real open-weights models duel under MPC (in `snapshot.json`)
+
+`scripts/duel-local.sh` (transcript `duel-local.txt`) — zero external API
+dependency, both legs served by local llama.cpp from open-weights GGUFs:
+
+- exam minted inside MPC: bank `2RPWrmbqLm…` (id 33297, 32 items,
+  `items_root` `7ba36716…` — no answer key ever existed);
+- leg A `qwen2.5-1.5b-instruct` (llama.cpp :8081) → run
+  `2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J`, local pre-score **3/32**;
+- leg B `qwen2.5-0.5b-instruct` (llama.cpp :8082) → run
+  `E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4`, local pre-score **1/32**;
+- duel `7p32UT6sT8DGs8LsgpWAWPko7f5NgRfe4FGwPE5piYSs` opened + filled while
+  **both runs were still pending** (0.2 SOL A / 0.15 B / 0.05 tie);
+- MPC finalized A **3/32**, B **1/32** — both matching local pre-scores
+  exactly — resolved `[A wins]`, both backers claimed pro-rata.
+
+Real models make real mistakes — 3/32 and 1/32 on 3-op arithmetic is the
+honest capability of small instruct models, and that is the point: the
+benchmark measures, it does not flatter.
+
+### Flagship: real model on a grant-only private exam (in `snapshot.json`)
+
+`scripts/real-unseen-run.sh` (transcript `unseen-local.txt`):
+
+- private bank `F1owH6zEGppgjSwCB9VzYvYDSeqUAgbYp8ANSGWx8u3T` minted inside
+  MPC — item specs exist on-chain only as ciphertext;
+- all 4 parts re-shared to a fresh delegate key inside MPC (4 on-chain
+  `ShareGrant` records);
+- delegate rebuilt the full 32-item bank from grants alone;
+- `qwen2.5-1.5b-instruct` answered items it could only see via grant →
+  run `7S9ZmxrTvcR6jD4pm4qhBoqyL8Kz6rChFNXPsqjLfKHK` finalized **8/32**,
+  matching the local pre-score exactly.
+
+A real model took an exam that was never published anywhere — its only
+view of the questions was the on-chain grant trail.
+
 ### Later ledger generations (post-wipe, not in `snapshot.json`)
 
 - **Real model on a grant-only exam** (`scripts/real-unseen-run.sh`): private
@@ -156,8 +192,10 @@ while that ledger is up; the artifacts are also self-checking offline.
   replays every gen/private bank's `items_root` commitment fold
   bit-exact, re-checks that every resolved market's outcome is a pure
   function of the MPC-written `Run.correct` (bands, duel argmax, ladder
-  masks, dark), and re-verifies each `prove-*.json` Merkle path.
-  Current bundle: **9 PASS / 0 FAIL**.
+  masks, dark), and re-verifies each `prove-*.json` Merkle path —
+  plus cross-validates every on-chain `post_reveal` flag against
+  timestamp inference.
+  Current bundle: **10 PASS / 0 FAIL** (+ 2 informational notes).
 
 `mock/oracle-*` is the deterministic offline model — the same pipeline
 (`run` → `chain score` → `prove`) works verbatim with a real model via

@@ -1,0 +1,39 @@
+
+=== 1/4 delegate key + reshare every part of chunk 0 to it inside MPC ===
+reshare_part chunk=0 part=0 → DpAwcVHukzocsmnSDBTLHKgPozCzprP9Qe1rtdWhyKZH (grant 2SxRzA6G3fgYpuwnNGYWRP99np5V9qapxLeeCDMm6qCP)
+waiting for MPC re-encryption... shared at 1790759563
+reshare_part chunk=0 part=1 → DpAwcVHukzocsmnSDBTLHKgPozCzprP9Qe1rtdWhyKZH (grant EnyMB5ZgfrfDqdK7vorKvPr1BTwPg8qBnN67bQqqhPNL)
+waiting for MPC re-encryption... shared at 1790759572
+reshare_part chunk=0 part=2 → DpAwcVHukzocsmnSDBTLHKgPozCzprP9Qe1rtdWhyKZH (grant 8fyV1ASkB5aSU4FESsRgFhhgtNcKp3Mh9fQTqud8mYWL)
+waiting for MPC re-encryption... shared at 1790759581
+reshare_part chunk=0 part=3 → DpAwcVHukzocsmnSDBTLHKgPozCzprP9Qe1rtdWhyKZH (grant 5cRcankdAfHeTJn8YAZQqWXoyGUU3dwRx9hLD71ZpzHy)
+waiting for MPC re-encryption... shared at 1790759591
+grant trail:
+chunk 0 part 0 → viewer b3a1c20a927597d7… at 1790759563 (2SxRzA6G3fgYpuwnNGYWRP99np5V9qapxLeeCDMm6qCP)
+chunk 0 part 3 → viewer b3a1c20a927597d7… at 1790759591 (5cRcankdAfHeTJn8YAZQqWXoyGUU3dwRx9hLD71ZpzHy)
+chunk 0 part 2 → viewer b3a1c20a927597d7… at 1790759581 (8fyV1ASkB5aSU4FESsRgFhhgtNcKp3Mh9fQTqud8mYWL)
+chunk 0 part 1 → viewer b3a1c20a927597d7… at 1790759572 (EnyMB5ZgfrfDqdK7vorKvPr1BTwPg8qBnN67bQqqhPNL)
+
+=== 2/4 delegate rebuilds the bank from grants alone ===
+wrote /tmp/rt-judge-bank.json (32 items) — reconstructed from grants, KEEP PRIVATE
+
+=== 3/4 real model (qwen2.5-1.5b-instruct) answers items it could only see via grant ===
+--- attempt 1 09:13:22 ---
+qwen2.5-1.5b-instruct: 4/32qwen2.5-1.5b-instruct: 8/32qwen2.5-1.5b-instruct: 12/32qwen2.5-1.5b-instruct: 16/32qwen2.5-1.5b-instruct: 20/32qwen2.5-1.5b-instruct: 24/32qwen2.5-1.5b-instruct: 28/32qwen2.5-1.5b-instruct: 32/32
+{
+  "wrote": "/tmp/rt-run.json",
+  "model": "qwen2.5-1.5b-instruct",
+  "items": 32,
+  "localCorrect": 8,
+  "localAccuracy": 0.25,
+  "outputsRoot": "c1d41146192484892a64ba93ee0ec78186bcf435277715a136935c18069f9171",
+  "harnessHash": "e47a7f60f3f28eb3f75ae94dc62008bd9fdc1b47d29dc8f0bcee83156e2856ae",
+  "seconds": 702
+}
+
+=== 4/4 judge wallet scores the run through MPC ===
+create_run #0 model=qwen2.5-1.5b-instruct fee=0 SOL
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 8)
+run 7S9ZmxrTvcR6jD4pm4qhBoqyL8Kz6rChFNXPsqjLfKHK FINALIZED: 8/32 = 25.0%  (matches local pre-score)
+DONE — a real model took an exam that was never published.

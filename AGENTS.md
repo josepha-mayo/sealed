@@ -72,7 +72,13 @@ parimutuel markets resolved from `Run.correct`.
 - `Pack<GenPart>` = 40 u8s in two 256-bit fields; `Enc<Shared>` decrypts via
   `x25519.getSharedSecret(ed→montgomery(secret), mxe_pubkey)` + RescueCipher.
 - Real-model runs need any OpenAI-compatible endpoint via
-  `SEALED_API_BASE`/`SEALED_API_KEY`/`--model`. Anonymous Pollinations
+  `SEALED_API_BASE`/`SEALED_API_KEY`/`--model` — **including fully local
+  inference**: llama.cpp's `llama-server -m <gguf> --alias <name> --port N`
+  serves `/v1/chat/completions` with no key needed (`SEALED_API_KEY=local`).
+  `scripts/duel-local.sh` duels two local endpoints (defaults
+  :8081/`qwen2.5-1.5b-instruct` vs :8082/`qwen2.5-0.5b-instruct`) — a true
+  two-real-model head-to-head with zero external API dependency.
+  Anonymous Pollinations
   (`SEALED_API_BASE=https://text.pollinations.ai/openai`,
   `SEALED_API_KEY=anonymous` — sends NO auth header, keyed calls are
   credit-walled) serves gpt-oss-20b BUT caps `max_tokens` at ~512 and
@@ -89,7 +95,14 @@ parimutuel markets resolved from `Run.correct`.
   rejects unbound artifacts). `scripts/real-unseen-run.sh` runs a real
   model on a PRIVATE bank it can only see through reshare grants —
   gpt-oss-20b scored 32/32 on bank `Fa4WS8B1…` (run `9nfKSXnM…`,
-  delegate `9z6CwKCQ…`).
+  delegate `9z6CwKCQ…`; rerun on the current ledger: `qwen2.5-1.5b`
+  scored 8/32 on private bank `F1owH6zE…`, run `7S9ZmxrT…`, MPC == local
+  pre-score). `scripts/duel-local.sh` duels two local llama.cpp endpoints:
+  `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 on MPC-minted bank
+  `2RPWrmbq…`, duel `7p32UT6s…` resolved A-wins and settled — both
+  transcripts in `docs/evidence/` (`duel-local.txt`, `unseen-local.txt`).
+  Small-model arithmetic scores are genuinely weak — that IS the
+  evidence: the benchmark measures, not flatters.
 - Borsh `String` fields serialize at ACTUAL length (`u32 len + bytes`), not
   `#[max_len]` — accounts are ALLOCATED at max_len but the bytes after the
   string are variable-offset. Any fixed-offset tail read past `model_id`
