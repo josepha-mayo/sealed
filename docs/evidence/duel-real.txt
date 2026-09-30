@@ -1,0 +1,102 @@
+
+=== 1/6 wait for MXE, then comp defs + circuits (once per deployment) ===
+MXE key live after ~10s
+seal_part: comp def exists (AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf)
+score_chunk: comp def exists (9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo)
+gen_part: comp def exists (AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ)
+gen_part_private: comp def exists (CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN)
+reveal_part: comp def exists (zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG)
+reshare_part: comp def exists (GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS)
+
+=== 2/6 mint the exam INSIDE MPC (id=46799, 32 items — no answer key exists) ===
+create_benchmark id=46799 chunks=1 kind=generated
+benchmark HheVzccxT7pFAfkU9chrgwyDcicJJhsVXkxDQ1YetEG1 status=0 sealed=0/1
+chunk 0 part 0: minting in MPC... minted
+chunk 0 part 1: minting in MPC... minted
+chunk 0 part 2: minting in MPC... minted
+chunk 0 part 3: minting in MPC... minted
+benchmark HheVzccxT7pFAfkU9chrgwyDcicJJhsVXkxDQ1YetEG1 status=LIVE minted=1/1
+items_root 3de9c9d6e72e7e70b06af1da6b1e1f21151d1d1e09010a7cfc90708163e974b6 (32 minted items, answers never existed in plaintext)
+wrote bank/gen-46799.json
+benchmark PDA: HheVzccxT7pFAfkU9chrgwyDcicJJhsVXkxDQ1YetEG1
+
+=== 3/6 leg A: real model (openai) answers the sealed exam; leg B: mock/oracle-0.40 baseline ===
+--- real-model attempt 1 01:06:25
+HTTP 402: {}
+--- real-model attempt 2 01:06:49
+HTTP 402: {}
+--- real-model attempt 3 01:07:06
+HTTP 402: {}
+--- real-model attempt 4 01:07:41
+HTTP 402: {}
+--- real-model attempt 5 01:08:01
+HTTP 402: {}
+!!! real endpoint walled after 5 attempts — leg A degrades to
+!!! mock/oracle-0.65 (mechanics still live; rerun with a keyed
+!!! SEALED_API_BASE/SEALED_API_KEY for the real-model artifact)
+mock/oracle-0.65: 4/32mock/oracle-0.65: 8/32mock/oracle-0.65: 12/32mock/oracle-0.65: 16/32mock/oracle-0.65: 20/32mock/oracle-0.65: 24/32mock/oracle-0.65: 28/32mock/oracle-0.65: 32/32
+{
+  "wrote": "/tmp/duel-real-A.json",
+  "model": "mock/oracle-0.65",
+  "items": 32,
+  "localCorrect": 22,
+  "localAccuracy": 0.6875,
+  "outputsRoot": "4c6b71dfa70a65d075bec9c81054b2f686afaa36c1758a3e4ff9917c9c4e87b7",
+  "harnessHash": "6167a62de342308280dd9f9792ab82a78bcaf96c1f76183a9978bcdca6953d9a",
+  "seconds": 0
+}
+create_run #0 model=mock/oracle-0.65 fee=0 SOL
+run 6BxmHnTEpXUFFgJyzbZxWcrX9hZQXidsRYc4CkQ94gYE created (pending, unscored)
+mock/oracle-0.40: 4/32mock/oracle-0.40: 8/32mock/oracle-0.40: 12/32mock/oracle-0.40: 16/32mock/oracle-0.40: 20/32mock/oracle-0.40: 24/32mock/oracle-0.40: 28/32mock/oracle-0.40: 32/32
+{
+  "wrote": "/tmp/duel-real-B.json",
+  "model": "mock/oracle-0.40",
+  "items": 32,
+  "localCorrect": 13,
+  "localAccuracy": 0.4063,
+  "outputsRoot": "9712dc6181670c424e48741d885b503f4fb7d269b652116b80bd82142f45370c",
+  "harnessHash": "6167a62de342308280dd9f9792ab82a78bcaf96c1f76183a9978bcdca6953d9a",
+  "seconds": 0
+}
+create_run #1 model=mock/oracle-0.40 fee=0 SOL
+run 62RCLyW4uJhjfsD1YRCJxaUNvmjD3Qfqt1hzXWJ6RJeV created (pending, unscored)
+run PDAs: A=6BxmHnTEpXUFFgJyzbZxWcrX9hZQXidsRYc4CkQ94gYE (mock/oracle-0.65 (DEGRADED — real endpoint unreachable)) vs B=62RCLyW4uJhjfsD1YRCJxaUNvmjD3Qfqt1hzXWJ6RJeV (mock/oracle-0.40) — both PENDING
+
+=== 4/6 open the duel while both runs are pending + back both sides ===
+duel market 8ALBq8hQak4YD6t19SExsSqsNqJDxuzp4Yit4DRdaNj8 opened: run 6BxmHnTEpXUFFgJyzbZxWcrX9hZQXidsRYc4CkQ94gYE vs 62RCLyW4uJhjfsD1YRCJxaUNvmjD3Qfqt1hzXWJ6RJeV — outcomes: A wins | B wins | tie
+duel PDA: 8ALBq8hQak4YD6t19SExsSqsNqJDxuzp4Yit4DRdaNj8
+bet [A wins] 0.2 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (uoBf3y8376hHVMSeJ7PCteDdCaBQZqqQCDfoVmzhgPASPpYkSGhCXuH3eRFEamSJUr6woY9N1KePXyJgdaFXaxx)
+bet [tie] 0.05 SOL by 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc (L46ZXu1Aa6EGtxYwPbvJJsAj7kDh3JgQYbXtic3YVzgjhKKpSZrg33HM8iNJb4thXSXzk63bMRRtvVacTmzcUD3)
+bet [B wins] 0.15 SOL by 5GdhVJRdGKTgyBtKBzQcKkP2GuE34vcsXKDrp8qaY9q3 (2JYiAH1bPz7vNiSJfWJLhhT5QR83ZsgimoNDFF9uo1kqGQ1Y42g1PU8DfakoEq2UYMCgMEcafi4EECd7jEEg8DVW)
+
+=== 5/6 score BOTH legs through MPC — every answer hash-compared against the sealed key ===
+run #0 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 22)
+run 6BxmHnTEpXUFFgJyzbZxWcrX9hZQXidsRYc4CkQ94gYE FINALIZED: 22/32 = 68.8%  (matches local pre-score)
+run #1 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 13)
+run 62RCLyW4uJhjfsD1YRCJxaUNvmjD3Qfqt1hzXWJ6RJeV FINALIZED: 13/32 = 40.6%  (matches local pre-score)
+
+=== 6/6 resolve the duel straight from Run.correct + settle the pot ===
+market resolved (4ccVR7vsoH2XTPhksVnFXTH1sFmefxJwviXQ2LkL5RH4Ln5Ypv78kvNgj6N7Hu86JU89fdmjosngv6vn2YbFyanH): score=1441805 outcome 0 [A wins] a=22 b=13
+claim (4sxVRGAFy4ja7aRNJHGxGcH4yP7gKh6kGxzKS7X2Ah1w4AvPoBD7CTtSJrPiq5VC1ovvGaRhmu91ijooRgDYvUyK): 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc balance 499999999.61802745 -> 500000000.0198669 SOL
+claim (N6nTrxbg9YhrJZu9PEbiUQuVKSQGuhbAKMoutsGegTj7gPawt3XyjX6xk7gcmhEDuQmYPS9x1miFTPazHZc9woH): 5GdhVJRdGKTgyBtKBzQcKkP2GuE34vcsXKDrp8qaY9q3 balance 0.837273 -> 0.8391124 SOL
+market 8ALBq8hQak4YD6t19SExsSqsNqJDxuzp4Yit4DRdaNj8 status=RESOLVED (duel)
+  run=6BxmHnTEpXUFFgJyzbZxWcrX9hZQXidsRYc4CkQ94gYE vs=62RCLyW4uJhjfsD1YRCJxaUNvmjD3Qfqt1hzXWJ6RJeV benchmark=HheVzccxT7pFAfkU9chrgwyDcicJJhsVXkxDQ1YetEG1 run_index=0
+  [0] A wins: 0.2 SOL  <- WINNER
+  [1] B wins: 0.15 SOL
+  [2] tie: 0.05 SOL
+  resolved_score=22-13 outcome=0
+  fee_bps=0 fees_accrued=0 SOL closes_at=1970-01-01T00:00:00.000Z resolve_by=2026-10-01T01:08:30.000Z
+benchmark HheVzccxT7pFAfkU9chrgwyDcicJJhsVXkxDQ1YetEG1 "sealed-gen-v46799" status=1 items=32 runs=2 root=3de9c9d6e72e7e70b06af1da6b1e1f21151d1d1e09010a7cfc90708163e974b6
+rank  score      model                                   run
+   1   68.8%    22/32  mock/oracle-0.65                       #0
+   2   40.6%    13/32  mock/oracle-0.40                       #1
+
+proof summary:
+  bank   HheVzccxT7pFAfkU9chrgwyDcicJJhsVXkxDQ1YetEG1 — MPC-minted; no answer key ever existed
+  duel   8ALBq8hQak4YD6t19SExsSqsNqJDxuzp4Yit4DRdaNj8 — opened + filled on PENDING runs, settled on MPC scores
+  leg A  6BxmHnTEpXUFFgJyzbZxWcrX9hZQXidsRYc4CkQ94gYE — mock/oracle-0.65 (DEGRADED — real endpoint unreachable)
+  leg B  62RCLyW4uJhjfsD1YRCJxaUNvmjD3Qfqt1hzXWJ6RJeV — mock/oracle-0.40 (published baseline)

@@ -12,6 +12,10 @@ cd "$(dirname "$0")/.."
 ART=artifacts
 
 if [ "${1:-}" = "--wipe" ]; then
+  # Kill a live validator FIRST — otherwise it keeps producing on in-memory
+  # state and silently resurrects the old ledger over the wipe.
+  pkill -f "solana-test-validator.*test-ledger" 2>/dev/null || true
+  sleep 3
   rm -rf .anchor/test-ledger
   echo "wiped ledger"
 fi

@@ -12,6 +12,14 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
 *([asciicast](docs/demo.cast) · [mp4](docs/demo.mp4) — the real `scripts/demo.sh` run, MPC waits capped at 2s)*
 
+![Dark commit-reveal market on a private bank: both bettors' SIDES stay sha256-sealed while MPC scores the run — winners reveal to claim, no-shows forfeit](docs/dark.gif)
+
+*([asciicast](docs/dark.cast) — `scripts/dark.sh` on a private bank: the exam stayed ciphertext and every position stayed sealed through resolution)*
+
+![Dark market: sealed positions on a private bank — bets commit as sha256 while MPC scores the run, winners reveal to claim](docs/dark.gif)
+
+*([asciicast](docs/dark.cast) — the real `scripts/dark.sh` run: a dark commit-reveal market on an exam that was never published)*
+
 ## Why
 
 Prediction markets on AI progress settle against leaderboards run by single companies, and lab-reported benchmark numbers are unverifiable and increasingly contaminated by training data. There is no neutral referee. Sealed makes the referee a protocol:
