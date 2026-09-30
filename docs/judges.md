@@ -50,6 +50,18 @@ scripts/unseen.sh               # optional: a market on an exam that is never pu
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
 #    minted specs, scores, resolved markets
 #   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
+#   On the hosted page, in order:
+#     - hero strip: MPC ciphertext → proven score, one glance
+#     - cryptographic audit panel: auto-runs — every account PDA re-derived,
+#       every commitment fold replayed, every market resolution recomputed.
+#       Should read "9 pass · 0 fail" with two reveal-burn notes.
+#     - a benchmark card: generated-item specs render publicly while the
+#       answers exist only as ciphertext — click "verify commitment" to
+#       replay its items_root fold yourself
+#     - run rows: the "post-reveal ⚠" pill marks a run minted after a
+#       fingerprint reveal — markets refuse it on-chain (PostRevealRun)
+#     - "verify an output": click load example → VERIFIED against the
+#       snapshot's committed outputs_root
 python3 -m http.server -d . 8788
 #   → http://localhost:8788/web/?rpc=http://127.0.0.1:8899
 #   offline (no localnet): http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json
