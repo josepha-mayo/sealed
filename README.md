@@ -34,6 +34,25 @@ Prediction markets on AI progress settle against leaderboards run by single comp
 
 ## Architecture
 
+```mermaid
+flowchart LR
+  AUTH[bank authority] -->|gen / gen-private| MPC[(Arcium MPC cluster)]
+  MPC -->|item specs: public or ciphertext| BANK[benchmark account]
+  AUTH -->|seal_part: authored answers| MPC
+  RUNNER[model runner] -->|outputs_root committed before scoring| RUN[run account]
+  BANK --> RUN
+  RUN -->|score_chunk: outputs vs sealed answers| MPC
+  MPC -->|callback writes correct count| RUN
+  AUTH -->|reveal_part: audit-and-burn| MPC
+  MPC -->|declassified fingerprints| BANK
+  BET[bettors] <-->|parimutuel positions| MKT[market program]
+  RUN -->|Run.correct resolves| MKT
+```
+
+The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Five primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal.
+
+Per-account detail:
+
 ```
 packages/harness (TypeScript)            programs/sealed (Anchor)         encrypted-ixs (Arcis, runs in MPC)
 ------------------------------            ------------------------         ----------------------------------
@@ -137,6 +156,18 @@ The `Run` account is verified by owner (`SEALED_PROGRAM`) + discriminator and de
 - The runner controls what outputs it submits. Today the venue runs public model APIs itself; third-party runners get a TEE-attested harness or redundant runs from independent runners.
 - Aggregate-only reveal plus a per-run fee bounds adaptive probing of individual answers.
 
+### Hard problems this actually solves
+
+The interesting engineering is where markets meet MPC timing — each of these
+was found by adversarial review and is covered by a test or live artifact:
+
+- **Callback races**: Arcium callbacks land asynchronously, so a bettor could otherwise commit outputs or expire a market inside the gap between the last queue and the landing callback. Runs carry a per-chunk landing window (`all_queued_at`); commit and expiry both respect it.
+- **N-way fairness**: ladder races resolve by argmax with a dead-heat bitmask (co-leaders split pro-rata), and the mask is `u16` — the naive `u8` truncates the 8th leg to zero (regression-tested, proven live on an 8-leg race).
+- **Hidden positions**: dark markets carry only `sha256(domain ‖ market ‖ bettor ‖ outcome ‖ amount ‖ salt)` — the bet tx reveals nothing; winners disclose inside a bounded reveal window and no-shows forfeit into the pot.
+- **Audit vs integrity**: declassifying fingerprints for a spot-check publishes the exact scoring targets — so reveal is permanent burn. `benchmark.reveal_count` → `post_reveal` → `PostRevealRun` is enforced by the programs, demonstrated live, and cross-checked by the verifier.
+- **Freshness vs custody**: generated banks prove no answer key ever existed (answers are born as MXE ciphertext), while authored banks keep questions private but trust the author — three different trust levels, one interface.
+- **Confidential delegation**: `reshare_part` re-encrypts specs to a delegate inside MPC so a judge or runner can be handed an exam — questions readable, answers still sealed — without the authority learning the delegate's key or vice versa.
+
 ## Repo layout
 
 ```
@@ -146,7 +177,7 @@ programs/market/        Anchor program: parimutuel markets resolving on Run.corr
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
 web/index.html          leaderboard + proof explorer (single file, web3.js via CDN, reads any RPC)
 tests/                  end-to-end test on Arcium localnet
-scripts/                demo.sh (full judge demo), dark.sh (sealed-position market on a private bank), duel-real.sh (head-to-head on a fresh MPC-minted exam), unseen.sh (market on a never-published exam), ladder8.sh (max-width race), real-unseen-run.sh (real model on a grant-only exam), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts, verify.mjs (offline cryptographic audit of the evidence snapshot), check-submission.mjs (submission pre-flight)
+scripts/                demo.sh (full judge demo), dark.sh (sealed-position market on a private bank), duel-real.sh (head-to-head on a fresh MPC-minted exam), unseen.sh (market on a never-published exam), ladder8.sh (max-width race), real-unseen-run.sh (real model on a grant-only exam), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts, verify.mjs (offline cryptographic audit of the evidence snapshot — same suite runs in-browser on the hosted explorer), audit-browser-test.mjs (headless regression for the in-page audit), check-post-reveal.mjs (standalone F1 repro), check-submission.mjs (submission pre-flight)
 ```
 
 ## Develop
@@ -216,6 +247,8 @@ Explorer: serve the repo root (`python3 -m http.server -d . 8788`) and open `htt
 Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `SEALED_CLUSTER_OFFSET` (localnet: 0, devnet: 456; `ARCIUM_CLUSTER_OFFSET` works as a fallback when running inside the `arcium` env). `scripts/smoke-localnet.sh` runs the whole pipeline against a running `arcium localnet`.
 
 Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALED_API_KEY`; defaults to OpenRouter).
+
+Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (instruction/circuit reference) · [threat-model.md](docs/threat-model.md) (findings + residual assumptions) · [evidence/](docs/evidence/README.md) (snapshot + proof files) · [mainnet.md](docs/mainnet.md) (deploy runbook)
 
 ## Status
 
