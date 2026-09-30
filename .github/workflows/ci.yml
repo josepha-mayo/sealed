@@ -21,7 +21,11 @@ jobs:
         with:
           node-version: 22
           cache: yarn
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
       - run: yarn install --frozen-lockfile
+      - name: market program unit tests (conservation, expiry, argmax, commitments)
+        run: cargo test --manifest-path programs/market/Cargo.toml
       - name: harness unit tests (13)
         run: yarn harness:test
       - name: harness typecheck
