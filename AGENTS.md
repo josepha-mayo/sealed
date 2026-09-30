@@ -54,6 +54,11 @@ parimutuel markets resolved from `Run.correct`.
 - Accounts created under the pre-upgrade layout (e.g. bank 99004) are
   Borsh-EOF bricked — mint fresh banks on the new binaries; there is no
   migration ix.
+- Devnet binaries lag HEAD: the post_reveal/F1 build is committed +
+  localnet-verified but a redeploy attempt hit devnet write congestion
+  (buffer closed, SOL reclaimed). Deployed devnet code = the pre-F1 v4
+  build above; the tail-read is forward-compatible so a redeploy can
+  happen any time.
 - The shared Arcium devnet cluster finalizes computations but has an ongoing
   callback-tx outage — bank mints/scores stall pending (verified: a fresh
   `gen` queued a computation whose callback never landed). Do not claim
