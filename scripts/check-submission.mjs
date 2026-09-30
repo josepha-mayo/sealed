@@ -41,10 +41,19 @@ for (const name of REQUIRED) {
   if (over) fail = 1;
   console.log(`${over ? "OVER   " : "ok     "} ${name.padEnd(24)} ${body.length} chars`);
 }
+let warn = 0;
 for (const [name, body] of found) {
-  if (name !== "teamBackground" && /\bTODO\b|\[FILL|<fill/i.test(body)) {
+  if (/\bTODO\b|\[FILL|<fill/i.test(body)) {
     console.log(`PLACEHOLDER left in ${name}`);
     fail = 1;
   }
 }
+// teamBackground is the one intentional template — bracketed [Name]/[role]
+// markers mean "not yet filled": warn loudly so it can't ship silently.
+const tb = found.get("teamBackground") ?? "";
+if (/\[[A-Z][^\]]*\]/.test(tb)) {
+  console.log(`WARN     teamBackground        still a template — replace [bracketed] markers before submitting`);
+  warn = 1;
+}
+if (warn) console.log("\n(pre-flight passed but the submission is NOT ready — warnings above)");
 process.exit(fail);
