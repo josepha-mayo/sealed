@@ -628,7 +628,7 @@ function renderAll(sealedAccs, marketAccs) {
     }
     const brv = reveals.filter(r => r.bench === b.pk).sort((a, b2) => a.chunk - b2.chunk || a.part - b2.part);
     if (brv.length) {
-      h += `<div class="proof" style="margin-top:6px">spot-check audits — answer fingerprints declassified by the authority inside MPC:`;
+      h += `<div class="proof" style="margin-top:6px">spot-check audits — answer fingerprints declassified by the authority inside MPC. <b>Revealed fingerprints are the scoring targets — those items are spoiled for any run created after the reveal.</b>`;
       for (const r of brv) {
         h += `<div class="mono" style="font-size:11px;margin-top:2px">chunk ${r.chunk} part ${r.part}: ${r.hashes.slice(0, 4).map(x => x.slice(0, 8)).join(" ")}… (${r.hashes.length} hashes, ${fmtTs(r.revealedAt)})</div>`;
       }
@@ -640,6 +640,10 @@ function renderAll(sealedAccs, marketAccs) {
         const pct = items ? (100 * r.correct) / items : 0;
         const nowRef = window.__nowRef ?? Date.now() / 1000;
         const stale = r.status !== 1 && r.pendingSince > 0 && r.pendingMask !== 0n && (nowRef - r.pendingSince) > 900;
+        // F1: the run committed its outputs AFTER a fingerprint reveal on this
+        // bank — the revealed u64 targets are public, so its outputs on those
+        // items could be stuffed rather than generated.
+        const postReveal = brv.some(x => r.createdAt > x.revealedAt);
         const fullMask = r.chunkCount >= 64 ? 0xFFFFFFFFFFFFFFFFn : (1n << BigInt(r.chunkCount)) - 1n;
         const committed = r.everQueuedMask === fullMask && fullMask !== 0n;
         // v4: a committed run's partial settles only after its full landing
@@ -654,7 +658,7 @@ function renderAll(sealedAccs, marketAccs) {
           : "runner queued every chunk — a stall is provably cluster-side";
         h += `<tr><td>#${i + 1}</td><td>${esc(r.modelId)}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
           <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
-          <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vres').innerHTML='';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "scored " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${committed && r.status !== 1 ? ` <span class="pill resolved" title="${commitTitle}">committed${settleableAt && !windowOpen ? " · settleable" : ""}</span>` : ""}${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}</td>
+          <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vres').innerHTML='';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "scored " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${committed && r.status !== 1 ? ` <span class="pill resolved" title="${commitTitle}">committed${settleableAt && !windowOpen ? " · settleable" : ""}</span>` : ""}${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}${postReveal ? ` <span class="pill cancelled" title="created after fingerprint reveals on this bank — outputs on the revealed items could be stuffed (the u64 targets are public)">post-reveal ⚠</span>` : ""}</td>
           <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;
       });
       h += `</table>`;

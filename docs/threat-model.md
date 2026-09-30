@@ -46,6 +46,17 @@ after sealing, and nobody can fabricate a score.
 - **Benchmark author honesty** — *authored banks only*. The author chooses the
   questions and answers; Sealed prevents *leakage* and *score forgery*, not a
   bad-faith bank. Reputation + published `items_root` are the mitigation.
+- **Callback delivery binding** — the score/reveal/reshare callbacks rely on
+  the Arcium program's registered-account-list enforcement (queue-time
+  `CallbackInstruction` accounts are replayed verbatim at delivery) plus
+  deterministic inputs — every possible callback output for a queued
+  computation is honest by construction. The mutating callbacks additionally
+  bind `computation_account == derive_comp_pda!(stored_offset, mxe)`;
+  score/reveal/reshare don't record the offset (Run/Reveal/ShareGrant
+  layouts predate the binding). Contingent risk only: if upstream list
+  enforcement weakened, a validly-signed output could be misrouted to a
+  same-bank `(run, chunk)`. The fix is a layout change (store the queued
+  offset per pending chunk) — noted for the next account-version bump.
   **Generated banks have no author**: the residual trust is in `ArcisRNG` — a
   malicious-but-below-threshold cluster cannot bias the draw without the
   honest nodes aborting the computation.
@@ -203,6 +214,18 @@ after sealing, and nobody can fabricate a score.
 - **Granular answer disclosure** — `reveal_part` declassifies 8 fingerprints at
   a time at the authority's discretion. A per-item variant and threshold-gated
   reveal (e.g. after a market resolves, or multi-sig) are small extensions.
+- **A reveal permanently spoils those items for scoring** — the declassified
+  `Reveal.hashes` *are* the values `score_chunk` compares, so after a reveal
+  anyone can mint a run whose outputs are stuffed to match on those items
+  (8 guaranteed points per revealed part). Mitigations: only the authority can
+  reveal, it is public + timestamped (`Reveal` PDA, `PartRevealed` event),
+  and it cannot help a run whose `outputs_root` predates the reveal. There is
+  deliberately no on-chain taint flag — consumers must compare
+  `reveal.revealed_at` against `run.created_at` (the explorer flags
+  post-reveal runs ⚠ and calls spoiled items out on the bank card). The
+  honest reading: `reveal_part` is an *audit-and-burn* primitive — the
+  authority publicly sacrifices those items' future scoring value to let
+  anyone verify what was counted.
 - **Private-bank prompt custody** — the authority wallet decrypts private
   specs; key compromise leaks the prompts (but never answer plaintext, which
   stays MXE-sealed). `reshare_part` already narrows exposure — the authority

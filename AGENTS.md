@@ -123,4 +123,16 @@ parimutuel markets resolved from `Run.correct`.
   early would insolvent the tail. Positions close on claim (rent returns);
   `revealed == 255` is the sealed sentinel, so `reveal_dark` rejects
   `outcome >= n_outcomes`.
+- `reveal_part` is audit-and-burn: the published `Reveal.hashes` are the
+  exact u64s `score_chunk` compares, so revealed items are spoiled for any
+  run created after the reveal (the explorer flags those runs "post-reveal
+  ⚠"). Only reveal on banks you don't intend to score again.
+- `pending_since` refreshes on EVERY `score_chunk` for the run — a public
+  third-party sweep of an older dead bit waits ~15 min past the LAST queue,
+  not the dead bit's own queue time (runner self-sweep is always allowed;
+  the market-side 24 h `first_pending_at` cap bounds everything anyway).
+- `Benchmark.priv_viewer` is pinned when the first `gen_part_private` is
+  QUEUED (not when its callback lands). If that computation dies
+  permanently the bank can only be re-minted under the same viewer key —
+  there is no `reset_priv_viewer`. Self-inflicted edge only.
 - Private bank JSON files contain plaintext questions — keep out of git.
