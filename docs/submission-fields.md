@@ -26,27 +26,24 @@ can do.
 
 ## technicalApproach
 
-Sealed is a Solana + Arcium protocol that removes the trusted data party
-entirely. Six Arcis circuits run inside the MPC cluster:
+Sealed removes the trusted data party entirely: six Arcis circuits run
+inside the Arcium MPC cluster. `gen_part` mints items inside the enclave —
+specs from ArcisRNG, answers fingerprinted in-circuit; no answer key ever
+exists. `gen_part_private` returns specs as `Enc<Shared>` — questions never
+appear in plaintext on-chain either. `reshare_part` re-encrypts spec parts
+to a delegate's key (recorded in `ShareGrant` PDAs; answers never move).
+`score_chunk` compares a run's committed `outputs_root` Merkle proof
+against sealed fingerprints inside MPC; the callback writes `Run.correct`.
+`seal_part`/`reveal_part` cover authored banks + fingerprint audits.
 
-- `gen_part` mints items inside the enclave — specs from ArcisRNG, answers
-  computed and fingerprinted in-circuit, born `Enc<Mxe>`. No answer key
-  exists anywhere.
-- `gen_part_private` returns specs as `Enc<Shared>` to the authority — the
-  questions never appear in plaintext on-chain either.
-- `reshare_part` re-encrypts spec parts to a delegate's key — selective,
-  recorded in `ShareGrant` PDAs; answers never move.
-- `score_chunk` compares a run's committed `outputs_root` Merkle proof
-  against sealed fingerprints inside MPC; the callback writes `Run.correct`.
-- `seal_part` + `reveal_part` cover authored banks and fingerprint audits.
-
-A second program hosts parimutuel markets — score bands, duels,
-ladder races, unseen-exam markets, and commit-reveal dark markets
-(sealed positions, no-show forfeits) — resolving permissionlessly on
-`Run.correct`; bets latch before the first scored chunk.
-Verified: 13/13 E2E + 13/13 unit
-on a real MPC localnet; gpt-oss-20b finalized 64/64 on an
-MPC-minted bank — on-chain score == local pre-score (run HW5H5bT7).
+A second program hosts parimutuel markets — score bands, duels, ladder
+races, unseen-exam, and commit-reveal dark markets — resolving
+permissionlessly on `Run.correct`; bets latch before the first scored
+chunk. Verified: 13/13 E2E + 13/13 unit on a real MPC localnet. Real
+open-weights models, zero external API: qwen2.5-1.5b 3/32 vs qwen2.5-0.5b
+1/32 dueled on an MPC-minted exam — market opened and filled on pending
+runs, settled straight off MPC scores; the 1.5b also scored 8/32 on a
+private bank readable only via reshare grants.
 
 ## solanaIntegration
 
@@ -66,19 +63,20 @@ against on-chain `outputs_root` in-browser.
 ## tractionMilestones
 
 Hundreds of MPC computations executed on the committed evidence ledger —
-29 banks minted (generated + private + authored), 70 runs created and 61
-finalized by the cluster, 39+ markets resolved on-chain across five
+11 banks minted (generated + private + authored), 39 runs created and 33
+finalized by the cluster, 27 markets resolved on-chain across five
 primitives (score-band, duel, ladder race, unseen-exam, dark
-commit-reveal) paying pro-rata, 38 selective-disclosure grants,
-7 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
-models: gpt-oss-20b 64/64 on an MPC-minted bank (run HW5H5bT7) and 64/64
-on a sealed authored bank (run 4uns99WD), ling-3.0 58/64, nemotron-3.5
-59/64 — every MPC score identical to the local pre-score. Strongest:
-gpt-oss-20b scored 32/32 on a private bank it could only read through
-on-chain disclosure grants (run 9nfKSXnM — the exam was never published).
-`scripts/demo.sh` reproduces the full arc (mint → disclose → run → 4
-market types → settle) in one command; the explorer renders everything
-from a committed snapshot — no localnet needed.
+commit-reveal) paying pro-rata, 14 selective-disclosure grants,
+2 fingerprint reveal audits — 0 plaintext answer keys anywhere. Real
+open-weights models, no external API: qwen2.5-1.5b beat qwen2.5-0.5b
+3–1 on an MPC-minted exam inside a live duel market (7p32UT6s), and
+the 1.5b scored 8/32 on a private exam it could only read through
+reshare grants (7S9ZmxrT — the exam was never published). Prior
+gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (HW5H5bT7), 64/64 on
+authored 25864 (4uns99WD) — and a stale-artifact claim scored 1/64
+(3CKnMa8X), proving the chain never trusts self-reported scores.
+`node scripts/verify.mjs` re-audits the whole bundle offline (10/10
+checks); the hosted explorer runs the same audit in-browser.
 
 ## targetAudience
 
