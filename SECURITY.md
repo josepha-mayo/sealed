@@ -36,11 +36,19 @@ report channels matter more than usual.
 - Bank JSON files under `bank/` and private-bank `--out` files contain
   plaintext — they are local artifacts, git-ignored, and never published
   on-chain.
+- **Reveal is audit-and-burn.** `reveal_part` declassifies the exact u64
+  fingerprints `score_chunk` compares, so a landed reveal permanently
+  spoils those items for *future* scoring. The program enforces this:
+  `Benchmark.reveal_count` bumps when the reveal lands, every run minted
+  afterwards is stamped `post_reveal=1`, and all four market-creation
+  paths reject flagged runs with `PostRevealRun`. Runs committed before
+  the reveal stay clean — their `outputs_root` predates the disclosure.
 
 ## Adversarial review history
 
-Two independent adversarial passes have run over the market program and
-run lifecycle; found-and-fixed issues include the just-in-time
-commit/expire gap (`all_queued_at` landing window), the 8-leg result-mask
-truncation, and forced-resolution inside a leg's landing window. See
-`docs/threat-model.md` for the full model.
+Three independent adversarial passes have run over the programs and MPC
+circuits; found-and-fixed issues include the just-in-time commit/expire
+gap (`all_queued_at` landing window), the 8-leg result-mask truncation,
+forced-resolution inside a leg's landing window, and the
+fingerprint-reveal spoilage path above (disclosed → enforced on-chain).
+See `docs/threat-model.md` for the full model.
