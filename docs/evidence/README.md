@@ -281,6 +281,13 @@ view of the questions was the on-chain grant trail.
   plus cross-validates every on-chain `post_reveal` flag against
   timestamp inference.
   Current bundle: **10 PASS / 0 FAIL** (+ 2 informational notes).
+- **`node scripts/decrypt-grants-test.mjs`** — offline regression for the
+  explorer's "decrypt as delegate" button: vendors the real `RescueCipher`
+  (`web/vendor/rescue.mjs`), decrypts the throwaway demo delegate's 4
+  ShareGrants on private bank `8HHm4HgA…` straight out of `snapshot.json`
+  (`meta.mxe_x25519` carries the cluster pubkey), and pins the spec digest —
+  plus a 32/32 item-for-item match against `chain delegate-bank`'s own
+  reconstruction when that reference is present.
 
 `mock/oracle-*` is the deterministic offline model — the same pipeline
 (`run` → `chain score` → `prove`) works verbatim with a real model via

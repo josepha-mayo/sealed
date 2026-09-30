@@ -106,3 +106,12 @@ explorer's private-bank card, or `solana account <priv-item-chunk-pda>`;
 rebuilds the exam **entirely from grants** — byte-identical to the authority's
 decryption, and nobody else on the network ever saw a single question. That is
 an evaluation the exam's own author can't leak, because there is no author.
+
+**Or just click.** On the hosted explorer, the private bank card has a
+*decrypt with demo delegate key* button — a throwaway localnet delegate
+keypair is committed (`web/demo-delegate.json`), and the page vendors the real
+`RescueCipher` (`web/vendor/rescue.mjs`, noble-only — no Node builtins), so the
+shared-secret derivation, Rescue/x25519 decryption, and spec unpacking all run
+in your browser. You see the 32 sealed questions nobody else can read;
+`node scripts/decrypt-grants-test.mjs` regression-tests the exact same code
+path offline against the harness' own reconstruction (32/32 identical).

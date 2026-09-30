@@ -27,10 +27,29 @@ async function gpa(programId) {
     .sort((a, b) => a.pubkey.localeCompare(b.pubkey)); // stable order = clean diffs
 }
 
+// MXE x25519 pubkey: public cluster metadata — needed by the explorer's
+// "decrypt as delegate" widget to rebuild the Rescue shared secret in-browser.
+async function mxeX25519() {
+  try {
+    const { getMXEPublicKey } = await import("@arcium-hq/client");
+    const anchorMod = await import("@anchor-lang/core");
+    const anchor = anchorMod.default ?? anchorMod;
+    const web3Mod = await import("@solana/web3.js");
+    const web3 = web3Mod.default ?? web3Mod;
+    const conn = new web3.Connection(rpc, "confirmed");
+    const provider = new anchor.AnchorProvider(conn, new anchor.Wallet(web3.Keypair.generate()), {});
+    const key = await getMXEPublicKey(provider, new web3.PublicKey(SEALED_PID));
+    return key ? Buffer.from(key).toString("hex") : null;
+  } catch {
+    return null; // MXE not keyed yet — decrypt widget just won't offer itself
+  }
+}
+
 const snap = {
   meta: {
     rpc, takenAt: new Date().toISOString(),
     programs: { sealed: SEALED_PID, market: MARKET_PID },
+    mxe_x25519: await mxeX25519(),
   },
   sealed: await gpa(SEALED_PID),
   market: await gpa(MARKET_PID).catch(() => []),

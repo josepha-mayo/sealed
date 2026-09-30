@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sealed — benchmark oracle &amp; markets</title>
 <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
+<script type="importmap">
+{"imports":{
+  "@noble/curves/ed25519":"https://esm.sh/@noble/curves@1.9.7/ed25519",
+  "@noble/curves/abstract/modular":"https://esm.sh/@noble/curves@1.9.7/abstract/modular",
+  "@noble/hashes/sha3":"https://esm.sh/@noble/hashes@1.8.0/sha3"
+}}
+</script>
 <style>
   :root { --bg:#0a0e0f; --fg:#c8e6d5; --dim:#5f7a6b; --acc:#4ef0a8; --warn:#f0b84e; --err:#f06e5a; --card:#101715; --line:#1d2a24; }
   * { box-sizing: border-box; }
@@ -207,6 +214,7 @@ function parseShareGrant(d) {
   return {
     chunk: v.getUint16(40, true), part: d[42],
     viewer: b58(d.slice(44, 76)), encKey: b58(d.slice(76, 108)),
+    nonce: hex(d.slice(108, 124)),
     cts: hex(d.slice(124, 188)),
     sharedAt: Number(v.getBigInt64(188, true)),
   };
@@ -217,6 +225,63 @@ const specVal = (s) => {
   const ap = (x, op, y) => (op === 0 ? x + y : op === 1 ? x - y : x * y);
   return ap(ap(s.a, s.op0, s.b), s.op1, s.c);
 };
+// Port of genbank.ts unpackSpecs: 2 ciphertext field elements → 40 spec bytes
+// (field 0 carries bytes 0..25, field 1 carries 26..39) → 8 5-byte ItemSpecs.
+// (`unhex` is already defined below for proof decoding.)
+function unpackSpecs(fields) {
+  if (fields.length !== 2) throw new Error("expected 2 packed fields, got " + fields.length);
+  const bytes = new Array(40);
+  for (let i = 0; i < 40; i++) {
+    const f = i < 26 ? 0 : 1;
+    bytes[i] = Number((fields[f] >> BigInt(8 * (i - f * 26))) & 0xffn);
+  }
+  const specs = [];
+  for (let k = 0; k < 8; k++) {
+    const o = k * 5;
+    const s = { a: bytes[o], b: bytes[o + 1], c: bytes[o + 2], op0: bytes[o + 3], op1: bytes[o + 4] };
+    if (s.a > 63 || s.b > 63 || s.c > 63 || s.op0 > 2 || s.op1 > 2)
+      throw new Error(`spec ${k} out of range — wrong key or layout?`);
+    specs.push(s);
+  }
+  return specs;
+}
+// "Decrypt as delegate" — the ciphertext-only claim, exercised: the committed
+// throwaway delegate keypair + the MXE x25519 pubkey rebuild the shared secret,
+// RescueCipher decrypts every ShareGrant, and the sealed exam renders locally.
+async function decryptBank(benchPk, btn) {
+  const slot = document.getElementById("dec-" + benchPk);
+  try {
+    btn.disabled = true; btn.textContent = "decrypting…";
+    if (!window.__mxeX25519) throw new Error("snapshot has no mxe_x25519 — regenerate snapshot.mjs on a keyed cluster");
+    const demo = await (await fetch("demo-delegate.json")).json();
+    const { ed25519, x25519 } = await import("@noble/curves/ed25519");
+    const { RescueCipher } = await import("./vendor/rescue.mjs");
+    const secret = Uint8Array.from(demo.secret_key);
+    const priv = ed25519.utils.toMontgomerySecret(secret.slice(0, 32));
+    const viewerB58 = b58enc(ed25519.utils.toMontgomery(secret.slice(32, 64)));
+    const cipher = new RescueCipher(x25519.getSharedSecret(priv, unhex(window.__mxeX25519)));
+    const gs = (window.__audit?.grants || []).filter(g => g.bench === benchPk && g.viewer === viewerB58)
+      .sort((a, b2) => a.chunk - b2.chunk || a.part - b2.part);
+    if (!gs.length) throw new Error(`no ShareGrants on this bank for demo delegate ${demo.solana_pubkey.slice(0, 8)}…`);
+    let rows = "";
+    for (const g of gs) {
+      const cts = [unhex(g.cts.slice(0, 64)), unhex(g.cts.slice(64, 128))].map(u => Array.from(u));
+      const specs = unpackSpecs(cipher.decrypt(cts, unhex(g.nonce)));
+      specs.forEach((s, k) => {
+        const idx = g.chunk * 32 + g.part * 8 + k;
+        rows += `<tr><td>${idx}</td><td class="mono">${specExpr(s)}</td><td>${specVal(s)}</td></tr>`;
+      });
+    }
+    slot.innerHTML = `<div class="proof" style="margin-top:4px">decrypted <b>${gs.length} grant${gs.length === 1 ? "" : "s"}</b> in your browser —
+      Rescue/x25519 shared secret derived locally; plaintext never touched the wire or the chain.
+      The <b>answers</b> shown are recomputed by the page — on-chain they exist only as MPC-held fingerprints.
+      <table style="margin-top:6px"><tr><th>#</th><th>question</th><th>answer</th></tr>${rows}</table></div>`;
+  } catch (e) {
+    slot.innerHTML = `<div class="proof" style="color:var(--err)">decrypt failed: ${esc(e.message)}</div>`;
+    btn.disabled = false; btn.textContent = "decrypt with demo delegate key";
+  }
+}
+
 function parseRun(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
   const benchmark = d.slice(o, o + 32); o += 32;
@@ -460,6 +525,7 @@ function applySnapshot(snap) {
   // every staleness comparison (NaN > x is always false).
   const parsedTaken = meta.takenAt ? Date.parse(meta.takenAt) / 1000 : NaN;
   window.__nowRef = Number.isFinite(parsedTaken) ? parsedTaken : undefined;
+  window.__mxeX25519 = meta.mxe_x25519 || null; // cluster pubkey for in-browser grant decryption
   window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
   document.getElementById("net").textContent =
@@ -637,7 +703,8 @@ function renderAll(sealedAccs, marketAccs) {
         h += `<div class="mono" style="font-size:11px;margin-top:2px">chunk ${g.chunk} part ${g.part} → viewer <span title="${g.viewer}">${g.viewer.slice(0, 12)}…</span>
           at ${fmtTs(g.sharedAt)} &middot; grant <span class="mono">${g.cts.slice(0, 32)}…</span></div>`;
       }
-      h += `</div>`;
+      h += `<button style="margin-top:6px;background:var(--acc);color:#062015;border:0;padding:4px 10px;border-radius:5px;font:inherit;font-size:12px;cursor:pointer" onclick="decryptBank('${b.pk}', this)">decrypt with demo delegate key</button>
+        <div id="dec-${b.pk}"></div></div>`;
     }
     const brv = reveals.filter(r => r.bench === b.pk).sort((a, b2) => a.chunk - b2.chunk || a.part - b2.part);
     if (brv.length) {

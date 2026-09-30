@@ -34,5 +34,7 @@ jobs:
         run: node scripts/verify.mjs
       - name: in-browser audit regression (headless)
         run: node scripts/audit-browser-test.mjs
+      - name: in-browser grant decryption regression (vendored RescueCipher + demo key)
+        run: node scripts/decrypt-grants-test.mjs
       - name: submission pre-flight
         run: node scripts/check-submission.mjs

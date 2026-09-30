@@ -187,3 +187,13 @@ parimutuel markets resolved from `Run.correct`.
   permanently the bank can only be re-minted under the same viewer key —
   there is no `reset_priv_viewer`. Self-inflicted edge only.
 - Private bank JSON files contain plaintext questions — keep out of git.
+- `web/vendor/rescue.mjs` is the Rescue cipher extracted verbatim from
+  `@arcium-hq/client` build (noble-only span); the explorer's "decrypt with
+  demo delegate key" button uses it + `web/demo-delegate.json` (THROWAWAY
+  localnet keypair, committed on purpose) to decrypt `ShareGrant` ciphertexts
+  in-browser. `snapshot.mjs` embeds `meta.mxe_x25519` (cluster pubkey) so the
+  shared secret can be rebuilt client-side. Regression:
+  `scripts/decrypt-grants-test.mjs` — fully offline, pinned spec digest, CI.
+- The demo delegate (`Cr2bbdGh…`) holds grants on private bank `8HHm4HgA…`
+  chunk 0 parts 0-3. If that bank is ever re-minted or the ledger wiped,
+  re-grant + regenerate the snapshot or the decrypt button will error.
