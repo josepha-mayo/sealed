@@ -65,7 +65,9 @@ yarn harness:test              # 13/13 unit
 #     re-derives every account's PDA, replays items_root commitment folds
 #     bit-exact, re-checks that every market resolution is a pure function
 #     of the MPC-scored run, and re-verifies the Merkle proofs.
-node scripts/verify.mjs        # 9 PASS / 0 FAIL on the committed snapshot
+#     The same suite also runs IN-BROWSER on the hosted explorer — the
+#     "cryptographic audit" panel auto-executes against the loaded snapshot.
+node scripts/verify.mjs        # 10 PASS / 0 FAIL on the committed snapshot
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh

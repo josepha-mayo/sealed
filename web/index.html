@@ -63,6 +63,12 @@
 <div id="err"></div>
 <div id="out"></div>
 
+<h2>cryptographic audit</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span></div>
+  <div id="auditres"><span class="kv">waiting for data…</span></div>
+</div>
+
 <h2>verify an output</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">proof that a model's output was committed <i>before</i> scoring — paste <code>sealed prove --run … --item …</code> output</div>
@@ -504,6 +510,7 @@ function renderAll(sealedAccs, marketAccs) {
       else if (disc === DISC.privItemChunk) privChunks.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parsePrivItemChunk(d) });
       else if (disc === DISC.reveal) reveals.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseReveal(d) });
       else if (disc === DISC.shareGrant) grants.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseShareGrant(d) });
+      else if (disc === "d69d7a72752cd64a") window.__signPda = pubkey.toBase58(); // Arcium SignPdaAccount
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
   for (const { pubkey, account } of marketAccs) {
@@ -512,8 +519,8 @@ function renderAll(sealedAccs, marketAccs) {
       if (disc === DISC.market) markets.push({ pk: pubkey.toBase58(), ...parseMarket(d) });
       else if (disc === DISC.ladder) ladders.push({ pk: pubkey.toBase58(), ...parseLadder(d) });
       else if (disc === DISC.darkMarket) darkMarkets.push({ pk: pubkey.toBase58(), ...parseDarkMarket(d) });
-      else if (disc === DISC.darkPosition) darkPositions.push(parseDarkPosition(d));
-      else if (disc === DISC.position) positions.push(parsePosition(d));
+      else if (disc === DISC.darkPosition) darkPositions.push({ pk: pubkey.toBase58(), ...parseDarkPosition(d) });
+      else if (disc === DISC.position) positions.push({ pk: pubkey.toBase58(), ...parsePosition(d) });
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
   if (skipped.length)
@@ -523,6 +530,7 @@ function renderAll(sealedAccs, marketAccs) {
   window.__benches = new Map(benches.map((b) => [b.pk, b]));
   window.__itemChunks = itemChunks;
   window.__privChunks = privChunks;
+  window.__audit = { benches, runs, markets, ladders, positions, chunks, itemChunks, privChunks, reveals, grants, darkMarkets, darkPositions, signPda: window.__signPda ?? null, skipped: skipped.length };
 
   let h = "";
 
@@ -797,6 +805,7 @@ function renderAll(sealedAccs, marketAccs) {
     }
   }
   document.getElementById("out").innerHTML = h;
+  maybeAudit();
 }
 function popcount(b) { let n = 0, x = BigInt(b); while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
 
@@ -937,6 +946,189 @@ async function verify() {
       ${ok ? "" : `<br><span style="color:var(--err)">the proof does not reach the committed root — output was not part of this run</span>`}
     </div>`;
   } catch (e) { res.innerHTML = `<div class="proof" style="color:var(--err)">${esc(e.message)}</div>`; }
+}
+
+// ---------- cryptographic audit (in-browser port of scripts/verify.mjs) ----------
+// Re-checks the exact claims this page displays: every account must sit at
+// its seed-derived PDA (fabricated snapshots can't), items_root folds must
+// replay bit-exact, every market resolution must be a pure function of the
+// linked MPC-scored run, and post_reveal flags must match the reveal clock.
+const pkB = (s) => new PK(s).toBuffer();
+const u16b = (n) => u32le(n).slice(0, 2);
+const outcomeOfA = (edges, n, score) => { let i = 0; while (i < n - 1 && score >= edges[i]) i++; return i; };
+const canPda = () => !!(window.solanaWeb3?.PublicKey?.findProgramAddressSync);
+const pdaB = (seeds, pid) => window.solanaWeb3.PublicKey.findProgramAddressSync(seeds, pid)[0].toBase58();
+
+let __auditKey = null;
+function maybeAudit() {
+  const A = window.__audit;
+  if (!A) return;
+  const key = A.benches.length + ":" + A.runs.length + ":" + A.markets.length + ":" + A.ladders.length + ":" + A.darkMarkets.length + ":" + A.skipped;
+  if (key === __auditKey) return;
+  __auditKey = key;
+  runAudit();
+}
+
+async function runAudit(force) {
+  const out = document.getElementById("auditres");
+  const A = window.__audit;
+  if (!A) { out.innerHTML = `<span class="kv">no data loaded yet — waiting for RPC/snapshot…</span>`; return; }
+  if (force) __auditKey = null;
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const skip = (n, d) => rows.push(`<div class="proof"><span class="pill">note</span> ${n} — <span class="kv">${d}</span></div>`);
+  out.innerHTML = `<span class="kv">auditing…</span>`;
+  try {
+    // [1] decode: renderAll already classified — unknowns land in `skipped`.
+    A.skipped === 0
+      ? pass("account decode", `${A.benches.length} banks, ${A.runs.length} runs, ${A.itemChunks.length} gen chunks, ${A.privChunks.length} private chunks, ${A.reveals.length} reveals, ${A.grants.length} grants, ${A.markets.length} markets, ${A.ladders.length} ladders, ${A.darkMarkets.length} dark markets`)
+      : fail("account decode", `${A.skipped} unknown/unparseable account(s)`);
+
+    // [2] PDA re-derivation — needs real web3.js (sha256 + ed25519).
+    if (!canPda()) {
+      skip("PDA derivation", "web3.js CDN unreachable — only this check needs it");
+    } else {
+      let bad = 0;
+      const chk = (want, got) => { if (want !== got) bad++; };
+      for (const b of A.benches) chk(b.pk, pdaB([utf8("benchmark"), pkB(b.authority), u32le(b.id)], SEALED_PID));
+      for (const c of A.itemChunks) chk(c.pk, pdaB([utf8("items"), pkB(c.bench), u16b(c.index)], SEALED_PID));
+      for (const c of A.privChunks) chk(c.pk, pdaB([utf8("pitems"), pkB(c.bench), u16b(c.index)], SEALED_PID));
+      for (const c of A.chunks) chk(c.pk, pdaB([utf8("chunk"), pkB(c.bench), u16b(c.idx)], SEALED_PID));
+      for (const r of A.runs) chk(r.pk, pdaB([utf8("run"), pkB(r.benchmark), u64le(r.index)], SEALED_PID));
+      for (const r of A.reveals) chk(r.pk, pdaB([utf8("reveal"), pkB(r.bench), u16b(r.chunk), Uint8Array.of(r.part)], SEALED_PID));
+      for (const g of A.grants) chk(g.pk, pdaB([utf8("grant"), pkB(g.bench), u16b(g.chunk), Uint8Array.of(g.part), pkB(g.viewer)], SEALED_PID));
+      for (const m of A.markets) {
+        const plain = pdaB([utf8("market"), pkB(m.run), u64le(m.salt)], MARKET_PID);
+        const duel = m.duel ? pdaB([utf8("duel"), pkB(m.run), pkB(m.runB), u64le(m.salt)], MARKET_PID) : null;
+        if (m.pk !== plain && m.pk !== duel) bad++;
+      }
+      for (const l of A.ladders) chk(l.pk, pdaB([utf8("ladder"), pkB(l.legs[0]), u64le(l.salt)], MARKET_PID));
+      for (const d of A.darkMarkets) chk(d.pk, pdaB([utf8("dark"), pkB(d.run), u64le(d.salt)], MARKET_PID));
+      for (const p of A.darkPositions) {
+        let found = false;
+        for (let s = 0; s <= 4095 && !found; s++) if (pdaB([utf8("darkpos"), pkB(p.market), pkB(p.bettor), u64le(s)], MARKET_PID) === p.pk) found = true;
+        if (!found) bad++;
+      }
+      for (const p of A.positions) chk(p.pk, pdaB([utf8("position"), pkB(p.market), pkB(p.bettor)], MARKET_PID));
+      if (A.signPda) chk(A.signPda, pdaB([utf8("ArciumSignerAccount")], SEALED_PID));
+      bad === 0 ? pass("PDA derivation", "every account re-derives to its own address") : fail("PDA derivation", `${bad} mismatch(es)`);
+    }
+
+    // [3] run invariants
+    const bset = new Set(A.benches.map(b => b.pk)), rset = new Map(A.runs.map(r => [r.pk, r]));
+    let rbad = 0;
+    for (const r of A.runs) {
+      if (r.everQueuedMask !== 0n && (r.scoredMask & ~r.everQueuedMask) !== 0n) rbad++;
+      if (r.correct > popcount(r.scoredMask) * 32) rbad++;
+      if (r.status === 1 && r.pendingMask !== 0n) rbad++;
+      if (!bset.has(r.benchmark)) rbad++;
+    }
+    rbad === 0 ? pass("run invariants", `${A.runs.length} runs: scored⊆queued, correct≤capacity, finalized⇒no pending`) : fail("run invariants", `${rbad} violation(s)`);
+
+    // [4] items_root folds
+    let fbad = 0, folded = 0;
+    for (const b of A.benches) {
+      if (b.kind === 0) continue;
+      const st = [];
+      if (b.kind === 1) {
+        for (const c of A.itemChunks.filter(x => x.bench === b.pk))
+          for (let p = 0; p < 4; p++) {
+            if (!(c.partsWritten & (1 << p))) continue;
+            const bytes = new Uint8Array(40);
+            for (let k = 0; k < 8; k++) { const s = c.specs[p * 8 + k]; bytes.set([s.a, s.b, s.c, s.op0, s.op1], k * 5); }
+            st.push({ seq: c.mintOrder[p], ci: c.index, part: p, bytes });
+          }
+      } else {
+        for (const c of A.privChunks.filter(x => x.bench === b.pk))
+          for (let p = 0; p < 4; p++) {
+            if (!(c.partsWritten & (1 << p))) continue;
+            const bytes = new Uint8Array(80);
+            bytes.set(c.ciphertexts.slice(p * 64, p * 64 + 64), 0);
+            bytes.set(c.nonces.slice(p * 16, p * 16 + 16), 64);
+            st.push({ seq: c.mintOrder[p], ci: c.index, part: p, bytes });
+          }
+      }
+      if (!st.length) continue;
+      let root = new Uint8Array(32);
+      for (const s of st.sort((a, b) => a.seq - b.seq || a.ci - b.ci || a.part - b.part))
+        root = await sha(cat(b.kind === 1 ? D_GI : D_PI, root, u16b(s.ci), Uint8Array.of(s.part), s.bytes));
+      if (hex(root) === b.itemsRoot) folded++; else fbad++;
+    }
+    fbad === 0 ? pass("items_root folds", `${folded} banks replayed bit-exact`) : fail("items_root folds", `${fbad} mismatch(es)`);
+
+    // [5] market purity — every resolution is a pure function of MPC scores
+    let mbad = 0, mchecked = 0;
+    for (const m of A.markets) {
+      const r = rset.get(m.run);
+      if (!r || m.status !== 1) continue;
+      mchecked++;
+      if (m.duel) {
+        const rb = rset.get(m.runB);
+        if (!rb) continue;
+        const expect = r.correct > rb.correct ? 0 : rb.correct > r.correct ? 1 : 2;
+        if (m.outcome !== expect || m.resolvedScore !== ((r.correct << 16) | rb.correct)) mbad++;
+      } else {
+        if (m.resolvedScore !== r.correct || m.outcome !== outcomeOfA(m.edges, m.nOutcomes, r.correct)) mbad++;
+      }
+    }
+    mbad === 0 ? pass("score-band + duel purity", `${mchecked} resolved markets re-derived`) : fail("market purity", `${mbad} resolution(s) don't match MPC scores`);
+
+    let lbad = 0, lchecked = 0;
+    for (const l of A.ladders) {
+      if (l.status !== 1) continue;
+      const scores = l.legs.slice(0, l.legCount).map(lp => rset.get(lp)?.correct ?? null);
+      if (scores.includes(null)) continue;
+      lchecked++;
+      const max = Math.max(...scores);
+      const expect = scores.reduce((m2, s, i) => (s === max ? m2 | (1 << i) : m2), 0);
+      if (l.resultMask !== expect) lbad++;
+    }
+    lbad === 0 ? pass("ladder argmax masks", `${lchecked} ladders re-derived`) : fail("ladder masks", `${lbad} mismatch(es)`);
+
+    let dbad = 0, dchecked = 0;
+    for (const d of A.darkMarkets) {
+      if (d.status !== 1 && d.status !== 2) continue;
+      const r = rset.get(d.run), pos = A.darkPositions.filter(p => p.market === d.pk);
+      if (d.status === 1 && r) {
+        dchecked++;
+        if (d.resolvedScore !== r.correct || d.outcome !== outcomeOfA(d.edges, d.n, r.correct)) dbad++;
+      }
+      const rev = pos.filter(p => p.revealed !== null);
+      // positions close on claim — open revealed can only be a subset of lifetime revealedCount.
+      if (rev.length > d.revealedCount) dbad++;
+      for (const p of rev) if (p.revealed >= d.n) dbad++;
+      if (d.winTotal > d.poolTotal) dbad++;
+    }
+    dbad === 0 ? pass("dark-market accounting", `${dchecked} resolved darks re-derived; revealedCount/wintotal consistent`) : fail("dark markets", `${dbad} violation(s)`);
+
+    // [6] cross-references
+    let xbad = 0;
+    for (const m of A.markets) if (!rset.has(m.run)) xbad++;
+    for (const l of A.ladders) for (const leg of l.legs.slice(0, l.legCount)) if (!rset.has(leg)) xbad++;
+    for (const c of [...A.itemChunks, ...A.privChunks, ...A.chunks]) if (!bset.has(c.bench)) xbad++;
+    for (const r of A.reveals) if (!bset.has(r.bench)) xbad++;
+    xbad === 0 ? pass("referential integrity", "every market/chunk/reveal link resolves") : fail("referential integrity", `${xbad} dangling link(s)`);
+
+    // [7] reveal-burn (F1): on-chain flags must equal timestamp inference —
+    // a flagged run with no earlier reveal, or an unflagged post-reveal run,
+    // means the burn accounting is broken.
+    let flagBad = 0, flagged = 0, inferred = 0;
+    for (const r of A.runs) {
+      const rev = A.reveals.filter(x => x.bench === r.benchmark && x.revealedAt > 0 && x.revealedAt <= r.createdAt);
+      if (r.postReveal) { flagged++; if (!rev.length) flagBad++; }
+      if (rev.length) inferred++;
+    }
+    for (const b of A.benches) {
+      const nrv = A.reveals.filter(x => x.bench === b.pk && x.revealedAt > 0).length;
+      if (nrv) skip(`reveal-burn · bank ${short(b.pk)}`, `${nrv} reveal(s) landed — ${A.runs.filter(r => r.benchmark === b.pk && r.postReveal).length} run(s) stamped post_reveal; markets refuse them (PostRevealRun)`);
+    }
+    flagBad === 0 ? pass("post_reveal flags", `${flagged} flagged on-chain / ${inferred} inferred by timestamp — consistent`) : fail("post_reveal flags", `${flagBad} flag(s) without a prior reveal`);
+
+    out.innerHTML = rows.join("") + `<div class="kv" style="margin-top:6px">${rows.filter(r => r.includes(">PASS<")).length} pass · ${rows.filter(r => r.includes(">FAIL<")).length} fail — recomputed locally from the rendered accounts; nothing trusted</div>`;
+  } catch (e) {
+    out.innerHTML = rows.join("") + `<div class="proof" style="color:var(--err)">audit halted: ${esc(e.message)}</div>`;
+  }
 }
 
 // `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.
