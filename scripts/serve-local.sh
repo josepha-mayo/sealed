@@ -14,7 +14,8 @@
 set -uo pipefail
 
 LLAMA_BIN="${LLAMA_BIN:-/mnt/d/devin/llama/llama-b11274/llama-server}"
-MODEL_DIR="${MODEL_DIR:-/mnt/d/devin/models}"
+# Default to ext4 — /mnt/d 9P reads D-state under concurrent mmap (WSL).
+MODEL_DIR="${MODEL_DIR:-$HOME/models}"
 THREADS="${THREADS:-3}"
 CTX="${CTX:-4096}"
 

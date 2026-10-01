@@ -34,6 +34,21 @@ qwen2.5-1.5b-instruct (llama.cpp :8081):
 run CjatpBGz5MTRqQ85vHsFuaRr16wkE6nfQavzTXGsLvAM FINALIZED: 2/32 = 6.3%
 (matches local pre-score; below the bounty's threshold-6 — no claim possible)
 
+== same bank, REAL-model market resolution (all buckets backed while pending)
+run DMf2vZaDhw1HfWZTmeDdjpPHkAVWK9TMU5ejLHZtAA31 — qwen2.5-0.5b — MPC 0/32
+  · market 6arom5Yc… resolved CANCELLED (one bucket unbacked → gross refunds;
+    the all_backed guard working as designed)
+run HQJL9gjCJbS8t3hVKaLc8jmZfK9nvteb1JcKtUqLAHcw — llama-3.2-1b — MPC 0/32
+  · market t82Q2fPE… [<4 | 4–15 | ≥16] fully backed while pending →
+    resolved outcome 0 [<4] on the MPC score; the <4 bucket collected the
+    whole 0.1 SOL pool (claim paid +0.102 incl. position rent return)
+
+leaderboard on bank 88123 — all MPC-finalized, all real open-weights:
+  qwen2.5-3b   7/32  → claimed the bounty
+  qwen2.5-1.5b 2/32
+  qwen2.5-0.5b 0/32  → cancelled market (unbacked tail)
+  llama-3.2-1b 0/32  → resolved market paid the <4 bucket
+
 all accounts verified in web/snapshot.json — the claim is check #8 of
 verify.mjs / the in-browser audit (winner bank, score, timestamp,
 runner != sponsor).

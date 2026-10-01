@@ -160,6 +160,14 @@ the pot to `run.runner` (89.1M → 189.1M lamports). The sibling run on the
 same bank, `qwen2.5-1.5b-instruct` at **2/32**, stayed below threshold —
 the benchmark measures; it does not flatter.
 
+Same bank, more real-model market evidence (`real-bounty.txt`): a band
+market `t82Q2fPE…` priced **llama-3.2-1b's pending run** with every
+bucket backed — it resolved `<4` on the MPC-verified **0/32** and paid
+the winning bucket the full pool; a parallel market on 0.5b's run
+correctly **cancelled** for an unbacked bucket (gross refunds). The
+bank's real-model leaderboard: 3b 7/32 · 1.5b 2/32 · 0.5b and llama-1b
+0/32 — four honest zeros-and-sevens, all MPC-written.
+
 Honesty note — bounty `EJzXf3q4…` in the merged snapshot was claimed by a
 run whose `runner == sponsor`: it landed on an epoch-2 binary **before**
 the `runner != sponsor` guard shipped (the first demo is what exposed the
