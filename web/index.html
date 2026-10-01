@@ -550,7 +550,8 @@ function applySnapshot(snap) {
   window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
   document.getElementById("net").textContent =
-    ` SNAPSHOT — ${meta.rpc || "unknown rpc"} @ ${meta.takenAt || "?"}`;
+    ` SNAPSHOT — ${meta.rpc || "unknown rpc"} @ ${meta.takenAt || "?"}` +
+    (meta.epochs > 1 ? ` · merged across ${meta.epochs} ledger epochs` : "");
   try {
     renderAll(dec(snap.sealed), dec(snap.market));
   } catch (e) {
