@@ -329,5 +329,7 @@ sponsor buys a *demonstrated* capability, not a prediction.
 FCFS is the deliberate scope cut: a highest-score auction needs a
 nominate/contest phase and a second deadline dimension. First-qualifying-
 proven-run wins is the honest version that needs no challenge state.
-Live transcript: `docs/evidence/bounty-local.txt` (three on-chain bait
-rejections + claim + refund).
+Live transcripts: `docs/evidence/bounty-local.txt` (mock-flow bait
+rejections + claim + refund) and `docs/evidence/real-bounty.txt` (a real
+open-weights model — qwen2.5-3b via llama.cpp — MPC-scored 7/32, and a
+permissionless claim paid its operator 0.1 SOL).

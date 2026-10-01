@@ -1,0 +1,39 @@
+# real-model capability bounty claim — epoch 3 (localnet 2026-10-01)
+# repro: scripts/real-bounty-claim.sh — real open-weights inference via
+# llama.cpp (~/models, OpenAI-compatible /v1), MPC scoring on Arcium localnet.
+
+== mint (bank minted inside MPC — no answer key ever existed)
+$ chain gen --id 88123 --chunks 1
+benchmark BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw status=LIVE minted=1/1
+items_root 111a7ccd…ffdb (32 minted items, answers never existed in plaintext)
+
+== sponsor escrows 0.1 SOL — "first run to score >= 6/32 takes it"
+$ chain market bounty open --bank BqC4fmNq… --threshold 6 --lamports 100000000 --deadline +3600
+bounty rXKda9QJYHhBoVEjAv25UYJCSycbp2VkzUq58bbSQ79 opened
+
+== independent operator runs qwen2.5-3b-instruct (llama.cpp :8083)
+runner keypair CTjqTWai3C4XF4WpEMuQpZ4v5pxNJxhwQfiTKnUSVTnM (distinct from sponsor)
+$ run --bank bank/gen-88123.json --model qwen2.5-3b-instruct --out real-run3b-88123.json
+localAccuracy 0.2188  →  local pre-score 7/32   (108s, 32 prompts, real inference)
+
+== MPC scores the run — Run.correct is cluster-written
+$ chain score --bank bank/gen-88123.json --run real-run3b-88123.json --authority 4RUW4pDm… --run-index 0
+run ucwXeKwU5yAnmREhVTQjawCSKrgVC2gjnkd1VDGo7MS FINALIZED: 7/32 = 21.9%
+(matches local pre-score — MPC agrees with the off-chain count)
+
+== permissionless claim — pot lands on run.runner, not the trigger
+$ chain market bounty claim --bounty rXKda9QJ… --run ucwXeKwU…
+bounty claimed (4NnZGugk…): run ucwXeKwU… score=7
+paid 89115440 -> 189115440 lamports to runner CTjqTWai… (+0.1 SOL exactly)
+
+bounty rXKda9QJ… status=CLAIMED
+  winner_run=ucwXeKwU… winning_score=7 >= threshold 6
+
+== sibling run on the SAME bank stays below threshold — measured, not flattered
+qwen2.5-1.5b-instruct (llama.cpp :8081):
+run CjatpBGz5MTRqQ85vHsFuaRr16wkE6nfQavzTXGsLvAM FINALIZED: 2/32 = 6.3%
+(matches local pre-score; below the bounty's threshold-6 — no claim possible)
+
+all accounts verified in web/snapshot.json — the claim is check #8 of
+verify.mjs / the in-browser audit (winner bank, score, timestamp,
+runner != sponsor).
