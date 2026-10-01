@@ -151,6 +151,15 @@ proven-partial path (`tests::bounty_qualifies_gates`), and the E2E test
 exercises retroactive-claim rejection, a permissionless third-party claim
 trigger, and double-claim rejection against real MPC scoring.
 
+**With a real open-weights model** (epoch 3, in `snapshot.json`): bank
+`BqC4fmNq…` (MPC-minted, answers never existed), bounty `rXKda9QJ…`
+(0.1 SOL, threshold 6/32). `qwen2.5-3b-instruct` (local llama.cpp,
+independent runner key `CTjqTWai…`) scored **7/32 through the MPC
+pipeline — matching its local pre-score** — and a third-party claim paid
+the pot to `run.runner` (89.1M → 189.1M lamports). The sibling run on the
+same bank, `qwen2.5-1.5b-instruct` at **2/32**, stayed below threshold —
+the benchmark measures; it does not flatter.
+
 Honesty note — bounty `EJzXf3q4…` in the merged snapshot was claimed by a
 run whose `runner == sponsor`: it landed on an epoch-2 binary **before**
 the `runner != sponsor` guard shipped (the first demo is what exposed the
