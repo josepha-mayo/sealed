@@ -115,6 +115,63 @@ pub mod sealed {
         Ok(())
     }
 
+    /// Eager, grief-proof initializer for the shared Arcium signer PDA.
+    /// Every queue path lazily `init_if_needed`s this singleton — and a
+    /// prefunded PDA bricks `create_account` (the runtime rejects accounts
+    /// already carrying lamports), so an attacker who transfers 1 lamport
+    /// to the seed-derived address before first use would stall ALL MPC
+    /// queueing. Here the program owns the seeds, so it can drain prefunds
+    /// back to the caller via invoke_signed, then create the account —
+    /// which also UN-bricks the program after a successful grief.
+    /// Idempotent: a live account returns early.
+    pub fn init_signer_pda(ctx: Context<InitSignerPda>) -> Result<()> {
+        let acc = &ctx.accounts.sign_pda_account;
+        if acc.owner == &crate::ID && !acc.data_is_empty() {
+            return Ok(());
+        }
+        require!(
+            acc.owner == &system_program::ID,
+            ErrorCode::SignPdaForeignOwner
+        );
+        let bump = ctx.bumps.sign_pda_account;
+        let bump_seed = [bump];
+        let seeds: &[&[u8]] = &[&SIGN_PDA_SEED, &bump_seed];
+        let pre = acc.lamports();
+        if pre > 0 {
+            system_program::transfer(
+                CpiContext::new_with_signer(
+                    system_program::ID,
+                    system_program::Transfer {
+                        from: acc.to_account_info(),
+                        to: ctx.accounts.payer.to_account_info(),
+                    },
+                    &[seeds],
+                ),
+                pre,
+            )?;
+        }
+        system_program::create_account(
+            CpiContext::new_with_signer(
+                system_program::ID,
+                system_program::CreateAccount {
+                    from: ctx.accounts.payer.to_account_info(),
+                    to: acc.to_account_info(),
+                },
+                &[seeds],
+            ),
+            Rent::get()?.minimum_balance(9),
+            9,
+            &crate::ID,
+        )?;
+        let mut data = acc.try_borrow_mut_data()?;
+        let mut cur: &mut [u8] = &mut data;
+        ArciumSignerAccount { bump }.try_serialize(&mut cur)?;
+        emit!(SignerPdaInitialized {
+            drained_lamports: pre,
+        });
+        Ok(())
+    }
+
     // ------------------------------------------------------------ benchmark
 
     pub fn create_benchmark(
@@ -1626,7 +1683,12 @@ pub struct SealPartCallback<'info> {
     #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: UncheckedAccount<'info>,
-    #[account(mut, constraint = chunk.benchmark == benchmark.key() @ ErrorCode::ChunkBenchmarkMismatch)]
+    #[account(
+        mut,
+        constraint = chunk.benchmark == benchmark.key() @ ErrorCode::ChunkBenchmarkMismatch,
+        seeds = [b"chunk", chunk.benchmark.as_ref(), chunk.index.to_le_bytes().as_ref()],
+        bump = chunk.bump,
+    )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
     #[account(mut)]
     pub benchmark: Box<Account<'info, Benchmark>>,
@@ -1699,7 +1761,12 @@ pub struct GenPartCallback<'info> {
     #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: UncheckedAccount<'info>,
-    #[account(mut, constraint = chunk.benchmark == benchmark.key() @ ErrorCode::ChunkBenchmarkMismatch)]
+    #[account(
+        mut,
+        constraint = chunk.benchmark == benchmark.key() @ ErrorCode::ChunkBenchmarkMismatch,
+        seeds = [b"chunk", chunk.benchmark.as_ref(), chunk.index.to_le_bytes().as_ref()],
+        bump = chunk.bump,
+    )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
     #[account(
         mut,
@@ -1748,6 +1815,19 @@ pub struct InitResharePartCompDef<'info> {
     /// CHECK: lut_program is the Address Lookup Table program.
     pub lut_program: UncheckedAccount<'info>,
     pub arcium_program: Program<'info, Arcium>,
+    pub system_program: Program<'info, System>,
+}
+
+/// `init_signer_pda` — manual init because the generic `init`/`init_if_needed`
+/// machinery dies on prefunded PDAs (see handler). Seeds + address pin the
+/// account to the one-and-only signer PDA; everything else is handled inside.
+#[derive(Accounts)]
+pub struct InitSignerPda<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// CHECK: manually initialized in the handler — grief prefunds drained first.
+    #[account(mut, seeds = [&SIGN_PDA_SEED], bump, address = derive_sign_pda!())]
+    pub sign_pda_account: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -1821,7 +1901,12 @@ pub struct GenPartPrivateCallback<'info> {
     #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: UncheckedAccount<'info>,
-    #[account(mut, constraint = chunk.benchmark == benchmark.key() @ ErrorCode::ChunkBenchmarkMismatch)]
+    #[account(
+        mut,
+        constraint = chunk.benchmark == benchmark.key() @ ErrorCode::ChunkBenchmarkMismatch,
+        seeds = [b"chunk", chunk.benchmark.as_ref(), chunk.index.to_le_bytes().as_ref()],
+        bump = chunk.bump,
+    )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
     #[account(
         mut,
@@ -1901,7 +1986,13 @@ pub struct RevealPartCallback<'info> {
     #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: UncheckedAccount<'info>,
-    #[account(mut)]
+    /// Self-canonical binding: the account must be THE PDA its own fields
+    /// claim — a foreign Reveal-shaped account can't be substituted.
+    #[account(
+        mut,
+        seeds = [b"reveal", reveal.benchmark.as_ref(), reveal.chunk_index.to_le_bytes().as_ref(), reveal.part.to_le_bytes().as_ref()],
+        bump = reveal.bump,
+    )]
     pub reveal: Box<Account<'info, Reveal>>,
     /// Bumps `reveal_count` when a fingerprint lands — permanent bank spoilage
     /// marker that `create_run` stamps onto later runs (`post_reveal`).
@@ -1977,7 +2068,13 @@ pub struct ResharePartCallback<'info> {
     #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: UncheckedAccount<'info>,
-    #[account(mut)]
+    /// Self-canonical binding — only the PDA matching the grant's own
+    /// (bank, chunk, part, viewer) fields can be passed.
+    #[account(
+        mut,
+        seeds = [b"grant", grant.benchmark.as_ref(), grant.chunk_index.to_le_bytes().as_ref(), grant.part.to_le_bytes().as_ref(), grant.viewer.as_ref()],
+        bump = grant.bump,
+    )]
     pub grant: Box<Account<'info, ShareGrant>>,
 }
 
@@ -2047,8 +2144,20 @@ pub struct ScoreChunkCallback<'info> {
     #[account(address = ::arcium_anchor::solana_instructions_sysvar::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: UncheckedAccount<'info>,
-    #[account(mut, constraint = run.benchmark == chunk.benchmark @ ErrorCode::ChunkBenchmarkMismatch)]
+    /// Self-canonical binding: both accounts must be THE canonical PDAs
+    /// their stored fields describe — defense-in-depth on top of Arcium's
+    /// callback account-list binding.
+    #[account(
+        mut,
+        constraint = run.benchmark == chunk.benchmark @ ErrorCode::ChunkBenchmarkMismatch,
+        seeds = [b"run", run.benchmark.as_ref(), run.index.to_le_bytes().as_ref()],
+        bump = run.bump,
+    )]
     pub run: Box<Account<'info, Run>>,
+    #[account(
+        seeds = [b"chunk", chunk.benchmark.as_ref(), chunk.index.to_le_bytes().as_ref()],
+        bump = chunk.bump,
+    )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
 }
 
@@ -2085,6 +2194,12 @@ pub struct PartReshared {
     pub chunk_index: u16,
     pub part: u8,
     pub viewer: [u8; 32],
+}
+
+#[event]
+pub struct SignerPdaInitialized {
+    /// Lamports a grief-prefunder lost — 0 on a clean first init.
+    pub drained_lamports: u64,
 }
 
 #[event]
@@ -2187,4 +2302,6 @@ pub enum ErrorCode {
     ChunkNotPending,
     #[msg("Account does not match the expected benchmark")]
     WrongBenchmark,
+    #[msg("sign_pda_account is owned by a foreign program — cannot initialize")]
+    SignPdaForeignOwner,
 }

@@ -51,6 +51,7 @@ scripts/duel-local.sh           # two real models duel on an MPC-minted exam
 scripts/ladder-local.sh         # four real models race + dark leg (dead-heat fired naturally)
 scripts/dark-local.sh           # double-sealed: dark market on a private exam's real-model run
 scripts/duel-private.sh <bench> # blind duel: two grant-delegates race models on a ciphertext-only bank
+scripts/bounty-local.sh         # capability bounty: sponsor escrows SOL, first MPC-proven run >= threshold pays its operator (no bettors); bait rejections + expiry refund included
 
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
 #    minted specs, scores, resolved markets

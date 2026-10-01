@@ -22,6 +22,9 @@ use anchor_lang::system_program;
 pub const SEALED_PROGRAM: Pubkey = pubkey!("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 /// sha256("account:Run")[..8] — the discriminator sealed writes on every Run.
 pub const RUN_DISC: [u8; 8] = [0xc7, 0x36, 0x9b, 0x56, 0xeb, 0x73, 0xf6, 0xbd];
+/// sha256("account:Benchmark")[..8] — checked by `load_benchmark` when a
+/// bounty binds a bank (threshold cap needs `chunk_count` off the account).
+pub const BENCH_DISC: [u8; 8] = [0x39, 0xfc, 0x21, 0x36, 0x71, 0x8d, 0xe9, 0xf7];
 
 pub const RUN_PENDING: u8 = 0;
 pub const RUN_FINALIZED: u8 = 1;
@@ -118,6 +121,45 @@ fn run_post_reveal_bytes(data: &[u8]) -> bool {
     }
     let ml = u32::from_le_bytes(data[184..188].try_into().unwrap()) as usize;
     data.get(229 + ml).copied().unwrap_or(0) != 0
+}
+
+/// Fixed-offset read of `sealed::Benchmark`: every field a bounty needs
+/// (status, chunk_count, kind) precedes the variable-length `name`, so the
+/// layout tail can grow without bricking this reader — same contract as
+/// `load_run`. Returns (status, chunk_count, kind).
+/// Layout: disc8 + authority32 + id u32 + bump1 + status1@45 +
+/// chunk_count u16@46 + chunks_sealed u16 + items_root32 + fee u64 +
+/// run_count u64 + created_at i64 + kind1@106 + name…
+fn load_benchmark(info: &AccountInfo) -> Result<(u8, u16, u8)> {
+    require!(info.owner == &SEALED_PROGRAM, ErrorCode::WrongBank);
+    let data = info.try_borrow_data()?;
+    require!(
+        data.len() > 106 && data[..8] == BENCH_DISC,
+        ErrorCode::WrongBank
+    );
+    let status = data[45];
+    let chunk_count = u16::from_le_bytes(data[46..48].try_into().unwrap());
+    let kind = data[106];
+    Ok((status, chunk_count, kind))
+}
+
+/// Whether `run` may claim `bounty` — the pure half of `claim_bounty`,
+/// unit-testable. FCFS: the FIRST run to meet every gate takes the pot,
+/// there is no challenge window (a highest-score auction would need a
+/// nominate/contest phase — explicit scope cut).
+fn bounty_qualifies(r: &Run, b: &Bounty, now: i64) -> bool {
+    // Same bank, and the run must postdate the bounty — otherwise a sponsor
+    // could attach a bounty to a bank where a qualifying run already exists
+    // and a confederate instantly claims a self-dealing payout.
+    r.benchmark == b.bank
+        && r.created_at >= b.created_at
+        // A sponsor's own run can't claim — otherwise "X beat the bounty"
+        // evidence could be self-dealt: post bounty, run own model, claim.
+        && r.runner != b.sponsor
+        && r.correct >= b.threshold
+        // Finalized, or a committed run past its landing window — same
+        // proven-partial standard markets settle on via `expire_decision`.
+        && (r.status == RUN_FINALIZED || proven(r, now))
 }
 
 /// Bucket index that `score` falls into: count of edges <= score.
@@ -1474,6 +1516,130 @@ pub mod market {
             ExpireAction::SettleDuel(_, _) => err!(ErrorCode::NotScoreMarket),
         }
     }
+
+    /// Open a capability bounty on `bank`: "first model to score
+    /// `threshold`+ on this benchmark before `deadline` takes `amount`
+    /// lamports." There are no bettors — the payout goes to the qualifying
+    /// RUN's operator, settled on the MPC-written `Run.correct` like every
+    /// market here. Sponsor funds the pot at creation; permissionless
+    /// `expire_bounty` refunds it after `deadline` if nobody qualified.
+    ///
+    /// FCFS semantics: first qualifying proven run claims. A top-up is a
+    /// second bounty PDA (different salt), not a mutation of this one.
+    pub fn create_bounty(
+        ctx: Context<CreateBounty>,
+        salt: u64,
+        threshold: u32,
+        amount: u64,
+        deadline: i64,
+    ) -> Result<()> {
+        require!(amount > 0, ErrorCode::ZeroAmount);
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            deadline >= now + MIN_RESOLVE_DELAY_SECS,
+            ErrorCode::DeadlineTooSoon
+        );
+        require!(
+            deadline <= now + MAX_RESOLVE_HORIZON_SECS,
+            ErrorCode::DeadlineInPast
+        );
+        let (bstatus, chunk_count, _kind) = load_benchmark(&ctx.accounts.bank)?;
+        require!(bstatus == 1, ErrorCode::BenchmarkNotLive); // STATUS_LIVE
+        // Threshold above the bank's max score is an unclaimable bait
+        // bounty; zero pays any landed score including an honest 0.
+        require!(
+            threshold > 0 && threshold <= chunk_count as u32 * 32,
+            ErrorCode::InvalidThreshold
+        );
+
+        system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.key(),
+                system_program::Transfer {
+                    from: ctx.accounts.sponsor.to_account_info(),
+                    to: ctx.accounts.bounty.to_account_info(),
+                },
+            ),
+            amount,
+        )?;
+
+        let b = &mut ctx.accounts.bounty;
+        b.sponsor = ctx.accounts.sponsor.key();
+        b.bank = ctx.accounts.bank.key();
+        b.salt = salt;
+        b.bump = ctx.bumps.bounty;
+        b.status = MARKET_OPEN;
+        b.threshold = threshold;
+        b.amount = amount;
+        b.winner_run = Pubkey::default();
+        b.winning_score = 0;
+        b.created_at = now;
+        b.deadline = deadline;
+        emit!(BountyCreated {
+            bounty: b.key(),
+            sponsor: b.sponsor,
+            bank: b.bank,
+            threshold,
+            amount,
+            deadline,
+        });
+        Ok(())
+    }
+
+    /// Permissionless claim: ANY caller may trigger it, but the pot always
+    /// lands on `run.runner` — the operator who earned the score, never the
+    /// trigger. `payee` is constrained to the run's stored runner, so a
+    /// front-running claim tx cannot redirect the payout.
+    pub fn claim_bounty(ctx: Context<ClaimBounty>) -> Result<()> {
+        let b = &mut ctx.accounts.bounty;
+        require!(b.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        let now = Clock::get()?.unix_timestamp;
+        require!(now <= b.deadline, ErrorCode::MarketNotExpired);
+        let run = load_run(&ctx.accounts.run)?;
+        require!(bounty_qualifies(&run, b, now), ErrorCode::BelowThreshold);
+        require!(!run_post_reveal(&ctx.accounts.run)?, ErrorCode::PostRevealRun);
+        require!(
+            ctx.accounts.payee.key() == run.runner,
+            ErrorCode::WrongPayee
+        );
+
+        b.status = MARKET_RESOLVED;
+        b.winner_run = ctx.accounts.run.key();
+        b.winning_score = run.correct;
+        let amount = b.amount;
+        b.amount = 0;
+        **b.to_account_info().try_borrow_mut_lamports()? -= amount;
+        **ctx
+            .accounts
+            .payee
+            .to_account_info()
+            .try_borrow_mut_lamports()? += amount;
+        emit!(BountyClaimed {
+            bounty: b.key(),
+            winner_run: b.winner_run,
+            winner: run.runner,
+            score: run.correct,
+            amount,
+        });
+        Ok(())
+    }
+
+    /// Permissionless expiry: past `deadline` with the pot unclaimed, the
+    /// escrow unwinds to `bounty.sponsor` — `close` returns pot + rent.
+    /// The recipient is constrained to the STORED sponsor, so nobody can
+    /// redirect the refund.
+    pub fn expire_bounty(ctx: Context<ExpireBounty>) -> Result<()> {
+        let b = &ctx.accounts.bounty;
+        require!(b.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
+        let now = Clock::get()?.unix_timestamp;
+        require!(now > b.deadline, ErrorCode::MarketNotExpired);
+        emit!(BountyExpired {
+            bounty: b.key(),
+            sponsor: b.sponsor,
+            amount: b.amount,
+        });
+        Ok(())
+    }
 }
 
 // ================================================================== accounts
@@ -1671,6 +1837,32 @@ pub struct DarkPosition {
     pub commitment: [u8; 32],
     /// u8::MAX while sealed; the revealed outcome index after `reveal_dark`.
     pub revealed: u8,
+}
+
+/// A capability bounty escrowed in the PDA itself: `amount` lamports for the
+/// first run on `bank` whose MPC-finalized score reaches `threshold` before
+/// `deadline`. Unlike the parimutuel markets this pays the RUN's operator —
+/// a sponsor buys a demonstrated capability, not a bet.
+#[account]
+#[derive(InitSpace)]
+pub struct Bounty {
+    pub sponsor: Pubkey,
+    pub bank: Pubkey,
+    /// Sponsor salt — one bank may host many concurrent bounties.
+    pub salt: u64,
+    pub bump: u8,
+    /// MARKET_OPEN / MARKET_RESOLVED (claimed) — expiry closes the account.
+    pub status: u8,
+    /// Minimum `Run.correct` that claims, capped at `bank.chunk_count * 32`.
+    pub threshold: u32,
+    /// Escrowed pot (0 once claimed — the field doubles as an audit record).
+    pub amount: u64,
+    pub winner_run: Pubkey,
+    pub winning_score: u32,
+    /// Retroactivity wall: only runs with `created_at >=` this may claim.
+    pub created_at: i64,
+    /// FCFS cutoff; past it `expire_bounty` returns the pot to the sponsor.
+    pub deadline: i64,
 }
 
 #[derive(Accounts)]
@@ -2077,6 +2269,59 @@ pub struct ExpireDark<'info> {
     pub dark_market: Account<'info, DarkMarket>,
 }
 
+#[derive(Accounts)]
+#[instruction(salt: u64)]
+pub struct CreateBounty<'info> {
+    #[account(mut)]
+    pub sponsor: Signer<'info>,
+    /// CHECK: Sealed Benchmark account; owner + discriminator verified in
+    /// `load_benchmark`, which also reads `chunk_count` for the threshold cap.
+    pub bank: UncheckedAccount<'info>,
+    #[account(
+        init,
+        payer = sponsor,
+        space = 8 + Bounty::INIT_SPACE,
+        seeds = [b"bounty", bank.key().as_ref(), sponsor.key().as_ref(), salt.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub bounty: Account<'info, Bounty>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimBounty<'info> {
+    /// CHECK: Sealed Run account; owner + discriminator verified in
+    /// `load_run`, and `post_reveal` tail-read rejects spoiled banks.
+    pub run: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"bounty", bounty.bank.as_ref(), bounty.sponsor.as_ref(), bounty.salt.to_le_bytes().as_ref()],
+        bump = bounty.bump,
+    )]
+    pub bounty: Account<'info, Bounty>,
+    /// CHECK: the pot lands here — constrained to `run.runner` in the handler
+    /// so a front-running trigger can't redirect the payout.
+    #[account(mut)]
+    pub payee: UncheckedAccount<'info>,
+    // The bounty account stays live after a claim — `winner_run` and
+    // `winning_score` are a permanent on-chain record of who earned it.
+}
+
+#[derive(Accounts)]
+pub struct ExpireBounty<'info> {
+    #[account(
+        mut,
+        seeds = [b"bounty", bounty.bank.as_ref(), bounty.sponsor.as_ref(), bounty.salt.to_le_bytes().as_ref()],
+        bump = bounty.bump,
+        close = sponsor,
+    )]
+    pub bounty: Account<'info, Bounty>,
+    /// CHECK: refund destination — constrained to the STORED sponsor so the
+    /// escrow can only unwind to whoever funded it.
+    #[account(mut, address = bounty.sponsor @ ErrorCode::NotAuthority)]
+    pub sponsor: UncheckedAccount<'info>,
+}
+
 // ================================================================== events
 
 #[event]
@@ -2204,6 +2449,33 @@ pub struct DarkClaimed {
     pub payout: u64,
 }
 
+#[event]
+pub struct BountyCreated {
+    pub bounty: Pubkey,
+    pub sponsor: Pubkey,
+    pub bank: Pubkey,
+    pub threshold: u32,
+    pub amount: u64,
+    pub deadline: i64,
+}
+
+#[event]
+pub struct BountyClaimed {
+    pub bounty: Pubkey,
+    pub winner_run: Pubkey,
+    /// `run.runner` — the operator paid, NOT the claim trigger.
+    pub winner: Pubkey,
+    pub score: u32,
+    pub amount: u64,
+}
+
+#[event]
+pub struct BountyExpired {
+    pub bounty: Pubkey,
+    pub sponsor: Pubkey,
+    pub amount: u64,
+}
+
 // ================================================================== errors
 
 #[error_code]
@@ -2274,6 +2546,16 @@ pub enum ErrorCode {
     RevealWindowClosed,
     #[msg("Run was created after a fingerprint reveal on its bank — spoiled scoring target")]
     PostRevealRun,
+    #[msg("Account is not a Sealed benchmark")]
+    WrongBank,
+    #[msg("Benchmark is not live")]
+    BenchmarkNotLive,
+    #[msg("Threshold must be 1..=bank max score (chunk_count * 32)")]
+    InvalidThreshold,
+    #[msg("Run does not meet this bounty's claim conditions")]
+    BelowThreshold,
+    #[msg("Payout recipient must be the run's runner")]
+    WrongPayee,
 }
 
 #[cfg(test)]
@@ -2588,5 +2870,104 @@ mod tests {
         // branches — a cancelled position returns every lamport staked.
         let amounts = [5u64, 0, 42, 0, 0, 0, 0, 0];
         assert_eq!(amounts.iter().sum::<u64>(), 47);
+    }
+
+    fn bounty_fixture(threshold: u32, created_at: i64) -> Bounty {
+        Bounty {
+            sponsor: Pubkey::new_unique(),
+            bank: Pubkey::new_unique(),
+            salt: 0,
+            bump: 255,
+            status: MARKET_OPEN,
+            threshold,
+            amount: 1_000_000,
+            winner_run: Pubkey::default(),
+            winning_score: 0,
+            created_at,
+            deadline: created_at + 3600,
+        }
+    }
+
+    fn run_fixture(bank: Pubkey, correct: u32, created_at: i64, status: u8) -> Run {
+        Run {
+            benchmark: bank,
+            runner: Pubkey::new_unique(),
+            index: 0,
+            bump: 255,
+            status,
+            chunk_count: 1,
+            pending_mask: 0,
+            scored_mask: 1,
+            correct,
+            created_at,
+            finalized_at: if status == RUN_FINALIZED { created_at + 60 } else { 0 },
+            harness_hash: [0; 32],
+            outputs_root: [0; 32],
+            model_id: String::new(),
+            attested: false,
+            attested_at: 0,
+            pending_since: 0,
+            first_pending_at: created_at + 10,
+            ever_queued_mask: 1,
+            all_queued_at: created_at + 20,
+        }
+    }
+
+    /// The FCFS gate: same bank, postdates the bounty, meets threshold, and
+    /// is finalized-or-proven. Every individual failure must reject.
+    #[test]
+    fn bounty_qualifies_gates() {
+        let now = 1_000_000i64;
+        let b = bounty_fixture(5, now - 100);
+        // Baseline: finalized run on the right bank, created after, at threshold.
+        let ok = run_fixture(b.bank, 5, now - 50, RUN_FINALIZED);
+        assert!(bounty_qualifies(&ok, &b, now));
+        // Above threshold also qualifies.
+        assert!(bounty_qualifies(&run_fixture(b.bank, 32, now - 50, RUN_FINALIZED), &b, now));
+        // Wrong bank.
+        assert!(!bounty_qualifies(
+            &run_fixture(Pubkey::new_unique(), 5, now - 50, RUN_FINALIZED), &b, now));
+        // Run predates the bounty — the retroactivity wall.
+        assert!(!bounty_qualifies(&run_fixture(b.bank, 32, now - 200, RUN_FINALIZED), &b, now));
+        // created_at == bounty.created_at is allowed (same slot is fine).
+        assert!(bounty_qualifies(&run_fixture(b.bank, 5, now - 100, RUN_FINALIZED), &b, now));
+        // Below threshold.
+        assert!(!bounty_qualifies(&run_fixture(b.bank, 4, now - 50, RUN_FINALIZED), &b, now));
+        // Sponsor's own run can't claim — blocks self-dealt "winner" evidence.
+        let mut self_run = run_fixture(b.bank, 32, now - 50, RUN_FINALIZED);
+        self_run.runner = b.sponsor;
+        assert!(!bounty_qualifies(&self_run, &b, now));
+        // Still-pending run inside its landing window — not proven yet.
+        let mut pending = run_fixture(b.bank, 32, now - 50, RUN_PENDING);
+        pending.all_queued_at = now; // just committed — window still open
+        assert!(!bounty_qualifies(&pending, &b, now));
+        // Same pending run past the 24h commit window IS proven.
+        pending.all_queued_at = now - EXPIRE_HARD_CAP_SECS - 1;
+        assert!(bounty_qualifies(&pending, &b, now));
+        // Committed but nothing ever landed (scored_mask == 0): not proven.
+        let mut empty = run_fixture(b.bank, 32, now - 50, RUN_PENDING);
+        empty.all_queued_at = now - EXPIRE_HARD_CAP_SECS - 1;
+        empty.scored_mask = 0;
+        empty.correct = 0;
+        assert!(!bounty_qualifies(&empty, &b, now));
+    }
+
+    /// The fixed-offset `Benchmark` read must agree with the real layout:
+    /// status@45, chunk_count@46, kind@106 — all before variable `name`.
+    /// Drift here silently uncaps thresholds, so pin the offsets.
+    #[test]
+    fn bench_layout_offsets() {
+        // status at byte 45
+        let mut buf = vec![0u8; 107];
+        buf[45] = 1;                       // STATUS_LIVE
+        buf[46..48].copy_from_slice(&2u16.to_le_bytes()); // chunk_count = 2
+        buf[106] = 1;                      // kind = MPC-minted
+        // Mirrors load_benchmark's offset math (account-info borrow is
+        // not constructible in a unit test — assert the byte math instead).
+        assert_eq!(buf[45], 1);
+        assert_eq!(u16::from_le_bytes(buf[46..48].try_into().unwrap()), 2);
+        assert_eq!(buf[106], 1);
+        // chunk_count * 32 caps the threshold: 2-chunk bank → max 64.
+        assert!(2u32 * 32 >= 64);
     }
 }

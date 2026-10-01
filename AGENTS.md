@@ -22,11 +22,15 @@ parimutuel markets resolved from `Run.correct`.
 - `arcium localnet` bootstraps everything but frequently times out on backup
   nodes and TEARS DOWN the whole stack (including the validator).
 - `scripts/localnet-up.sh` relaunches validator + nodes from `artifacts/` +
-  `.anchor/test-ledger`. `--wipe` for a fresh ledger — REQUIRED when sealed.so
-  changes (sealed deploys immutable via `--bpf-program`; market is upgradeable
-  so `solana program deploy target/deploy/market.so` works without a wipe).
+  `.anchor/test-ledger`. `--wipe` for a fresh ledger. Both programs deploy
+  `--upgradeable-program` now, so `solana program deploy target/deploy/*.so`
+  works in place — wipe is only needed for a clean-slate ledger.
 - After a fresh ledger: `docker restart artifacts-arx-node-*-1
   artifacts-arcium-trusted-dealer-1` — nodes hold a stale context slot.
+- `sign_pda_account` (shared Arcium callback signer) is created eagerly by
+  `chain init` via `init_signer_pda` — a grief-proof manual init that drains
+  prefunded lamports before `create_account`. `chain init-signer` is the
+  standalone un-brick if a prefund ever lands before first use.
 - MXE is genesis-baked; keygen completes when primary nodes activate. The
   readiness check is `getMXEPublicKey` — `npx tsx scripts/probe-mxe-live.mts`
   prints LIVE/PENDING (scripts/wait-mxe.sh polls it; the old byte-94
@@ -194,6 +198,21 @@ parimutuel markets resolved from `Run.correct`.
   in-browser. `snapshot.mjs` embeds `meta.mxe_x25519` (cluster pubkey) so the
   shared secret can be rebuilt client-side. Regression:
   `scripts/decrypt-grants-test.mjs` — fully offline, pinned spec digest, CI.
+- Capability bounties (`Bounty` account in the market program): seeds
+  `["bounty", bank, sponsor, salt u64le]` — FCFS, pot pays `run.runner`
+  via `payee` constraint (`WrongPayee` if redirected). `bounty_qualifies`
+  gates: same bank, `run.created_at >= bounty.created_at` (retroactivity
+  wall), `run.runner != sponsor` (self-deal wall), `correct >= threshold`,
+  finalized-or-proven. Threshold capped at `chunk_count*32` at creation
+  (`InvalidThreshold`); deadline floored at +60s (`DeadlineTooSoon`).
+  Claimed bounties stay as permanent winner evidence; `expire_bounty`
+  past deadline `close`s to the stored sponsor. `scripts/bounty-local.sh`
+  demos the full lifecycle — note `chain score` under a non-authority
+  runner wallet needs `--authority <bank-authority-pubkey>` (the bank PDA
+  derives from authority, not runner).
+- `web/snapshot.json` merged two ledger epochs post-wipe
+  (`scripts/merge-snapshot.mjs`); its `meta.mxe_x25519` stays the OLD
+  epoch's key because the committed ShareGrants decrypt under it.
 - The demo delegate (`Cr2bbdGh…`) holds grants on private bank `8HHm4HgA…`
   chunk 0 parts 0-3. If that bank is ever re-minted or the ledger wiped,
   re-grant + regenerate the snapshot or the decrypt button will error.

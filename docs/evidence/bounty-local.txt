@@ -1,0 +1,76 @@
+
+=== 0/6 endpoint sanity (mock/oracle-* needs none) ===
+
+=== 1/6 wait for MXE + mint a fresh exam inside MPC (id=5633, 32 items) ===
+MXE key live after ~10s
+seal_part: comp def exists (AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf)
+score_chunk: comp def exists (9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo)
+gen_part: comp def exists (AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ)
+gen_part_private: comp def exists (CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN)
+reveal_part: comp def exists (zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG)
+reshare_part: comp def exists (GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS)
+create_benchmark id=5633 chunks=1 kind=generated
+benchmark DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx status=0 sealed=0/1
+chunk 0 part 0: minting in MPC... minted
+chunk 0 part 1: minting in MPC... minted
+chunk 0 part 2: minting in MPC... minted
+chunk 0 part 3: minting in MPC... minted
+benchmark DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx status=LIVE minted=1/1
+items_root 03c7d06426e89a8763aca1e18d7b70db58eab8f6cef52fe17aa55690f0782dd3 (32 minted items, answers never existed in plaintext)
+wrote bank/gen-5633.json
+benchmark PDA: DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx
+
+=== 2/6 sponsor escrows 0.1 SOL — 'first run to score >= 4 takes it' ===
+  (bait rejection 1: threshold 33 > the bank's 32-item max)
+AnchorError thrown in programs/market/src/lib.rs:1550. Error Code: InvalidThreshold. Error Number: 6035. Error Message: Threshold must be 1..=bank max score (chunk_count * 32).
+  rejected as expected
+  (bait rejection 2: deadline already in the past)
+AnchorError thrown in programs/market/src/lib.rs:1538. Error Code: DeadlineTooSoon. Error Number: 6025. Error Message: deadline too close — markets must live at least 60s.
+  rejected as expected
+bounty 6EqmVxLMEmkDLNeHP5yVL2y4sseutQCcRre93a5Sw5tF opened: bank DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx threshold=4 pot=0.1 SOL deadline=2026-10-01T18:28:05.000Z
+bounty 6EqmVxLMEmkDLNeHP5yVL2y4sseutQCcRre93a5Sw5tF status=OPEN
+  bank=DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx sponsor=4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc threshold=4 pot=0.1 SOL
+  created_at=2026-10-01T17:28:05.000Z deadline=2026-10-01T18:28:05.000Z
+
+=== 3/6 an independent operator answers the exam (mock/oracle-0.5) — run postdates the bounty ===
+  runner=8imv9tDzaPW4eJoqxFsFkp3S9q8ibahUAbnWDM2qCRo4 (distinct from sponsor — self-claim is rejected on-chain)
+mock/oracle-0.5: 4/32mock/oracle-0.5: 8/32mock/oracle-0.5: 12/32mock/oracle-0.5: 16/32mock/oracle-0.5: 20/32mock/oracle-0.5: 24/32mock/oracle-0.5: 28/32mock/oracle-0.5: 32/32
+{
+  "wrote": "/tmp/bounty-run-5633.json",
+  "model": "mock/oracle-0.5",
+  "items": 32,
+  "localCorrect": 17,
+  "localAccuracy": 0.5313,
+  "outputsRoot": "10b85de341fa51b2994b32a7c6f984eca513d39d91f2c3c69c4018dbc853ef66",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 0
+}
+localCorrect: 17 / None
+
+=== 4/6 MPC scores the run — the bounty oracle is Run.correct, cluster-written ===
+create_run #0 model=mock/oracle-0.5 fee=0 SOL
+run oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh created (pending, unscored)
+run #0 exists (scored_mask=0); resuming
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 17)
+run oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh FINALIZED: 17/32 = 53.1%  (matches local pre-score)
+
+=== 5/6 permissionless claim — the pot lands on run.runner ===
+bounty claimed (4TU12ZHsyWKKxYqyaXP8Paej4WkBcCZvSiTfe7BQbBfXeMukxVzi1W149KRzXivWTAXRiPvuZXCRfDcT7NG8JY9h): run oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh score=17 paid 489115440 -> 589115440 lamports to runner 8imv9tDzaPW4eJoqxFsFkp3S9q8ibahUAbnWDM2qCRo4
+bounty 6EqmVxLMEmkDLNeHP5yVL2y4sseutQCcRre93a5Sw5tF status=CLAIMED
+  bank=DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx sponsor=4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc threshold=4 pot=0 SOL
+  created_at=2026-10-01T17:28:05.000Z deadline=2026-10-01T18:28:05.000Z
+  winner_run=oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh winning_score=17
+  (bait rejection 3: a second claim on the resolved bounty)
+AnchorError thrown in programs/market/src/lib.rs:1595. Error Code: MarketNotOpen. Error Number: 6004. Error Message: Market is not open.
+  rejected as expected
+
+=== 6/6 second bounty lapses unclaimed -> sponsor refund ===
+bounty DLMkwgSQecbJFrZxe5EpUEzMSHpTzhWrK3my4eyPFhRe opened: bank DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx threshold=30 pot=0.05 SOL deadline=2026-10-01T17:29:47.000Z
+  waiting out the 75s deadline...
+bounty expired (63KTwsf5zF2EPuAqRtsiGMJuXC4gQx1CfFknSo829ZahDJha5uvNEa5ubMWZVuZVYCqYiwXboUsqPq9fg62fT5tM): DLMkwgSQecbJFrZxe5EpUEzMSHpTzhWrK3my4eyPFhRe — escrow returned to sponsor 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
+
+proof summary:
+  bank    DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx — MPC-minted
+  bounty  6EqmVxLMEmkDLNeHP5yVL2y4sseutQCcRre93a5Sw5tF — claimed by run oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh (mock/oracle-0.5)
+  bounty2 DLMkwgSQecbJFrZxe5EpUEzMSHpTzhWrK3my4eyPFhRe — expired, escrow returned to sponsor

@@ -15,7 +15,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = process.argv[2] || join(ROOT, "web", "snapshot.json");
 const SEALED_PID = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 const MARKET_PID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
-const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", answerChunk: "9f457cb5a547c35a", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0", darkMarket: "94562c723ef98ba6", darkPosition: "d8c18faeae9d7715" };
+const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", answerChunk: "9f457cb5a547c35a", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0", darkMarket: "94562c723ef98ba6", darkPosition: "d8c18faeae9d7715", bounty: "ed1069c61345f2ea" };
 
 const sha = (u8) => createHash("sha256").update(u8).digest();
 const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -126,7 +126,7 @@ console.log(`snapshot takenAt ${snap.meta?.takenAt}, ${snap.sealed.length} seale
 
 const benches = new Map(), runs = new Map(), itemChunks = [], privChunks = [], chunks = [], reveals = [], grants = [];
 let signPda = null;
-const markets = new Map(), ladders = [], darks = new Map(), darkPos = [], positions = [];
+const markets = new Map(), ladders = [], darks = new Map(), darkPos = [], positions = [], bounties = [];
 
 console.log("[1] decode + classify every account");
 let unknown = 0;
@@ -151,11 +151,17 @@ for (const a of snap.market) {
     else if (disc === DISC.ladder) ladders.push({ pk: a.pubkey, ...parseLadder(d) });
     else if (disc === DISC.darkMarket) darks.set(a.pubkey, parseDark(d));
     else if (disc === DISC.darkPosition) darkPos.push({ pk: a.pubkey, ...parseDarkPos(d) });
+    else if (disc === DISC.bounty) {
+      const v = new DataView(d.buffer, d.byteOffset);
+      bounties.push({ pk: a.pubkey, sponsor: b58(d.subarray(8, 40)), bank: b58(d.subarray(40, 72)), salt: v.getBigUint64(72, true),
+        status: d[81], threshold: v.getUint32(82, true), amount: v.getBigUint64(86, true), winnerRun: b58(d.subarray(94, 126)),
+        winningScore: v.getUint32(126, true), createdAt: Number(v.getBigInt64(130, true)), deadline: Number(v.getBigInt64(138, true)) });
+    }
     else if (disc === DISC.position) positions.push({ pk: a.pubkey, market: b58(d.subarray(8, 40)), bettor: b58(d.subarray(40, 72)) });
     else unknown++;
   } catch (e) { unknown++; console.log(`    ! unparseable market account ${a.pubkey}: ${e.message}`); }
 }
-unknown === 0 ? ok("account decode", `${benches.size} banks, ${runs.size} runs, ${itemChunks.length} gen chunks, ${privChunks.length} private chunks, ${reveals.length} reveals, ${grants.length} grants, ${markets.size} markets, ${ladders.length} ladders, ${darks.size} dark markets, ${darkPos.length} dark positions`)
+unknown === 0 ? ok("account decode", `${benches.size} banks, ${runs.size} runs, ${itemChunks.length} gen chunks, ${privChunks.length} private chunks, ${reveals.length} reveals, ${grants.length} grants, ${markets.size} markets, ${ladders.length} ladders, ${darks.size} dark markets, ${darkPos.length} dark positions, ${bounties.length} bounties`)
   : bad("account decode", `${unknown} unknown/unparseable accounts`);
 
 console.log("\n[2] PDA re-derivation — every account must sit at its seed-derived address");
@@ -174,6 +180,7 @@ for (const [pkk, m] of markets) {
 }
 for (const l of ladders) pdaCheck(l.pk, pda([utf8("ladder"), pk(l.legs[0]), u64le(l.salt)], MARKET_PID), `ladder`);
 for (const [pkk, d] of darks) pdaCheck(pkk, pda([utf8("dark"), pk(d.run), u64le(d.salt)], MARKET_PID), `dark market`);
+for (const b of bounties) pdaCheck(b.pk, pda([utf8("bounty"), pk(b.bank), pk(b.sponsor), u64le(b.salt)], MARKET_PID), `bounty`);
 for (const p of darkPos) {
   let found = false;
   for (let s = 0; s <= 4095 && !found; s++) if (pda([utf8("darkpos"), pk(p.market), pk(p.bettor), u64le(s)], MARKET_PID) === p.pk) found = true;
@@ -277,9 +284,23 @@ for (const [pkk, dm] of darks) {
 }
 dBad === 0 ? ok("dark-market accounting", `${dChecked} resolved darks re-derived; revealedCount/wintotal consistent`) : bad("dark markets", `${dBad} violations`);
 
+let bBad = 0, bChecked = 0;
+for (const b of bounties) {
+  if (b.status !== 1) continue; // only claimed bounties carry assertions
+  bChecked++;
+  const r = runs.get(b.winnerRun);
+  if (!r) { bBad++; console.log(`    ! bounty ${b.pk}: winner_run ${b.winnerRun} absent`); continue; }
+  if (r.benchmark !== b.bank) { bBad++; console.log(`    ! bounty ${b.pk}: winner run is on a different bank`); }
+  if (r.correct < b.threshold) { bBad++; console.log(`    ! bounty ${b.pk}: winning score ${r.correct} < threshold ${b.threshold}`); }
+  if (b.winningScore !== r.correct) { bBad++; console.log(`    ! bounty ${b.pk}: winningScore ${b.winningScore} != run.correct ${r.correct}`); }
+  if (r.createdAt < b.createdAt) { bBad++; console.log(`    ! bounty ${b.pk}: winner run predates the bounty (retroactive claim)`); }
+}
+bBad === 0 ? ok("bounty claims", `${bChecked} claimed bounties re-verified against winner runs`) : bad("bounties", `${bBad} violations`);
+
 console.log("\n[6] cross-references");
 let xBad = 0;
 for (const [pkk, m] of markets) if (!runs.has(m.run)) xBad++;
+for (const b of bounties) { if (!benches.has(b.bank)) xBad++; if (b.status === 1 && !runs.has(b.winnerRun)) xBad++; }
 for (const l of ladders) for (const leg of l.legs) if (!runs.has(leg)) xBad++;
 for (const c of [...itemChunks, ...privChunks, ...chunks]) if (!benches.has(c.bench)) xBad++;
 for (const r of reveals) if (!benches.has(r.bench)) xBad++;

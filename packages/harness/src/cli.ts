@@ -141,7 +141,8 @@ async function main() {
   sealed bank show  --bank <file>
   sealed run        --bank <file> --model <id> [--concurrency 6] [--retries 4] [--timeout 90000] [--max-tokens 4096] [--out file]
                     (model "mock/oracle-<p>" answers a fraction p correctly, offline)
-  sealed chain init                                   init comp defs + upload circuits (once per deployment)
+  sealed chain init                                   init comp defs + upload circuits + eager signer-PDA init (once per deployment)
+  sealed chain init-signer                            standalone signer-PDA init — drains a grief-prefund and (re)creates it
   sealed chain seal  --bank <file> [--fee-lamports n]
   sealed chain gen   --id <n> [--chunks 2] [--fee-lamports n] [--out file]   MPC-minted bank: no answer key exists
   sealed chain items --benchmark <pubkey> [--out file]                      render a generated bank from on-chain specs
@@ -188,6 +189,11 @@ async function main() {
   sealed chain market dark void      --market <pk> [--bettor keypair.json]     authority cancels before scoring starts
   sealed chain market dark claim-fee --market <pk> [--bettor keypair.json]
   sealed chain market dark show      --market <pk>
+  sealed chain market bounty open    --bank <pk> --threshold n --lamports n --deadline +secs|ts [--salt n] [--bettor k.json]
+                                     FCFS capability bounty — first run to finalize >= threshold pays run.runner
+  sealed chain market bounty claim   --bounty <pk> --run <pk>                permissionless trigger, pot lands on the operator
+  sealed chain market bounty expire  --bounty <pk>                           after deadline: escrow returns to the sponsor
+  sealed chain market bounty show    --bounty <pk>
   sealed chain reset-sealing  --bank-id <n> --chunk <i>          clear a part stuck by a dropped MPC computation
   sealed chain reset-pending  --run <pk> --chunk <i>             sweep a stuck scoring bit (runner anytime, anyone after 15min stale)
   sealed prove  --run <file> --item <i>               Merkle proof that output i was committed`);

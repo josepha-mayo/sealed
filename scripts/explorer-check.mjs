@@ -6,7 +6,7 @@ const { Connection, PublicKey } = require("@solana/web3.js");
 
 const SEALED_PID = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 const MARKET_PID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
-const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0", darkMarket: "94562c723ef98ba6", darkPosition: "d8c18faeae9d7715" };
+const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0", darkMarket: "94562c723ef98ba6", darkPosition: "d8c18faeae9d7715", bounty: "ed1069c61345f2ea" };
 const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
 const b58 = (u8) => new PublicKey(u8).toBase58();
 
@@ -151,6 +151,23 @@ function parseDarkPosition(d) {
   const revealed = d[o++];
   return { market, bettor, amount, commitment, revealed: revealed === 255 ? "sealed" : revealed };
 }
+// Bounty: disc8 + sponsor32 + bank32 + salt u64 + bump + status + threshold u32
+// + amount u64 + winner_run32 + winning_score u32 + created_at i64 + deadline i64
+function parseBounty(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const sponsor = b58(d.slice(o, o + 32)); o += 32;
+  const bank = b58(d.slice(o, o + 32)); o += 32;
+  const salt = v.getBigUint64(o, true); o += 8;
+  o += 1;
+  const status = d[o++];
+  const threshold = v.getUint32(o, true); o += 4;
+  const amount = v.getBigUint64(o, true); o += 8;
+  const winnerRun = b58(d.slice(o, o + 32)); o += 32;
+  const winningScore = v.getUint32(o, true); o += 4;
+  const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const deadline = Number(v.getBigInt64(o, true)); o += 8;
+  return { sponsor, bank, salt, status, threshold, amount, winnerRun, winningScore, createdAt, deadline };
+}
 
 const url = process.argv[2] || "http://127.0.0.1:8899";
 const J = (x) => JSON.stringify(x, (_, v) => (typeof v === "bigint" ? v.toString() : v));
@@ -173,4 +190,5 @@ for (const { pubkey, account } of mkt) {
   else if (disc === DISC.ladder) console.log("ladder  ", pubkey.toBase58(), J(parseLadder(d)));
   else if (disc === DISC.darkMarket) console.log("darkmkt ", pubkey.toBase58(), J(parseDarkMarket(d)));
   else if (disc === DISC.darkPosition) console.log("darkpos ", pubkey.toBase58(), J(parseDarkPosition(d)));
+  else if (disc === DISC.bounty) console.log("bounty  ", pubkey.toBase58(), J(parseBounty(d)));
 }

@@ -2035,6 +2035,141 @@ describe("Sealed", () => {
     console.log("sweep latch, swept-callback landing, edges bound, double-attest, duel-expire bail, retire guard — all verified");
   });
 
+  it("pays a capability bounty to the qualifying run's operator — FCFS, not a bet", async () => {
+    const marketProgram = anchor.workspace.Market as Program<Market>;
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(AUTH_ID)],
+      program.programId,
+    );
+    const chunkPdas = [0, 1].map(
+      (i) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], program.programId)[0],
+    );
+    const CHUNKS = 2; // the shared authored bank (AUTH_ID) is 2 chunks
+    const bountyPda = (bank: PublicKey, sponsor: PublicKey, salt: bigint) =>
+      PublicKey.findProgramAddressSync(
+        [Buffer.from("bounty"), bank.toBuffer(), sponsor.toBuffer(), u64le(salt)],
+        marketProgram.programId,
+      )[0];
+
+    const THRESHOLD = 32; // 64 max on this 2-chunk bank
+    const POT = new anchor.BN(0.2 * LAMPORTS_PER_SOL);
+
+    // Threshold above the bank's max score is bait — rejected at creation.
+    await expectAnchorError(
+      marketProgram.methods
+        .createBounty(new anchor.BN(0), CHUNK * 2 + 1, POT, FAR_FUTURE)
+        .accounts({ sponsor: owner.publicKey, bank: benchmark, bounty: bountyPda(benchmark, owner.publicKey, 0n) })
+        .signers([owner])
+        .rpc(),
+      "InvalidThreshold",
+    );
+
+    const bounty = bountyPda(benchmark, owner.publicKey, 1n);
+    await marketProgram.methods
+      .createBounty(new anchor.BN(1), THRESHOLD, POT, FAR_FUTURE)
+      .accounts({ sponsor: owner.publicKey, bank: benchmark, bounty })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    let b: any = await marketProgram.account.bounty.fetch(bounty);
+    expect(b.status).to.equal(0);
+    expect(b.amount.toNumber()).to.equal(POT.toNumber());
+
+    // The retroactivity wall: an existing finalized run PREDATING the bounty
+    // cannot claim it — a sponsor can't self-deal on an already-known result.
+    const [run0] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(0n)], program.programId);
+    const r0runner = (await program.account.run.fetch(run0)).runner;
+    await expectAnchorError(
+      marketProgram.methods
+        .claimBounty()
+        .accounts({ run: run0, bounty, payee: r0runner })
+        .rpc(),
+      "BelowThreshold",
+    );
+
+    // A new run, created after the bounty, scoring >= threshold, claims it.
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.5 * LAMPORTS_PER_SOL);
+    const idx = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [run2] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx)], program.programId);
+    const planted = [20, 20]; // 40/64 — clears the 32 bar
+    const runOutputs: bigint[][] = answers.map((chunk, i) =>
+      chunk.map((a, j) => (j < planted[i] ? a : randomU64())),
+    );
+    const outLeaves = runOutputs.map((chunk, i) => chunkOutLeaf(i, chunk));
+    await program.methods
+      .createRun("test/bounty-claimant", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: run2 })
+      .signers([runner])
+      .rpc({ commitment: "confirmed" });
+    for (let i = 0; i < CHUNKS; i++) {
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(idx.toString()), i, runOutputs[i].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, i))
+        .accountsPartial({ payer: runner.publicKey, run: run2, runner: runner.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
+        .signers([runner])
+        .rpc({ commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    }
+    const r2 = await program.account.run.fetch(run2);
+    expect(r2.status).to.equal(1, "finalized");
+    expect(r2.correct).to.equal(40);
+
+    // The claim is permissionless — a THIRD PARTY triggers it, the pot still
+    // lands on run.runner (the operator who earned the score).
+    const trigger = Keypair.generate();
+    await fund(provider, owner, trigger.publicKey, 0.05 * LAMPORTS_PER_SOL);
+    const runnerBefore = await provider.connection.getBalance(runner.publicKey);
+    // trigger is the actual fee payer — a real third-party claim, not the
+    // provider wallet.
+    const claimTx = await marketProgram.methods
+      .claimBounty()
+      .accounts({ run: run2, bounty, payee: runner.publicKey })
+      .transaction();
+    const claimSig = await provider.connection.sendTransaction(claimTx, [trigger]);
+    await provider.connection.confirmTransaction(claimSig, "confirmed");
+    const runnerAfter = await provider.connection.getBalance(runner.publicKey);
+    expect(runnerAfter - runnerBefore).to.equal(POT.toNumber(), "pot paid to the run's operator, not the trigger");
+    b = await marketProgram.account.bounty.fetch(bounty);
+    expect(b.status).to.equal(1);
+    expect(b.winningScore).to.equal(40);
+    expect(b.winnerRun.toBase58()).to.equal(run2.toBase58());
+
+    // A payout directed anywhere but run.runner is rejected.
+    // (already claimed — also proves double-claim is impossible)
+    await expectAnchorError(
+      marketProgram.methods
+        .claimBounty()
+        .accounts({ run: run2, bounty, payee: trigger.publicKey })
+        .rpc(),
+      "MarketNotOpen",
+    );
+
+    // A second bounty with a 60s deadline expires permissionlessly → refund.
+    const bounty2 = bountyPda(benchmark, owner.publicKey, 2n);
+    const shortDeadline = new anchor.BN(Math.floor(Date.now() / 1000) + 62);
+    await marketProgram.methods
+      .createBounty(new anchor.BN(2), THRESHOLD, POT, shortDeadline)
+      .accounts({ sponsor: owner.publicKey, bank: benchmark, bounty: bounty2 })
+      .signers([owner])
+      .rpc({ commitment: "confirmed" });
+    // Before the deadline, expiry is rejected.
+    await expectAnchorError(
+      marketProgram.methods.expireBounty().accounts({ bounty: bounty2, sponsor: owner.publicKey }).rpc(),
+      "MarketNotExpired",
+    );
+    while ((await chainNow(provider)) <= shortDeadline.toNumber())
+      await new Promise((r) => setTimeout(r, 2000));
+    const sponsorBefore = await provider.connection.getBalance(owner.publicKey);
+    await marketProgram.methods
+      .expireBounty()
+      .accounts({ bounty: bounty2, sponsor: owner.publicKey })
+      .rpc({ commitment: "confirmed" });
+    const sponsorAfter = await provider.connection.getBalance(owner.publicKey);
+    expect(sponsorAfter - sponsorBefore).to.be.greaterThan(POT.toNumber() - 50_000, "sponsor gets pot + rent back");
+    expect(await marketProgram.account.bounty.fetchNullable(bounty2)).to.equal(null, "expired bounty closed");
+    console.log("bounty lifecycle verified: threshold cap, retroactivity wall, FCFS claim -> operator, refund expiry");
+  });
+
   // LAST on purpose: spoils AUTH_ID for new runs — every earlier consumer of
   // that bank must already have created what it needs.
   it("declassifies one part's fingerprints for a spot-check audit", async () => {

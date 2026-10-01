@@ -25,11 +25,14 @@ if ! pgrep -f "solana-test-validator.*test-ledger" >/dev/null; then
     --ledger .anchor/test-ledger
     --mint 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
     --upgradeable-program 8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN "$PWD/target/deploy/market.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
-    --bpf-program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ "$PWD/target/deploy/sealed.so"
+    --upgradeable-program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ "$PWD/target/deploy/sealed.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
     --upgradeable-program Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ "$PWD/$ART/arcium_program_0.14.1.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
     --upgradeable-program ArcStnN9zZZVB5WjgPhLHjYpY7Gb29mzb96ySsb1kxgq "$PWD/$ART/arcium_staking_program_0.14.1.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
     --upgradeable-program L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95 "$ART/lighthouse.so" 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc
     --bind-address 127.0.0.1 --rpc-port 8899
+    # Devnet `solana program deploy --use-quic` binds UDP 8000/8001 while it
+    # runs — gossip has its own fixed port (not the dynamic range), so pin it.
+    --gossip-port 8100 --dynamic-port-range 8101-8200
   )
   # every artifacts/*.json is a genesis account
   while IFS= read -r f; do

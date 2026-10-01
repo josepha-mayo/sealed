@@ -143,6 +143,18 @@ async function fetchOrNull<T>(p: Promise<T>): Promise<T | null> {
 /** Initialize both computation definitions and upload the compiled circuits. Once per deployment. */
 export async function init(ctx = setup()) {
   const { program, provider, wallet } = ctx;
+  // Eagerly create the shared signer PDA — a grief-prefund before first use
+  // would stall every queue path (create_account rejects lamport-carrying
+  // PDAs); init_signer_pda drains prefunds and always succeeds.
+  const [signPda] = PublicKey.findProgramAddressSync([Buffer.from("ArciumSignerAccount")], program.programId);
+  const existing = await provider.connection.getAccountInfo(signPda);
+  if (!existing) {
+    const sig = await program.methods
+      .initSignerPda()
+      .accounts({ payer: wallet.publicKey, signPdaAccount: signPda })
+      .rpc({ commitment: "confirmed" });
+    console.log(`sign_pda_account initialized eagerly (${sig})`);
+  }
   const arciumProgram = getArciumProgram(provider);
   const mxeAccount = getMXEAccAddress(program.programId);
   const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);
@@ -1333,6 +1345,67 @@ async function darkShow(marketPk: PublicKey) {
   }
 }
 
+// ------------------------------------------------------------------ bounties
+
+const bountyPda = (bank: PublicKey, sponsor: PublicKey, salt = 0n, pid = MARKET_PROGRAM_ID) =>
+  PublicKey.findProgramAddressSync(
+    [Buffer.from("bounty"), bank.toBuffer(), sponsor.toBuffer(), Buffer.from(new anchor.BN(salt.toString()).toArray("le", 8))],
+    pid,
+  )[0];
+
+/** Escrow a capability bounty on a bank: first run to finalize >= threshold
+ *  before `deadline` takes the pot — paid to the RUN's operator, not a bettor. */
+async function bountyOpen(bank: PublicKey, threshold: number, amount: bigint, deadlineTs: bigint, salt: bigint, kpPath?: string) {
+  const { market, kp } = marketProgram(kpPath);
+  const b = bountyPda(bank, kp.publicKey, salt, market.programId);
+  await (market.methods as any)
+    .createBounty(new anchor.BN(salt.toString()), threshold, new anchor.BN(amount.toString()), new anchor.BN(deadlineTs.toString()))
+    .accounts({ sponsor: kp.publicKey, bank, bounty: b })
+    .rpc({ commitment: "confirmed" });
+  console.log(`bounty ${b.toBase58()} opened: bank ${bank.toBase58()} threshold=${threshold} pot=${Number(amount) / LAMPORTS_PER_SOL} SOL deadline=${new Date(Number(deadlineTs) * 1000).toISOString()}`);
+  return b;
+}
+
+/** Permissionless claim — anyone may trigger it; the pot lands on the run's
+ *  operator (`run.runner`), verified on-chain. */
+async function bountyClaim(bountyPk: PublicKey, runPk: PublicKey, kpPath?: string) {
+  const { market } = marketProgram(kpPath);
+  const ctx = setup();
+  const run: any = await (ctx.program.account as any).run.fetch(runPk);
+  const conn = provider0(ctx.wallet);
+  const before = await conn.getBalance(run.runner);
+  const sig = await (market.methods as any)
+    .claimBounty()
+    .accounts({ run: runPk, bounty: bountyPk, payee: run.runner })
+    .rpc({ commitment: "confirmed" });
+  const afterBal = await conn.getBalance(run.runner);
+  const b: any = await (market.account as any).bounty.fetch(bountyPk);
+  console.log(`bounty claimed (${sig}): run ${runPk.toBase58()} score=${b.winningScore} paid ${Number(before)} -> ${afterBal} lamports to runner ${run.runner.toBase58()}`);
+}
+
+/** Permissionless expiry — pot + rent return to the stored sponsor. */
+async function bountyExpire(bountyPk: PublicKey, kpPath?: string) {
+  const { market } = marketProgram(kpPath);
+  const b: any = await (market.account as any).bounty.fetch(bountyPk);
+  const sig = await (market.methods as any)
+    .expireBounty()
+    .accounts({ bounty: bountyPk, sponsor: b.sponsor })
+    .rpc({ commitment: "confirmed" });
+  console.log(`bounty expired (${sig}): ${bountyPk.toBase58()} — escrow returned to sponsor ${b.sponsor.toBase58()}`);
+}
+
+async function bountyShow(bountyPk: PublicKey) {
+  const { market } = marketProgram();
+  const b: any = await (market.account as any).bounty.fetch(bountyPk);
+  const status = ["OPEN", "CLAIMED", "EXPIRED"][b.status as number] ?? `?${b.status}`;
+  console.log(`bounty ${bountyPk.toBase58()} status=${status}`);
+  console.log(`  bank=${b.bank.toBase58()} sponsor=${b.sponsor.toBase58()} threshold=${b.threshold} pot=${Number(b.amount) / LAMPORTS_PER_SOL} SOL`);
+  const fmt = (v: bigint) => new Date(Number(v) * 1000).toISOString();
+  console.log(`  created_at=${fmt(b.createdAt)} deadline=${fmt(b.deadline)}`);
+  if (b.status === 1)
+    console.log(`  winner_run=${b.winnerRun.toBase58()} winning_score=${b.winningScore}`);
+}
+
 // ------------------------------------------------------------------ cli glue
 
 /**
@@ -1356,6 +1429,18 @@ export async function chainMain(cmd: string[], args: Args) {
   const [sub] = cmd;
   if (sub === "init") {
     await init();
+    return;
+  }
+  if (sub === "init-signer") {
+    // Standalone un-brick: drains any grief-prefund and creates the shared
+    // signer PDA — same ix `chain init` calls eagerly.
+    const { program, provider, wallet } = setup();
+    const [signPda] = PublicKey.findProgramAddressSync([Buffer.from("ArciumSignerAccount")], program.programId);
+    const sig = await program.methods
+      .initSignerPda()
+      .accounts({ payer: wallet.publicKey, signPdaAccount: signPda })
+      .rpc({ commitment: "confirmed" });
+    console.log(`init_signer_pda ${signPda.toBase58()} (${sig})`);
     return;
   }
   if (sub === "reset-sealing") {
@@ -1564,6 +1649,24 @@ export async function chainMain(cmd: string[], args: Args) {
       } else if (m1 === "show") {
         await darkShow(new PublicKey(String(args.market)));
       } else throw new Error(`unknown dark command: ${m1}`);
+    } else if (m0 === "bounty") {
+      const [m1] = cmd.slice(2);
+      if (m1 === "open") {
+        const bank = new PublicKey(String(args.bank));
+        const threshold = Number(args.threshold);
+        const lamports = BigInt(String(args.lamports));
+        const deadlineTs = deadline(args["deadline"] ?? args["resolve-by"]);
+        if (!Number.isFinite(threshold) || lamports <= 0n || deadlineTs === 0n)
+          throw new Error("--bank <pk> --threshold n --lamports n --deadline +secs|ts required");
+        await bountyOpen(bank, threshold, lamports, deadlineTs, BigInt(String(args.salt ?? "0")), bettor);
+      } else if (m1 === "claim") {
+        // Permissionless trigger — the pot pays run.runner, verified on-chain.
+        await bountyClaim(new PublicKey(String(args.bounty)), new PublicKey(String(args.run)), bettor);
+      } else if (m1 === "expire") {
+        await bountyExpire(new PublicKey(String(args.bounty)), bettor);
+      } else if (m1 === "show") {
+        await bountyShow(new PublicKey(String(args.bounty)));
+      } else throw new Error(`unknown bounty command: ${m1}`);
     } else if (m0 === "show") {
       await marketShow(new PublicKey(String(args.market)));
     } else throw new Error(`unknown market command: ${m0}`);

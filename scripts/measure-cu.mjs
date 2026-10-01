@@ -18,12 +18,39 @@ const PROGRAMS = {
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
+// Public devnet RPC 429s getTransaction under any real pace — retry with
+// jittered backoff and honor retry-after when the node tells us.
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function getTx(sig) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      return await conn.getTransaction(sig, { maxSupportedTransactionVersion: 0, commitment: "confirmed" });
+    } catch (e) {
+      const m = String(e?.message ?? e);
+      if (!/429|rate|Too Many|fetch failed|timeout/i.test(m) || attempt === 7) throw e;
+      const retry = Number(m.match(/retry[^\d]*(\d+)/i)?.[1] ?? 0);
+      await sleep((retry || 2 ** attempt) * 1000 + Math.random() * 500);
+    }
+  }
+}
+async function getSigs(pid) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      return await conn.getSignaturesForAddress(pid, { limit });
+    } catch (e) {
+      if (attempt === 7) throw e;
+      await sleep(2 ** attempt * 1000 + Math.random() * 500);
+    }
+  }
+}
+
 for (const [name, pid] of Object.entries(PROGRAMS)) {
-  const sigs = await conn.getSignaturesForAddress(pid, { limit });
+  const sigs = await getSigs(pid);
   const rows = new Map(); // ix name -> {cus: [], fails: 0}
   let scanned = 0, failed = 0;
   for (const s of sigs) {
-    const tx = await conn.getTransaction(s.signature, { maxSupportedTransactionVersion: 0, commitment: "confirmed" });
+    const tx = await getTx(s.signature).catch(() => null);
+    await sleep(120); // stay under public-RPC per-method budgets
     if (!tx) continue;
     scanned++;
     const logs = tx.meta?.logMessages ?? [];

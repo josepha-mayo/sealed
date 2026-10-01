@@ -50,13 +50,16 @@ after sealing, and nobody can fabricate a score.
   the Arcium program's registered-account-list enforcement (queue-time
   `CallbackInstruction` accounts are replayed verbatim at delivery) plus
   deterministic inputs — every possible callback output for a queued
-  computation is honest by construction. The mutating callbacks additionally
-  bind `computation_account == derive_comp_pda!(stored_offset, mxe)`;
-  score/reveal/reshare don't record the offset (Run/Reveal/ShareGrant
-  layouts predate the binding). Contingent risk only: if upstream list
-  enforcement weakened, a validly-signed output could be misrouted to a
-  same-bank `(run, chunk)`. The fix is a layout change (store the queued
-  offset per pending chunk) — noted for the next account-version bump.
+  computation is honest by construction. Defense-in-depth shipped: every
+  mutating data account in all six callbacks now carries **self-canonical
+  PDA seeds** (`seeds` re-derived from the account's own stored fields —
+  `run`/`chunk`/`reveal`/`grant`/`items` must each be THE PDA their contents
+  describe, not merely an account of the right type). The remaining
+  contingent risk is narrower still: if upstream list enforcement weakened,
+  a validly-signed output could only be misrouted to a same-bank,
+  canonically-seeded `(run, chunk)`. Full closure needs a layout change
+  (store the queued computation offset per pending chunk) — noted for the
+  next account-version bump.
   **Generated banks have no author**: the residual trust is in `ArcisRNG` — a
   malicious-but-below-threshold cluster cannot bias the draw without the
   honest nodes aborting the computation.
@@ -78,6 +81,17 @@ after sealing, and nobody can fabricate a score.
   betting on a sealed grading process in the real world, and it is why
   grant-based selective disclosure (`reshare_part`) exists as the escape
   hatch for judges who do need to read items.
+- **Prefunded-PDA grief** — Solana's `create_account` rejects accounts that
+  already carry lamports, so any `init`/`init_if_needed` PDA can be bricked
+  by transferring 1 lamport to its seed-derived address first. The worst
+  target was the shared `sign_pda_account` (one brick stalls every queue
+  path). **Mitigation shipped**: `init_signer_pda` drains prefunds via
+  `invoke_signed` (the program owns the seeds) then `create_account`s —
+  it *un-bricks* the singleton even after a successful grief, and
+  `chain init` calls it eagerly on every setup. Per-user lazy inits
+  (benchmarks, runs, grants) remain griefable in theory; the blast radius
+  is one bank/run id at a time and the fix is a salt/id rotation, so the
+  residual is documented rather than engineered.
 - **Cluster liveness** — sealing and scoring depend on the MPC cluster
   executing computations and submitting callbacks. If the cluster stalls, runs
   stay pending; `void_market` lets the authority refund bettors on dead runs
@@ -269,3 +283,50 @@ after sealing, and nobody can fabricate a score.
   remainder is a small extension.
 - **Fee/griefing economics** — run fees are collected but not yet distributed.
 - **Multi-authority benchmarks** — the bank has a single authority today.
+
+## Adversarial market analysis — the attacks this class usually dies to
+
+Every documented failure mode of "markets on evals" maps to a concrete
+mechanism here — not a promise.
+
+| Attack | How it plays out elsewhere | Why it fails here |
+|---|---|---|
+| **Oracle capture** — the resolver is bought or sybiled | UMA whale force-resolved a $7M Polymarket market wrong (Mar 2025); LMArena-style leaderboards are a website somebody controls | There is no resolver. `Run.correct` is written by the Arcium MPC callback; `resolve`/`resolve_duel`/`resolve_ladder`/`resolve_dark` are pure functions of that field. Buying the oracle means corrupting an MPC cluster, not a multisig. |
+| **Benchmark gaming via selective submission** | "Leaderboard Illusion" (arXiv 2504.20879): vendors test many private variants, publish only the flattering one | The run binds `outputs_root` at `create_run` — the committed output set is pinned *before* scoring, and the score is MPC-computed over the full bank. Selective disclosure is still possible at the *submission* level (don't submit bad runs) — that's honest; the bank can be re-run and the answer-vector fingerprint makes replay detectable. |
+| **Insider trading by the submitter** | The runner knows their score before the market resolves | Real and acknowledged — but bounded: (a) positions on dark markets are sha256-sealed, so an informed runner can't see the tape they're pushing against; (b) commit-reveal blocks last-block sniping — reveals must land inside a window that closes before resolution; (c) informed flow is also *signal* (Hanson & Oprea, Economica 2009): a manipulator trading on a true private score moves the price toward the truth. |
+| **Wash trading** | ~25% of Polymarket volume flagged as wash in the Columbia study | The sealed layer cuts both ways: fake volume is invisible on dark markets (no public tape to fake convincingly) — but so is real manipulation. Mitigations live at the edges: creation fees, the `all_backed` rule (a market with unbacked buckets cancels rather than mis-resolving), and claim accounting that only ever pays from recorded pot lamports. |
+| **Thin-market manipulation** | Low-liquidity books make price signals cheap to move | Parimutuel, not order books: there is no price to spoof, only pot share. The residual lever is last-minute pool dominance — bounded by `resolve_by` windows and by dark positions hiding *which* side is thin. |
+| **Answer-key leakage after resolution** | Once the eval is public, the bank is burned forever | Audit-and-burn is *enforced*, not advisory: a landed `reveal_part` bumps `reveal_count`; every later run on that bank stamps `post_reveal=1`; all four market creators reject flagged runs (`PostRevealRun`). Spoiled exams can never silently price again. |
+| **Question provenance** ("who writes the exam?") | Every private-eval incumbent (Scale SEAL, vendor self-reports) resolves to a human holding the key | On generated and private banks nobody holds a key — specs are ArcisRNG output encrypted to the MXE key at birth. Authored banks are the trust point and are labeled as such; `ShareGrant`s make the trust auditable. |
+
+The residual trust set, stated plainly: the Arcium cluster executes the
+circuits honestly (the MPC assumption), the question generator is fair
+(the circuits are inspectable), and market spam is a real cost of
+permissionless creation — a curated registry or creation bond is the
+honest answer if spam ever materializes.
+
+## Capability bounties — FCFS, payout to the operator, not a bettor
+
+`create_bounty` / `claim_bounty` / `expire_bounty` escrow a sponsor-funded
+pot against "first run on this bank to score ≥ threshold before deadline."
+The bounty oracle is the same `Run.correct` the markets settle on — the
+sponsor buys a *demonstrated* capability, not a prediction.
+
+| Attack | Defense |
+|---|---|
+| **Retroactive claim** — attach a bounty to a bank that already has a qualifying run, confederate instantly claims | `bounty_qualifies` requires `run.created_at >= bounty.created_at`; a pre-existing run is ineligible forever. |
+| **Wrong-bank claim** | `run.benchmark == bounty.bank` is part of the same pure gate. |
+| **Bait bounty** — threshold above the bank's max (unclaimable pot used as fake marketing) | `create_bounty` reads the sealed bank's `chunk_count` and rejects `threshold > chunk_count * 32` (`InvalidThreshold`); `threshold == 0` also rejected — a landed 0 score is honest. |
+| **Sponsor self-deal** — post bounty, run own model, claim own pot, advertise "X beat the bounty" | `run.runner != bounty.sponsor` — a sponsor's own run can never claim; the winner evidence is third-party or nothing. |
+| **Front-run the claim tx** — MEV the permissionless claim and redirect payout | `payee` is constrained to the run's stored `runner` field (`WrongPayee`); the trigger is never the recipient. |
+| **Claim on a pending/fresh run** | `bounty_qualifies` requires `RUN_FINALIZED` or the proven-partial standard (committed run past its 24h landing window with landed score evidence) — identical to market settlement. |
+| **Claim on a post-reveal run** | `run_post_reveal` check — runs created after the bank's fingerprint disclosure are ineligible (`PostRevealRun`), same as markets. |
+| **Double claim** | `status` flips `OPEN → RESOLVED` atomically in the claim ix; a second claim hits `MarketNotOpen`. |
+| **Sponsor griefs runners** — bounty expires mid-flight | `expire_bounty` requires `now > deadline`; before that the pot is locked. Expiry `close`s the account to the *stored* sponsor — the refund can't be redirected. |
+| **Score inflation** — claim needs a real score | There is no self-reported score path anywhere in the program; `correct` arrives only via the Arcium callback. |
+
+FCFS is the deliberate scope cut: a highest-score auction needs a
+nominate/contest phase and a second deadline dimension. First-qualifying-
+proven-run wins is the honest version that needs no challenge state.
+Live transcript: `docs/evidence/bounty-local.txt` (three on-chain bait
+rejections + claim + refund).

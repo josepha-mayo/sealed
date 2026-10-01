@@ -130,6 +130,7 @@ const DISC = {
   position: "aabc8fe47a40f7d0",
   darkMarket: "94562c723ef98ba6",
   darkPosition: "d8c18faeae9d7715",
+  bounty: "ed1069c61345f2ea",
 };
 const hex = (u8) => [...u8].map(b => b.toString(16).padStart(2, "0")).join("");
 const b58 = (u8) => new PK(u8).toBase58();
@@ -445,6 +446,26 @@ function parsePosition(d) {
   return { market: b58(market), bettor: b58(bettor), amounts };
 }
 
+// Bounty: disc8 + sponsor32 + bank32 + salt u64 + bump + status + threshold u32
+// + amount u64 + winner_run32 + winning_score u32 + created_at i64 + deadline i64
+// A claimed bounty stays live — winner_run is the permanent payout record.
+function parseBounty(d) {
+  if (d.length < 146) throw new Error("truncated Bounty (" + d.length + "B < 146B)");
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const sponsor = d.slice(o, o + 32); o += 32;
+  const bank = d.slice(o, o + 32); o += 32;
+  const salt = v.getBigUint64(o, true); o += 8;
+  o += 1; // bump
+  const status = d[o++];
+  const threshold = v.getUint32(o, true); o += 4;
+  const amount = v.getBigUint64(o, true); o += 8;
+  const winnerRun = d.slice(o, o + 32); o += 32;
+  const winningScore = v.getUint32(o, true); o += 4;
+  const createdAt = Number(v.getBigInt64(o, true)); o += 8;
+  const deadline = Number(v.getBigInt64(o, true)); o += 8;
+  return { sponsor: b58(sponsor), bank: b58(bank), salt, status, threshold, amount, winnerRun: b58(winnerRun), winningScore, createdAt, deadline };
+}
+
 const short = (s) => s.slice(0, 6) + "…" + s.slice(-4);
 const fmtTs = (t) => { const n = Number(t); return Number.isFinite(n) && n > 0 && n < 8.64e12 ? new Date(n * 1000).toISOString().slice(5, 16).replace("T", " ") : "—"; };
 // Cluster tag for explorer.solana.com links — devnet/testnet/mainnet-beta, or
@@ -564,7 +585,7 @@ async function loadExampleProof() {
 }
 
 function renderAll(sealedAccs, marketAccs) {
-  const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [], darkMarkets = [], darkPositions = [];
+  const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [], darkMarkets = [], darkPositions = [], bounties = [];
   const skipped = [];
   for (const { pubkey, account } of sealedAccs) {
     try {
@@ -586,6 +607,7 @@ function renderAll(sealedAccs, marketAccs) {
       else if (disc === DISC.ladder) ladders.push({ pk: pubkey.toBase58(), ...parseLadder(d) });
       else if (disc === DISC.darkMarket) darkMarkets.push({ pk: pubkey.toBase58(), ...parseDarkMarket(d) });
       else if (disc === DISC.darkPosition) darkPositions.push({ pk: pubkey.toBase58(), ...parseDarkPosition(d) });
+      else if (disc === DISC.bounty) bounties.push({ pk: pubkey.toBase58(), ...parseBounty(d) });
       else if (disc === DISC.position) positions.push({ pk: pubkey.toBase58(), ...parsePosition(d) });
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
@@ -596,7 +618,7 @@ function renderAll(sealedAccs, marketAccs) {
   window.__benches = new Map(benches.map((b) => [b.pk, b]));
   window.__itemChunks = itemChunks;
   window.__privChunks = privChunks;
-  window.__audit = { benches, runs, markets, ladders, positions, chunks, itemChunks, privChunks, reveals, grants, darkMarkets, darkPositions, signPda: window.__signPda ?? null, skipped: skipped.length };
+  window.__audit = { benches, runs, markets, ladders, positions, chunks, itemChunks, privChunks, reveals, grants, darkMarkets, darkPositions, bounties, signPda: window.__signPda ?? null, skipped: skipped.length };
 
   let h = "";
 
@@ -871,6 +893,21 @@ function renderAll(sealedAccs, marketAccs) {
       h += `</div>`;
     }
   }
+
+  if (bounties.length) {
+    h += `<h2>score bounties</h2>`;
+    for (const b of bounties.sort((a, x) => x.createdAt - a.createdAt)) {
+      const claimed = b.status === 1;
+      h += `<div class="card" id="bounty-${b.pk}"><div class="row">
+        <b>capability bounty — first run scoring &ge;${b.threshold} takes the pot (pays the run's operator, not a bettor)</b>
+        <span class="pill live">bounty</span>
+        <span class="pill ${claimed ? "resolved" : "open"}">${claimed ? "claimed" : b.deadline * 1000 < Date.now() ? "expired" : "open"}</span>
+        <span class="kv">pot <b>${sol(b.amount)} SOL</b></span>
+        <span class="kv">acct ${link(b.pk)}</span></div>
+        <div class="proof">bank ${link(b.bank)} &middot; sponsor ${link(b.sponsor)} &middot; threshold &ge;${b.threshold} &middot; deadline ${fmtTs(b.deadline)}${claimed ? ` &middot; winner run ${link(b.winnerRun)} scored ${b.winningScore}` : ""}</div>
+      </div>`;
+    }
+  }
   document.getElementById("out").innerHTML = h;
   maybeAudit();
   // deep links: #bank-/<pk>id pattern survives innerHTML rewrites; scroll once.
@@ -1035,7 +1072,7 @@ let __auditKey = null;
 function maybeAudit() {
   const A = window.__audit;
   if (!A) return;
-  const key = A.benches.length + ":" + A.runs.length + ":" + A.markets.length + ":" + A.ladders.length + ":" + A.darkMarkets.length + ":" + A.skipped;
+  const key = A.benches.length + ":" + A.runs.length + ":" + A.markets.length + ":" + A.ladders.length + ":" + A.darkMarkets.length + ":" + A.bounties.length + ":" + A.skipped;
   if (key === __auditKey) return;
   __auditKey = key;
   runAudit();
@@ -1077,6 +1114,7 @@ async function runAudit(force) {
       }
       for (const l of A.ladders) chk(l.pk, pdaB([utf8("ladder"), pkB(l.legs[0]), u64le(l.salt)], MARKET_PID));
       for (const d of A.darkMarkets) chk(d.pk, pdaB([utf8("dark"), pkB(d.run), u64le(d.salt)], MARKET_PID));
+      for (const b of A.bounties) chk(b.pk, pdaB([utf8("bounty"), pkB(b.bank), pkB(b.sponsor), u64le(b.salt)], MARKET_PID));
       for (const p of A.darkPositions) {
         let found = false;
         for (let s = 0; s <= 4095 && !found; s++) if (pdaB([utf8("darkpos"), pkB(p.market), pkB(p.bettor), u64le(s)], MARKET_PID) === p.pk) found = true;
@@ -1173,6 +1211,18 @@ async function runAudit(force) {
       if (d.winTotal > d.poolTotal) dbad++;
     }
     dbad === 0 ? pass("dark-market accounting", `${dchecked} resolved darks re-derived; revealedCount/wintotal consistent`) : fail("dark markets", `${dbad} violation(s)`);
+
+    // [5b] bounty claims — a claimed bounty's winner_run must exist, live on
+    // the same bank, postdate the bounty, and carry the score it claims.
+    let bbad = 0, bchecked = 0;
+    for (const b of A.bounties) {
+      if (b.status !== 1) continue;
+      bchecked++;
+      const r = rset.get(b.winnerRun);
+      if (!r) { bbad++; continue; }
+      if (r.benchmark !== b.bank || r.correct < b.threshold || r.correct !== b.winningScore || r.createdAt < b.createdAt) bbad++;
+    }
+    bbad === 0 ? pass("bounty claims", `${bchecked} claimed bounties re-verified against winner runs`) : fail("bounties", `${bbad} violation(s)`);
 
     // [6] cross-references
     let xbad = 0;

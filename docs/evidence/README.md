@@ -123,6 +123,34 @@ grants to a delegate key whose keypair was overwritten mid-run — those
 grants remain on-chain as orphans, honest evidence that grants are
 permanent records, not revocable sessions.)
 
+### Flagship: capability bounty — first-to-beat pays the operator, not a bettor (in `snapshot.json`)
+
+`scripts/bounty-local.sh` (transcript `bounty-local.txt`) — a primitive the
+usual eval-market suspects don't have: a sponsor escrows SOL against
+"first run on this bank to score ≥ T takes it." There are no positions,
+no odds — the pot pays the winning **run's operator**, and the oracle is
+the same MPC-written `Run.correct` everything else settles on:
+
+- bank `DQ4Hum2q…` minted inside MPC (answers never existed in plaintext);
+- bounty `6EqmVxLM…` — sponsor escrowed 0.1 SOL, threshold 4, +1h deadline;
+- an **independent** runner keypair (`8imv9tDz…`, airdropped, distinct from
+  the sponsor — sponsor self-claim is rejected on-chain) ran
+  `mock/oracle-0.5` → MPC finalized 17/32 == local pre-score;
+- permissionless `claim_bounty` paid the pot straight to `run.runner`
+  (`489115440 → 589115440` lamports) and stamped `winner_run` +
+  `winning_score` as permanent on-chain evidence;
+- a second bounty `DLMkwgSQ…` (threshold 30 — unreachable after the run
+  landed) lapsed and `expire_bounty` refunded the escrow to the sponsor.
+
+The transcript also shows three on-chain bait rejections: threshold above
+the bank's item max (`InvalidThreshold`), a deadline inside the 60s
+minimum (`DeadlineTooSoon`), and a second claim on the resolved bounty
+(`MarketNotOpen`). The unit suite additionally covers the retroactivity
+wall, wrong-bank runs, sponsor self-claim, pending-run claims, and the
+proven-partial path (`tests::bounty_qualifies_gates`), and the E2E test
+exercises retroactive-claim rejection, a permissionless third-party claim
+trigger, and double-claim rejection against real MPC scoring.
+
 ### Flagship: double-sealed — dark market on a private exam, real model (in `snapshot.json`)
 
 `scripts/dark-local.sh` (transcript `dark-local.txt`) — the purest privacy
