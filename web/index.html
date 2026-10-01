@@ -1215,12 +1215,15 @@ async function runAudit(force) {
     // [5b] bounty claims — a claimed bounty's winner_run must exist, live on
     // the same bank, postdate the bounty, and carry the score it claims.
     let bbad = 0, bchecked = 0;
+    // claimed under the pre-guard binary (runner!=sponsor shipped later)
+    const GRANDFATHERED = new Set(["EJzXf3q4pRddNcqHWFiSWfBEntwaKGUqPx8cWH1aiBSc"]);
     for (const b of A.bounties) {
       if (b.status !== 1) continue;
       bchecked++;
       const r = rset.get(b.winnerRun);
       if (!r) { bbad++; continue; }
-      if (r.benchmark !== b.bank || r.correct < b.threshold || r.correct !== b.winningScore || r.createdAt < b.createdAt) bbad++;
+      const selfDeal = r.runner === b.sponsor && !GRANDFATHERED.has(b.pk);
+      if (r.benchmark !== b.bank || r.correct < b.threshold || r.correct !== b.winningScore || r.createdAt < b.createdAt || selfDeal) bbad++;
     }
     bbad === 0 ? pass("bounty claims", `${bchecked} claimed bounties re-verified against winner runs`) : fail("bounties", `${bbad} violation(s)`);
 

@@ -24,7 +24,7 @@ benchmark PDA: DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx
   (bait rejection 1: threshold 33 > the bank's 32-item max)
 AnchorError thrown in programs/market/src/lib.rs:1550. Error Code: InvalidThreshold. Error Number: 6035. Error Message: Threshold must be 1..=bank max score (chunk_count * 32).
   rejected as expected
-  (bait rejection 2: deadline already in the past)
+  (bait rejection 2: deadline inside the 60s minimum)
 AnchorError thrown in programs/market/src/lib.rs:1538. Error Code: DeadlineTooSoon. Error Number: 6025. Error Message: deadline too close — markets must live at least 60s.
   rejected as expected
 bounty 6EqmVxLMEmkDLNeHP5yVL2y4sseutQCcRre93a5Sw5tF opened: bank DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx threshold=4 pot=0.1 SOL deadline=2026-10-01T18:28:05.000Z

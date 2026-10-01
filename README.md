@@ -56,7 +56,7 @@ flowchart LR
   RUN -->|Run.correct resolves| MKT
 ```
 
-The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Five primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal.
+The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Six primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal, capability bounty.
 
 Per-account detail:
 
@@ -255,7 +255,7 @@ Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `SEALED_CLUSTER_O
 
 Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALED_API_KEY`; defaults to OpenRouter).
 
-Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (instruction/circuit reference) · [threat-model.md](docs/threat-model.md) (findings + residual assumptions) · [evidence/](docs/evidence/README.md) (snapshot + proof files) · [mainnet.md](docs/mainnet.md) (deploy runbook)
+Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (instruction/circuit reference) · [threat-model.md](docs/threat-model.md) (findings + residual assumptions) · [costs.md](docs/costs.md) (measured per-instruction CU table) · [evidence/](docs/evidence/README.md) (snapshot + proof files) · [mainnet.md](docs/mainnet.md) (deploy runbook)
 
 ## Status
 
@@ -275,7 +275,7 @@ Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (ins
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected. Reveals are *burns*, enforced on-chain: a landed reveal bumps `benchmark.reveal_count`, later runs stamp `post_reveal=1`, and every market creator rejects flagged runs (`PostRevealRun`) — no stake can price a spoiled score
-- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 13/13 tests pass on any ledger
+- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 15/15 tests pass on any ledger
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 

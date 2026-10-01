@@ -34,23 +34,24 @@ appear in plaintext on-chain either. `reshare_part` re-encrypts spec parts
 to a delegate's key (recorded in `ShareGrant` PDAs; answers never move).
 `score_chunk` compares a run's committed `outputs_root` Merkle proof
 against sealed fingerprints inside MPC; the callback writes `Run.correct`.
-`seal_part`/`reveal_part` cover authored banks + fingerprint audits.
+`seal_part`/`reveal_part` cover authored banks + audits.
 
 A second program hosts parimutuel markets — score bands, duels, ladder
-races, unseen-exam, and commit-reveal dark markets — resolving
-permissionlessly on `Run.correct`; bets latch before the first scored
-chunk. Verified: 13/13 E2E + 13/13 unit on a real MPC localnet, plus
-four open-weights models raced, dueled, and settled through MPC — a
-dead-heat, a private exam via reshare grants, and a dark market on a
-ciphertext-only bank's pending run. Every market primitive has settled
-a real model's MPC score.
+races, unseen-exam, commit-reveal dark markets, and FCFS capability
+bounties (pot pays the first proven run's operator, not a bettor) —
+resolving permissionlessly on `Run.correct`; bets latch before the
+first scored chunk. Verified: 15/15 E2E + 13/13 unit on a real MPC
+localnet; four open-weights models raced, dueled, and settled through
+MPC — a dead-heat, a private exam via reshare grants, a dark market on
+a ciphertext-only bank's run. Every primitive settled a real score.
 
 ## solanaIntegration
 
 Two Anchor programs on Solana: `sealed` owns benchmark banks, item chunks,
 sealed answer fingerprints, runs, share grants, and reveals; `market` hosts
-parimutuel score-band, duel, ladder-race, unseen-exam, and dark
-commit-reveal markets resolved from `Run.correct`. The
+parimutuel score-band, duel, ladder-race, unseen-exam, dark
+commit-reveal markets, and capability bounties — all resolved from
+`Run.correct`. The
 programs compose with the Arcium stack — MXE account, cluster, mempool/
 execpool, comp defs, `queue_computation` + callback instructions — via six
 Arcis circuits (seal/score/gen/gen_private/reveal/reshare). x25519 +
@@ -62,11 +63,11 @@ against on-chain `outputs_root` in-browser.
 
 ## tractionMilestones
 
-Hundreds of MPC computations on the committed evidence ledger — 13 banks
-minted, 46 runs created and 40 MPC-finalized, 21 markets resolved across
-five primitives (12 score-band/duel, 5 ladders, 4 dark) paying pro-rata,
-plus live cancel/refund paths; 18 selective-disclosure grants, 2 reveal
-audits — 0 plaintext answer keys. Every primitive has settled a REAL
+Hundreds of MPC computations across the committed evidence ledger —
+30 banks minted, 106 runs, 71 markets resolved across six primitives
+(score-band/duel, 10 ladders, 12 dark, plus capability bounties: 9
+posted, 5 claimed by qualifying runs) paying pro-rata or operator-first,
+45 selective-disclosure grants, 5 reveal audits — 0 plaintext answer keys. Every primitive has settled a REAL
 open-weights model's MPC-written score: four local models raced an
 MPC-minted exam — qwen2.5-3b 6/32 tied 1.5b 6/32 (dead-heat mask=0b11),
 llama-3.2-1b 1/32, 0.5b 0/32 — argmax pro-rata plus a dark leg with a
@@ -76,7 +77,7 @@ sealed forfeit. On a PRIVATE exam (ciphertext-only specs): 1.5b scored
 0.5b's 2/32. Prior gpt-oss-20b: 64/64 on MPC-minted 6932, 64/64 on
 authored 25864 — and a stale-artifact claim scored 1/64, proving the
 chain never trusts self-reported scores. `verify.mjs` re-audits the
-bundle offline (10/10); the hosted explorer runs it in-browser.
+bundle offline (11/11 checks); the hosted explorer runs it in-browser.
 
 ## targetAudience
 
@@ -92,22 +93,20 @@ Adjacent: insurers, auditors, and DAOs pricing AI capability risk.
 ## businessModel
 
 Per-run fees paid to the benchmark authority are live on-chain today
-(`create_run` transfers `fee_lamports`), and market take-rate on settlement is
-live too (`fee_bps` skimmed at resolution, authority-claimed via `claim_fee`).
-The durable business is sealed-evaluation
-infrastructure: fresh private banks minted on demand (no key custody to
-sell), delegated scoring runs for labs and judges, and the settlement
-layer every "AI capability" market resolves against. Five novel
-settlement primitives ship: run duels (latch on either leg's first queue),
-K-way ladder races (argmax, dead-heat pro-rata, dead legs forfeit),
-unseen-exam markets (a market fills on a private-bank run — the priced
-event is itself confidential), dark commit-reveal markets (sha256
-commitments seal every side; no-shows forfeit), and committed-settle
-expiry (a stalled run refunds unless the runner committed every chunk).
-Unit economics: a 64-item exam ≈0.02 SOL total account rent; a bettor
-seat ≈0.002 SOL, refunded on claim/close. Any venue composes on
-`Run.correct` permissionlessly — the referee is infrastructure, not a
-vendor.
+(`create_run` transfers `fee_lamports`); market take-rate is live too
+(`fee_bps` at resolution, `claim_fee`). The durable business is
+sealed-evaluation infrastructure: fresh private banks minted on demand
+(no key custody to sell), delegated scoring runs for labs and judges,
+and the settlement layer every "AI capability" market resolves against.
+Six primitives ship: run duels, K-way ladder races (argmax, dead-heat
+pro-rata), unseen-exam markets (the priced event is itself confidential),
+dark commit-reveal markets (sha256-sealed sides, no-shows forfeit),
+capability bounties (sponsor escrow pays the first operator to provably
+clear T — a trustless "prove your model can do X", not a bet), and
+committed-settle expiry.
+Unit economics: a 64-item exam ≈0.02 SOL account rent; a bettor seat
+≈0.002 SOL refunded on claim/close. Any venue composes on `Run.correct`
+permissionlessly — the referee is infrastructure, not a vendor.
 
 ## competitiveLandscape
 

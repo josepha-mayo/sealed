@@ -151,6 +151,13 @@ proven-partial path (`tests::bounty_qualifies_gates`), and the E2E test
 exercises retroactive-claim rejection, a permissionless third-party claim
 trigger, and double-claim rejection against real MPC scoring.
 
+Honesty note — bounty `EJzXf3q4…` in the merged snapshot was claimed by a
+run whose `runner == sponsor`: it landed on an epoch-2 binary **before**
+the `runner != sponsor` guard shipped (the first demo is what exposed the
+gap). The verifier flags it as a grandfathered note, not a fail — it is
+historical evidence of a bug we found, fixed, and shipped a regression
+check for. Any *new* self-deal claim fails verification.
+
 ### Flagship: double-sealed — dark market on a private exam, real model (in `snapshot.json`)
 
 `scripts/dark-local.sh` (transcript `dark-local.txt`) — the purest privacy

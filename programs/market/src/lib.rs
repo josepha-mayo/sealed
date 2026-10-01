@@ -1590,6 +1590,13 @@ pub mod market {
     /// lands on `run.runner` — the operator who earned the score, never the
     /// trigger. `payee` is constrained to the run's stored runner, so a
     /// front-running claim tx cannot redirect the payout.
+    ///
+    /// The deadline is TOTAL — the claim tx must land by `b.deadline`
+    /// (`now <= deadline`), so the proven score must exist on-chain before
+    /// the offer closes. That transitively bounds run creation too:
+    /// `run.created_at <= now <= deadline`. Past the deadline the only
+    /// remaining transition is `expire_bounty`, so a sponsor can quote an
+    /// exact end time and a slow-finalizing run can't stretch the window.
     pub fn claim_bounty(ctx: Context<ClaimBounty>) -> Result<()> {
         let b = &mut ctx.accounts.bounty;
         require!(b.status == MARKET_OPEN, ErrorCode::MarketNotOpen);

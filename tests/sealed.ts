@@ -2035,6 +2035,24 @@ describe("Sealed", () => {
     console.log("sweep latch, swept-callback landing, edges bound, double-attest, duel-expire bail, retire guard — all verified");
   });
 
+  it("ensures the shared signer PDA exists and is grief-recoverable", async () => {
+    // init_signer_pda is idempotent: already-initialized → Ok. The drain path
+    // (prefunded PDA → lamports returned to payer, account created anyway)
+    // needs a fresh ledger to exercise — epoch-4+ wipe coverage.
+    const [signPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("ArciumSignerAccount")],
+      program.programId,
+    );
+    const before = await provider.connection.getAccountInfo(signPda);
+    expect(before, "signer PDA must already exist (chain init / first queue)").to.not.equal(null);
+    await program.methods
+      .initSignerPda()
+      .accounts({ payer: owner.publicKey, signPdaAccount: signPda })
+      .rpc({ commitment: "confirmed" });
+    const after = await provider.connection.getAccountInfo(signPda);
+    expect(after!.data.length).to.equal(9);
+  });
+
   it("pays a capability bounty to the qualifying run's operator — FCFS, not a bet", async () => {
     const marketProgram = anchor.workspace.Market as Program<Market>;
     const [benchmark] = PublicKey.findProgramAddressSync(

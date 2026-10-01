@@ -73,7 +73,7 @@ say "2/6 sponsor escrows 0.1 SOL — 'first run to score >= $THRESHOLD takes it'
 echo "  (bait rejection 1: threshold 33 > the bank's 32-item max)"
 $SEALED chain market bounty open --bank "$BENCH" --threshold 33 --lamports 50000000 --deadline +3600 --salt 7 \
   && echo "  !! should have been rejected" || echo "  rejected as expected"
-echo "  (bait rejection 2: deadline already in the past)"
+echo "  (bait rejection 2: deadline inside the 60s minimum)"
 $SEALED chain market bounty open --bank "$BENCH" --threshold "$THRESHOLD" --lamports 50000000 --deadline +1 --salt 8 \
   && echo "  !! should have been rejected" || echo "  rejected as expected"
 BOUNTY=$(PDA bounty "$BENCH" 0)

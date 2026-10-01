@@ -14,7 +14,7 @@ deadline.
 - 15s: `scripts/dark.sh` tail — a market that filled while positions AND
   the exam were both sealed, settled by MPC.
 - 20s: numbers — 61 finalized runs, 39 settled markets, 5 settlement
-  primitives, 13/13 E2E on a real MPC localnet; gpt-oss-20b scored 64/64
+  primitives, 15/15 E2E on a real MPC localnet; gpt-oss-20b scored 64/64
   on a bank whose key never existed, and 32/32 on an exam it could only
   read through on-chain grants.
 - Close: "Repo goes public this week; demo video's already live."

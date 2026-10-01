@@ -9,13 +9,18 @@ parimutuel markets resolved from `Run.correct`.
 
 - `anchor build` (sealed), `anchor build -p market --ignore-keys` (market; its
   keypair file address intentionally differs — do NOT `anchor keys sync`).
-- `yarn test` → 13/13 mocha E2E against a RUNNING localnet; needs env
+- `yarn test` → 15/15 mocha E2E against a RUNNING localnet; needs env
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
 - `yarn harness:test` → 13/13 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
+- `scripts/verify-all.sh` → one-command audit: offline verify + headless
+  browser audit + grant-decrypt regression + submission preflight.
+- `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
+  tx history. Works on localnet since the validator launches with
+  `--enable-rpc-transaction-history`.
 
 ## Localnet
 

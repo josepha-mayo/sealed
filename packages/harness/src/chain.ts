@@ -145,16 +145,16 @@ export async function init(ctx = setup()) {
   const { program, provider, wallet } = ctx;
   // Eagerly create the shared signer PDA — a grief-prefund before first use
   // would stall every queue path (create_account rejects lamport-carrying
-  // PDAs); init_signer_pda drains prefunds and always succeeds.
+  // PDAs); init_signer_pda drains prefunds and always succeeds. Call it
+  // unconditionally: a prefunded-but-uninitialized account HAS an
+  // AccountInfo (that's the grief), so an existence check would skip the
+  // fix exactly when it's needed.
   const [signPda] = PublicKey.findProgramAddressSync([Buffer.from("ArciumSignerAccount")], program.programId);
-  const existing = await provider.connection.getAccountInfo(signPda);
-  if (!existing) {
-    const sig = await program.methods
-      .initSignerPda()
-      .accounts({ payer: wallet.publicKey, signPdaAccount: signPda })
-      .rpc({ commitment: "confirmed" });
-    console.log(`sign_pda_account initialized eagerly (${sig})`);
-  }
+  const sig = await program.methods
+    .initSignerPda()
+    .accounts({ payer: wallet.publicKey, signPdaAccount: signPda })
+    .rpc({ commitment: "confirmed" });
+  console.log(`sign_pda_account ensured (${sig})`);
   const arciumProgram = getArciumProgram(provider);
   const mxeAccount = getMXEAccAddress(program.programId);
   const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);

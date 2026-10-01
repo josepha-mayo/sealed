@@ -284,6 +284,12 @@ for (const [pkk, dm] of darks) {
 }
 dBad === 0 ? ok("dark-market accounting", `${dChecked} resolved darks re-derived; revealedCount/wintotal consistent`) : bad("dark markets", `${dBad} violations`);
 
+// Claimed under the pre-guard binary (epoch 2 — the self-deal guard
+// `runner != sponsor` shipped after this claim landed). Grandfathered as
+// historical evidence; any NEW self-deal claim fails hard.
+const GRANDFATHERED_BOUNTIES = new Set([
+  "EJzXf3q4pRddNcqHWFiSWfBEntwaKGUqPx8cWH1aiBSc",
+]);
 let bBad = 0, bChecked = 0;
 for (const b of bounties) {
   if (b.status !== 1) continue; // only claimed bounties carry assertions
@@ -294,6 +300,13 @@ for (const b of bounties) {
   if (r.correct < b.threshold) { bBad++; console.log(`    ! bounty ${b.pk}: winning score ${r.correct} < threshold ${b.threshold}`); }
   if (b.winningScore !== r.correct) { bBad++; console.log(`    ! bounty ${b.pk}: winningScore ${b.winningScore} != run.correct ${r.correct}`); }
   if (r.createdAt < b.createdAt) { bBad++; console.log(`    ! bounty ${b.pk}: winner run predates the bounty (retroactive claim)`); }
+  if (r.runner === b.sponsor) {
+    if (GRANDFATHERED_BOUNTIES.has(b.pk)) {
+      console.log(`    note bounty ${b.pk}: self-claimed under pre-guard binary — rejected by current code`);
+    } else {
+      bBad++; console.log(`    ! bounty ${b.pk}: winner run's runner IS the sponsor (self-deal)`);
+    }
+  }
 }
 bBad === 0 ? ok("bounty claims", `${bChecked} claimed bounties re-verified against winner runs`) : bad("bounties", `${bBad} violations`);
 

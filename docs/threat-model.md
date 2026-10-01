@@ -315,6 +315,7 @@ sponsor buys a *demonstrated* capability, not a prediction.
 | Attack | Defense |
 |---|---|
 | **Retroactive claim** — attach a bounty to a bank that already has a qualifying run, confederate instantly claims | `bounty_qualifies` requires `run.created_at >= bounty.created_at`; a pre-existing run is ineligible forever. |
+| **Window-stretch claim** — a run launched late stretches the bounty past its announced window | The deadline is total: `claim_bounty` requires `now <= deadline`, so `run.created_at <= now <= deadline` transitively bounds entry too. Past the deadline the only transition is `expire_bounty` → refund. The sponsor can quote an exact end time; there is no tail risk of a slow run sniping an un-expired pot. |
 | **Wrong-bank claim** | `run.benchmark == bounty.bank` is part of the same pure gate. |
 | **Bait bounty** — threshold above the bank's max (unclaimable pot used as fake marketing) | `create_bounty` reads the sealed bank's `chunk_count` and rejects `threshold > chunk_count * 32` (`InvalidThreshold`); `threshold == 0` also rejected — a landed 0 score is honest. |
 | **Sponsor self-deal** — post bounty, run own model, claim own pot, advertise "X beat the bounty" | `run.runner != bounty.sponsor` — a sponsor's own run can never claim; the winner evidence is third-party or nothing. |

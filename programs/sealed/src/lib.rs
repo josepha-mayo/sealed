@@ -126,7 +126,14 @@ pub mod sealed {
     /// Idempotent: a live account returns early.
     pub fn init_signer_pda(ctx: Context<InitSignerPda>) -> Result<()> {
         let acc = &ctx.accounts.sign_pda_account;
-        if acc.owner == &crate::ID && !acc.data_is_empty() {
+        if acc.owner == &crate::ID {
+            // Already ours — verify it's a real ArciumSignerAccount, not
+            // corrupt state.
+            let d = acc.try_borrow_data()?;
+            require!(
+                d.len() >= 9 && &d[..8] == ArciumSignerAccount::DISCRIMINATOR,
+                ErrorCode::SignPdaForeignOwner
+            );
             return Ok(());
         }
         require!(

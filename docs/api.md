@@ -31,7 +31,13 @@ MPC-boundary instructions (queue → Arcium computes → `*_callback` writes):
 | `reshare_part(index, part, viewer)` | `reshare_part`: re-encrypts specs to viewer x25519 | `ShareGrant` PDA — questions only, never answers |
 
 All callbacks are gated by `callback_computation` — only the Arcium cluster
-can invoke them, on the exact computation that was queued.
+can invoke them, on the exact computation that was queued — and every
+mutating data account additionally carries self-canonical PDA seeds (the
+account must be THE PDA its own stored fields describe).
+
+| ix | what it does | key constraints |
+|---|---|---|
+| `init_signer_pda` | creates the shared `ArciumSignerAccount` PDA used by every queue path | grief-proof: drains prefunded lamports back to the caller via `invoke_signed`, then `create_account` — also *un-bricks* the singleton after a successful prefund grief. Idempotent. `chain init` calls it eagerly. |
 
 ## `market` — five parimutuel primitives on `Run.correct`
 
@@ -44,6 +50,12 @@ flagged `post_reveal` (`PostRevealRun`), and bait-shaped edge layouts.
 | `create_duel` / `bet_duel` / `resolve_duel` / `void_duel` | duel: two runs, same bank class | A wins / B wins / tie bucket; distinct runner keys required |
 | `create_ladder` / `bet_ladder` / `resolve_ladder` / `claim_ladder` / `claim_fee_ladder` / `void_ladder` | race: 3–8 ordered legs | argmax → `result_mask` bitmask, dead-heats split pro-rata; legs landing nothing score 0, landed partials count |
 | `create_dark` / `dark_bet` / `resolve_dark` / `reveal_dark` / `finalize_dark` / `claim_dark` / `claim_fee_dark` / `void_dark` / `expire_dark` | commit-reveal: bet tx carries only a salted sha256 | resolved → reveal window (60s–90d) → tally; zero reveals or void → gross refund; fee gated on `tallied` |
+
+Plus a non-parimutuel primitive — no bettors, the pot pays the operator:
+
+| ix set | primitive | settlement |
+|---|---|---|
+| `create_bounty` / `claim_bounty` / `expire_bounty` | capability bounty: sponsor escrows SOL on "first run scoring ≥ `threshold`" | FCFS — the first *proven* run claims; gates: same bank, run postdates bounty creation, `runner ≠ sponsor`, `correct ≥ threshold`, finalized-or-proven, not `post_reveal` — and the claim tx itself must land by `deadline` (a total deadline: entry *and* proof must exist on-chain before it; afterwards only `expire_bounty` remains). `payee` pinned to `run.runner` so front-running can't redirect. Past `deadline`, `expire_bounty` closes the account to the stored sponsor. Claimed bounties persist as permanent `winner_run`/`winning_score` evidence. |
 
 ## `encrypted-ixs` — the six Arcis circuits
 
@@ -59,3 +71,6 @@ score_chunk(outputs[32]u64, Enc<Mxe, AnswerPart>×4) -> u8            // count o
 Only `reveal_part` returns plaintext — and only fingerprints (SHA3-256
 truncated u64s), which is why a landed reveal burns the bank for future
 runs. `score_chunk` reveals a count, never per-item results.
+
+Measured per-instruction compute-unit costs live in [costs.md](costs.md)
+(queue-side MPC ixs ~110-150k CU, callbacks ~130-160k, market ops ~4-16k).

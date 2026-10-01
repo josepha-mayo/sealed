@@ -160,7 +160,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 13/13 passing (seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 15/15 passing (seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim incl. expiry,
   claim-fee-first solvency, and post-finalize expiry rejection; duel market
   open→bet→score-both→resolve→claim + gates; 3-way ladder open→bet→latch→
@@ -168,7 +168,9 @@ since been wiped and redeployed during hardening. The evidence bundle in
   ladder dead-heat: two legs tie at 25 → result_mask 0b011 → the whole pot
   splits pro-rata; dark commit-reveal market: sealed bets → resolve →
   reveals → forfeit redistribution + tallied fee sweep, plus the void →
-  preimage-free refund path; pending-sweep liveness gates)
+  preimage-free refund path; pending-sweep liveness gates;
+  capability bounty FCFS claim → operator + retroactive-claim rejection +
+  expiry refund; `init_signer_pda` idempotent grief-recovery)
   splits pro-rata over winning stakes, loser's claim fails;
   generated-bank mint→live→score;
   private-bank mint→decrypt→score + privacy negatives; reshare
