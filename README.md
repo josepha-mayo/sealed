@@ -245,6 +245,7 @@ sealed chain reset-pending  --run <pk> --chunk <i>                   # sweep a s
 sealed chain attest        --run <pk>                                 # authority pins an attestation flag on a finalized run
 sealed chain record        --run <pk>                                 # enroll a finalized run into the persistent capability registry (anyone)
 sealed chain modelrec      <pubkey|model_id>                          # show a model's aggregate record
+sealed chain record --all                                            # enroll EVERY finalized run — permissionless librarian
 sealed chain records                                                  # the whole registry, accuracy-first
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs

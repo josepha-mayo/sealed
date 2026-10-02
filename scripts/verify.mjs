@@ -365,13 +365,27 @@ for (const [pkk, m] of modelRecords) {
   if (logs.length !== m.runsScored) { regBad++; console.log(`    ! modelrec ${pkk}: runs_scored ${m.runsScored} != ${logs.length} receipts`); }
   const tc = logs.reduce((s, l) => s + BigInt(l.correct), 0n), ti = logs.reduce((s, l) => s + BigInt(l.items), 0n);
   if (tc !== m.totalCorrect || ti !== m.totalItems) { regBad++; console.log(`    ! modelrec ${pkk}: totals ${m.totalCorrect}/${m.totalItems} != replayed ${tc}/${ti}`); }
-  let bc = 0n, bi = 0n, brun = null;
+  // On-chain keeps the FIRST-LANDED argmax (accuracy, then correct). Same-
+  // second receipts make landing order unrecoverable from the snapshot, so
+  // verify the stored best is ANY member of the optimal set — the invariant
+  // that matters is optimality, not which optimal run won the race.
+  let bc = 0n, bi = 0n;
   for (const l of logs) {
     const nc = BigInt(l.correct), ni = BigInt(l.items);
-    if (nc * bi > bc * ni || (nc * bi === bc * ni && nc > bc)) { bc = nc; bi = ni; brun = l; }
+    if (nc * bi > bc * ni || (nc * bi === bc * ni && nc > bc)) { bc = nc; bi = ni; }
   }
-  if (BigInt(m.bestCorrect) !== bc || BigInt(m.bestItems) !== bi || m.bestRun !== brun?.run) { regBad++; console.log(`    ! modelrec ${pkk}: best ${m.bestCorrect}/${m.bestItems}@${m.bestRun?.slice(0, 8)} != replayed ${bc}/${bi}@${brun?.run.slice(0, 8)}`); }
-  if (brun && m.bestBank !== brun.benchmark) { regBad++; console.log(`    ! modelrec ${pkk}: best_bank mismatch`); }
+  const winners = logs.filter((l) => BigInt(l.correct) === bc && BigInt(l.items) === bi);
+  const w = winners.find((l) => l.run === m.bestRun);
+  const SYS = "11111111111111111111111111111111";
+  if (BigInt(m.bestCorrect) !== bc || BigInt(m.bestItems) !== bi) { regBad++; console.log(`    ! modelrec ${pkk}: best ${m.bestCorrect}/${m.bestItems} != replayed optimum ${bc}/${bi}`); }
+  if (bc === 0n) {
+    // every receipt scored 0 — the on-chain best legitimately stays default
+    if (m.bestRun !== SYS || m.bestBank !== SYS) { regBad++; console.log(`    ! modelrec ${pkk}: zero-score record but best_run set to ${m.bestRun.slice(0, 8)}`); }
+  } else if (!w) {
+    regBad++; console.log(`    ! modelrec ${pkk}: best_run ${m.bestRun.slice(0, 8)} is not an optimal receipt`);
+  } else if (m.bestBank !== w.benchmark) {
+    regBad++; console.log(`    ! modelrec ${pkk}: best_bank mismatch`);
+  }
   if (m.lastScored !== Math.max(...logs.map((l) => l.recordedAt))) { regBad++; console.log(`    ! modelrec ${pkk}: last_scored != max recorded_at`); }
   if (m.firstSeen !== Math.min(...logs.map((l) => l.recordedAt))) { regBad++; console.log(`    ! modelrec ${pkk}: first_seen != min recorded_at`); }
   if (!logs.some((l) => l.run === m.lastRun && l.recordedAt === m.lastScored)) { regBad++; console.log(`    ! modelrec ${pkk}: last_run not the latest receipt`); }

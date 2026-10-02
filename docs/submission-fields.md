@@ -74,9 +74,9 @@ exam: 1.5b scored 8/32 via grants; a double-sealed dark market priced
 the 3b's pending run; a band market settled the 0.5b's 2/32. gpt-oss-20b
 hit 64/64 on MPC-minted 6932 — and a stale-artifact claim scored 1/64:
 the chain never trusts self-reported scores. The capability registry
-persists per-model records (3b 9/32, 1.5b 5/32) — verify.mjs replays
-every aggregate bit-exact from receipts (12/12); the explorer does it
-in-browser.
+persists per-model records — 26 records / 282 receipts replayed
+bit-exact by verify.mjs (12/12) and in-browser (11/11); the four real
+local models lead the table.
 
 ## targetAudience
 

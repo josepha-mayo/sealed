@@ -724,9 +724,13 @@ function renderAll(sealedAccs, marketAccs) {
       if (sl.postReveal) postRevBy.set(sl.modelRecord, (postRevBy.get(sl.modelRecord) || 0) + 1);
     }
     const recs = [...modelRecords].sort((a, b2) => (b2.bestCorrect / (b2.bestItems || 1)) - (a.bestCorrect / (a.bestItems || 1)) || b2.runsScored - a.runsScored);
+    // Real model ids lead; test-suite fixtures (test/, mock/, ladder/, …)
+    // sink below a divider so the table reads as a leaderboard, not a log.
+    const suite = /^(test|mock|ladder|duel|dark|delegate|e2e|probe|fixture)\//;
+    const real = recs.filter(m => !suite.test(m.modelId)), fixtures = recs.filter(m => suite.test(m.modelId));
     h += `<h2>model capability records — persistent per-model aggregates</h2><div class="card"><table>` +
       `<tr><th>model</th><th>runs</th><th>cumulative</th><th>best run</th><th>last run</th><th>attested</th><th>updated</th></tr>`;
-    recs.forEach(m => {
+    const row = m => {
       const cum = m.totalItems ? (100 * m.totalCorrect) / m.totalItems : 0;
       const best = m.bestItems ? (100 * m.bestCorrect) / m.bestItems : 0;
       const last = runs.find(r => r.pk === m.lastRun);
@@ -740,7 +744,12 @@ function renderAll(sealedAccs, marketAccs) {
         <td>${link(m.lastRun)}${lastBank ? ` <span class="kv">${esc(lastBank.name)}</span>` : ""}</td>
         <td>${vouched}/${m.runsScored}${postRev ? ` <span class="pill cancelled" title="${postRev} recorded run(s) came after fingerprint reveals — outputs could be stuffed">post-reveal ${postRev}</span>` : ""}</td>
         <td class="kv">${fmtTs(m.lastScored)}</td></tr>`;
-    });
+    };
+    real.forEach(row);
+    if (fixtures.length) {
+      h += `<tr><td colspan="7" class="kv" style="border-top:1px solid var(--line);padding-top:6px">test-suite fixtures — synthetic baselines from the e2e suite and demos</td></tr>`;
+      fixtures.forEach(row);
+    }
     h += `</table></div><div class="kv" style="margin:4px 0 10px">enrolled via <span class="mono">record_score</span> — permissionless; a <span class="mono">ScoreLog</span> receipt PDA makes each run countable exactly once. <span class="mono">model_id</span> is self-reported, not an identity proof; "attested" counts runs countersigned by the benchmark authority at record time.</div>`;
   }
 
@@ -1357,9 +1366,14 @@ async function runAudit(force) {
       const logs = A.scoreLogs.filter(l => l.modelRecord === m.pk).sort((a, b) => a.recordedAt - b.recordedAt);
       if (logs.length !== m.runsScored) { regbad++; continue; }
       if (logs.reduce((s, l) => s + l.correct, 0) !== m.totalCorrect || logs.reduce((s, l) => s + l.items, 0) !== m.totalItems) regbad++;
-      let bc = 0n, bi = 0n, brun = null;
-      for (const l of logs) { const nc = BigInt(l.correct), ni = BigInt(l.items); if (nc * bi > bc * ni || (nc * bi === bc * ni && nc > bc)) { bc = nc; bi = ni; brun = l; } }
-      if (BigInt(m.bestCorrect) !== bc || BigInt(m.bestItems) !== bi || m.bestRun !== brun?.run || m.bestBank !== brun?.benchmark) regbad++;
+      // best = first-landed argmax (acc, then correct); same-second receipts
+      // hide landing order, so any member of the optimal set is a valid best.
+      let bc = 0n, bi = 0n;
+      for (const l of logs) { const nc = BigInt(l.correct), ni = BigInt(l.items); if (nc * bi > bc * ni || (nc * bi === bc * ni && nc > bc)) { bc = nc; bi = ni; } }
+      const w = logs.find(l => BigInt(l.correct) === bc && BigInt(l.items) === bi && l.run === m.bestRun);
+      if (BigInt(m.bestCorrect) !== bc || BigInt(m.bestItems) !== bi) regbad++;
+      else if (bc === 0n ? (m.bestRun !== "11111111111111111111111111111111" || m.bestBank !== "11111111111111111111111111111111")
+                        : (!w || m.bestBank !== w.benchmark)) regbad++;
       if (m.lastScored !== Math.max(...logs.map(l => l.recordedAt)) || m.firstSeen !== Math.min(...logs.map(l => l.recordedAt))) regbad++;
       if (!logs.some(l => l.run === m.lastRun && l.recordedAt === m.lastScored)) regbad++;
     }

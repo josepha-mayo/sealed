@@ -1523,6 +1523,40 @@ export async function recordScore(runPk: PublicKey) {
     `(record ${modelRecord.toBase58()}, receipt ${scoreLog.toBase58()}, ${sig})`);
 }
 
+/** `chain record --all` — the permissionless librarian: crawl the ledger,
+ *  enroll every finalized run that lacks a ScoreLog receipt. Idempotent —
+ *  receipts are init-once PDAs so a re-run is a no-op. */
+export async function recordAllScores() {
+  const { program, kp } = sealedProgram();
+  const acct = program.account as any;
+  const [runs, logs] = await Promise.all([acct.run.all(), acct.scoreLog.all()]);
+  const enrolled = new Set(logs.map((l: any) => (l.account.run as PublicKey).toBase58()));
+  let done = 0, failed = 0, pending = 0;
+  for (const { publicKey: runPk, account: r } of runs) {
+    if (r.status !== 1) { pending++; continue; }
+    if (enrolled.has(runPk.toBase58())) continue;
+    try {
+      const modelHash = createHash("sha256").update(Buffer.from(r.modelId, "utf8")).digest();
+      const [modelRecord] = PublicKey.findProgramAddressSync(
+        [Buffer.from("modelrec"), modelHash], program.programId);
+      const [scoreLog] = PublicKey.findProgramAddressSync(
+        [Buffer.from("scorelog"), runPk.toBuffer()], program.programId);
+      const sig = await program.methods
+        .recordScore(new anchor.BN(r.index.toString()), Array.from(modelHash))
+        .accounts({ recorder: kp.publicKey, run: runPk, modelRecord, scoreLog })
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+      console.log(`enrolled ${r.modelId} ${r.correct}/${Number(r.chunkCount) * 32} ` +
+        `→ ${modelRecord.toBase58().slice(0, 16)}… (${sig.slice(0, 20)}…)`);
+      done++;
+    } catch (e: any) {
+      failed++;
+      const code = /Error Code: (\w+)/.exec(String(e?.message ?? e))?.[1] ?? String(e).slice(0, 80);
+      console.log(`  failed ${runPk.toBase58()} ${r.modelId}: ${code}`);
+    }
+  }
+  console.log(`\n${done} newly enrolled, ${enrolled.size} already recorded, ${pending} unfinalized${failed ? `, ${failed} failed` : ""}`);
+}
+
 /** `chain records` — the whole capability registry, accuracy-first. */
 export async function modelRecordList() {
   const { program } = sealedProgram();
@@ -1705,6 +1739,8 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "record") {
+    if (args.all) { await recordAllScores(); return; }
+    if (!args.run) throw new Error("usage: chain record --run <pubkey> | --all");
     await recordScore(new PublicKey(String(args.run)));
     return;
   }
