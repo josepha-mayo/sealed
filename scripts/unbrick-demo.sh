@@ -46,11 +46,13 @@ say "1/5 mint a one-chunk MPC bank (id=$ID)"
 scripts/wait-mxe.sh
 $SEALED chain gen --id "$ID" --chunks 1
 BENCH=$(PDA benchmark "$ID")
+# `chain gen` writes relative to the harness cwd (packages/harness).
+BANKJSON="bank/gen-$ID.json"
 for i in $(seq 1 24); do
-  [ -f "packages/harness/bank/gen-$ID.json" ] && break
+  [ -f "packages/harness/$BANKJSON" ] && break
   sleep 5
 done
-[ -f "packages/harness/bank/gen-$ID.json" ] || { echo "gen-$ID.json never landed"; exit 1; }
+[ -f "packages/harness/$BANKJSON" ] || { echo "gen-$ID.json never landed"; exit 1; }
 RUNPDA=$(PDA run "$BENCH" 0)
 echo "  benchmark=$BENCH  next-run PDA=$RUNPDA"
 
@@ -67,8 +69,8 @@ $SEALED chain unbrick sealed run "$BENCH" 0 \
   && echo "  !! second drain should have failed" || echo "  rejected as expected"
 
 say "4/5 create_run lands on the cleaned PDA (mock model, create-only)"
-$SEALED run --bank "packages/harness/bank/gen-$ID.json" --model mock/oracle-0.5 --out "/tmp/unbrick-run-$ID.json"
-$SEALED chain score --bank "packages/harness/bank/gen-$ID.json" --run "/tmp/unbrick-run-$ID.json" --create-only
+$SEALED run --bank "$BANKJSON" --model mock/oracle-0.5 --out "/tmp/unbrick-run-$ID.json"
+$SEALED chain score --bank "$BANKJSON" --run "/tmp/unbrick-run-$ID.json" --create-only
 solana account "$RUNPDA" --url "$ANCHOR_PROVIDER_URL" | head -3
 
 say "5/5 and a live program account can NEVER be drained"

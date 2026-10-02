@@ -1,0 +1,51 @@
+
+=== 1/5 mint a one-chunk MPC bank (id=14734) ===
+MXE key live after ~10s
+create_benchmark id=14734 chunks=1 kind=generated
+benchmark ErzxiCv4k62XM1r76yjh17CZFXBGtrWfWqeZwhoeY3oo status=0 sealed=0/1
+chunk 0 part 0: minting in MPC... minted
+chunk 0 part 1: minting in MPC... minted
+chunk 0 part 2: minting in MPC... minted
+chunk 0 part 3: minting in MPC... minted
+benchmark ErzxiCv4k62XM1r76yjh17CZFXBGtrWfWqeZwhoeY3oo status=LIVE minted=1/1
+items_root 9478eadb950b254aac6de9c375ad335200f19e6f6d9d6d055192ad6b60cf5fc1 (32 minted items, answers never existed in plaintext)
+wrote bank/gen-14734.json
+  benchmark=ErzxiCv4k62XM1r76yjh17CZFXBGtrWfWqeZwhoeY3oo  next-run PDA=5kxsiwjWp66ioUi6FrL7vRohtQdk2LpoVLCvQHgh8pf9
+
+=== 2/5 attacker griefs the run-0 PDA with rent dust (0.002 SOL) ===
+
+Public Key: 5kxsiwjWp66ioUi6FrL7vRohtQdk2LpoVLCvQHgh8pf9
+Balance: 0.002 SOL
+Owner: 11111111111111111111111111111111
+
+=== 3/5 a permissionless rescuer sweeps the grief via unbrick_pda ===
+unbrick_pda 5kxsiwjWp66ioUi6FrL7vRohtQdk2LpoVLCvQHgh8pf9 (1iTbayqBSXiLzQF84EsJUt9ZQDDdvBMC3ap6s515zcFwBiATCTrTHBzn5VeCHF5gVJaJvTP5fVPsVkF325kefij) — grief lamports swept to 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc; the init path is unblocked
+  after sweep:
+Error: AccountNotFound: pubkey=5kxsiwjWp66ioUi6FrL7vRohtQdk2LpoVLCvQHgh8pf9
+  (re-running the sweep now fails — nothing left to drain)
+AnchorError thrown in programs/sealed/src/lib.rs:212. Error Code: NothingToDrain. Error Number: 6036. Error Message: Account carries no lamports to drain.
+  rejected as expected
+
+=== 4/5 create_run lands on the cleaned PDA (mock model, create-only) ===
+mock/oracle-0.5: 4/32mock/oracle-0.5: 8/32mock/oracle-0.5: 12/32mock/oracle-0.5: 16/32mock/oracle-0.5: 20/32mock/oracle-0.5: 24/32mock/oracle-0.5: 28/32mock/oracle-0.5: 32/32
+{
+  "wrote": "/tmp/unbrick-run-14734.json",
+  "model": "mock/oracle-0.5",
+  "items": 32,
+  "localCorrect": 19,
+  "localAccuracy": 0.5938,
+  "outputsRoot": "63c4837269f259f77aeae22779975ff912fa3c01993351b8f4be7a85c49781d0",
+  "harnessHash": "6167a62de342308280dd9f9792ab82a78bcaf96c1f76183a9978bcdca6953d9a",
+  "seconds": 0
+}
+create_run #0 model=mock/oracle-0.5 fee=0 SOL
+run 5kxsiwjWp66ioUi6FrL7vRohtQdk2LpoVLCvQHgh8pf9 created (pending, unscored)
+
+Public Key: 5kxsiwjWp66ioUi6FrL7vRohtQdk2LpoVLCvQHgh8pf9
+Balance: 0.00293712 SOL
+
+=== 5/5 and a live program account can NEVER be drained ===
+AnchorError thrown in programs/sealed/src/lib.rs:207. Error Code: NotGriefedPda. Error Number: 6035. Error Message: Account is not a grief-prefunded (system-owned, empty) PDA.
+  rejected as expected (NotGriefedPda)
+
+unbrick demo complete: griefed dust reclaimed, init landed, guards held.
