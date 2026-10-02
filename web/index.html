@@ -719,9 +719,11 @@ function renderAll(sealedAccs, marketAccs) {
   if (modelRecords.length) {
     const vouchedBy = new Map();
     const postRevBy = new Map();
+    const logsBy = new Map();
     for (const sl of scoreLogs) {
       if (sl.vouched) vouchedBy.set(sl.modelRecord, (vouchedBy.get(sl.modelRecord) || 0) + 1);
       if (sl.postReveal) postRevBy.set(sl.modelRecord, (postRevBy.get(sl.modelRecord) || 0) + 1);
+      (logsBy.get(sl.modelRecord) ?? logsBy.set(sl.modelRecord, []).get(sl.modelRecord)).push(sl);
     }
     const recs = [...modelRecords].sort((a, b2) => (b2.bestCorrect / (b2.bestItems || 1)) - (a.bestCorrect / (a.bestItems || 1)) || b2.runsScored - a.runsScored);
     // Real model ids lead; test-suite fixtures (test/, mock/, ladder/, …)
@@ -737,7 +739,13 @@ function renderAll(sealedAccs, marketAccs) {
       const lastBank = last ? benches.find(x => x.pk === last.benchmark) : null;
       const vouched = vouchedBy.get(m.pk) || 0;
       const postRev = postRevBy.get(m.pk) || 0;
-      h += `<tr><td class="mono">${esc(m.modelId)}</td>
+      const logs = (logsBy.get(m.pk) || []).sort((a, b) => b.recordedAt - a.recordedAt);
+      const receipts = logs.length ? `<details style="margin-top:4px"><summary class="kv" style="cursor:pointer">${logs.length} receipt${logs.length === 1 ? "" : "s"}</summary>` +
+        logs.map(l => `<div class="kv mono" style="font-size:11px">${link(l.run)} ${l.correct}/${l.items}` +
+          `${l.vouched ? ' <span class="pill resolved" title="authority-attested at record time">vouched</span>' : ""}` +
+          `${l.postReveal ? ' <span class="pill cancelled" title="run created after a fingerprint reveal on its bank">post-reveal</span>' : ""}` +
+          ` · by ${link(l.recordedBy)} · ${fmtTs(l.recordedAt)}</div>`).join("") + `</details>` : "";
+      h += `<tr><td class="mono">${esc(m.modelId)}${receipts}</td>
         <td>${m.runsScored}</td>
         <td class="score">${m.totalCorrect}/${m.totalItems} (${cum.toFixed(1)}%)<div class="bar"><i style="width:${cum}%"></i></div></td>
         <td class="score">${m.bestCorrect}/${m.bestItems} (${best.toFixed(1)}%) <span class="kv">on</span> ${link(m.bestRun)}</td>

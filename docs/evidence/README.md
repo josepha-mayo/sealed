@@ -156,7 +156,7 @@ self-reported metadata — `vouched_at_record` is what separates an
 authority-vouched score from a stranger's claim, and the records say so.
 
 `records.txt` — the full registry after `chain record --all` crawled the
-ledger: 26 model records holding 282 receipts (278 enrolled by that single
+ledger: 29 model records holding 287 receipts (278 enrolled by that single
 permissionless sweep — no operator touch). Real models at the top; the
 `test/ mock/ ladder/ duel/ dark/ delegate/` fixtures are suite baselines.
 Both runs above were then authority-attested — their receipts keep
