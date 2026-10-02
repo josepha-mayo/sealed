@@ -184,11 +184,11 @@ against the current `arcium build` artifacts (~6,960 lamports/byte):
 
 | Item | Bytes | ≈ SOL |
 |---|---|---|
-| `sealed` program + program-data | 1,032,176 | ~7.2 |
-| `market` program + program-data | 550,048 | ~3.9 |
+| `sealed` program + program-data | 1,065,432 | ~7.4 |
+| `market` program + program-data | 611,056 | ~4.3 |
 | 6 on-chain circuits (`build/*.arcis`) | 1,363,118 | ~9.5 |
 | MXE account + LUT + comp-def headers + recovery | — | ~0.5 |
-| **One-time total** | | **~21** |
+| **One-time total** | | **~21.7** |
 
 Plus **per-computation fees**, paid in SOL each time a computation is
 queued (every `gen_part`/`seal_part`/`score_chunk`/`reveal_part`/
@@ -200,8 +200,8 @@ operators / 20% recovery peers / 10% network treasury. The §5 smoke test
 queues 5 computations; a 10-chunk (320-item) bank mint is 40.
 
 Arcium's docs quote "2–5 SOL" for a typical deploy — that assumes small
-circuits; this project uploads six circuits totalling ~1.36 MB, which is
-why the real figure is ~21 SOL.
+circuits; this project uploads six circuits totalling ~1.36 MB plus two
+programs totalling ~1.68 MB, which is why the real figure is ~22 SOL.
 
 ## 7. Verify / roll back
 
