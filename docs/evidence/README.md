@@ -123,6 +123,16 @@ grants to a delegate key whose keypair was overwritten mid-run — those
 grants remain on-chain as orphans, honest evidence that grants are
 permanent records, not revocable sessions.)
 
+### Prefund-grief reclaim (`unbrick_pda`) — `unbrick-demo.txt`
+
+`scripts/unbrick-demo.sh` — a live grief-and-reclaim on the market-side PDA
+space: an attacker sends rent dust to a bank's next `run` PDA; a
+permissionless rescuer calls `unbrick_pda` which re-proves the seeds under
+the program id and sweeps the dust (the account is garbage-collected); a
+second sweep rejects `NothingToDrain`; `create_run` then lands on the
+cleaned address; and a drain attempt on the now-live account rejects
+`NotGriefedPda`. Regression-tested in `tests/sealed.ts` on both programs.
+
 ### Flagship: capability bounty — first-to-beat pays the operator, not a bettor (in `snapshot.json`)
 
 `scripts/bounty-local.sh` (transcript `bounty-local.txt`) — a primitive the
