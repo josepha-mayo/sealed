@@ -237,10 +237,12 @@ parimutuel markets resolved from `Run.correct`.
   proof). NOTE: Anchor 1.0's `init` codegen already tolerates prefunded
   PDAs (tops up to rent-exempt, then allocate+assign — the griefer's dust
   becomes a rent subsidy), so prefunds can't brick our `init` paths —
-  `unbrick_pda` reclaims the dust instead, and covers the raw
-  `create_account` path `init_signer_pda` uses. CLI:
-  `chain unbrick <sealed|market> <kind> <args…>` then retry the init
-  (bundle both in one tx for atomicity).
+  `unbrick_pda` reclaims the dust instead. The one raw `create_account`
+  path, `init_signer_pda`, drains+inits in a single instruction (the
+  atomic-bundle pattern). Accepted risk on `unbrick_pda`: a lamport-bearing
+  uninit PDA is grief by definition, so a parked honest prefund is
+  indistinguishable and also gets swept. CLI:
+  `chain unbrick <sealed|market> <kind> <args…>` then retry the init.
 - `DeadlineInPast` is a dead error variant in market — the horizon cap now
   throws `DeadlineTooFar`; the old variant stays declared (removing it
   would renumber every later error code).
