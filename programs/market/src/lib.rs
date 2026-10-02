@@ -1667,6 +1667,10 @@ pub mod market {
     /// THIS program's derivation space: arbitrary wallets and other
     /// programs' accounts can never be touched. Bundle `unbrick_pda` + the
     /// init ix in ONE tx for an atomic sweep an attacker cannot interleave.
+    /// Accepted risk: a lamport-bearing uninit PDA is grief BY DEFINITION —
+    /// no flow in this program requires prefunding — so the sweep cannot
+    /// distinguish a griefer's dust from lamports a user parked ahead of a
+    /// split prefund→init workflow. Either way the rescuer takes it.
     pub fn unbrick_pda(
         ctx: Context<UnbrickPda>,
         seeds: Vec<Vec<u8>>,

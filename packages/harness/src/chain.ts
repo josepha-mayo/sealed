@@ -1435,8 +1435,14 @@ async function unbrickPda(cmd: string[]) {
   const P = (s: string) => new PublicKey(s).toBuffer();
   const u8 = (n: number) => Buffer.from([n]);
   const salt = (s?: string) => u64le(BigInt(s ?? "0"));
+  const arity: Record<string, number> = {
+    benchmark: 2, chunk: 2, items: 2, pitems: 2, run: 2, reveal: 3, grant: 4,
+    market: 1, duel: 2, position: 2, ladder: 1, dark: 1, darkpos: 2, bounty: 2,
+  };
   let seeds: Buffer[] | undefined;
-  if (program === "sealed") {
+  if (kind && a.length < (arity[kind] ?? 99)) {
+    // missing positional args — print usage rather than crash on undefined
+  } else if (program === "sealed") {
     switch (kind) {
       case "benchmark": seeds = [Buffer.from("benchmark"), P(a[0]), u32le(Number(a[1]))]; break;
       case "chunk": case "items": case "pitems":
@@ -1459,7 +1465,7 @@ async function unbrickPda(cmd: string[]) {
   if (!seeds) {
     console.log("usage: chain unbrick <sealed|market> <kind> <args…>");
     console.log("  sealed: benchmark <authority> <id> | chunk|items|pitems <bank> <idx> | run <bank> <idx> | reveal <bank> <chunk> <part> | grant <bank> <chunk> <part> <viewer>");
-    console.log("  market: market|dark <run> [salt] | duel <a> <b> [salt] | position <market> <bettor> | ladder <leg> [salt] | darkpos <market> <bettor> [salt] | bounty <bank> <sponsor> [salt]");
+    console.log("  market: market|dark <run> [salt] | duel <a> <b> [salt] | position <market|ladder> <bettor> | ladder <leg> [salt] | darkpos <market> <bettor> [salt] | bounty <bank> <sponsor> [salt]");
     return;
   }
   const { prog, kp } = program === "sealed"

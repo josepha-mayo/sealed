@@ -183,15 +183,19 @@ pub mod sealed {
     /// codegen already tolerates prefunded accounts (it tops up to
     /// rent-exempt then allocate+assigns, turning the griefer's dust into a
     /// rent subsidy), so a prefund cannot brick an `init` path here — but
-    /// the dust stays locked forever, and any future manual
-    /// `create_account` path (like `init_signer_pda`) still rejects
-    /// lamport-bearing accounts. This sweeps the griefed lamports to a
+    /// the dust stays locked forever. This sweeps the griefed lamports to a
     /// permissionless rescuer BEFORE init — the prefunder loses the dust
-    /// instead of donating it — and un-bricks manual-create paths outright.
+    /// instead of donating it. (Manual `create_account` paths like
+    /// `init_signer_pda` drain internally instead — the atomic-bundle
+    /// pattern this docstring recommends below.)
     /// The `create_program_address` proof pins the drain to THIS program's
     /// derivation space: arbitrary wallets and other programs' accounts can
     /// never be touched. Bundle `unbrick_pda` + the init ix in ONE tx for
     /// an atomic sweep-then-init an attacker cannot interleave.
+    /// Accepted risk: a lamport-bearing uninit PDA is grief BY DEFINITION —
+    /// no flow in this program requires prefunding — so the sweep cannot
+    /// distinguish a griefer's dust from lamports a user parked ahead of a
+    /// split prefund→init workflow. Either way the rescuer takes it.
     pub fn unbrick_pda(
         ctx: Context<UnbrickPda>,
         seeds: Vec<Vec<u8>>,

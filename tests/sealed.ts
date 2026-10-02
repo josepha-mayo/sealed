@@ -2256,6 +2256,49 @@ describe("Sealed", () => {
       "MarketNotOpen",
     );
 
+    // WrongPayee on an OPEN bounty: the pot must go to run.runner — a claim
+    // naming any other payee fails BEFORE state mutates, and a correct
+    // follow-up claim still pays out.
+    const bounty3 = bountyPda(benchmark, owner.publicKey, 3n);
+    await marketProgram.methods
+      .createBounty(new anchor.BN(3), THRESHOLD, POT, FAR_FUTURE)
+      .accounts({ sponsor: owner.publicKey, bank: benchmark, bounty: bounty3 })
+      .signers([owner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    const runner3 = Keypair.generate();
+    await fund(provider, owner, runner3.publicKey, 0.5 * LAMPORTS_PER_SOL);
+    const idx3 = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [run3] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idx3)], program.programId);
+    const outLeaves3 = runOutputs.map((chunk, i) => chunkOutLeaf(i, chunk));
+    await program.methods
+      .createRun("test/bounty-wrong-payee", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves3)))
+      .accountsPartial({ runner: runner3.publicKey, authority: owner.publicKey, benchmark, run: run3 })
+      .signers([runner3])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    for (let i = 0; i < CHUNKS; i++) {
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(idx3.toString()), i, runOutputs[i].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves3, i))
+        .accountsPartial({ payer: runner3.publicKey, run: run3, runner: runner3.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
+        .signers([runner3])
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    }
+    await expectAnchorError(
+      marketProgram.methods
+        .claimBounty()
+        .accounts({ run: run3, bounty: bounty3, payee: trigger.publicKey })
+        .rpc(),
+      "WrongPayee",
+    );
+    const runner3Before = await provider.connection.getBalance(runner3.publicKey);
+    await marketProgram.methods
+      .claimBounty()
+      .accounts({ run: run3, bounty: bounty3, payee: runner3.publicKey })
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    expect(await provider.connection.getBalance(runner3.publicKey) - runner3Before)
+      .to.equal(POT.toNumber(), "correct payee still claims after a WrongPayee rejection");
+
     // A second bounty with a 60s deadline expires permissionlessly → refund.
     const bounty2 = bountyPda(benchmark, owner.publicKey, 2n);
     const shortDeadline = new anchor.BN(Math.floor(Date.now() / 1000) + 62);
@@ -2279,7 +2322,7 @@ describe("Sealed", () => {
     const sponsorAfter = await provider.connection.getBalance(owner.publicKey);
     expect(sponsorAfter - sponsorBefore).to.be.greaterThan(POT.toNumber() - 50_000, "sponsor gets pot + rent back");
     expect(await marketProgram.account.bounty.fetchNullable(bounty2)).to.equal(null, "expired bounty closed");
-    console.log("bounty lifecycle verified: threshold cap, retroactivity wall, FCFS claim -> operator, refund expiry");
+    console.log("bounty lifecycle verified: threshold cap, retroactivity wall, FCFS claim -> operator, WrongPayee pinned, refund expiry");
   });
 
   // LAST on purpose: spoils AUTH_ID for new runs — every earlier consumer of

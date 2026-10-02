@@ -284,7 +284,10 @@ after sealing, and nobody can fabricate a score.
   Anchor's codegen absorbs the prefund as rent subsidy — but the dust
   stays locked. `unbrick_pda` on both programs sweeps it back out to a
   permissionless rescuer after re-proving the seeds derive under the
-  program. See the sealed-side section for the full analysis + E2E proof.
+  program. Accepted risk: a lamport-bearing uninit PDA is grief by
+  definition — no flow requires prefunding — so the sweep can't tell a
+  griefer's dust from a user's parked prefund; either way the rescuer
+  takes it. See the sealed-side section for the full analysis + E2E proof.
 - **Market dust + rent** — pro-rata integer division leaves remainder
   lamports, and there is no `close_market`, so a resolved market's rent +
   dust stay locked. Deliberate for now: sweeping unclaimed stake would be
