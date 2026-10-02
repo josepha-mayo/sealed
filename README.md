@@ -54,9 +54,10 @@ flowchart LR
   MPC -->|declassified fingerprints| BANK
   BET[bettors] <-->|parimutuel positions| MKT[market program]
   RUN -->|Run.correct resolves| MKT
+  RUN -->|record_score: permissionless enroll| REG[model capability records]
 ```
 
-The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Six primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal, capability bounty.
+The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Six primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal, capability bounty. A `record_score` instruction then folds any finalized run into a persistent `ModelRecord` — a per-model cumulative artifact keyed by `sha256(model_id)` — with a `ScoreLog` receipt PDA making each run countable exactly once. Anyone can enroll a finalized run; the aggregate is what a leaderboard was supposed to be, minus the operator.
 
 Per-account detail:
 
@@ -242,6 +243,8 @@ sealed chain market dark bet|reveal|resolve|finalize|claim|void|expire|claim-fee
 sealed chain reset-sealing  --bank-id <n> --chunk <i>                # clear a part stuck by a dropped MPC computation
 sealed chain reset-pending  --run <pk> --chunk <i>                   # sweep a stuck scoring bit (stale = anyone)
 sealed chain attest        --run <pk>                                 # authority pins an attestation flag on a finalized run
+sealed chain record        --run <pk>                                 # enroll a finalized run into the persistent capability registry (anyone)
+sealed chain modelrec      <pubkey|model_id>                          # show a model's aggregate record
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
 sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring
@@ -272,6 +275,7 @@ Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (ins
 - [x] Market program: N-way parimutuel resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] **Duel markets**: `create_duel`/`bet_duel`/`resolve_duel` — head-to-head "does run A outscore run B on the same bank?" with A-wins/B-wins/tie buckets; bets close once EITHER run starts scoring, settle reads both finalized `Run.correct`, E2E proves 25–19 resolution + pro-rata claim
 - [x] **Ladder races**: `create_ladder`/`bet_ladder`/`resolve_ladder` — K-way argmax markets over 3–8 bound runs; dead-heat pro-rata ties, legs that land nothing forfeit at 0 instead of cancelling (a cancel would be a free exit for losing leg operators), any-leg betting latch + required `closes_at`; E2E proves a 30/20/10 race → mask `0b001` → pro-rata claim
+- [x] **On-chain capability registry**: `record_score` permissionlessly enrolls a finalized run into `ModelRecord [modelrec, sha256(model_id)]` — cumulative totals, accuracy-first best run, first/last timestamps — while `ScoreLog [scorelog, run]` receipts make double-counting structurally impossible and snapshot the honesty flags (`attested`, `post_reveal`) at record time; the explorer renders the aggregate table and both audits replay every record bit-exact from receipts
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected. Reveals are *burns*, enforced on-chain: a landed reveal bumps `benchmark.reveal_count`, later runs stamp `post_reveal=1`, and every market creator rejects flagged runs (`PostRevealRun`) — no stake can price a spoiled score

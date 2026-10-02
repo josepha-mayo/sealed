@@ -15,7 +15,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = process.argv[2] || join(ROOT, "web", "snapshot.json");
 const SEALED_PID = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
 const MARKET_PID = new PublicKey("8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN");
-const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", answerChunk: "9f457cb5a547c35a", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0", darkMarket: "94562c723ef98ba6", darkPosition: "d8c18faeae9d7715", bounty: "ed1069c61345f2ea" };
+const DISC = { benchmark: "39fc2136718de9f7", run: "c7369b56eb73f6bd", answerChunk: "9f457cb5a547c35a", itemChunk: "3ad5949e8388e23d", privItemChunk: "73f0ae62d80297f4", reveal: "fbaa9323ea6c0e95", shareGrant: "a47067c1839cb4c0", market: "dbbed53700e3c69a", ladder: "7d9223fe2a07ccde", position: "aabc8fe47a40f7d0", darkMarket: "94562c723ef98ba6", darkPosition: "d8c18faeae9d7715", bounty: "ed1069c61345f2ea", modelRecord: "5cf480542f0695f1", scoreLog: "e963b267eec2d7e4" };
 
 const sha = (u8) => createHash("sha256").update(u8).digest();
 const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -118,6 +118,35 @@ function parseDarkPos(d) {
   const revealed = d[o++];
   return { market, bettor, amount, commitment, revealed: revealed === 255 ? null : revealed };
 }
+function parseModelRecord(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const modelHash = hex(d.slice(o, o + 32)); o += 32;
+  const ml = v.getUint32(o, true); o += 4;
+  const modelId = new TextDecoder().decode(d.slice(o, o + ml)); o += ml;
+  const runsScored = v.getUint32(o, true); o += 4;
+  const totalCorrect = v.getBigUint64(o, true); o += 8;
+  const totalItems = v.getBigUint64(o, true); o += 8;
+  const bestCorrect = v.getUint32(o, true); o += 4;
+  const bestItems = v.getUint32(o, true); o += 4;
+  const bestRun = b58(d.slice(o, o + 32)); o += 32;
+  const bestBank = b58(d.slice(o, o + 32)); o += 32;
+  const lastRun = b58(d.slice(o, o + 32)); o += 32;
+  const firstSeen = Number(v.getBigInt64(o, true)); o += 8;
+  const lastScored = Number(v.getBigInt64(o, true)); o += 8;
+  return { modelHash, modelId, runsScored, totalCorrect, totalItems, bestCorrect, bestItems, bestRun, bestBank, lastRun, firstSeen, lastScored };
+}
+function parseScoreLog(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const run = b58(d.slice(o, o + 32)); o += 32;
+  const modelRecord = b58(d.slice(o, o + 32)); o += 32;
+  const benchmark = b58(d.slice(o, o + 32)); o += 32;
+  const correct = v.getUint32(o, true); o += 4;
+  const items = v.getUint32(o, true); o += 4;
+  const recordedBy = b58(d.slice(o, o + 32)); o += 32;
+  const recordedAt = Number(v.getBigInt64(o, true)); o += 8;
+  const vouched = d[o++]; const postReveal = d[o++];
+  return { run, modelRecord, benchmark, correct, items, recordedBy, recordedAt, vouched, postReveal };
+}
 
 // ---------- load ----------
 const snap = JSON.parse(readFileSync(FILE, "utf8"));
@@ -125,6 +154,7 @@ console.log(`verify.mjs — ${FILE}`);
 console.log(`snapshot takenAt ${snap.meta?.takenAt}, ${snap.sealed.length} sealed + ${snap.market.length} market accounts\n`);
 
 const benches = new Map(), runs = new Map(), itemChunks = [], privChunks = [], chunks = [], reveals = [], grants = [];
+const modelRecords = new Map(), scoreLogs = new Map();
 let signPda = null;
 const markets = new Map(), ladders = [], darks = new Map(), darkPos = [], positions = [], bounties = [];
 
@@ -140,6 +170,8 @@ for (const a of snap.sealed) {
     else if (disc === DISC.reveal) { const v = new DataView(d.buffer, d.byteOffset); reveals.push({ pk: a.pubkey, bench: b58(d.subarray(8, 40)), chunk: v.getUint16(40, true), part: d[42], revealedAt: Number(v.getBigInt64(44, true)) }); }
     else if (disc === DISC.shareGrant) { const v = new DataView(d.buffer, d.byteOffset); grants.push({ pk: a.pubkey, bench: b58(d.subarray(8, 40)), chunk: v.getUint16(40, true), part: d[42], viewer: b58(d.subarray(44, 76)) }); }
     else if (disc === DISC.answerChunk) chunks.push({ pk: a.pubkey, bench: b58(d.subarray(8, 40)), index: new DataView(d.buffer, d.byteOffset).getUint16(40, true) });
+    else if (disc === DISC.modelRecord) modelRecords.set(a.pubkey, parseModelRecord(d));
+    else if (disc === DISC.scoreLog) scoreLogs.set(a.pubkey, parseScoreLog(d));
     else if (disc === "d69d7a72752cd64a") signPda = a.pubkey; // Arcium SignPdaAccount (callback signer)
     else unknown++;
   } catch (e) { unknown++; console.log(`    ! unparseable sealed account ${a.pubkey}: ${e.message}`); }
@@ -161,7 +193,7 @@ for (const a of snap.market) {
     else unknown++;
   } catch (e) { unknown++; console.log(`    ! unparseable market account ${a.pubkey}: ${e.message}`); }
 }
-unknown === 0 ? ok("account decode", `${benches.size} banks, ${runs.size} runs, ${itemChunks.length} gen chunks, ${privChunks.length} private chunks, ${reveals.length} reveals, ${grants.length} grants, ${markets.size} markets, ${ladders.length} ladders, ${darks.size} dark markets, ${darkPos.length} dark positions, ${bounties.length} bounties`)
+unknown === 0 ? ok("account decode", `${benches.size} banks, ${runs.size} runs, ${itemChunks.length} gen chunks, ${privChunks.length} private chunks, ${reveals.length} reveals, ${grants.length} grants, ${markets.size} markets, ${ladders.length} ladders, ${darks.size} dark markets, ${darkPos.length} dark positions, ${bounties.length} bounties, ${modelRecords.size} model records, ${scoreLogs.size} score logs`)
   : bad("account decode", `${unknown} unknown/unparseable accounts`);
 
 console.log("\n[2] PDA re-derivation — every account must sit at its seed-derived address");
@@ -187,6 +219,8 @@ for (const p of darkPos) {
   if (!found) { pdaBad++; console.log(`    ! darkpos ${p.pk}: no pos_salt 0..4095 derives it`); }
 }
 for (const p of positions) pdaCheck(p.pk, pda([utf8("position"), pk(p.market), pk(p.bettor)], MARKET_PID), `position`);
+for (const [pkk, m] of modelRecords) pdaCheck(pkk, pda([utf8("modelrec"), Buffer.from(m.modelHash, "hex")], SEALED_PID), `modelrec ${m.modelId}`);
+for (const [pkk, l] of scoreLogs) pdaCheck(pkk, pda([utf8("scorelog"), pk(l.run)], SEALED_PID), `scorelog ${l.run.slice(0, 8)}`);
 if (signPda) pdaCheck(signPda, pda([utf8("ArciumSignerAccount")], SEALED_PID), "SignPdaAccount");
 pdaBad === 0 ? ok("PDA derivation", "every account re-derives to its own address") : bad("PDA derivation", `${pdaBad} mismatches — snapshot contains accounts the program could never have written`);
 
@@ -310,6 +344,40 @@ for (const b of bounties) {
 }
 bBad === 0 ? ok("bounty claims", `${bChecked} claimed bounties re-verified against winner runs`) : bad("bounties", `${bBad} violations`);
 
+console.log("\n[5b] capability registry — replay every ModelRecord from its ScoreLog receipts");
+let regBad = 0, regChecked = 0;
+for (const [pkk, l] of scoreLogs) {
+  const r = runs.get(l.run);
+  if (!r) { regBad++; console.log(`    ! scorelog ${pkk}: run ${l.run} absent`); continue; }
+  if (l.correct !== r.correct || l.items !== r.chunkCount * 32) { regBad++; console.log(`    ! scorelog ${pkk}: snapshotted score ${l.correct}/${l.items} != run ${r.correct}/${r.chunkCount * 32}`); }
+  if (l.benchmark !== r.benchmark) { regBad++; console.log(`    ! scorelog ${pkk}: benchmark != run's`); }
+  const wantRec = pda([utf8("modelrec"), sha(utf8(r.modelId))], SEALED_PID);
+  if (l.modelRecord !== wantRec) { regBad++; console.log(`    ! scorelog ${pkk}: model_record not derived from sha256(run.model_id)`); }
+  if (l.postReveal !== (r.postReveal ? 1 : 0)) { regBad++; console.log(`    ! scorelog ${pkk}: post_reveal ${l.postReveal} != immutable run flag ${r.postReveal ? 1 : 0}`); }
+  // vouched is a record-time snapshot and attestation is monotone — a 1
+  // must still be attested today; a 0 only means "not yet at record time".
+  // (Run.attested isn't tail-parsed here; checked in-browser instead.)
+}
+for (const [pkk, m] of modelRecords) {
+  regChecked++;
+  if (hex(sha(utf8(m.modelId))) !== m.modelHash) { regBad++; console.log(`    ! modelrec ${pkk}: model_hash != sha256(model_id)`); }
+  const logs = [...scoreLogs.values()].filter((l) => l.modelRecord === pkk).sort((a, b) => a.recordedAt - b.recordedAt);
+  if (logs.length !== m.runsScored) { regBad++; console.log(`    ! modelrec ${pkk}: runs_scored ${m.runsScored} != ${logs.length} receipts`); }
+  const tc = logs.reduce((s, l) => s + BigInt(l.correct), 0n), ti = logs.reduce((s, l) => s + BigInt(l.items), 0n);
+  if (tc !== m.totalCorrect || ti !== m.totalItems) { regBad++; console.log(`    ! modelrec ${pkk}: totals ${m.totalCorrect}/${m.totalItems} != replayed ${tc}/${ti}`); }
+  let bc = 0n, bi = 0n, brun = null;
+  for (const l of logs) {
+    const nc = BigInt(l.correct), ni = BigInt(l.items);
+    if (nc * bi > bc * ni || (nc * bi === bc * ni && nc > bc)) { bc = nc; bi = ni; brun = l; }
+  }
+  if (BigInt(m.bestCorrect) !== bc || BigInt(m.bestItems) !== bi || m.bestRun !== brun?.run) { regBad++; console.log(`    ! modelrec ${pkk}: best ${m.bestCorrect}/${m.bestItems}@${m.bestRun?.slice(0, 8)} != replayed ${bc}/${bi}@${brun?.run.slice(0, 8)}`); }
+  if (brun && m.bestBank !== brun.benchmark) { regBad++; console.log(`    ! modelrec ${pkk}: best_bank mismatch`); }
+  if (m.lastScored !== Math.max(...logs.map((l) => l.recordedAt))) { regBad++; console.log(`    ! modelrec ${pkk}: last_scored != max recorded_at`); }
+  if (m.firstSeen !== Math.min(...logs.map((l) => l.recordedAt))) { regBad++; console.log(`    ! modelrec ${pkk}: first_seen != min recorded_at`); }
+  if (!logs.some((l) => l.run === m.lastRun && l.recordedAt === m.lastScored)) { regBad++; console.log(`    ! modelrec ${pkk}: last_run not the latest receipt`); }
+}
+regBad === 0 ? ok("capability registry", `${regChecked} records replayed bit-exact from ${scoreLogs.size} receipts`) : bad("capability registry", `${regBad} violations — aggregates don't match receipts`);
+
 console.log("\n[6] cross-references");
 let xBad = 0;
 for (const [pkk, m] of markets) if (!runs.has(m.run)) xBad++;
@@ -317,7 +385,8 @@ for (const b of bounties) { if (!benches.has(b.bank)) xBad++; if (b.status === 1
 for (const l of ladders) for (const leg of l.legs) if (!runs.has(leg)) xBad++;
 for (const c of [...itemChunks, ...privChunks, ...chunks]) if (!benches.has(c.bench)) xBad++;
 for (const r of reveals) if (!benches.has(r.bench)) xBad++;
-xBad === 0 ? ok("referential integrity", "every market/chunk/reveal link resolves") : bad("referential integrity", `${xBad} dangling links`);
+for (const [pkk, l] of scoreLogs) { if (!modelRecords.has(l.modelRecord)) xBad++; }
+xBad === 0 ? ok("referential integrity", "every market/chunk/reveal/registry link resolves") : bad("referential integrity", `${xBad} dangling links`);
 
 console.log("\n[7] Merkle proof files (docs/evidence/prove-*.json)");
 let pfBad = 0, pfOk = 0;
@@ -347,11 +416,13 @@ let flagBad = 0;
 for (const [bench, rs] of revealByBench) {
   const minT = Math.min(...rs.map((r) => r.revealedAt));
   const benchRuns = [...runs.entries()].filter(([, r]) => r.benchmark === bench);
-  const inferred = benchRuns.filter(([, r]) => r.createdAt > minT);
+  // Same-second ambiguity: both stamps are second-resolution, so a run
+  // created in the same second the first reveal landed can legitimately be
+  // flagged (reveal tx in an earlier slot, reveal_count already >0).
+  const inferred = benchRuns.filter(([, r]) => r.createdAt >= minT);
   const flagged = benchRuns.filter(([, r]) => r.postReveal);
-  // On post-upgrade accounts the flag is authoritative: it must agree with
-  // the timestamp inference exactly. (Pre-upgrade runs lack the byte —
-  // inference alone covers them; the sets can only diverge on old data.)
+  // The flag is authoritative; inference only has to EXPLAIN it (flagged ⊆
+  // inferred) — unflagged same-second runs remain possible and legitimate.
   const flagSet = new Set(flagged.map(([p]) => p));
   const inferredSet = new Set(inferred.map(([p]) => p));
   const disagree = [...flagSet].filter((p) => !inferredSet.has(p)).length;

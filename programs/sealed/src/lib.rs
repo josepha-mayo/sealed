@@ -1001,6 +1001,80 @@ pub mod sealed {
         Ok(())
     }
 
+    /// Permissionlessly enroll a finalized run's MPC-written score into the
+    /// capability registry — a `ModelRecord` PDA keyed by
+    /// `sha256(run.model_id)` aggregates score history across banks, and a
+    /// per-run `ScoreLog` receipt makes double-enrollment impossible. A
+    /// `model_id` string is a CLAIM, not an identity — the record stores the
+    /// claimed name verbatim, and the `attested`/`post_reveal` snapshots let
+    /// readers weigh venue-vouched evidence over self-reported scores. Only
+    /// RUN_FINALIZED runs enroll: a proven-partial is a floor, not a score.
+    pub fn record_score(
+        ctx: Context<RecordScore>,
+        _run_index: u64,
+        model_hash: [u8; 32],
+    ) -> Result<()> {
+        let r = &ctx.accounts.run;
+        require!(r.status == RUN_FINALIZED, ErrorCode::RunNotFinalized);
+        // The PDA seed must be the real sha256 of the run's stored model
+        // name — binding the registry entry to the run's declared identity,
+        // never to a string the recorder made up.
+        require!(
+            solana_sha256_hasher::hashv(&[r.model_id.as_bytes()]).to_bytes() == model_hash,
+            ErrorCode::ModelHashMismatch
+        );
+        let items = r.chunk_count as u32 * CHUNK as u32;
+        let rec = &mut ctx.accounts.model_record;
+        let now = Clock::get()?.unix_timestamp;
+        if rec.first_seen == 0 {
+            rec.model_hash = model_hash;
+            rec.model_id = r.model_id.clone();
+            rec.first_seen = now;
+            rec.bump = ctx.bumps.model_record;
+        } else {
+            // Hash alone pins the PDA; the stored string equality guards
+            // display-name anchoring against any client-side hash misuse.
+            require!(rec.model_id == r.model_id, ErrorCode::ModelHashMismatch);
+        }
+        rec.runs_scored += 1;
+        rec.total_correct += r.correct as u64;
+        rec.total_items += items as u64;
+        rec.last_scored = now;
+        rec.last_run = r.key();
+        // "Best" compares accuracy first, then volume — a 1/1 can never
+        // outrank a 64/64, and equal ratios break toward the larger sample.
+        let (nc, ni) = (r.correct as u64, items as u64);
+        let (bc, bi) = (rec.best_correct as u64, rec.best_items as u64);
+        if nc * bi > bc * ni || (nc * bi == bc * ni && nc > bc) {
+            rec.best_correct = r.correct;
+            rec.best_items = items;
+            rec.best_run = r.key();
+            rec.best_bank = r.benchmark;
+        }
+        let l = &mut ctx.accounts.score_log;
+        l.run = r.key();
+        l.model_record = rec.key();
+        l.correct = r.correct;
+        l.items = items;
+        l.benchmark = r.benchmark;
+        l.recorded_by = ctx.accounts.recorder.key();
+        l.recorded_at = now;
+        l.vouched_at_record = u8::from(r.attested);
+        l.post_reveal = r.post_reveal;
+        l.bump = ctx.bumps.score_log;
+        emit!(ScoreRecorded {
+            run: r.key(),
+            model_record: rec.key(),
+            model_hash,
+            model_id: r.model_id.clone(),
+            correct: r.correct,
+            items,
+            runs_scored: rec.runs_scored,
+            attested: r.attested,
+        });
+        Ok(())
+    }
+
     // ------------------------------------------------------------ runs
 
     /// Register a model run. `outputs_root` commits to every output hash before any
@@ -1445,6 +1519,50 @@ pub struct Run {
     pub post_reveal: u8,
 }
 
+/// The capability registry: one PDA per claimed model identity
+/// (`[b"modelrec", sha256(model_id)]`), permissionlessly aggregating every
+/// finalized run's MPC-written score. `model_id` is a CLAIM — readers weigh
+/// `ScoreLog.vouched_at_record` and run-level `attested` flags to separate
+/// venue-verified evidence from self-report.
+#[account]
+#[derive(InitSpace)]
+pub struct ModelRecord {
+    pub model_hash: [u8; 32],
+    #[max_len(64)]
+    pub model_id: String,
+    pub runs_scored: u32,
+    pub total_correct: u64,
+    pub total_items: u64,
+    /// Best run by accuracy, ties broken toward larger samples.
+    pub best_correct: u32,
+    pub best_items: u32,
+    pub best_run: Pubkey,
+    pub best_bank: Pubkey,
+    pub last_run: Pubkey,
+    pub first_seen: i64,
+    pub last_scored: i64,
+    pub bump: u8,
+}
+
+/// Per-run enrollment receipt (`[b"scorelog", run]`): created by
+/// `record_score`, whose `init` makes double-counting structurally
+/// impossible. Snapshots the honesty flags at record time so later
+/// attestations and reveals are visible as exactly that — later events.
+#[account]
+#[derive(InitSpace)]
+pub struct ScoreLog {
+    pub run: Pubkey,
+    pub model_record: Pubkey,
+    pub benchmark: Pubkey,
+    pub correct: u32,
+    pub items: u32,
+    pub recorded_by: Pubkey,
+    pub recorded_at: i64,
+    pub vouched_at_record: u8,
+    pub post_reveal: u8,
+    pub bump: u8,
+}
+
 // ------------------------------------------------------------------ plain ixs
 
 #[derive(Accounts)]
@@ -1565,6 +1683,36 @@ pub struct AttestRun<'info> {
         bump = run.bump,
     )]
     pub run: Account<'info, Run>,
+}
+
+#[derive(Accounts)]
+#[instruction(run_index: u64, model_hash: [u8; 32])]
+pub struct RecordScore<'info> {
+    /// Permissionless recorder — pays the record/log rent, keeps no rights.
+    #[account(mut)]
+    pub recorder: Signer<'info>,
+    #[account(
+        seeds = [b"run", run.benchmark.as_ref(), run_index.to_le_bytes().as_ref()],
+        bump = run.bump,
+    )]
+    pub run: Account<'info, Run>,
+    #[account(
+        init_if_needed,
+        payer = recorder,
+        space = 8 + ModelRecord::INIT_SPACE,
+        seeds = [b"modelrec", model_hash.as_ref()],
+        bump,
+    )]
+    pub model_record: Account<'info, ModelRecord>,
+    #[account(
+        init,
+        payer = recorder,
+        space = 8 + ScoreLog::INIT_SPACE,
+        seeds = [b"scorelog", run.key().as_ref()],
+        bump,
+    )]
+    pub score_log: Account<'info, ScoreLog>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -2317,6 +2465,18 @@ pub struct RunFinalized {
     pub item_count: u32,
 }
 
+#[event]
+pub struct ScoreRecorded {
+    pub run: Pubkey,
+    pub model_record: Pubkey,
+    pub model_hash: [u8; 32],
+    pub model_id: String,
+    pub correct: u32,
+    pub items: u32,
+    pub runs_scored: u32,
+    pub attested: bool,
+}
+
 // ================================================================== errors
 
 #[error_code]
@@ -2395,4 +2555,6 @@ pub enum ErrorCode {
     NotGriefedPda,
     #[msg("Account carries no lamports to drain")]
     NothingToDrain,
+    #[msg("model_hash is not sha256(run.model_id) — registry PDA does not bind this run")]
+    ModelHashMismatch,
 }

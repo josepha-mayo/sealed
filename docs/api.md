@@ -16,6 +16,7 @@ Plain instructions:
 | `stage_part(index, part, …)` | author writes 8 items' encrypted answers + spec commitments | authority-only; rejected once sealing starts for that part |
 | `create_run(model_id, harness_hash, outputs_root)` | mints `Run` PDA `[run, benchmark, run_index]` committing to every output hash | stamps `post_reveal=1` if `benchmark.reveal_count > 0` (F1); `model_id` is self-reported runner metadata — the scored outputs + runner key are the trust-bearing fields |
 | `attest_run(run_index)` | authority vouches for a run's model identity | benchmark authority only |
+| `record_score(run_index, model_hash)` | enrolls a finalized run's score into the persistent `ModelRecord` aggregate + writes a `ScoreLog` receipt | permissionless; run must be finalized; `model_hash` must be `sha256(run.model_id)` so the entry binds the run's declared identity; `score_log`'s `init` on `[scorelog, run]` makes double-counting structurally impossible |
 | `reset_pending` / `reset_sealing` | liveness sweeps: clear stalled pending bits / sealing locks | permissionless — a stalled queue can be cleared by anyone |
 | `retire_benchmark` | stops new runs/chunks on the bank | authority; refused while runs pending |
 
@@ -39,6 +40,21 @@ account must be THE PDA its own stored fields describe).
 |---|---|---|
 | `init_signer_pda` | creates the shared `ArciumSignerAccount` PDA used by every queue path | grief-proof: drains prefunded lamports back to the caller via `invoke_signed`, then `create_account` — also *un-bricks* the singleton after a successful prefund grief. Idempotent. `chain init` calls it eagerly. |
 | `unbrick_pda(seeds, bump)` | sweeps a grief-prefunded PDA's lamports to the caller | permissionless. Anchor's `init` already tolerates prefunds (tops up to rent-exempt, allocate+assign) — this ix reclaims the dust *before* init so a prefunder loses it instead of donating it, and covers any manual `create_account` path. `create_program_address(seeds ‖ bump, ID) == pda` re-proves the account belongs to this program's derivation space; only a system-owned, zero-data (never-initialized) account qualifies — arbitrary wallets can never be drained. `chain unbrick sealed run <bank> <idx>` covers every layout (run/chunk/items/pitems/reveal/grant/benchmark). |
+
+**Capability registry.** `record_score` turns a finalized `Run` into a
+durable per-model artifact: `ModelRecord [modelrec, sha256(model_id)]`
+aggregates `runs_scored`, `total_correct/total_items`, an accuracy-first
+`best_*` (ties break toward the larger sample), and `first_seen`/
+`last_scored`; `ScoreLog [scorelog, run]` snapshots `correct`, `items`,
+`recorded_by`, and the honesty flags *at record time* — so a later
+`attest_run` or fingerprint reveal can't rewrite history. Enrollment is
+permissionless and free of trust assumptions (anyone can pay the rent; the
+score itself was written by MPC), but it is **not** attestation:
+`model_id` remains self-reported metadata and only
+`vouched_at_record = run.attested` distinguishes authority-vouched entries.
+The harness exposes it as `chain record --run <pk>` / `chain modelrec
+<pubkey|model_id>`; `verify.mjs` and the explorer audit replay every
+record bit-exact from its receipts.
 
 ## `market` — four parimutuel primitives + capability bounties on `Run.correct`
 

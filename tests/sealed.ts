@@ -2325,6 +2325,128 @@ describe("Sealed", () => {
     console.log("bounty lifecycle verified: threshold cap, retroactivity wall, FCFS claim -> operator, WrongPayee pinned, refund expiry");
   });
 
+  it("enrolls finalized runs in the on-chain capability registry", async () => {
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(AUTH_ID)],
+      program.programId,
+    );
+    const chunkPdas = [0, 1].map(
+      (i) => PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], program.programId)[0],
+    );
+    const CHUNKS = 2;
+    const modelHash = (s: string) => Buffer.from(sha256(utf8ToBytes(s)));
+    const recPda = (h: Buffer | Uint8Array) => PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], program.programId)[0];
+    const logPda = (run: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from("scorelog"), run.toBuffer()], program.programId)[0];
+    const record = (run: PublicKey, idx: bigint, modelId: string, payer: Keypair, hashOverride?: Buffer) => {
+      const h = hashOverride ?? modelHash(modelId);
+      return program.methods
+        .recordScore(new anchor.BN(idx.toString()), Array.from(h))
+        .accounts({ recorder: payer.publicKey, run, modelRecord: recPda(h), scoreLog: logPda(run) })
+        .signers([payer])
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    };
+
+    // PENDING runs cannot enroll — a score that never finalized in MPC is not evidence.
+    const pendingRunner = Keypair.generate();
+    await fund(provider, owner, pendingRunner.publicKey, 0.3 * LAMPORTS_PER_SOL);
+    const idxP = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [pendingRun] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idxP)], program.programId);
+    const dummyLeaves = answers.map((chunk, i) => chunkOutLeaf(i, chunk.map(() => randomU64())));
+    await program.methods
+      .createRun("test/registry-pending", Array.from(randomBytes(32)), Array.from(merkleRoot(dummyLeaves)))
+      .accountsPartial({ runner: pendingRunner.publicKey, authority: owner.publicKey, benchmark, run: pendingRun })
+      .signers([pendingRunner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    await expectAnchorError(record(pendingRun, idxP, "test/registry-pending", pendingRunner), "RunNotFinalized");
+
+    // A wrong model_hash cannot bind a run to the wrong registry entry.
+    const runner = Keypair.generate();
+    await fund(provider, owner, runner.publicKey, 0.6 * LAMPORTS_PER_SOL);
+    const MODEL = "test/registry-model";
+    const idxA = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [runA] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idxA)], program.programId);
+    const outputsA: bigint[][] = answers.map((chunk, i) => chunk.map((a, j) => (j < 24 ? a : randomU64())));
+    const leavesA = outputsA.map((chunk, i) => chunkOutLeaf(i, chunk));
+    await program.methods
+      .createRun(MODEL, Array.from(randomBytes(32)), Array.from(merkleRoot(leavesA)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: runA })
+      .signers([runner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+
+    // Score runA via MPC (48/64), attest it, then enroll — the receipt
+    // snapshots the attestation as venue-vouched evidence.
+    for (let i = 0; i < CHUNKS; i++) {
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(idxA.toString()), i, outputsA[i].map((o) => new anchor.BN(o.toString())), merkleProof(leavesA, i))
+        .accountsPartial({ payer: runner.publicKey, run: runA, runner: runner.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
+        .signers([runner])
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    }
+    expect((await program.account.run.fetch(runA)).correct).to.equal(48);
+    // A wrong model_hash cannot bind a finalized run to the wrong registry
+    // entry — the PDA must be derived from sha256(the run's own model_id).
+    await expectAnchorError(
+      record(runA, idxA, MODEL, runner, Buffer.from(randomBytes(32))),
+      "ModelHashMismatch",
+    );
+    await program.methods
+      .attestRun(new anchor.BN(idxA.toString()))
+      .accounts({ authority: owner.publicKey, benchmark, run: runA })
+      .signers([owner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    // A THIRD PARTY records it — enrollment is permissionless.
+    const stranger = Keypair.generate();
+    await fund(provider, owner, stranger.publicKey, 0.05 * LAMPORTS_PER_SOL);
+    await record(runA, idxA, MODEL, stranger);
+
+    const rec = recPda(modelHash(MODEL));
+    let m: any = await program.account.modelRecord.fetch(rec);
+    expect(m.modelId).to.equal(MODEL);
+    expect(m.runsScored).to.equal(1);
+    expect(m.totalCorrect.toNumber()).to.equal(48);
+    expect(m.totalItems.toNumber()).to.equal(64);
+    expect(m.bestCorrect).to.equal(48);
+    expect(m.bestRun.toBase58()).to.equal(runA.toBase58());
+    let l: any = await program.account.scoreLog.fetch(logPda(runA));
+    expect(l.vouchedAtRecord).to.equal(1, "attested-before-record snapshot");
+    expect(l.postReveal).to.equal(0);
+
+    // Double-enrollment is impossible — the receipt PDA already exists.
+    await expectAnchorError(record(runA, idxA, MODEL, stranger), "0x0");
+
+    // A weaker second run on the same model aggregates without displacing best.
+    const idxB = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
+    const [runB] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idxB)], program.programId);
+    const outputsB: bigint[][] = answers.map((chunk, i) => chunk.map((a, j) => (j < 8 ? a : randomU64())));
+    const leavesB = outputsB.map((chunk, i) => chunkOutLeaf(i, chunk));
+    await program.methods
+      .createRun(MODEL, Array.from(randomBytes(32)), Array.from(merkleRoot(leavesB)))
+      .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: runB })
+      .signers([runner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    for (let i = 0; i < CHUNKS; i++) {
+      const offset = new anchor.BN(randomBytes(8), "hex");
+      await program.methods
+        .scoreChunk(offset, new anchor.BN(idxB.toString()), i, outputsB[i].map((o) => new anchor.BN(o.toString())), merkleProof(leavesB, i))
+        .accountsPartial({ payer: runner.publicKey, run: runB, runner: runner.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
+        .signers([runner])
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+      await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
+    }
+    await record(runB, idxB, MODEL, runner);
+    m = await program.account.modelRecord.fetch(rec);
+    expect(m.runsScored).to.equal(2);
+    expect(m.totalCorrect.toNumber()).to.equal(64, "48 + 16 aggregated");
+    expect(m.totalItems.toNumber()).to.equal(128);
+    expect(m.bestCorrect).to.equal(48, "48/64 stays best over 16/64");
+    expect(m.bestRun.toBase58()).to.equal(runA.toBase58());
+    l = await program.account.scoreLog.fetch(logPda(runB));
+    expect(l.vouchedAtRecord).to.equal(0, "unattested run records vouched=0");
+    console.log("capability registry verified: permissionless enroll, sha256-bound identity, idempotent receipts, accuracy-ordered best");
+  });
+
   // LAST on purpose: spoils AUTH_ID for new runs — every earlier consumer of
   // that bank must already have created what it needs.
   it("declassifies one part's fingerprints for a spot-check audit", async () => {

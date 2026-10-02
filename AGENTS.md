@@ -9,7 +9,7 @@ parimutuel markets resolved from `Run.correct`.
 
 - `anchor build` (sealed), `anchor build -p market --ignore-keys` (market; its
   keypair file address intentionally differs — do NOT `anchor keys sync`).
-- `yarn test` → 16/16 mocha E2E against a RUNNING localnet; needs env
+- `yarn test` → 17/17 mocha E2E against a RUNNING localnet; needs env
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
@@ -192,6 +192,13 @@ parimutuel markets resolved from `Run.correct`.
   EOF-brick under `Account<T>` — same no-migration stance as before. The
   market program tail-reads the flag at `229 + model_id_len` rather than
   mirroring the field, so old-layout runs still load (flag absent ⇒ 0).
+- `record_score` is permissionless registry enrollment: `ModelRecord
+  [modelrec, sha256(model_id)]` aggregates runs_scored/totals/accuracy-first
+  best; `ScoreLog [scorelog, run]` init-once receipts make double-counting
+  structurally impossible and SNAPSHOT attested/post_reveal at record time.
+  `model_hash` must equal sha256(run.model_id) (ModelHashMismatch) — the PDA
+  binds the run's declared identity, not the caller's string. The reveal
+  test must still run LAST; the registry test sits just before it.
 - `pending_since` refreshes on EVERY `score_chunk` for the run — a public
   third-party sweep of an older dead bit waits ~15 min past the LAST queue,
   not the dead bit's own queue time (runner self-sweep is always allowed;

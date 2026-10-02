@@ -61,7 +61,11 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #     - hero strip: MPC ciphertext → proven score, one glance
 #     - cryptographic audit panel: auto-runs — every account PDA re-derived,
 #       every commitment fold replayed, every market resolution recomputed.
-#       Should read "10 pass · 0 fail" with eight reveal-burn notes.
+#       Should read "11 pass · 0 fail" with eight reveal-burn notes.
+#     - "model capability records": persistent per-model aggregates enrolled
+#       by the permissionless record_score ix — each ScoreLog receipt makes
+#       a run countable exactly once, and the audit replays every record
+#       bit-exact from its receipts
 #     - a benchmark card: generated-item specs render publicly while the
 #       answers exist only as ciphertext — click "verify commitment" to
 #       replay its items_root fold yourself
@@ -78,7 +82,7 @@ python3 -m http.server -d . 8788
 #   offline (no localnet): http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json
 
 # note: --run means an artifact FILE for run/score/prove, but a run PDA
-# for attest/reset-pending/market open (verify-proof.mjs also takes --run-pda)
+# for attest/record/reset-pending/market open (verify-proof.mjs also takes --run-pda)
 
 # 3. verify the suites yourself
 yarn test                      # 16/16 E2E
@@ -90,7 +94,7 @@ yarn harness:test              # 13/13 unit
 #     of the MPC-scored run, and re-verifies the Merkle proofs.
 #     The same suite also runs IN-BROWSER on the hosted explorer — the
 #     "cryptographic audit" panel auto-executes against the loaded snapshot.
-node scripts/verify.mjs        # 11 PASS / 0 FAIL on the committed snapshot
+node scripts/verify.mjs        # 12 PASS / 0 FAIL on the committed snapshot
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh

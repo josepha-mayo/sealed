@@ -125,6 +125,8 @@ const DISC = {
   privItemChunk: "73f0ae62d80297f4",
   reveal: "fbaa9323ea6c0e95",
   shareGrant: "a47067c1839cb4c0",
+  modelRecord: "5cf480542f0695f1",
+  scoreLog: "e963b267eec2d7e4",
   market: "dbbed53700e3c69a",
   ladder: "7d9223fe2a07ccde",
   position: "aabc8fe47a40f7d0",
@@ -219,6 +221,44 @@ function parseShareGrant(d) {
     cts: hex(d.slice(124, 188)),
     sharedAt: Number(v.getBigInt64(188, true)),
   };
+}
+// ModelRecord: disc8 + model_hash32 + model_id(u32+bytes) + runs_scored u32
+// + total_correct u64 + total_items u64 + best_correct u32 + best_items u32
+// + best_run32 + best_bank32 + last_run32 + first_seen i64 + last_scored i64
+// + bump. The capability registry — every finalized run's MPC score,
+// permissionlessly aggregated per claimed model identity.
+function parseModelRecord(d) {
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const modelHash = hex(d.slice(o, o + 32)); o += 32;
+  const ml = v.getUint32(o, true); o += 4;
+  const modelId = new TextDecoder().decode(d.slice(o, o + ml)); o += ml;
+  const runsScored = v.getUint32(o, true); o += 4;
+  const totalCorrect = Number(v.getBigUint64(o, true)); o += 8;
+  const totalItems = Number(v.getBigUint64(o, true)); o += 8;
+  const bestCorrect = v.getUint32(o, true); o += 4;
+  const bestItems = v.getUint32(o, true); o += 4;
+  const bestRun = b58(d.slice(o, o + 32)); o += 32;
+  const bestBank = b58(d.slice(o, o + 32)); o += 32;
+  const lastRun = b58(d.slice(o, o + 32)); o += 32;
+  const firstSeen = Number(v.getBigInt64(o, true)); o += 8;
+  const lastScored = Number(v.getBigInt64(o, true)); o += 8;
+  return { modelHash, modelId, runsScored, totalCorrect, totalItems, bestCorrect, bestItems, bestRun, bestBank, lastRun, firstSeen, lastScored };
+}
+// ScoreLog: disc8 + run32 + model_record32 + benchmark32 + correct u32
+// + items u32 + recorded_by32 + recorded_at i64 + vouched_at_record u8
+// + post_reveal u8 + bump — the per-run enrollment receipt.
+function parseScoreLog(d) {
+  if (d.length < 8 + 32 * 3 + 8 + 32 + 8 + 3) throw new Error("truncated ScoreLog");
+  const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
+  const run = b58(d.slice(o, o + 32)); o += 32;
+  const modelRecord = b58(d.slice(o, o + 32)); o += 32;
+  const benchmark = b58(d.slice(o, o + 32)); o += 32;
+  const correct = v.getUint32(o, true); o += 4;
+  const items = v.getUint32(o, true); o += 4;
+  const recordedBy = b58(d.slice(o, o + 32)); o += 32;
+  const recordedAt = Number(v.getBigInt64(o, true)); o += 8;
+  const vouched = d[o++]; const postReveal = d[o++];
+  return { run, modelRecord, benchmark, correct, items, recordedBy, recordedAt, vouched, postReveal };
 }
 const OPS = ["+", "-", "*"];
 const specExpr = (s) => `((${s.a} ${OPS[s.op0] ?? "?"} ${s.b}) ${OPS[s.op1] ?? "?"} ${s.c})`;
@@ -586,7 +626,7 @@ async function loadExampleProof() {
 }
 
 function renderAll(sealedAccs, marketAccs) {
-  const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [], darkMarkets = [], darkPositions = [], bounties = [];
+  const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [], darkMarkets = [], darkPositions = [], bounties = [], modelRecords = [], scoreLogs = [];
   const skipped = [];
   for (const { pubkey, account } of sealedAccs) {
     try {
@@ -598,6 +638,8 @@ function renderAll(sealedAccs, marketAccs) {
       else if (disc === DISC.privItemChunk) privChunks.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parsePrivItemChunk(d) });
       else if (disc === DISC.reveal) reveals.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseReveal(d) });
       else if (disc === DISC.shareGrant) grants.push({ pk: pubkey.toBase58(), bench: b58(d.slice(8, 40)), ...parseShareGrant(d) });
+      else if (disc === DISC.modelRecord) modelRecords.push({ pk: pubkey.toBase58(), ...parseModelRecord(d) });
+      else if (disc === DISC.scoreLog) scoreLogs.push({ pk: pubkey.toBase58(), ...parseScoreLog(d) });
       else if (disc === "d69d7a72752cd64a") window.__signPda = pubkey.toBase58(); // Arcium SignPdaAccount
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
@@ -619,7 +661,7 @@ function renderAll(sealedAccs, marketAccs) {
   window.__benches = new Map(benches.map((b) => [b.pk, b]));
   window.__itemChunks = itemChunks;
   window.__privChunks = privChunks;
-  window.__audit = { benches, runs, markets, ladders, positions, chunks, itemChunks, privChunks, reveals, grants, darkMarkets, darkPositions, bounties, signPda: window.__signPda ?? null, skipped: skipped.length };
+  window.__audit = { benches, runs, markets, ladders, positions, chunks, itemChunks, privChunks, reveals, grants, darkMarkets, darkPositions, bounties, modelRecords, scoreLogs, signPda: window.__signPda ?? null, skipped: skipped.length };
 
   let h = "";
 
@@ -671,6 +713,35 @@ function renderAll(sealedAccs, marketAccs) {
         <td class="kv">${fmtTs(e.r.finalizedAt)}</td></tr>`;
     });
     h += `</table></div>`;
+  }
+
+  // ---- persistent model capability records: cumulative MPC-scored aggregates ----
+  if (modelRecords.length) {
+    const vouchedBy = new Map();
+    const postRevBy = new Map();
+    for (const sl of scoreLogs) {
+      if (sl.vouched) vouchedBy.set(sl.modelRecord, (vouchedBy.get(sl.modelRecord) || 0) + 1);
+      if (sl.postReveal) postRevBy.set(sl.modelRecord, (postRevBy.get(sl.modelRecord) || 0) + 1);
+    }
+    const recs = [...modelRecords].sort((a, b2) => (b2.bestCorrect / (b2.bestItems || 1)) - (a.bestCorrect / (a.bestItems || 1)) || b2.runsScored - a.runsScored);
+    h += `<h2>model capability records — persistent per-model aggregates</h2><div class="card"><table>` +
+      `<tr><th>model</th><th>runs</th><th>cumulative</th><th>best run</th><th>last run</th><th>attested</th><th>updated</th></tr>`;
+    recs.forEach(m => {
+      const cum = m.totalItems ? (100 * m.totalCorrect) / m.totalItems : 0;
+      const best = m.bestItems ? (100 * m.bestCorrect) / m.bestItems : 0;
+      const last = runs.find(r => r.pk === m.lastRun);
+      const lastBank = last ? benches.find(x => x.pk === last.benchmark) : null;
+      const vouched = vouchedBy.get(m.pk) || 0;
+      const postRev = postRevBy.get(m.pk) || 0;
+      h += `<tr><td class="mono">${esc(m.modelId)}</td>
+        <td>${m.runsScored}</td>
+        <td class="score">${m.totalCorrect}/${m.totalItems} (${cum.toFixed(1)}%)<div class="bar"><i style="width:${cum}%"></i></div></td>
+        <td class="score">${m.bestCorrect}/${m.bestItems} (${best.toFixed(1)}%) <span class="kv">on</span> ${link(m.bestRun)}</td>
+        <td>${link(m.lastRun)}${lastBank ? ` <span class="kv">${esc(lastBank.name)}</span>` : ""}</td>
+        <td>${vouched}/${m.runsScored}${postRev ? ` <span class="pill cancelled" title="${postRev} recorded run(s) came after fingerprint reveals — outputs could be stuffed">post-reveal ${postRev}</span>` : ""}</td>
+        <td class="kv">${fmtTs(m.lastScored)}</td></tr>`;
+    });
+    h += `</table></div><div class="kv" style="margin:4px 0 10px">enrolled via <span class="mono">record_score</span> — permissionless; a <span class="mono">ScoreLog</span> receipt PDA makes each run countable exactly once. <span class="mono">model_id</span> is self-reported, not an identity proof; "attested" counts runs countersigned by the benchmark authority at record time.</div>`;
   }
 
   if (benches.length) h += `<h2>benchmark banks</h2>`;
@@ -1092,7 +1163,7 @@ async function runAudit(force) {
   try {
     // [1] decode: renderAll already classified — unknowns land in `skipped`.
     A.skipped === 0
-      ? pass("account decode", `${A.benches.length} banks, ${A.runs.length} runs, ${A.itemChunks.length} gen chunks, ${A.privChunks.length} private chunks, ${A.reveals.length} reveals, ${A.grants.length} grants, ${A.markets.length} markets, ${A.ladders.length} ladders, ${A.darkMarkets.length} dark markets`)
+      ? pass("account decode", `${A.benches.length} banks, ${A.runs.length} runs, ${A.itemChunks.length} gen chunks, ${A.privChunks.length} private chunks, ${A.reveals.length} reveals, ${A.grants.length} grants, ${A.markets.length} markets, ${A.ladders.length} ladders, ${A.darkMarkets.length} dark markets, ${A.modelRecords.length} model records, ${A.scoreLogs.length} score logs`)
       : fail("account decode", `${A.skipped} unknown/unparseable account(s)`);
 
     // [2] PDA re-derivation — needs real web3.js (sha256 + ed25519).
@@ -1122,6 +1193,8 @@ async function runAudit(force) {
         if (!found) bad++;
       }
       for (const p of A.positions) chk(p.pk, pdaB([utf8("position"), pkB(p.market), pkB(p.bettor)], MARKET_PID));
+      for (const m of A.modelRecords) chk(m.pk, pdaB([utf8("modelrec"), unhex(m.modelHash)], SEALED_PID));
+      for (const l of A.scoreLogs) chk(l.pk, pdaB([utf8("scorelog"), pkB(l.run)], SEALED_PID));
       if (A.signPda) chk(A.signPda, pdaB([utf8("ArciumSignerAccount")], SEALED_PID));
       bad === 0 ? pass("PDA derivation", "every account re-derives to its own address") : fail("PDA derivation", `${bad} mismatch(es)`);
     }
@@ -1228,13 +1301,39 @@ async function runAudit(force) {
     }
     bbad === 0 ? pass("bounty claims", `${bchecked} claimed bounties re-verified against winner runs`) : fail("bounties", `${bbad} violation(s)`);
 
+    // [5c] capability registry — replay each ModelRecord's aggregates from
+    // its ScoreLog receipts; the receipt is the record-time truth snapshot.
+    let regbad = 0;
+    for (const l of A.scoreLogs) {
+      const r = rset.get(l.run);
+      if (!r) { regbad++; continue; }
+      if (l.correct !== r.correct || l.items !== r.chunkCount * 32 || l.benchmark !== r.benchmark) regbad++;
+      if (l.postReveal !== (r.postReveal ? 1 : 0)) regbad++;
+      if (l.vouched === 1 && r.attested !== true) regbad++; // attestation is monotone — a 1 must still hold
+      if (l.modelRecord !== (canPda() ? pdaB([utf8("modelrec"), await sha(utf8(r.modelId))], SEALED_PID) : l.modelRecord)) regbad++;
+    }
+    for (const m of A.modelRecords) {
+      if (hex(await sha(utf8(m.modelId))) !== m.modelHash) regbad++;
+      const logs = A.scoreLogs.filter(l => l.modelRecord === m.pk).sort((a, b) => a.recordedAt - b.recordedAt);
+      if (logs.length !== m.runsScored) { regbad++; continue; }
+      if (logs.reduce((s, l) => s + l.correct, 0) !== m.totalCorrect || logs.reduce((s, l) => s + l.items, 0) !== m.totalItems) regbad++;
+      let bc = 0n, bi = 0n, brun = null;
+      for (const l of logs) { const nc = BigInt(l.correct), ni = BigInt(l.items); if (nc * bi > bc * ni || (nc * bi === bc * ni && nc > bc)) { bc = nc; bi = ni; brun = l; } }
+      if (BigInt(m.bestCorrect) !== bc || BigInt(m.bestItems) !== bi || m.bestRun !== brun?.run || m.bestBank !== brun?.benchmark) regbad++;
+      if (m.lastScored !== Math.max(...logs.map(l => l.recordedAt)) || m.firstSeen !== Math.min(...logs.map(l => l.recordedAt))) regbad++;
+      if (!logs.some(l => l.run === m.lastRun && l.recordedAt === m.lastScored)) regbad++;
+    }
+    regbad === 0 ? pass("capability registry", `${A.modelRecords.length} records replayed bit-exact from ${A.scoreLogs.length} receipts`) : fail("capability registry", `${regbad} violation(s) — aggregates don't match receipts`);
+
     // [6] cross-references
     let xbad = 0;
+    const mrecSet = new Set(A.modelRecords.map(m => m.pk));
     for (const m of A.markets) if (!rset.has(m.run)) xbad++;
     for (const l of A.ladders) for (const leg of l.legs.slice(0, l.legCount)) if (!rset.has(leg)) xbad++;
     for (const c of [...A.itemChunks, ...A.privChunks, ...A.chunks]) if (!bset.has(c.bench)) xbad++;
     for (const r of A.reveals) if (!bset.has(r.bench)) xbad++;
-    xbad === 0 ? pass("referential integrity", "every market/chunk/reveal link resolves") : fail("referential integrity", `${xbad} dangling link(s)`);
+    for (const l of A.scoreLogs) if (!mrecSet.has(l.modelRecord)) xbad++;
+    xbad === 0 ? pass("referential integrity", "every market/chunk/reveal/registry link resolves") : fail("referential integrity", `${xbad} dangling link(s)`);
 
     // [7] reveal-burn (F1): on-chain flags must equal timestamp inference —
     // a flagged run with no earlier reveal, or an unflagged post-reveal run,

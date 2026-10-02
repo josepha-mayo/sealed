@@ -1497,6 +1497,50 @@ export async function attestRun(runPk: PublicKey) {
   console.log(`run ${runPk.toBase58()} attested by authority ${ctx.wallet.publicKey.toBase58()}`);
 }
 
+/** `chain record --run <pk>` — permissionlessly enroll a finalized run's
+ *  MPC-written score into the on-chain capability registry. The ModelRecord
+ *  PDA is keyed by sha256(model_id) so the entry binds the run's declared
+ *  identity; a ScoreLog receipt makes double-counting impossible. */
+export async function recordScore(runPk: PublicKey) {
+  const { program, kp } = sealedProgram();
+  const acct = program.account as any;
+  const r: any = await acct.run.fetch(runPk);
+  if (r.status !== 1) throw new Error(`run not finalized (status=${r.status})`);
+  const modelHash = createHash("sha256").update(Buffer.from(r.modelId, "utf8")).digest();
+  const [modelRecord] = PublicKey.findProgramAddressSync(
+    [Buffer.from("modelrec"), modelHash], program.programId,
+  );
+  const [scoreLog] = PublicKey.findProgramAddressSync(
+    [Buffer.from("scorelog"), runPk.toBuffer()], program.programId,
+  );
+  const sig = await program.methods
+    .recordScore(new anchor.BN(r.index.toString()), Array.from(modelHash))
+    .accounts({ recorder: kp.publicKey, run: runPk, modelRecord, scoreLog })
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+  console.log(`run ${runPk.toBase58()} recorded → ${r.modelId} ${r.correct}/${Number(r.chunkCount) * 32} ` +
+    `(record ${modelRecord.toBase58()}, receipt ${scoreLog.toBase58()}, ${sig})`);
+}
+
+/** `chain modelrec <pubkey|model_id>` — print a registry entry. */
+export async function modelRecordShow(keyOrName: string) {
+  const { program } = sealedProgram();
+  let pda: PublicKey;
+  try {
+    pda = new PublicKey(keyOrName);
+  } catch {
+    const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
+    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], program.programId);
+  }
+  const rec: any = await (program.account as any).modelRecord.fetchNullable(pda);
+  if (!rec) { console.log(`no model record at ${pda.toBase58()}`); return; }
+  const pct = rec.totalItems.toNumber() ? (100 * rec.totalCorrect.toNumber() / rec.totalItems.toNumber()).toFixed(1) : "0.0";
+  console.log(`model record ${pda.toBase58()}`);
+  console.log(`  model_id=${rec.modelId}  hash=${Buffer.from(rec.modelHash).toString("hex").slice(0, 16)}…`);
+  console.log(`  runs=${rec.runsScored}  aggregate=${rec.totalCorrect}/${rec.totalItems} (${pct}%)`);
+  console.log(`  best=${rec.bestCorrect}/${rec.bestItems} on run ${(rec.bestRun as PublicKey).toBase58()} (bank ${(rec.bestBank as PublicKey).toBase58()})`);
+  console.log(`  last=${(rec.lastRun as PublicKey).toBase58()}  first_seen=${rec.firstSeen}  last_scored=${rec.lastScored}`);
+}
+
 export async function chainMain(cmd: string[], args: Args) {
   const loadJson = (p: string) => JSON.parse(readFileSync(p, "utf8"));
   const [sub] = cmd;
@@ -1635,6 +1679,14 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "attest") {
     await attestRun(new PublicKey(String(args.run)));
+    return;
+  }
+  if (sub === "record") {
+    await recordScore(new PublicKey(String(args.run)));
+    return;
+  }
+  if (sub === "modelrec") {
+    await modelRecordShow(String(cmd[1] ?? args.run ?? ""));
     return;
   }
   if (sub === "market") {
