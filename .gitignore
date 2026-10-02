@@ -25,3 +25,6 @@ runs/
 .env
 *.key
 *-keypair.json
+
+# root working copy — canonical evidence snapshot is web/snapshot.json
+/snapshot.json

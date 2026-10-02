@@ -332,7 +332,8 @@ view of the questions was the on-chain grant trail.
   masks, dark), and re-verifies each `prove-*.json` Merkle path —
   plus cross-validates every on-chain `post_reveal` flag against
   timestamp inference.
-  Current bundle: **10 PASS / 0 FAIL** (+ 2 informational notes).
+  Current bundle: **11 PASS / 0 FAIL** (+ 8 informational notes — per-bank
+  reveal-burn accounting and the grandfathered epoch-2 bounty).
 - **`node scripts/decrypt-grants-test.mjs`** — offline regression for the
   explorer's "decrypt as delegate" button: vendors the real `RescueCipher`
   (`web/vendor/rescue.mjs`), decrypts the throwaway demo delegate's 4

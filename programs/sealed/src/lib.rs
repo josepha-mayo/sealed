@@ -116,14 +116,14 @@ pub mod sealed {
     }
 
     /// Eager, grief-proof initializer for the shared Arcium signer PDA.
-    /// Every queue path lazily `init_if_needed`s this singleton — and a
-    /// prefunded PDA bricks `create_account` (the runtime rejects accounts
-    /// already carrying lamports), so an attacker who transfers 1 lamport
-    /// to the seed-derived address before first use would stall ALL MPC
-    /// queueing. Here the program owns the seeds, so it can drain prefunds
-    /// back to the caller via invoke_signed, then create the account —
-    /// which also UN-bricks the program after a successful grief.
-    /// Idempotent: a live account returns early.
+    /// Every queue path lazily `init_if_needed`s this singleton. Anchor's
+    /// init codegen already tolerates prefunded PDAs (top-up + allocate +
+    /// assign), so grief dust can't stall queueing — but it would be
+    /// donated to the program's rent. Since the program owns the seeds, we
+    /// drain prefunds back to the caller via invoke_signed first, then
+    /// `create_account` — reclaiming the dust AND covering the manual
+    /// create path (raw `create_account` does reject lamport-bearing
+    /// accounts). Idempotent: a live account returns early.
     pub fn init_signer_pda(ctx: Context<InitSignerPda>) -> Result<()> {
         let acc = &ctx.accounts.sign_pda_account;
         if acc.owner == &crate::ID {
@@ -175,6 +175,56 @@ pub mod sealed {
         ArciumSignerAccount { bump }.try_serialize(&mut cur)?;
         emit!(SignerPdaInitialized {
             drained_lamports: pre,
+        });
+        Ok(())
+    }
+
+    /// Prefund-grief reclaim for ANY PDA of this program. Anchor's `init`
+    /// codegen already tolerates prefunded accounts (it tops up to
+    /// rent-exempt then allocate+assigns, turning the griefer's dust into a
+    /// rent subsidy), so a prefund cannot brick an `init` path here — but
+    /// the dust stays locked forever, and any future manual
+    /// `create_account` path (like `init_signer_pda`) still rejects
+    /// lamport-bearing accounts. This sweeps the griefed lamports to a
+    /// permissionless rescuer BEFORE init — the prefunder loses the dust
+    /// instead of donating it — and un-bricks manual-create paths outright.
+    /// The `create_program_address` proof pins the drain to THIS program's
+    /// derivation space: arbitrary wallets and other programs' accounts can
+    /// never be touched. Bundle `unbrick_pda` + the init ix in ONE tx for
+    /// an atomic sweep-then-init an attacker cannot interleave.
+    pub fn unbrick_pda(
+        ctx: Context<UnbrickPda>,
+        seeds: Vec<Vec<u8>>,
+        bump: u8,
+    ) -> Result<()> {
+        let acc = &ctx.accounts.pda;
+        let bump_seed = [bump];
+        let mut refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
+        refs.push(&bump_seed);
+        let derived = Pubkey::create_program_address(&refs, &crate::ID)
+            .map_err(|_| error!(ErrorCode::NotProgramPda))?;
+        require!(derived == acc.key(), ErrorCode::NotProgramPda);
+        require!(
+            acc.owner == &system_program::ID && acc.data_is_empty(),
+            ErrorCode::NotGriefedPda
+        );
+        let lamports = acc.lamports();
+        require!(lamports > 0, ErrorCode::NothingToDrain);
+        system_program::transfer(
+            CpiContext::new_with_signer(
+                system_program::ID,
+                system_program::Transfer {
+                    from: acc.to_account_info(),
+                    to: ctx.accounts.rescuer.to_account_info(),
+                },
+                &[&refs],
+            ),
+            lamports,
+        )?;
+        emit!(PdaUnbricked {
+            pda: acc.key(),
+            rescuer: ctx.accounts.rescuer.key(),
+            drained_lamports: lamports,
         });
         Ok(())
     }
@@ -1838,6 +1888,22 @@ pub struct InitSignerPda<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// `unbrick_pda` — generic prefund-grief recovery. The PDA is proven in the
+/// handler from the caller-supplied seeds (`create_program_address` under
+/// this program); only a system-owned, zero-data, lamport-bearing account
+/// qualifies — i.e. exactly a grief-prefund awaiting `init`.
+#[derive(Accounts)]
+pub struct UnbrickPda<'info> {
+    /// Receives the swept lamports — permissionless: whoever un-bricks a
+    /// bank's bricked PDA keeps the grief dust.
+    #[account(mut)]
+    pub rescuer: Signer<'info>,
+    /// CHECK: seeds-proofed in the handler; drained via invoke_signed.
+    #[account(mut)]
+    pub pda: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 #[queue_computation_accounts("gen_part_private", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, index: u16)]
@@ -2210,6 +2276,14 @@ pub struct SignerPdaInitialized {
 }
 
 #[event]
+pub struct PdaUnbricked {
+    pub pda: Pubkey,
+    pub rescuer: Pubkey,
+    /// Lamports the grief-prefunder lost to the rescuer.
+    pub drained_lamports: u64,
+}
+
+#[event]
 pub struct RunCreated {
     pub run: Pubkey,
     pub benchmark: Pubkey,
@@ -2311,4 +2385,10 @@ pub enum ErrorCode {
     WrongBenchmark,
     #[msg("sign_pda_account is owned by a foreign program — cannot initialize")]
     SignPdaForeignOwner,
+    #[msg("Account is not a PDA of this program for the given seeds")]
+    NotProgramPda,
+    #[msg("Account is not a grief-prefunded (system-owned, empty) PDA")]
+    NotGriefedPda,
+    #[msg("Account carries no lamports to drain")]
+    NothingToDrain,
 }

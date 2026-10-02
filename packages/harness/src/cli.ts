@@ -143,6 +143,8 @@ async function main() {
                     (model "mock/oracle-<p>" answers a fraction p correctly, offline)
   sealed chain init                                   init comp defs + upload circuits + eager signer-PDA init (once per deployment)
   sealed chain init-signer                            standalone signer-PDA init — drains a grief-prefund and (re)creates it
+  sealed chain unbrick <sealed|market> <kind> <args…>                    reclaim lamports griefed onto a program PDA
+                                     (re-derives the address from canonical seeds, drains dust to you — bare "unbrick" prints kinds)
   sealed chain seal  --bank <file> [--fee-lamports n]
   sealed chain gen   --id <n> [--chunks 2] [--fee-lamports n] [--out file]   MPC-minted bank: no answer key exists
   sealed chain items --benchmark <pubkey> [--out file]                      render a generated bank from on-chain specs

@@ -81,17 +81,25 @@ after sealing, and nobody can fabricate a score.
   betting on a sealed grading process in the real world, and it is why
   grant-based selective disclosure (`reshare_part`) exists as the escape
   hatch for judges who do need to read items.
-- **Prefunded-PDA grief** — Solana's `create_account` rejects accounts that
-  already carry lamports, so any `init`/`init_if_needed` PDA can be bricked
-  by transferring 1 lamport to its seed-derived address first. The worst
-  target was the shared `sign_pda_account` (one brick stalls every queue
-  path). **Mitigation shipped**: `init_signer_pda` drains prefunds via
-  `invoke_signed` (the program owns the seeds) then `create_account`s —
-  it *un-bricks* the singleton even after a successful grief, and
-  `chain init` calls it eagerly on every setup. Per-user lazy inits
-  (benchmarks, runs, grants) remain griefable in theory; the blast radius
-  is one bank/run id at a time and the fix is a salt/id rotation, so the
-  residual is documented rather than engineered.
+- **Prefunded-PDA grief** — raw `create_account` rejects accounts that
+  already carry lamports, so historically a dust transfer to a
+  seed-derived address could brick an `init`. Under this Anchor version
+  the class is already dead: `init`/`init_if_needed` codegen tolerates
+  prefunded accounts — it tops the balance up to rent-exempt then
+  `allocate`+`assign`s, turning the attacker's dust into a rent subsidy.
+  The residual is the *donation* itself: grief lamports stay locked in
+  the account's rent forever. **Mitigations shipped**: `init_signer_pda`
+  drains prefunds via `invoke_signed` then manually `create_account`s the
+  signer singleton (the one raw-create path — its drain is genuinely
+  needed), and a generic `unbrick_pda` on BOTH programs lets a
+  permissionless rescuer sweep grief dust out of ANY program PDA *before*
+  init — seeds are re-proven under the program id
+  (`create_program_address`), so only this program's never-initialized
+  PDAs qualify; wallets and live accounts can never be drained.
+  Regression-tested live: prefund a run PDA (sealed) and a position PDA
+  (market), `unbrick_pda` reclaims the dust, init lands, and
+  wrong-seed/already-initialized drains reject (`NotProgramPda` /
+  `NotGriefedPda`).
 - **Cluster liveness** — sealing and scoring depend on the MPC cluster
   executing computations and submitting callbacks. If the cluster stalls, runs
   stay pending; `void_market` lets the authority refund bettors on dead runs
@@ -271,11 +279,12 @@ after sealing, and nobody can fabricate a score.
   belong on authored/private banks, and duels additionally require two
   distinct runner keys (`RunnersMustDiffer`) so one runner can't control
   both legs.
-- **PDA pre-funding (Solana-generic)** — sending ≥1 lamport to a
-  not-yet-created PDA makes its `init` fail ("account already in use"). An
-  attacker could pre-fund the *next* `["run", benchmark, run_count]` PDA and
-  block that index forever. Mitigation is a known ecosystem wart (no clean
-  on-chain fix); salt-based PDAs (markets, benchmarks) have workarounds.
+- **PDA pre-funding (Solana-generic)** — sending rent-exempt dust
+  (~0.0009 SOL) to a not-yet-created PDA no longer bricks its `init` —
+  Anchor's codegen absorbs the prefund as rent subsidy — but the dust
+  stays locked. `unbrick_pda` on both programs sweeps it back out to a
+  permissionless rescuer after re-proving the seeds derive under the
+  program. See the sealed-side section for the full analysis + E2E proof.
 - **Market dust + rent** — pro-rata integer division leaves remainder
   lamports, and there is no `close_market`, so a resolved market's rent +
   dust stay locked. Deliberate for now: sweeping unclaimed stake would be
@@ -304,6 +313,14 @@ circuits honestly (the MPC assumption), the question generator is fair
 (the circuits are inspectable), and market spam is a real cost of
 permissionless creation — a curated registry or creation bond is the
 honest answer if spam ever materializes.
+
+Disclosed idempotence asymmetry: `reveal_part`/`reshare_part` gate on the
+callback-written flag (`revealed_at`/`shared_at`), not an in-flight latch —
+a same-part double-queue can land twice. Both callbacks are deterministic
+over committed inputs, so a second landing is an exact rewrite (reshare)
+or a cosmetic `reveal_count` over-count (only `>0` is consumed for
+post-reveal stamping). Benign by construction; a latch would cost an
+account-field append for zero security gain.
 
 ## Capability bounties — FCFS, payout to the operator, not a bettor
 

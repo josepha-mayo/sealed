@@ -440,7 +440,7 @@ pub mod market {
         );
         require!(
             resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
-            ErrorCode::DeadlineInPast
+            ErrorCode::DeadlineTooFar
         );
         require!(
             closes_at == 0 || closes_at <= resolve_by,
@@ -592,7 +592,7 @@ pub mod market {
         );
         require!(
             resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
-            ErrorCode::DeadlineInPast
+            ErrorCode::DeadlineTooFar
         );
         require!(
             closes_at == 0 || closes_at <= resolve_by,
@@ -854,7 +854,7 @@ pub mod market {
         );
         require!(
             resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
-            ErrorCode::DeadlineInPast
+            ErrorCode::DeadlineTooFar
         );
         require!(closes_at <= resolve_by, ErrorCode::DeadlineOrder);
         let mut runs: Vec<Run> = Vec::with_capacity(legs.len());
@@ -1167,7 +1167,7 @@ pub mod market {
         );
         require!(
             resolve_by <= now + MAX_RESOLVE_HORIZON_SECS,
-            ErrorCode::DeadlineInPast
+            ErrorCode::DeadlineTooFar
         );
         require!(
             closes_at == 0 || closes_at <= resolve_by,
@@ -1184,7 +1184,7 @@ pub mod market {
         );
         require!(
             reveal_secs <= MAX_RESOLVE_HORIZON_SECS,
-            ErrorCode::DeadlineInPast
+            ErrorCode::DeadlineTooFar
         );
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
@@ -1495,19 +1495,25 @@ pub mod market {
                 Ok(())
             }
             ExpireAction::SettleScore(correct) => {
-                m.status = MARKET_RESOLVED;
-                m.resolved_score = correct;
-                m.resolved_at = now_ts;
-                m.reveal_until = now_ts + m.reveal_secs;
-                m.outcome = outcome_of(&m.edges, m.n_outcomes, correct);
-                m.fees_accrued =
-                    (m.pool_total as u128 * m.fee_bps as u128 / 10_000) as u64;
+                // Mirror `resolve_dark`: an empty pool cancels outright
+                // rather than opening a dead reveal window.
+                if m.pool_total == 0 {
+                    m.status = MARKET_CANCELLED;
+                } else {
+                    m.status = MARKET_RESOLVED;
+                    m.resolved_score = correct;
+                    m.resolved_at = now_ts;
+                    m.reveal_until = now_ts + m.reveal_secs;
+                    m.outcome = outcome_of(&m.edges, m.n_outcomes, correct);
+                    m.fees_accrued =
+                        (m.pool_total as u128 * m.fee_bps as u128 / 10_000) as u64;
+                }
                 emit!(DarkResolved {
                     market: m.key(),
                     run: ctx.accounts.run_a.key(),
                     correct,
                     outcome: m.outcome,
-                    cancelled: false,
+                    cancelled: m.status == MARKET_CANCELLED,
                 });
                 Ok(())
             }
@@ -1541,7 +1547,7 @@ pub mod market {
         );
         require!(
             deadline <= now + MAX_RESOLVE_HORIZON_SECS,
-            ErrorCode::DeadlineInPast
+            ErrorCode::DeadlineTooFar
         );
         let (bstatus, chunk_count, _kind) = load_benchmark(&ctx.accounts.bank)?;
         require!(bstatus == 1, ErrorCode::BenchmarkNotLive); // STATUS_LIVE
@@ -1640,10 +1646,60 @@ pub mod market {
         require!(b.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
         let now = Clock::get()?.unix_timestamp;
         require!(now > b.deadline, ErrorCode::MarketNotExpired);
+        // `close` returns the WHOLE balance (pot + rent + any stray
+        // donations) — emit both so indexers see what actually moved.
         emit!(BountyExpired {
             bounty: b.key(),
             sponsor: b.sponsor,
             amount: b.amount,
+            refunded_lamports: b.to_account_info().lamports(),
+        });
+        Ok(())
+    }
+
+    /// Prefund-grief reclaim for ANY PDA of this program. Anchor's `init`
+    /// codegen already tolerates prefunded accounts (top-up to rent-exempt,
+    /// then allocate+assign — the griefer's dust becomes a rent subsidy),
+    /// so a prefund cannot brick an `init` path here — but the dust stays
+    /// locked forever. This sweeps griefed lamports to a permissionless
+    /// rescuer BEFORE init — the prefunder loses the dust instead of
+    /// donating it. The `create_program_address` proof pins the drain to
+    /// THIS program's derivation space: arbitrary wallets and other
+    /// programs' accounts can never be touched. Bundle `unbrick_pda` + the
+    /// init ix in ONE tx for an atomic sweep an attacker cannot interleave.
+    pub fn unbrick_pda(
+        ctx: Context<UnbrickPda>,
+        seeds: Vec<Vec<u8>>,
+        bump: u8,
+    ) -> Result<()> {
+        let acc = &ctx.accounts.pda;
+        let bump_seed = [bump];
+        let mut refs: Vec<&[u8]> = seeds.iter().map(|s| s.as_slice()).collect();
+        refs.push(&bump_seed);
+        let derived = Pubkey::create_program_address(&refs, &crate::ID)
+            .map_err(|_| error!(ErrorCode::NotProgramPda))?;
+        require!(derived == acc.key(), ErrorCode::NotProgramPda);
+        require!(
+            acc.owner == &system_program::ID && acc.data_is_empty(),
+            ErrorCode::NotGriefedPda
+        );
+        let lamports = acc.lamports();
+        require!(lamports > 0, ErrorCode::NothingToDrain);
+        system_program::transfer(
+            CpiContext::new_with_signer(
+                system_program::ID,
+                system_program::Transfer {
+                    from: acc.to_account_info(),
+                    to: ctx.accounts.rescuer.to_account_info(),
+                },
+                &[&refs],
+            ),
+            lamports,
+        )?;
+        emit!(PdaUnbricked {
+            pda: acc.key(),
+            rescuer: ctx.accounts.rescuer.key(),
+            drained_lamports: lamports,
         });
         Ok(())
     }
@@ -2329,6 +2385,22 @@ pub struct ExpireBounty<'info> {
     pub sponsor: UncheckedAccount<'info>,
 }
 
+/// `unbrick_pda` — generic prefund-grief recovery. The PDA is proven in the
+/// handler from the caller-supplied seeds (`create_program_address` under
+/// this program); only a system-owned, zero-data, lamport-bearing account
+/// qualifies — i.e. exactly a grief-prefund awaiting `init`.
+#[derive(Accounts)]
+pub struct UnbrickPda<'info> {
+    /// Receives the swept lamports — permissionless: whoever un-bricks a
+    /// bricked PDA keeps the grief dust.
+    #[account(mut)]
+    pub rescuer: Signer<'info>,
+    /// CHECK: seeds-proofed in the handler; drained via invoke_signed.
+    #[account(mut)]
+    pub pda: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 // ================================================================== events
 
 #[event]
@@ -2480,7 +2552,18 @@ pub struct BountyClaimed {
 pub struct BountyExpired {
     pub bounty: Pubkey,
     pub sponsor: Pubkey,
+    /// The escrowed pot (matches `BountyCreated.amount`).
     pub amount: u64,
+    /// What `close` actually sent the sponsor: pot + rent + any donations.
+    pub refunded_lamports: u64,
+}
+
+#[event]
+pub struct PdaUnbricked {
+    pub pda: Pubkey,
+    pub rescuer: Pubkey,
+    /// Lamports the grief-prefunder lost to the rescuer.
+    pub drained_lamports: u64,
 }
 
 // ================================================================== errors
@@ -2520,6 +2603,7 @@ pub enum ErrorCode {
     #[msg("Market has not passed its resolve_by deadline")]
     MarketNotExpired,
     #[msg("Deadline must be in the future")]
+    // Retired label — kept so later variants keep their Anchor error codes.
     DeadlineInPast,
     #[msg("Not a score market")]
     NotScoreMarket,
@@ -2563,6 +2647,14 @@ pub enum ErrorCode {
     BelowThreshold,
     #[msg("Payout recipient must be the run's runner")]
     WrongPayee,
+    #[msg("Deadline exceeds the maximum supported horizon")]
+    DeadlineTooFar,
+    #[msg("Account is not a PDA of this program for the given seeds")]
+    NotProgramPda,
+    #[msg("Account is not a grief-prefunded (system-owned, empty) PDA")]
+    NotGriefedPda,
+    #[msg("Account carries no lamports to drain")]
+    NothingToDrain,
 }
 
 #[cfg(test)]

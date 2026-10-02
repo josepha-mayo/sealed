@@ -202,7 +202,7 @@ describe("Sealed", () => {
     const sig = await build()
       .accounts({ compDefAccount: compDefPDA, payer: owner.publicKey, mxeAccount, addressLookupTable: lutAddress })
       .signers([owner])
-      .rpc({ preflightCommitment: "confirmed", commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await uploadCircuit(provider, name, program.programId, fs.readFileSync(`build/${name}.arcis`), true);
     return sig;
   }
@@ -226,7 +226,7 @@ describe("Sealed", () => {
       .createBenchmark(BENCH_ID, "sealed-test", CHUNKS, Array.from(itemsRoot), new anchor.BN(FEE), 0)
       .accounts({ authority: owner.publicKey })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     let b = await program.account.benchmark.fetch(benchmark);
     expect(b.status).to.equal(0);
     expect(Buffer.from(b.itemsRoot)).to.deep.equal(itemsRoot);
@@ -240,7 +240,7 @@ describe("Sealed", () => {
     for (let i = 0; i < CHUNKS; i++) {
       const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)], program.programId);
       chunkPdas.push(chunk);
-      await program.methods.initChunk(i).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ commitment: "confirmed" });
+      await program.methods.initChunk(i).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
       // Stage all parts (one nonce per part), then seal each part in MPC.
       const staged: Uint8Array[][] = [];
@@ -253,7 +253,7 @@ describe("Sealed", () => {
           .stagePart(i, p, Array.from(authorPub), new anchor.BN(deserializeLE(nonce).toString()), cts.map((c) => Array.from(c)))
           .accounts({ authority: owner.publicKey, benchmark, chunk })
           .signers([owner])
-          .rpc({ commitment: "confirmed" });
+          .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       }
       let state = await program.account.answerChunk.fetch(chunk);
       expect(state.partsStaged).to.equal((1 << PARTS) - 1);
@@ -266,7 +266,7 @@ describe("Sealed", () => {
           .sealPart(offset, i, p)
           .accountsPartial({ payer: owner.publicKey, benchmark, chunk, ...arciumAccounts(offset, "seal_part") })
           .signers([owner])
-          .rpc({ commitment: "confirmed" });
+          .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
         const finalizeSig = await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
         state = await program.account.answerChunk.fetch(chunk);
         if (!(state.partsSealed & (1 << p))) await dumpTx(provider, finalizeSig);
@@ -311,7 +311,7 @@ describe("Sealed", () => {
       .createRun("test/oracle", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const authorityAfter = await provider.connection.getBalance(owner.publicKey);
     // The provider wallet (owner) is the tx fee payer, so it nets FEE minus a few thousand lamports.
     expect(FEE - (authorityAfter - authorityBefore)).to.be.within(0, 20_000, "fee paid to authority");
@@ -334,7 +334,7 @@ describe("Sealed", () => {
           ...arciumAccounts(offset, "score_chunk"),
         })
         .signers([runner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
       total += planted[i];
       r = await program.account.run.fetch(run);
@@ -396,7 +396,7 @@ describe("Sealed", () => {
       .createRun("test/market-run", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: run1 })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     const THRESHOLD = 30;
     const BN0 = new anchor.BN(0);
@@ -405,7 +405,7 @@ describe("Sealed", () => {
       .createMarket(new anchor.BN(0), [THRESHOLD], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mkt })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     let m = await marketProgram.account.market.fetch(mkt);
     expect(m.status).to.equal(0);
     expect(m.nOutcomes).to.equal(2);
@@ -447,7 +447,7 @@ describe("Sealed", () => {
         .accounts({ authority: owner.publicKey, run: run1, market: mktPda(run1, 12n) })
         .signers([owner])
         .rpc(),
-      "DeadlineInPast",
+      "DeadlineTooFar",
     );
     await expectAnchorError(
       marketProgram.methods
@@ -472,7 +472,7 @@ describe("Sealed", () => {
       .createMarket(new anchor.BN(1), [10, 20], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mkt3 })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // A 5%-fee market (salt 2) and a voidable market (salt 3).
     const mktF = mktPda(run1, 2n);
@@ -480,13 +480,13 @@ describe("Sealed", () => {
       .createMarket(new anchor.BN(2), [THRESHOLD], 500, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mktF })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const mktV = mktPda(run1, 3n);
     await marketProgram.methods
       .createMarket(new anchor.BN(3), [THRESHOLD], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: run1, market: mktV })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     // Deadline market (salt 4): anyone can expire it once resolve_by passes
     // while the run is still pending.
     const mktX = mktPda(run1, 4n);
@@ -495,7 +495,7 @@ describe("Sealed", () => {
       .createMarket(new anchor.BN(4), [THRESHOLD], 0, BN0, new anchor.BN(resolveBy))
       .accounts({ authority: owner.publicKey, run: run1, market: mktX })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     // Second deadline market (salt 5): after the run finalizes, expiry MUST
     // fail — a losing bettor cannot veto a pending resolution for a refund.
     const mktX2 = mktPda(run1, 5n);
@@ -503,7 +503,7 @@ describe("Sealed", () => {
       .createMarket(new anchor.BN(5), [THRESHOLD], 0, BN0, new anchor.BN(resolveBy))
       .accounts({ authority: owner.publicKey, run: run1, market: mktX2 })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // No deadline -> cannot expire.
     await expectAnchorError(
@@ -517,16 +517,39 @@ describe("Sealed", () => {
     await fund(provider, owner, yes.publicKey, 0.6 * LAMPORTS_PER_SOL);
     await fund(provider, owner, no.publicKey, 0.8 * LAMPORTS_PER_SOL);
     const noBefore = await provider.connection.getBalance(no.publicKey);
+
+    // Prefund grief on the market side: dust on yes's position PDA is
+    // reclaimable by `unbrick_pda` before the bet initializes it — the
+    // instruction is the same generic drain sealed exposes (Anchor's own
+    // init would absorb the prefund anyway; unbrick claws the dust back).
+    const yesPos = posPda(mkt, yes.publicKey);
+    const griefLamports = await provider.connection.getMinimumBalanceForRentExemption(0);
+    await sendWithRetry(() => provider.sendAndConfirm(
+      new anchor.web3.Transaction().add(
+        SystemProgram.transfer({ fromPubkey: owner.publicKey, toPubkey: yesPos, lamports: griefLamports }),
+      ),
+      [owner],
+      { preflightCommitment: "processed", commitment: "confirmed" },
+    ));
+    const posSeeds = [Buffer.from("position"), mkt.toBuffer(), yes.publicKey.toBuffer()];
+    await marketProgram.methods
+      .unbrickPda(posSeeds, PublicKey.findProgramAddressSync(posSeeds, marketProgram.programId)[1])
+      .accounts({ rescuer: owner.publicKey, pda: yesPos })
+      .signers([owner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    const posAfter = await provider.connection.getAccountInfo(yesPos);
+    expect(posAfter === null || posAfter.lamports === 0).to.equal(true);
+
     await marketProgram.methods
       .bet(1, new anchor.BN(0.3 * LAMPORTS_PER_SOL))
-      .accounts({ bettor: yes.publicKey, run: run1, market: mkt, position: posPda(mkt, yes.publicKey) })
+      .accounts({ bettor: yes.publicKey, run: run1, market: mkt, position: yesPos })
       .signers([yes])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await marketProgram.methods
       .bet(0, new anchor.BN(0.5 * LAMPORTS_PER_SOL))
       .accounts({ bettor: no.publicKey, run: run1, market: mkt, position: posPda(mkt, no.publicKey) })
       .signers([no])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await marketProgram.account.market.fetch(mkt);
     expect(m.totals[0].toNumber()).to.equal(0.5 * LAMPORTS_PER_SOL);
     expect(m.totals[1].toNumber()).to.equal(0.3 * LAMPORTS_PER_SOL);
@@ -537,30 +560,30 @@ describe("Sealed", () => {
         .bet(i, new anchor.BN(0.01 * LAMPORTS_PER_SOL))
         .accounts({ bettor: yes.publicKey, run: run1, market: mkt3, position: posPda(mkt3, yes.publicKey) })
         .signers([yes])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     // Fee market: 0.2 SOL on each side; winner takes 95% of the pot.
     await marketProgram.methods
       .bet(0, new anchor.BN(0.2 * LAMPORTS_PER_SOL))
       .accounts({ bettor: yes.publicKey, run: run1, market: mktF, position: posPda(mktF, yes.publicKey) })
       .signers([yes])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await marketProgram.methods
       .bet(1, new anchor.BN(0.2 * LAMPORTS_PER_SOL))
       .accounts({ bettor: no.publicKey, run: run1, market: mktF, position: posPda(mktF, no.publicKey) })
       .signers([no])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     // Voidable + deadline markets get one bet each.
     await marketProgram.methods
       .bet(0, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
       .accounts({ bettor: yes.publicKey, run: run1, market: mktV, position: posPda(mktV, yes.publicKey) })
       .signers([yes])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await marketProgram.methods
       .bet(1, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
       .accounts({ bettor: no.publicKey, run: run1, market: mktX, position: posPda(mktX, no.publicKey) })
       .signers([no])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // Only the authority can void, and only while the run is still unscored.
     await expectAnchorError(
@@ -575,7 +598,7 @@ describe("Sealed", () => {
       .voidMarket()
       .accounts({ authority: owner.publicKey, run: run1, market: mktV })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const mv = await marketProgram.account.market.fetch(mktV);
     expect(mv.status).to.equal(2, "voided");
 
@@ -585,7 +608,7 @@ describe("Sealed", () => {
       .claim()
       .accounts({ bettor: yes.publicKey, market: mktV, position: posPda(mktV, yes.publicKey) })
       .signers([yes])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const yesAfter = await provider.connection.getBalance(yes.publicKey);
     expect(yesAfter - yesBefore).to.be.greaterThan(0.04 * LAMPORTS_PER_SOL, "voided market refunded");
 
@@ -608,14 +631,14 @@ describe("Sealed", () => {
     await marketProgram.methods
       .expireMarket()
       .accounts({ market: mktX, runA: run1, runB: run1 })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const mx = await marketProgram.account.market.fetch(mktX);
     expect(mx.status).to.equal(2, "expired");
     await marketProgram.methods
       .claim()
       .accounts({ bettor: no.publicKey, market: mktX, position: posPda(mktX, no.publicKey) })
       .signers([no])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // MPC-score run #1: 10+0 planted -> 10 < 30 -> NO wins.
     let total = 0;
@@ -625,7 +648,7 @@ describe("Sealed", () => {
         .scoreChunk(offset, new anchor.BN(1), i, runOutputs[i].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, i))
         .accountsPartial({ payer: runner.publicKey, run: run1, runner: runner.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
         .signers([runner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
       total += planted[i];
     }
@@ -665,7 +688,7 @@ describe("Sealed", () => {
     await marketProgram.methods
       .resolve()
       .accounts({ run: run1, market: mkt })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await marketProgram.account.market.fetch(mkt);
     expect(m.status).to.equal(1, "resolved");
     expect(m.outcome).to.equal(0, "score < threshold wins");
@@ -676,7 +699,7 @@ describe("Sealed", () => {
     await marketProgram.methods
       .resolve()
       .accounts({ run: run1, market: mkt3 })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const m3 = await marketProgram.account.market.fetch(mkt3);
     expect(m3.status).to.equal(1);
     expect(m3.outcome).to.equal(1, "10 lands in the 10..19 band");
@@ -685,7 +708,7 @@ describe("Sealed", () => {
     await marketProgram.methods
       .resolve()
       .accounts({ run: run1, market: mktF })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const mF = await marketProgram.account.market.fetch(mktF);
     expect(mF.status).to.equal(1);
     expect(mF.outcome).to.equal(0);
@@ -698,7 +721,7 @@ describe("Sealed", () => {
       .claimFee()
       .accounts({ authority: owner.publicKey, market: mktF })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const authAfter = await provider.connection.getBalance(owner.publicKey);
     expect(authAfter - authBefore).to.be.greaterThan(0.01 * LAMPORTS_PER_SOL, "fee collected");
     await expectAnchorError(
@@ -718,21 +741,21 @@ describe("Sealed", () => {
       .claim()
       .accounts({ bettor: yes.publicKey, market: mktF, position: posPda(mktF, yes.publicKey) })
       .signers([yes])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const yesF2 = await provider.connection.getBalance(yes.publicKey);
     expect(yesF2 - yesF).to.be.greaterThan(0.35 * LAMPORTS_PER_SOL, "winner paid after fee-claim-first");
     await marketProgram.methods
       .claim()
       .accounts({ bettor: no.publicKey, market: mktF, position: posPda(mktF, no.publicKey) })
       .signers([no])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // Loser still closes its position (payout 0, rent back) — no locked account.
     await marketProgram.methods
       .claim()
       .accounts({ bettor: yes.publicKey, market: mkt, position: posPda(mkt, yes.publicKey) })
       .signers([yes])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const gone = await marketProgram.account.position.fetchNullable(posPda(mkt, yes.publicKey));
     expect(gone).to.equal(null, "losing position closed");
 
@@ -741,7 +764,7 @@ describe("Sealed", () => {
       .claim()
       .accounts({ bettor: no.publicKey, market: mkt, position: posPda(mkt, no.publicKey) })
       .signers([no])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const noAfter = await provider.connection.getBalance(no.publicKey);
     expect(noAfter - noBefore).to.be.greaterThan(0.04 * LAMPORTS_PER_SOL, "NO bettor profited");
     console.log(`market settled: NO bettor ${noBefore / LAMPORTS_PER_SOL} -> ${noAfter / LAMPORTS_PER_SOL} SOL, fee claimed`);
@@ -762,7 +785,7 @@ describe("Sealed", () => {
         .createBenchmark(GEN_ID, "sealed-gen", GCHUNKS, Array.from(new Uint8Array(32)), new anchor.BN(0), 1)
         .accounts({ authority: owner.publicKey })
         .signers([owner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       b = await program.account.benchmark.fetch(benchmark);
     }
     expect(b.kind).to.equal(1);
@@ -770,10 +793,10 @@ describe("Sealed", () => {
     const [chunk] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchmark.toBuffer(), u16le(0)], program.programId);
     const [itemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
     if (!(await program.account.answerChunk.fetchNullable(chunk))) {
-      await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ commitment: "confirmed" });
+      await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     if (!(await program.account.itemChunk.fetchNullable(itemsPda))) {
-      await program.methods.initItems(0).accounts({ authority: owner.publicKey, benchmark, items: itemsPda }).signers([owner]).rpc({ commitment: "confirmed" });
+      await program.methods.initItems(0).accounts({ authority: owner.publicKey, benchmark, items: itemsPda }).signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
 
     // Authored-only paths must reject a generated bank.
@@ -798,7 +821,7 @@ describe("Sealed", () => {
         .genPart(offset, 0, p)
         .accountsPartial({ payer: owner.publicKey, benchmark, chunk, items: itemsPda, ...arciumAccounts(offset, "gen_part") })
         .signers([owner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       const finalizeSig = await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
       state = await program.account.answerChunk.fetch(chunk);
       if (!(state.partsSealed & (1 << p))) await dumpTx(provider, finalizeSig);
@@ -828,14 +851,14 @@ describe("Sealed", () => {
       .createRun("test/gen-oracle", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
       .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     const r = await program.account.run.fetch(run);
     expect(r.status).to.equal(1, "finalized");
@@ -857,7 +880,7 @@ describe("Sealed", () => {
         .createBenchmark(PRIV_ID, "sealed-priv", PCHUNKS, Array.from(new Uint8Array(32)), new anchor.BN(0), 2)
         .accounts({ authority: owner.publicKey })
         .signers([owner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       b = await program.account.benchmark.fetch(benchmark);
     }
     expect(b.kind).to.equal(2);
@@ -866,10 +889,10 @@ describe("Sealed", () => {
     const [pitemsPda] = PublicKey.findProgramAddressSync([Buffer.from("pitems"), benchmark.toBuffer(), u16le(0)], program.programId);
     const [pubItemsPda] = PublicKey.findProgramAddressSync([Buffer.from("items"), benchmark.toBuffer(), u16le(0)], program.programId);
     if (!(await program.account.answerChunk.fetchNullable(chunk))) {
-      await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ commitment: "confirmed" });
+      await program.methods.initChunk(0).accounts({ authority: owner.publicKey, benchmark }).signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     if (!(await program.account.privItemChunk.fetchNullable(pitemsPda))) {
-      await program.methods.initItemsPrivate(0).accounts({ authority: owner.publicKey, benchmark, items: pitemsPda }).signers([owner]).rpc({ commitment: "confirmed" });
+      await program.methods.initItemsPrivate(0).accounts({ authority: owner.publicKey, benchmark, items: pitemsPda }).signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
 
     // The public-items path must reject a private bank (would publish its specs).
@@ -912,7 +935,7 @@ describe("Sealed", () => {
         .genPartPrivate(offset, 0, p, Array.from(viewerPub))
         .accountsPartial({ payer: owner.publicKey, benchmark, chunk, items: pitemsPda, ...arciumAccounts(offset, "gen_part_private") })
         .signers([owner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       const finalizeSig = await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
       state = await program.account.answerChunk.fetch(chunk);
       if (!(state.partsSealed & (1 << p))) await dumpTx(provider, finalizeSig);
@@ -978,14 +1001,14 @@ describe("Sealed", () => {
       .createRun("test/priv-oracle", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
       .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     const r = await program.account.run.fetch(run);
     expect(r.status).to.equal(1, "finalized");
@@ -1034,7 +1057,7 @@ describe("Sealed", () => {
       .resharePart(offset, 0, 0, Array.from(delegatePub))
       .accountsPartial({ payer: owner.publicKey, benchmark, items: pitemsPda, grant, ...arciumAccounts(offset, "reshare_part") })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     const g: any = await program.account.shareGrant.fetch(grant);
     expect(g.chunkIndex).to.equal(0);
@@ -1112,7 +1135,7 @@ describe("Sealed", () => {
         .resharePart(offset, 0, p, Array.from(runnerPub))
         .accountsPartial({ payer: owner.publicKey, benchmark, items: pitemsPda, grant: g, ...arciumAccounts(offset, "reshare_part") })
         .signers([owner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     }
 
@@ -1143,14 +1166,14 @@ describe("Sealed", () => {
       .createRun("delegate/runner-1", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     const offset = new anchor.BN(randomBytes(8), "hex");
     await program.methods
       .scoreChunk(offset, new anchor.BN(runIndex.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     const r = await program.account.run.fetch(run);
     expect(r.status).to.equal(1, "finalized");
@@ -1183,7 +1206,7 @@ describe("Sealed", () => {
         .createRun(model, Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
         .accountsPartial({ runner: kp.publicKey, authority: owner.publicKey, benchmark, run })
         .signers([kp])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       return { run, outputs, outLeaves };
     };
     const A = await mkRun(runnerA, "duel/model-a", idx0, 25);
@@ -1203,7 +1226,7 @@ describe("Sealed", () => {
         .createDuel(new anchor.BN(7), 0, BN0, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, runA, runB: runA, market: duelPda(runA, runA, 7n) })
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "RunsMustDiffer",
     );
 
@@ -1213,7 +1236,7 @@ describe("Sealed", () => {
         .createDuel(new anchor.BN(8), 0, BN0, BN0)
         .accounts({ authority: owner.publicKey, runA, runB, market: duelPda(runA, runB, 8n) })
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "DeadlineTooSoon",
     );
 
@@ -1222,7 +1245,7 @@ describe("Sealed", () => {
       .createDuel(new anchor.BN(0), 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, runA, runB, market: mkt })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     let m = await marketProgram.account.market.fetch(mkt);
     expect(m.nOutcomes).to.equal(3);
     expect(m.runB.toBase58()).to.equal(runB.toBase58());
@@ -1234,13 +1257,13 @@ describe("Sealed", () => {
     await fund(provider, owner, betTie.publicKey, 0.1 * LAMPORTS_PER_SOL);
     await marketProgram.methods.betDuel(0, new anchor.BN(0.30 * LAMPORTS_PER_SOL))
       .accounts({ bettor: betA.publicKey, runA, runB, market: mkt, position: posPda(mkt, betA.publicKey) })
-      .signers([betA]).rpc({ commitment: "confirmed" });
+      .signers([betA]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await marketProgram.methods.betDuel(1, new anchor.BN(0.20 * LAMPORTS_PER_SOL))
       .accounts({ bettor: betB.publicKey, runA, runB, market: mkt, position: posPda(mkt, betB.publicKey) })
-      .signers([betB]).rpc({ commitment: "confirmed" });
+      .signers([betB]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await marketProgram.methods.betDuel(2, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
       .accounts({ bettor: betTie.publicKey, runA, runB, market: mkt, position: posPda(mkt, betTie.publicKey) })
-      .signers([betTie]).rpc({ commitment: "confirmed" });
+      .signers([betTie]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await marketProgram.account.market.fetch(mkt);
     expect(Number(m.totals[0]) + Number(m.totals[1]) + Number(m.totals[2])).to.equal(0.55 * LAMPORTS_PER_SOL);
 
@@ -1252,7 +1275,7 @@ describe("Sealed", () => {
         .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
         .accountsPartial({ payer: kp.publicKey, run, runner: kp.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
         .signers([kp])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     };
     await score(runnerA, runA, idx0, A.outputs, A.outLeaves);
@@ -1261,7 +1284,7 @@ describe("Sealed", () => {
     await expectAnchorError(
       marketProgram.methods.betDuel(1, new anchor.BN(1000))
         .accounts({ bettor: betB.publicKey, runA, runB, market: mkt, position: posPda(mkt, betB.publicKey) })
-        .signers([betB]).rpc({ commitment: "confirmed" }),
+        .signers([betB]).rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "RunNotPending",
     );
 
@@ -1272,7 +1295,7 @@ describe("Sealed", () => {
     await marketProgram.methods
       .resolveDuel()
       .accounts({ runA, runB, market: mkt })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await marketProgram.account.market.fetch(mkt);
     expect(m.status).to.equal(1, "resolved");
     expect(m.outcome).to.equal(0, "model A wins 25-19");
@@ -1283,7 +1306,7 @@ describe("Sealed", () => {
       .claim()
       .accounts({ bettor: betA.publicKey, market: mkt, position: posPda(mkt, betA.publicKey) })
       .signers([betA])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const after = await provider.connection.getBalance(betA.publicKey);
     expect(after).to.be.greaterThan(before, "winner paid pro-rata");
     console.log(`duel settled: model-a ${25} vs model-b ${19} — A bettor ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
@@ -1311,7 +1334,7 @@ describe("Sealed", () => {
         .createRun(model, Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
         .accountsPartial({ runner: kp.publicKey, authority: owner.publicKey, benchmark, run })
         .signers([kp])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       return { run, outputs, outLeaves };
     };
     const legs = [
@@ -1335,7 +1358,7 @@ describe("Sealed", () => {
         .accounts({ authority: owner.publicKey, ladder: ladderPda(legPks[0], 7n) })
         .remainingAccounts([legMeta(legPks[0]), legMeta(legPks[1]), legMeta(legPks[0])])
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "RunsMustDiffer",
     );
     // closes_at is REQUIRED for ladders — an open-ended window invites sniping.
@@ -1345,7 +1368,7 @@ describe("Sealed", () => {
         .accounts({ authority: owner.publicKey, ladder: ladderPda(legPks[0], 8n) })
         .remainingAccounts(legPks.map(legMeta))
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "DeadlineTooSoon",
     );
 
@@ -1355,7 +1378,7 @@ describe("Sealed", () => {
       .accounts({ authority: owner.publicKey, ladder: mkt })
       .remainingAccounts(legPks.map(legMeta))
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     let l = await marketProgram.account.ladder.fetch(mkt);
     expect(l.legCount).to.equal(3);
     expect(l.legs[2].toBase58()).to.equal(legPks[2].toBase58());
@@ -1369,7 +1392,7 @@ describe("Sealed", () => {
       await marketProgram.methods.betLadder(i, new anchor.BN(stakes[i] * LAMPORTS_PER_SOL))
         .accounts({ bettor: bettors[i].publicKey, ladder: mkt, position: posPda(mkt, bettors[i].publicKey) })
         .remainingAccounts(legPks.map(legMeta))
-        .signers([bettors[i]]).rpc({ commitment: "confirmed" });
+        .signers([bettors[i]]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     l = await marketProgram.account.ladder.fetch(mkt);
     expect(Number(l.totals[0]) + Number(l.totals[1]) + Number(l.totals[2])).to.equal(0.6 * LAMPORTS_PER_SOL);
@@ -1380,7 +1403,7 @@ describe("Sealed", () => {
         .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
         .accountsPartial({ payer: kp.publicKey, run, runner: kp.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
         .signers([kp])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     };
 
@@ -1391,7 +1414,7 @@ describe("Sealed", () => {
       marketProgram.methods.betLadder(1, new anchor.BN(1000))
         .accounts({ bettor: bettors[1].publicKey, ladder: mkt, position: posPda(mkt, bettors[1].publicKey) })
         .remainingAccounts(legPks.map(legMeta))
-        .signers([bettors[1]]).rpc({ commitment: "confirmed" }),
+        .signers([bettors[1]]).rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "RunNotPending",
     );
 
@@ -1402,14 +1425,14 @@ describe("Sealed", () => {
       marketProgram.methods.resolveLadder()
         .accounts({ ladder: mkt })
         .remainingAccounts([legMeta(legPks[1]), legMeta(legPks[0]), legMeta(legPks[2])])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "LegMismatch",
     );
 
     await marketProgram.methods.resolveLadder()
       .accounts({ ladder: mkt })
       .remainingAccounts(legPks.map(legMeta))
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     l = await marketProgram.account.ladder.fetch(mkt);
     expect(l.status).to.equal(1, "resolved");
     expect(l.resultMask).to.equal(0b001, "leg 0 wins outright");
@@ -1419,7 +1442,7 @@ describe("Sealed", () => {
     await marketProgram.methods.claimLadder()
       .accounts({ bettor: bettors[0].publicKey, ladder: mkt, position: posPda(mkt, bettors[0].publicKey) })
       .signers([bettors[0]])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const after = await provider.connection.getBalance(bettors[0].publicKey);
     expect(after).to.be.greaterThan(before, "winning leg paid pro-rata");
     console.log(`ladder settled: 30/20/10 — leg-0 bettor ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
@@ -1447,7 +1470,7 @@ describe("Sealed", () => {
         .createRun(model, Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
         .accountsPartial({ runner: kp.publicKey, authority: owner.publicKey, benchmark, run })
         .signers([kp])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       return { run, outputs, outLeaves };
     };
     // A and B tie at 25 — the dead-heat; C loses at 10.
@@ -1467,7 +1490,7 @@ describe("Sealed", () => {
       .accounts({ authority: owner.publicKey, ladder: mkt })
       .remainingAccounts(legPks.map(legMeta))
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     const bettors = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
     await fund(provider, owner, bettors[0].publicKey, 0.4 * LAMPORTS_PER_SOL);
@@ -1480,7 +1503,7 @@ describe("Sealed", () => {
       await marketProgram.methods.betLadder(i, new anchor.BN(stakes[i] * LAMPORTS_PER_SOL))
         .accounts({ bettor: bettors[i].publicKey, ladder: mkt, position: posPda(mkt, bettors[i].publicKey) })
         .remainingAccounts(legPks.map(legMeta))
-        .signers([bettors[i]]).rpc({ commitment: "confirmed" });
+        .signers([bettors[i]]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
 
     const score = async (kp: Keypair, run: PublicKey, idx: bigint, outputs: bigint[], outLeaves: Uint8Array[]) => {
@@ -1489,7 +1512,7 @@ describe("Sealed", () => {
         .scoreChunk(offset, new anchor.BN(idx.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
         .accountsPartial({ payer: kp.publicKey, run, runner: kp.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
         .signers([kp])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     };
     for (let i = 0; i < 3; i++) await score(runners[i], legPks[i], idx0 + BigInt(i), legs[i].outputs, legs[i].outLeaves);
@@ -1497,7 +1520,7 @@ describe("Sealed", () => {
     await marketProgram.methods.resolveLadder()
       .accounts({ ladder: mkt })
       .remainingAccounts(legPks.map(legMeta))
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const l = await marketProgram.account.ladder.fetch(mkt);
     expect(l.status).to.equal(1, "resolved");
     expect(l.resultMask).to.equal(0b011, "legs 0+1 dead-heat");
@@ -1515,7 +1538,7 @@ describe("Sealed", () => {
         await marketProgram.methods.claimLadder()
           .accounts({ bettor: bettors[i].publicKey, ladder: mkt, position: pos })
           .signers([bettors[i]])
-          .rpc({ commitment: "confirmed" });
+          .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       } catch (e) {
         expect(claims[i]).to.equal(0, "only losers' claims may fail");
         continue;
@@ -1546,7 +1569,7 @@ describe("Sealed", () => {
       .createRun("dark/model-a", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     const darkPda = (r: PublicKey, salt: bigint) =>
       PublicKey.findProgramAddressSync([Buffer.from("dark"), r.toBuffer(), u64le(salt)], marketProgram.programId)[0];
@@ -1563,7 +1586,7 @@ describe("Sealed", () => {
       .createDark(new anchor.BN(0), [20], 200, new anchor.BN(0), FAR_FUTURE, new anchor.BN(60))
       .accounts({ authority: owner.publicKey, run, darkMarket: mkt })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     let m: any = await (marketProgram.account as any).darkMarket.fetch(mkt);
     expect(m.status).to.equal(0, "open");
     expect(m.revealSecs.toNumber()).to.equal(60);
@@ -1581,7 +1604,7 @@ describe("Sealed", () => {
         .darkBet(new anchor.BN(0), Array.from(commitment(mkt, b.bettor.publicKey, b.outcome, b.lamports, b.salt)), new anchor.BN(b.lamports.toString()))
         .accounts({ bettor: b.bettor.publicKey, run, darkMarket: mkt, position: darkPosPda(mkt, b.bettor.publicKey, 0n) })
         .signers([b.bettor])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     m = await (marketProgram.account as any).darkMarket.fetch(mkt);
     expect(m.poolTotal.toNumber()).to.equal(0.6 * LAMPORTS_PER_SOL);
@@ -1595,7 +1618,7 @@ describe("Sealed", () => {
         .revealDark(new anchor.BN(0), 1, Array.from(bets[0].salt))
         .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
         .signers([bettors[0]])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "MarketNotResolved",
     );
 
@@ -1605,14 +1628,14 @@ describe("Sealed", () => {
       .scoreChunk(offset, new anchor.BN(idx0.toString()), 0, outputs.map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run, runner: runner.publicKey, chunk, ...arciumAccounts(offset, "score_chunk") })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     expect((await program.account.run.fetch(run)).correct).to.equal(30);
 
     await marketProgram.methods
       .resolveDark()
       .accounts({ run, darkMarket: mkt })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await (marketProgram.account as any).darkMarket.fetch(mkt);
     expect(m.status).to.equal(1, "resolved");
     expect(m.outcome).to.equal(1, "30 >= 20");
@@ -1624,7 +1647,7 @@ describe("Sealed", () => {
         .revealDark(new anchor.BN(0), 1, Array.from(randomBytes(32)))
         .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
         .signers([bettors[0]])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "BadReveal",
     );
     await expectAnchorError(
@@ -1632,7 +1655,7 @@ describe("Sealed", () => {
         .revealDark(new anchor.BN(0), 0, Array.from(bets[0].salt))
         .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
         .signers([bettors[0]])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "BadReveal",
     );
 
@@ -1641,7 +1664,7 @@ describe("Sealed", () => {
       .revealDark(new anchor.BN(0), 1, Array.from(bets[0].salt))
       .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
       .signers([bettors[0]])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await (marketProgram.account as any).darkMarket.fetch(mkt);
     expect(m.revealedCount).to.equal(1);
     expect(m.winTotal.toNumber()).to.equal(0.30 * LAMPORTS_PER_SOL);
@@ -1650,21 +1673,21 @@ describe("Sealed", () => {
         .revealDark(new anchor.BN(0), 1, Array.from(bets[0].salt))
         .accounts({ bettor: bettors[0].publicKey, market: mkt, position: darkPosPda(mkt, bettors[0].publicKey, 0n) })
         .signers([bettors[0]])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "AlreadyRevealed",
     );
     await marketProgram.methods
       .revealDark(new anchor.BN(0), 0, Array.from(bets[2].salt))
       .accounts({ bettor: bettors[2].publicKey, market: mkt, position: darkPosPda(mkt, bettors[2].publicKey, 0n) })
       .signers([bettors[2]])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await (marketProgram.account as any).darkMarket.fetch(mkt);
     expect(m.revealedCount).to.equal(2);
     expect(m.winTotal.toNumber()).to.equal(0.30 * LAMPORTS_PER_SOL, "losing reveals don't count");
 
     // bettor[1] never reveals — their winning stake forfeits into the pot.
     await new Promise((r) => setTimeout(r, 63_000));
-    await marketProgram.methods.finalizeDark().accounts({ darkMarket: mkt }).rpc({ commitment: "confirmed" });
+    await marketProgram.methods.finalizeDark().accounts({ darkMarket: mkt }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     m = await (marketProgram.account as any).darkMarket.fetch(mkt);
     expect(m.tallied).to.equal(true);
     await expectAnchorError(
@@ -1672,7 +1695,7 @@ describe("Sealed", () => {
         .revealDark(new anchor.BN(0), 1, Array.from(bets[1].salt))
         .accounts({ bettor: bettors[1].publicKey, market: mkt, position: darkPosPda(mkt, bettors[1].publicKey, 0n) })
         .signers([bettors[1]])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "RevealWindowClosed",
     );
 
@@ -1687,13 +1710,13 @@ describe("Sealed", () => {
         .claimDark(new anchor.BN(0))
         .accounts({ bettor: b.bettor.publicKey, market: mkt, position: pos })
         .signers([b.bettor])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       const after = await provider.connection.getBalance(b.bettor.publicKey);
       expect(after - before).to.be.approximately(expected[i] * LAMPORTS_PER_SOL + rent, 20000, `position ${i} payout + rent`);
     }
     // Authority sweeps the 2% fee.
     const feeBefore = await provider.connection.getBalance(owner.publicKey);
-    await marketProgram.methods.claimFeeDark().accounts({ authority: owner.publicKey, darkMarket: mkt }).signers([owner]).rpc({ commitment: "confirmed" });
+    await marketProgram.methods.claimFeeDark().accounts({ authority: owner.publicKey, darkMarket: mkt }).signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const feeAfter = await provider.connection.getBalance(owner.publicKey);
     expect(feeAfter - feeBefore).to.be.approximately(0.012 * LAMPORTS_PER_SOL, 20000, "2% fee sweep");
     console.log("dark settled: sealed 0.30/0.20/0.10 → sole revealed winner took 0.588 net pot, no-show forfeited, fee 0.012");
@@ -1717,7 +1740,7 @@ describe("Sealed", () => {
       .createRun("dark/model-b", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     const darkPda = (r: PublicKey, salt: bigint) =>
       PublicKey.findProgramAddressSync([Buffer.from("dark"), r.toBuffer(), u64le(salt)], marketProgram.programId)[0];
@@ -1731,7 +1754,7 @@ describe("Sealed", () => {
       .createDark(new anchor.BN(0), [20], 0, new anchor.BN(0), FAR_FUTURE, new anchor.BN(60))
       .accounts({ authority: owner.publicKey, run, darkMarket: mkt })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const bettor = Keypair.generate();
     await fund(provider, owner, bettor.publicKey, 0.3 * LAMPORTS_PER_SOL);
     const lamports = BigInt(0.05 * LAMPORTS_PER_SOL);
@@ -1739,16 +1762,16 @@ describe("Sealed", () => {
       .darkBet(new anchor.BN(0), Array.from(commitment(mkt, bettor.publicKey, 1, lamports, randomBytes(32))), new anchor.BN(lamports.toString()))
       .accounts({ bettor: bettor.publicKey, run, darkMarket: mkt, position: darkPosPda(mkt, bettor.publicKey, 0n) })
       .signers([bettor])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // Only the market authority can void — and only while the run is unscored.
     const stranger = Keypair.generate();
     await fund(provider, owner, stranger.publicKey, 0.05 * LAMPORTS_PER_SOL);
     await expectAnchorError(
-      marketProgram.methods.voidDark().accounts({ authority: stranger.publicKey, run, darkMarket: mkt }).signers([stranger]).rpc({ commitment: "confirmed" }),
+      marketProgram.methods.voidDark().accounts({ authority: stranger.publicKey, run, darkMarket: mkt }).signers([stranger]).rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "NotAuthority",
     );
-    await marketProgram.methods.voidDark().accounts({ authority: owner.publicKey, run, darkMarket: mkt }).signers([owner]).rpc({ commitment: "confirmed" });
+    await marketProgram.methods.voidDark().accounts({ authority: owner.publicKey, run, darkMarket: mkt }).signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const m: any = await (marketProgram.account as any).darkMarket.fetch(mkt);
     expect(m.status).to.equal(2, "cancelled");
 
@@ -1760,7 +1783,7 @@ describe("Sealed", () => {
       .claimDark(new anchor.BN(0))
       .accounts({ bettor: bettor.publicKey, market: mkt, position: pos })
       .signers([bettor])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const after = await provider.connection.getBalance(bettor.publicKey);
     expect(after - before).to.be.approximately(Number(lamports) + rent, 20000, "full refund + rent");
     console.log("dark voided: sealed 0.05 refunded in full without revealing the preimage");
@@ -1793,7 +1816,7 @@ describe("Sealed", () => {
       .createRun("test/sweep-run", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: runP })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // A second run that is never scored — the dead-run leg of the duel below.
     const idxQ = runIndex + 1;
@@ -1807,7 +1830,7 @@ describe("Sealed", () => {
       .createRun("test/dead-run", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runnerQ.publicKey, authority: owner.publicKey, benchmark, run: runQ })
       .signers([runnerQ])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // Unreachable buckets are rejected: edges[0]==0 makes bucket 0 unwinnable.
     const mktPdaX = (salt: bigint) =>
@@ -1817,7 +1840,7 @@ describe("Sealed", () => {
         .createMarket(new anchor.BN(20), [0, 30], 0, BN0, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, run: runP, market: mktPdaX(20n) })
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "InvalidEdges",
     );
 
@@ -1829,14 +1852,14 @@ describe("Sealed", () => {
       .createMarket(new anchor.BN(21), [40], 0, BN0, FAR_FUTURE)
       .accounts({ authority: owner.publicKey, run: runP, market: mkt })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const bettor = Keypair.generate();
     await fund(provider, owner, bettor.publicKey, 0.3 * LAMPORTS_PER_SOL);
     await marketProgram.methods
       .bet(1, new anchor.BN(0.1 * LAMPORTS_PER_SOL))
       .accounts({ bettor: bettor.publicKey, run: runP, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
       .signers([bettor])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     // Back the losing side too — an unbacked bucket cancels on resolve.
     const loser = Keypair.generate();
     await fund(provider, owner, loser.publicKey, 0.1 * LAMPORTS_PER_SOL);
@@ -1844,7 +1867,7 @@ describe("Sealed", () => {
       .bet(0, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
       .accounts({ bettor: loser.publicKey, run: runP, market: mkt, position: posPdaX(mkt, loser.publicKey) })
       .signers([loser])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
     // Duel: runP vs runQ, created while both are still pending.
     const duelPdaX = (a: PublicKey, bb: PublicKey, salt: bigint) =>
@@ -1855,15 +1878,15 @@ describe("Sealed", () => {
       .createDuel(new anchor.BN(0), 0, BN0, new anchor.BN(resolveBy))
       .accounts({ authority: owner.publicKey, runA: runP, runB: runQ, market: mktD })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await marketProgram.methods
       .betDuel(0, new anchor.BN(0.05 * LAMPORTS_PER_SOL))
       .accounts({ bettor: bettor.publicKey, runA: runP, runB: runQ, market: mktD, position: posPdaX(mktD, bettor.publicKey) })
       .signers([bettor])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     // Before the deadline even the dead run can't cancel the market.
     await expectAnchorError(
-      marketProgram.methods.expireMarket().accounts({ market: mktD, runA: runP, runB: runQ }).rpc({ commitment: "confirmed" }),
+      marketProgram.methods.expireMarket().accounts({ market: mktD, runA: runP, runB: runQ }).rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "MarketNotExpired",
     );
 
@@ -1873,7 +1896,7 @@ describe("Sealed", () => {
       .scoreChunk(off0, new anchor.BN(runIndex), 0, runOutputs[0].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 0))
       .accountsPartial({ payer: runner.publicKey, run: runP, runner: runner.publicKey, chunk: chunks[0], ...arciumAccounts(off0, "score_chunk") })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     let r: any = await program.account.run.fetch(runP);
     expect(r.pendingSince.toNumber()).to.be.greaterThan(0, "scoring-start latch set");
 
@@ -1882,7 +1905,7 @@ describe("Sealed", () => {
         .bet(0, new anchor.BN(1000))
         .accounts({ bettor: bettor.publicKey, run: runP, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
         .signers([bettor])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "ScoringStarted",
     );
 
@@ -1894,7 +1917,7 @@ describe("Sealed", () => {
         .resetPending(new anchor.BN(runIndex), 0)
         .accounts({ sweeper: stranger.publicKey, run: runP })
         .signers([stranger])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "NotRunner",
     );
 
@@ -1903,7 +1926,7 @@ describe("Sealed", () => {
       .resetPending(new anchor.BN(runIndex), 0)
       .accounts({ sweeper: runner.publicKey, run: runP })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     r = await program.account.run.fetch(runP);
     expect(r.pendingMask.toNumber() & 1).to.equal(0, "bit swept");
     expect(r.pendingSince.toNumber()).to.be.greaterThan(0, "latch stays set");
@@ -1915,7 +1938,7 @@ describe("Sealed", () => {
         .resetPending(new anchor.BN(runIndex), 1)
         .accounts({ sweeper: stranger.publicKey, run: runP })
         .signers([stranger])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "ChunkNotPending",
     );
 
@@ -1927,7 +1950,7 @@ describe("Sealed", () => {
         .bet(1, new anchor.BN(1000))
         .accounts({ bettor: bettor.publicKey, run: runP, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
         .signers([bettor])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "ScoringStarted",
     );
     await expectAnchorError(
@@ -1935,7 +1958,7 @@ describe("Sealed", () => {
         .createMarket(new anchor.BN(22), [40], 0, BN0, FAR_FUTURE)
         .accounts({ authority: owner.publicKey, run: runP, market: mktPdaX(22n) })
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "ScoringStarted",
     );
 
@@ -1951,7 +1974,7 @@ describe("Sealed", () => {
       .scoreChunk(off1, new anchor.BN(runIndex), 1, runOutputs[1].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, 1))
       .accountsPartial({ payer: runner.publicKey, run: runP, runner: runner.publicKey, chunk: chunks[1], ...arciumAccounts(off1, "score_chunk") })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await awaitComputationFinalization(provider, off1, program.programId, "confirmed");
     r = await program.account.run.fetch(runP);
     expect(r.status).to.equal(1, "finalized");
@@ -1962,17 +1985,17 @@ describe("Sealed", () => {
       .attestRun(new anchor.BN(runIndex))
       .accounts({ authority: owner.publicKey, benchmark, run: runP })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await expectAnchorError(
       program.methods
         .attestRun(new anchor.BN(runIndex))
         .accounts({ authority: owner.publicKey, benchmark, run: runP })
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "AlreadyAttested",
     );
 
-    await marketProgram.methods.resolve().accounts({ run: runP, market: mkt }).rpc({ commitment: "confirmed" });
+    await marketProgram.methods.resolve().accounts({ run: runP, market: mkt }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     // Prove it was a real WIN, not a cancelled-market refund: both buckets were
     // backed and outcome 1 (yes-bucket) must be settled.
     const mAfterResolve = await marketProgram.account.market.fetch(mkt);
@@ -1983,7 +2006,7 @@ describe("Sealed", () => {
       .claim()
       .accounts({ bettor: bettor.publicKey, market: mkt, position: posPdaX(mkt, bettor.publicKey) })
       .signers([bettor])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const after = await provider.connection.getBalance(bettor.publicKey);
     expect(after).to.be.greaterThan(before, "winner paid after swept computation landed");
 
@@ -1993,7 +2016,7 @@ describe("Sealed", () => {
     await marketProgram.methods
       .expireMarket()
       .accounts({ market: mktD, runA: runP, runB: runQ })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const md = await marketProgram.account.market.fetch(mktD);
     expect(md.status).to.equal(2, "dead-run duel expired and refundable");
     const rBefore = await provider.connection.getBalance(bettor.publicKey);
@@ -2001,7 +2024,7 @@ describe("Sealed", () => {
       .claim()
       .accounts({ bettor: bettor.publicKey, market: mktD, position: posPdaX(mktD, bettor.publicKey) })
       .signers([bettor])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     expect(await provider.connection.getBalance(bettor.publicKey)).to.be.greaterThan(
       rBefore,
       "expired duel refunded the bettor",
@@ -2017,19 +2040,19 @@ describe("Sealed", () => {
       .createBenchmark(RET_ID, "sealed-retire", 1, Array.from(randomBytes(32)), BN0, 0)
       .accounts({ authority: owner.publicKey })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await program.methods
       .retireBenchmark()
       .accounts({ authority: owner.publicKey, benchmark: benchR })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const [chunkR] = PublicKey.findProgramAddressSync([Buffer.from("chunk"), benchR.toBuffer(), u16le(0)], program.programId);
     await expectAnchorError(
       program.methods
         .initChunk(0)
         .accounts({ authority: owner.publicKey, benchmark: benchR, chunk: chunkR })
         .signers([owner])
-        .rpc({ commitment: "confirmed" }),
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" }),
       "BenchmarkRetired",
     );
     console.log("sweep latch, swept-callback landing, edges bound, double-attest, duel-expire bail, retire guard — all verified");
@@ -2048,9 +2071,80 @@ describe("Sealed", () => {
     await program.methods
       .initSignerPda()
       .accounts({ payer: owner.publicKey, signPdaAccount: signPda })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const after = await provider.connection.getAccountInfo(signPda);
     expect(after!.data.length).to.equal(9);
+  });
+
+  it("unbrick_pda reclaims grief prefunds and guards against wrong-seed drains", async () => {
+    // Anchor's `init` codegen already tolerates a prefunded PDA (it tops up
+    // to rent-exempt then allocate+assigns — the attacker's dust becomes a
+    // rent subsidy). `unbrick_pda` closes the loop: anyone can sweep the
+    // grief dust back out BEFORE init, so the prefunder loses their lamports
+    // and gains nothing. This test asserts the reclaim contract + guards.
+    const [benchmark] = PublicKey.findProgramAddressSync(
+      [Buffer.from("benchmark"), owner.publicKey.toBuffer(), u32le(AUTH_ID)],
+      program.programId,
+    );
+    const bank: any = await program.account.benchmark.fetch(benchmark);
+    const idx = BigInt(bank.runCount.toString());
+    const seeds = [Buffer.from("run"), benchmark.toBuffer(), u64le(idx)];
+    const [runPda, bump] = PublicKey.findProgramAddressSync(seeds, program.programId);
+
+    // Grief: dust onto the next run's PDA. Rent-exempt enforcement means the
+    // attacker must prefund at least the 0-data minimum — still ~0.0009 SOL.
+    const griefLamports = await provider.connection.getMinimumBalanceForRentExemption(0);
+    await sendWithRetry(() => provider.sendAndConfirm(
+      new anchor.web3.Transaction().add(
+        anchor.web3.SystemProgram.transfer({ fromPubkey: owner.publicKey, toPubkey: runPda, lamports: griefLamports }),
+      ),
+      [owner],
+      { preflightCommitment: "processed", commitment: "confirmed" },
+    ));
+
+    // unbrick_pda sweeps the prefund to the rescuer.
+    const rescuerBefore = await provider.connection.getBalance(owner.publicKey);
+    await program.methods
+      .unbrickPda(seeds, bump)
+      .accounts({ rescuer: owner.publicKey, pda: runPda })
+      .signers([owner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    // A fully-drained account is garbage-collected — either null or zero
+    // lamports, both un-block `create_account`.
+    const drained = await provider.connection.getAccountInfo(runPda);
+    expect(drained === null || drained.lamports === 0).to.equal(true);
+    const rescuerAfter = await provider.connection.getBalance(owner.publicKey);
+    expect(rescuerAfter - rescuerBefore).to.be.greaterThan(0); // dust recovered (minus fee)
+
+    // Wrong seeds can't drain — the proof pins drains to real PDAs.
+    await expectAnchorError(
+      program.methods
+        .unbrickPda([Buffer.from("run"), benchmark.toBuffer(), u64le(idx + 1n)], bump)
+        .accounts({ rescuer: owner.publicKey, pda: runPda })
+        .signers([owner])
+        .rpc(),
+      "NotProgramPda",
+    );
+
+    // Init lands on the cleaned PDA.
+    await program.methods
+      .createRun("post-grief", new Array(32).fill(0), new Array(32).fill(0))
+      .accounts({ runner: owner.publicKey, authority: owner.publicKey, benchmark, run: runPda })
+      .signers([owner])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    const r: any = await program.account.run.fetch(runPda);
+    expect(r.index.toString()).to.equal(idx.toString());
+
+    // And once initialized, unbrick must refuse — it can never drain a live
+    // program-owned account.
+    await expectAnchorError(
+      program.methods
+        .unbrickPda(seeds, bump)
+        .accounts({ rescuer: owner.publicKey, pda: runPda })
+        .signers([owner])
+        .rpc(),
+      "NotGriefedPda",
+    );
   });
 
   it("pays a capability bounty to the qualifying run's operator — FCFS, not a bet", async () => {
@@ -2087,7 +2181,7 @@ describe("Sealed", () => {
       .createBounty(new anchor.BN(1), THRESHOLD, POT, FAR_FUTURE)
       .accounts({ sponsor: owner.publicKey, bank: benchmark, bounty })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     let b: any = await marketProgram.account.bounty.fetch(bounty);
     expect(b.status).to.equal(0);
     expect(b.amount.toNumber()).to.equal(POT.toNumber());
@@ -2118,14 +2212,14 @@ describe("Sealed", () => {
       .createRun("test/bounty-claimant", Array.from(randomBytes(32)), Array.from(merkleRoot(outLeaves)))
       .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark, run: run2 })
       .signers([runner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     for (let i = 0; i < CHUNKS; i++) {
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
         .scoreChunk(offset, new anchor.BN(idx.toString()), i, runOutputs[i].map((o) => new anchor.BN(o.toString())), merkleProof(outLeaves, i))
         .accountsPartial({ payer: runner.publicKey, run: run2, runner: runner.publicKey, chunk: chunkPdas[i], ...arciumAccounts(offset, "score_chunk") })
         .signers([runner])
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     }
     const r2 = await program.account.run.fetch(run2);
@@ -2169,7 +2263,7 @@ describe("Sealed", () => {
       .createBounty(new anchor.BN(2), THRESHOLD, POT, shortDeadline)
       .accounts({ sponsor: owner.publicKey, bank: benchmark, bounty: bounty2 })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     // Before the deadline, expiry is rejected.
     await expectAnchorError(
       marketProgram.methods.expireBounty().accounts({ bounty: bounty2, sponsor: owner.publicKey }).rpc(),
@@ -2181,7 +2275,7 @@ describe("Sealed", () => {
     await marketProgram.methods
       .expireBounty()
       .accounts({ bounty: bounty2, sponsor: owner.publicKey })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const sponsorAfter = await provider.connection.getBalance(owner.publicKey);
     expect(sponsorAfter - sponsorBefore).to.be.greaterThan(POT.toNumber() - 50_000, "sponsor gets pot + rent back");
     expect(await marketProgram.account.bounty.fetchNullable(bounty2)).to.equal(null, "expired bounty closed");
@@ -2231,7 +2325,7 @@ describe("Sealed", () => {
       .revealPart(offset, 0, 0)
       .accountsPartial({ payer: owner.publicKey, benchmark, chunk, reveal, ...arciumAccounts(offset, "reveal_part") })
       .signers([owner])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await awaitComputationFinalization(provider, offset, program.programId, "confirmed");
     const rv: any = await program.account.reveal.fetch(reveal);
     expect(rv.revealedAt.toNumber()).to.be.greaterThan(0);
@@ -2275,7 +2369,7 @@ describe("Sealed", () => {
       .createRun("test/post-reveal", Array.from(randomBytes(32)), Array.from(randomBytes(32)))
       .accountsPartial({ runner: spoiled.publicKey, authority: owner.publicKey, benchmark, run: runNext })
       .signers([spoiled])
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     const r2: any = await program.account.run.fetch(runNext);
     expect(r2.postReveal).to.equal(1);
     const marketProgram = anchor.workspace.Market as Program<Market>;
@@ -2332,7 +2426,24 @@ async function waitChainTs(provider: anchor.AnchorProvider, ts: number) {
 
 async function fund(provider: anchor.AnchorProvider, from: Keypair, to: PublicKey, lamports: number) {
   const tx = new anchor.web3.Transaction().add(SystemProgram.transfer({ fromPubkey: from.publicKey, toPubkey: to, lamports }));
-  await provider.sendAndConfirm(tx, [from], { commitment: "confirmed" });
+  await provider.sendAndConfirm(tx, [from], { preflightCommitment: "processed", commitment: "confirmed" });
+}
+
+/** On a loaded box a tx's blockhash can expire while its simulation queues
+ *  behind Arcium callback traffic — "Simulation failed: Blockhash not
+ *  found". Rebuilding the tx per attempt fetches a fresh hash each time. */
+async function sendWithRetry(build: () => Promise<unknown>, attempts = 4) {
+  let last: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await build();
+    } catch (e: any) {
+      last = e;
+      if (!String(e?.message ?? e).includes("Blockhash not found")) throw e;
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  throw last;
 }
 
 async function expectAnchorError(p: Promise<unknown>, code: string) {

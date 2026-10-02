@@ -87,6 +87,19 @@ function setup(): Ctx {
   return { provider, program, wallet, clusterOffset };
 }
 
+/** Sealed program client WITHOUT the Arcium env — for read paths (run/bank
+ *  fetches) and recovery ixs like `unbrick_pda` that don't touch the cluster. */
+function sealedProgram(kpPath?: string) {
+  const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
+  const kp = kpPath
+    ? loadKeypair(kpPath)
+    : loadKeypair(process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json"));
+  const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { commitment: "confirmed" });
+  const idl = require(join(ROOT, "target", "idl", "sealed.json"));
+  if (process.env.SEALED_PROGRAM_ID) idl.address = process.env.SEALED_PROGRAM_ID;
+  return { program: new anchor.Program(idl, provider), kp, provider };
+}
+
 const u16le = (n: number) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
 const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
 const u64le = (n: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(n); return b; };
@@ -989,12 +1002,12 @@ async function marketResolve(marketPk: PublicKey, kpPath?: string) {
 async function marketClaim(marketPk: PublicKey, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const position = positionPda(marketPk, kp.publicKey, market.programId);
-  const before = await provider0(kp).getBalance(kp.publicKey);
+  const before = await provider0().getBalance(kp.publicKey);
   const sig = await (market.methods as any)
     .claim()
     .accounts({ bettor: kp.publicKey, market: marketPk, position })
     .rpc({ commitment: "confirmed" });
-  const after = await provider0(kp).getBalance(kp.publicKey);
+  const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
 
@@ -1034,16 +1047,16 @@ async function marketExpire(marketPk: PublicKey, kpPath?: string) {
 /** Authority collects the fee accrued at resolution. */
 async function marketClaimFee(marketPk: PublicKey, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
-  const before = await provider0(kp).getBalance(kp.publicKey);
+  const before = await provider0().getBalance(kp.publicKey);
   const sig = await (market.methods as any)
     .claimFee()
     .accounts({ authority: kp.publicKey, market: marketPk })
     .rpc({ commitment: "confirmed" });
-  const after = await provider0(kp).getBalance(kp.publicKey);
+  const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim-fee (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
 
-function provider0(kp: Keypair) {
+function provider0() {
   const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
   return new Connection(url, "confirmed");
 }
@@ -1108,12 +1121,12 @@ async function ladderResolve(ladderPk: PublicKey, kpPath?: string) {
 async function ladderClaim(ladderPk: PublicKey, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const position = positionPda(ladderPk, kp.publicKey, market.programId);
-  const before = await provider0(kp).getBalance(kp.publicKey);
+  const before = await provider0().getBalance(kp.publicKey);
   const sig = await (market.methods as any)
     .claimLadder()
     .accounts({ bettor: kp.publicKey, ladder: ladderPk, position })
     .rpc({ commitment: "confirmed" });
-  const after = await provider0(kp).getBalance(kp.publicKey);
+  const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
 
@@ -1130,12 +1143,12 @@ async function ladderVoid(ladderPk: PublicKey, kpPath?: string) {
 
 async function ladderClaimFee(ladderPk: PublicKey, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
-  const before = await provider0(kp).getBalance(kp.publicKey);
+  const before = await provider0().getBalance(kp.publicKey);
   const sig = await (market.methods as any)
     .claimFeeLadder()
     .accounts({ authority: kp.publicKey, ladder: ladderPk })
     .rpc({ commitment: "confirmed" });
-  const after = await provider0(kp).getBalance(kp.publicKey);
+  const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim-fee (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
 
@@ -1282,12 +1295,12 @@ async function darkFinalize(marketPk: PublicKey, kpPath?: string) {
 async function darkClaim(marketPk: PublicKey, posSalt: bigint, kpPath?: string) {
   const { market, kp } = marketProgram(kpPath);
   const position = darkPosPda(marketPk, kp.publicKey, posSalt, market.programId);
-  const before = await provider0(kp).getBalance(kp.publicKey);
+  const before = await provider0().getBalance(kp.publicKey);
   const sig = await (market.methods as any)
     .claimDark(new anchor.BN(posSalt.toString()))
     .accounts({ bettor: kp.publicKey, market: marketPk, position })
     .rpc({ commitment: "confirmed" });
-  const after = await provider0(kp).getBalance(kp.publicKey);
+  const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
 
@@ -1367,20 +1380,20 @@ async function bountyOpen(bank: PublicKey, threshold: number, amount: bigint, de
 }
 
 /** Permissionless claim — anyone may trigger it; the pot lands on the run's
- *  operator (`run.runner`), verified on-chain. */
+ *  operator (`run.runner`), verified on-chain. Needs no Arcium env: the run
+ *  fetch is a plain account read and the claim ix is sealed→market only. */
 async function bountyClaim(bountyPk: PublicKey, runPk: PublicKey, kpPath?: string) {
   const { market } = marketProgram(kpPath);
-  const ctx = setup();
-  const run: any = await (ctx.program.account as any).run.fetch(runPk);
-  const conn = provider0(ctx.wallet);
-  const before = await conn.getBalance(run.runner);
+  const { program, provider } = sealedProgram();
+  const run: any = await (program.account as any).run.fetch(runPk);
+  const before = await provider.connection.getBalance(run.runner);
   const sig = await (market.methods as any)
     .claimBounty()
     .accounts({ run: runPk, bounty: bountyPk, payee: run.runner })
     .rpc({ commitment: "confirmed" });
-  const afterBal = await conn.getBalance(run.runner);
+  const afterBal = await provider.connection.getBalance(run.runner);
   const b: any = await (market.account as any).bounty.fetch(bountyPk);
-  console.log(`bounty claimed (${sig}): run ${runPk.toBase58()} score=${b.winningScore} paid ${Number(before)} -> ${afterBal} lamports to runner ${run.runner.toBase58()}`);
+  console.log(`bounty claimed (${sig}): run ${runPk.toBase58()} score=${b.winningScore} paid ${afterBal - before} lamports to runner ${run.runner.toBase58()}`);
 }
 
 /** Permissionless expiry — pot + rent return to the stored sponsor. */
@@ -1396,7 +1409,14 @@ async function bountyExpire(bountyPk: PublicKey, kpPath?: string) {
 
 async function bountyShow(bountyPk: PublicKey) {
   const { market } = marketProgram();
-  const b: any = await (market.account as any).bounty.fetch(bountyPk);
+  let b: any;
+  try {
+    b = await (market.account as any).bounty.fetch(bountyPk);
+  } catch {
+    // `expire_bounty` closes the account — a missing PDA IS the expired state.
+    console.log(`bounty ${bountyPk.toBase58()} status=EXPIRED (account closed — escrow returned to sponsor)`);
+    return;
+  }
   const status = ["OPEN", "CLAIMED", "EXPIRED"][b.status as number] ?? `?${b.status}`;
   console.log(`bounty ${bountyPk.toBase58()} status=${status}`);
   console.log(`  bank=${b.bank.toBase58()} sponsor=${b.sponsor.toBase58()} threshold=${b.threshold} pot=${Number(b.amount) / LAMPORTS_PER_SOL} SOL`);
@@ -1404,6 +1424,53 @@ async function bountyShow(bountyPk: PublicKey) {
   console.log(`  created_at=${fmt(b.createdAt)} deadline=${fmt(b.deadline)}`);
   if (b.status === 1)
     console.log(`  winner_run=${b.winnerRun.toBase58()} winning_score=${b.winningScore}`);
+}
+
+/** `chain unbrick <sealed|market> <kind> <args…>` — sweep a grief-prefunded
+ *  PDA's lamports to this wallet, un-bricking its `init` path. The on-chain
+ *  ix re-derives the address from `seeds` under the program id, so only a
+ *  canonical PDA of that program can be drained. */
+async function unbrickPda(cmd: string[]) {
+  const [program, kind, ...a] = cmd;
+  const P = (s: string) => new PublicKey(s).toBuffer();
+  const u8 = (n: number) => Buffer.from([n]);
+  const salt = (s?: string) => u64le(BigInt(s ?? "0"));
+  let seeds: Buffer[] | undefined;
+  if (program === "sealed") {
+    switch (kind) {
+      case "benchmark": seeds = [Buffer.from("benchmark"), P(a[0]), u32le(Number(a[1]))]; break;
+      case "chunk": case "items": case "pitems":
+        seeds = [Buffer.from(kind), P(a[0]), u16le(Number(a[1]))]; break;
+      case "run": seeds = [Buffer.from("run"), P(a[0]), u64le(BigInt(a[1]))]; break;
+      case "reveal": seeds = [Buffer.from("reveal"), P(a[0]), u16le(Number(a[1])), u8(Number(a[2]))]; break;
+      case "grant": seeds = [Buffer.from("grant"), P(a[0]), u16le(Number(a[1])), u8(Number(a[2])), P(a[3])]; break;
+    }
+  } else if (program === "market") {
+    switch (kind) {
+      case "market": seeds = [Buffer.from("market"), P(a[0]), salt(a[1])]; break;
+      case "duel": seeds = [Buffer.from("duel"), P(a[0]), P(a[1]), salt(a[2])]; break;
+      case "position": seeds = [Buffer.from("position"), P(a[0]), P(a[1])]; break;
+      case "ladder": seeds = [Buffer.from("ladder"), P(a[0]), salt(a[1])]; break;
+      case "dark": seeds = [Buffer.from("dark"), P(a[0]), salt(a[1])]; break;
+      case "darkpos": seeds = [Buffer.from("darkpos"), P(a[0]), P(a[1]), salt(a[2])]; break;
+      case "bounty": seeds = [Buffer.from("bounty"), P(a[0]), P(a[1]), salt(a[2])]; break;
+    }
+  }
+  if (!seeds) {
+    console.log("usage: chain unbrick <sealed|market> <kind> <args…>");
+    console.log("  sealed: benchmark <authority> <id> | chunk|items|pitems <bank> <idx> | run <bank> <idx> | reveal <bank> <chunk> <part> | grant <bank> <chunk> <part> <viewer>");
+    console.log("  market: market|dark <run> [salt] | duel <a> <b> [salt] | position <market> <bettor> | ladder <leg> [salt] | darkpos <market> <bettor> [salt] | bounty <bank> <sponsor> [salt]");
+    return;
+  }
+  const { prog, kp } = program === "sealed"
+    ? (({ program: p, kp }) => ({ prog: p, kp }))(sealedProgram())
+    : (({ market: m, kp }) => ({ prog: m, kp }))(marketProgram());
+  const [pda, bump] = PublicKey.findProgramAddressSync(seeds, prog.programId);
+  const sig = await (prog.methods as any)
+    .unbrickPda(seeds, bump)
+    .accounts({ rescuer: kp.publicKey, pda })
+    .rpc({ commitment: "confirmed" });
+  console.log(`unbrick_pda ${pda.toBase58()} (${sig}) — grief lamports swept to ${kp.publicKey.toBase58()}; the init path is unblocked`);
 }
 
 // ------------------------------------------------------------------ cli glue
@@ -1441,6 +1508,10 @@ export async function chainMain(cmd: string[], args: Args) {
       .accounts({ payer: wallet.publicKey, signPdaAccount: signPda })
       .rpc({ commitment: "confirmed" });
     console.log(`init_signer_pda ${signPda.toBase58()} (${sig})`);
+    return;
+  }
+  if (sub === "unbrick") {
+    await unbrickPda(cmd.slice(1));
     return;
   }
   if (sub === "reset-sealing") {

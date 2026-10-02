@@ -9,7 +9,7 @@ parimutuel markets resolved from `Run.correct`.
 
 - `anchor build` (sealed), `anchor build -p market --ignore-keys` (market; its
   keypair file address intentionally differs — do NOT `anchor keys sync`).
-- `yarn test` → 15/15 mocha E2E against a RUNNING localnet; needs env
+- `yarn test` → 16/16 mocha E2E against a RUNNING localnet; needs env
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
@@ -211,13 +211,31 @@ parimutuel markets resolved from `Run.correct`.
   finalized-or-proven. Threshold capped at `chunk_count*32` at creation
   (`InvalidThreshold`); deadline floored at +60s (`DeadlineTooSoon`).
   Claimed bounties stay as permanent winner evidence; `expire_bounty`
-  past deadline `close`s to the stored sponsor. `scripts/bounty-local.sh`
-  demos the full lifecycle — note `chain score` under a non-authority
+  past deadline `close`s to the stored sponsor. The deadline is TOTAL —
+  `claim_bounty` requires `now <= deadline` (entry AND proof must land
+  inside the window; afterwards only expiry remains). `scripts/bounty-local.sh`
+  demos the mock flow; `scripts/real-bounty-claim.sh` the real-model claim —
+  note `chain score` under a non-authority
   runner wallet needs `--authority <bank-authority-pubkey>` (the bank PDA
   derives from authority, not runner).
-- `web/snapshot.json` merged two ledger epochs post-wipe
-  (`scripts/merge-snapshot.mjs`); its `meta.mxe_x25519` stays the OLD
+- `web/snapshot.json` merges THREE ledger epochs (pre-wipe flagships,
+  post-wipe bounties, hardened-build epoch 3 incl. a real-model bounty
+  claim) via `scripts/merge-snapshot.mjs`; `meta.epochs` tracks the count
+  and the explorer banner shows it. `meta.mxe_x25519` stays the OLD
   epoch's key because the committed ShareGrants decrypt under it.
 - The demo delegate (`Cr2bbdGh…`) holds grants on private bank `8HHm4HgA…`
   chunk 0 parts 0-3. If that bank is ever re-minted or the ledger wiped,
   re-grant + regenerate the snapshot or the decrypt button will error.
+- Prefund-grief reclaim: BOTH programs carry `unbrick_pda(seeds, bump)` —
+  permissionless, sweeps griefed lamports from any system-owned empty PDA
+  whose seeds re-derive under that program (`create_program_address`
+  proof). NOTE: Anchor 1.0's `init` codegen already tolerates prefunded
+  PDAs (tops up to rent-exempt, then allocate+assign — the griefer's dust
+  becomes a rent subsidy), so prefunds can't brick our `init` paths —
+  `unbrick_pda` reclaims the dust instead, and covers the raw
+  `create_account` path `init_signer_pda` uses. CLI:
+  `chain unbrick <sealed|market> <kind> <args…>` then retry the init
+  (bundle both in one tx for atomicity).
+- `DeadlineInPast` is a dead error variant in market — the horizon cap now
+  throws `DeadlineTooFar`; the old variant stays declared (removing it
+  would renumber every later error code).

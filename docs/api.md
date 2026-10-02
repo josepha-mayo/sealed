@@ -38,6 +38,7 @@ account must be THE PDA its own stored fields describe).
 | ix | what it does | key constraints |
 |---|---|---|
 | `init_signer_pda` | creates the shared `ArciumSignerAccount` PDA used by every queue path | grief-proof: drains prefunded lamports back to the caller via `invoke_signed`, then `create_account` — also *un-bricks* the singleton after a successful prefund grief. Idempotent. `chain init` calls it eagerly. |
+| `unbrick_pda(seeds, bump)` | sweeps a grief-prefunded PDA's lamports to the caller | permissionless. Anchor's `init` already tolerates prefunds (tops up to rent-exempt, allocate+assign) — this ix reclaims the dust *before* init so a prefunder loses it instead of donating it, and covers any manual `create_account` path. `create_program_address(seeds ‖ bump, ID) == pda` re-proves the account belongs to this program's derivation space; only a system-owned, zero-data (never-initialized) account qualifies — arbitrary wallets can never be drained. `chain unbrick sealed run <bank> <idx>` covers every layout (run/chunk/items/pitems/reveal/grant/benchmark). |
 
 ## `market` — five parimutuel primitives on `Run.correct`
 
@@ -56,6 +57,10 @@ Plus a non-parimutuel primitive — no bettors, the pot pays the operator:
 | ix set | primitive | settlement |
 |---|---|---|
 | `create_bounty` / `claim_bounty` / `expire_bounty` | capability bounty: sponsor escrows SOL on "first run scoring ≥ `threshold`" | FCFS — the first *proven* run claims; gates: same bank, run postdates bounty creation, `runner ≠ sponsor`, `correct ≥ threshold`, finalized-or-proven, not `post_reveal` — and the claim tx itself must land by `deadline` (a total deadline: entry *and* proof must exist on-chain before it; afterwards only `expire_bounty` remains). `payee` pinned to `run.runner` so front-running can't redirect. Past `deadline`, `expire_bounty` closes the account to the stored sponsor. Claimed bounties persist as permanent `winner_run`/`winning_score` evidence. |
+
+`unbrick_pda(seeds, bump)` exists here too — same generic grief-dust
+reclaim (market/duel/position/ladder/dark/darkpos/bounty layouts), e.g.
+`chain unbrick market position <market> <bettor>`.
 
 ## `encrypted-ixs` — the six Arcis circuits
 

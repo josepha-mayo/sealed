@@ -160,7 +160,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 15/15 passing (seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 16/16 passing (seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim incl. expiry,
   claim-fee-first solvency, and post-finalize expiry rejection; duel market
   open→bet→score-both→resolve→claim + gates; 3-way ladder open→bet→latch→
@@ -197,10 +197,13 @@ python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ res
 ## Devnet note (record honestly)
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
-verify with `solana -u devnet program show`; binaries upgraded to the current
-build — sealed `3a9Cgven…` (2026-09-22), market `271eYBWM…` (2026-09-25,
-includes committed-settle expiry + deadline floor + hardened ladder races
-+ dark commit-reveal markets)). The one honest
+verify with `solana -u devnet program show`). Deployed build status: sealed
+`3a9Cgven…` (2026-09-22) is the pre-F1 v4 build — the post-reveal +
+prefund-hardened binary is committed and localnet-verified, and its
+upgradeable redeploy is queued behind devnet write congestion (retry loop
+running; the market program `271eYBWM…` (2026-09-25) already carries
+committed-settle expiry + deadline floor + hardened ladder races + dark
+commit-reveal markets). The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts
