@@ -64,10 +64,12 @@ against on-chain `outputs_root` in-browser.
 ## tractionMilestones
 
 Hundreds of MPC computations across the committed evidence ledger —
-46 banks minted, 153 runs, 74 markets resolved across six primitives
-(score-band/duel, 15 ladders, 17 dark, plus capability bounties: 9
-posted, 9 claimed by qualifying runs) paying pro-rata or operator-first,
-60 selective-disclosure grants, 8 reveal audits — 0 plaintext answer keys. Every primitive has settled a REAL
+46 banks minted, 153 runs, 118 venues posted across six primitives
+(73 score-band/duel, 15 ladders, 17 dark, 13 capability bounties) —
+73 resolutions re-verified by the offline audit (40 band/duel, 14 ladder
+argmaxes, 10 dark settlements, 9 operator-paid bounty claims, the rest
+expired to sponsor refunds), 60 selective-disclosure grants, 8 reveal
+audits — 0 plaintext answer keys. Every primitive has settled a REAL
 open-weights model's MPC-written score: four local models raced an
 MPC-minted exam — qwen2.5-3b 6/32 tied 1.5b 6/32 (dead-heat mask=0b11),
 llama-3.2-1b 1/32, 0.5b 0/32 — argmax pro-rata plus a dark leg with a

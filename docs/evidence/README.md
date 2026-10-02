@@ -125,8 +125,8 @@ permanent records, not revocable sessions.)
 
 ### Prefund-grief reclaim (`unbrick_pda`) — `unbrick-demo.txt`
 
-`scripts/unbrick-demo.sh` — a live grief-and-reclaim on the market-side PDA
-space: an attacker sends rent dust to a bank's next `run` PDA; a
+`scripts/unbrick-demo.sh` — a live grief-and-reclaim on the sealed program's
+PDA space: an attacker sends rent dust to a bank's next `run` PDA; a
 permissionless rescuer calls `unbrick_pda` which re-proves the seeds under
 the program id and sweeps the dust (the account is garbage-collected); a
 second sweep rejects `NothingToDrain`; `create_run` then lands on the
@@ -354,6 +354,7 @@ view of the questions was the on-chain grant trail.
 
 `mock/oracle-*` is the deterministic offline model — the same pipeline
 (`run` → `chain score` → `prove`) works verbatim with a real model via
+`--model openai` + endpoint env vars; the on-chain steps are identical.
 
 The unseen-exam market flow is also captured as a recording: `../unseen.cast`
 (asciinema) + `../unseen.gif` — market `HKnKiFTS…`/`2v2WqSyG…` filled while
@@ -364,7 +365,6 @@ authored bank 25864 — that bank is a disposable localnet fixture whose
 plaintext lived in `bank/` (gitignored); the file is kept to prove the
 run artifact ↔ on-chain binding, not because authored banks leak answers
 through the protocol (they don't — answers seal to the MXE key).
-`--model openai` + endpoint env vars; the on-chain steps are identical.
 
 ## Dark commit-reveal markets — sealed positions on an unseen exam
 

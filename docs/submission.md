@@ -9,11 +9,15 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 499939236, authority `4RUW4pDm…` |
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder + dark commit-reveal support; upgradeable under `4RUW4pDm…` |
 
-**Deploy state:** the devnet binaries carry the current hardened build
-(sealed `3a9Cgven…` 2026-09-22, market `271eYBWM…` 2026-09-25 —
-`solana -u devnet program show <id>` reports the deploy slots). All protocol
-features are verified end-to-end on localnet; the only devnet caveat left is
-the Arcium callback outage (below).
+**Deploy state:** the deployed devnet binaries (sealed `3a9Cgven…`
+2026-09-22, market `271eYBWM…` 2026-09-25 — `solana -u devnet program show
+<id>` reports the deploy slots) predate this week's hardening: current source
+additionally carries `post_reveal` reveal-burn stamping, `unbrick_pda` grief
+reclaim, `DeadlineTooFar` labeling, `BountyExpired.refunded_lamports`, and the
+empty-pool `expire_dark` fast-path — all verified end-to-end on localnet.
+Both programs are upgradeable and the redeploy is queued behind devnet write
+congestion (retry loop armed, funded). The remaining devnet caveat is the
+Arcium callback outage (below).
 
 ## Verified on localnet (arcium localnet, cluster offset 0)
 
@@ -160,27 +164,27 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 16/16 passing (seal+score+finalize; reveal
-  declassify+audit; market open→bet→score→resolve→claim incl. expiry,
-  claim-fee-first solvency, and post-finalize expiry rejection; duel market
+- **Test suite:** `yarn test` — 16/16 passing: seal+score+finalize; reveal
+  declassify+audit; market open→bet→score→resolve→claim (pot splits
+  pro-rata over winning stakes, loser's claim fails, expiry, claim-fee-first
+  solvency, post-finalize expiry rejection); duel market
   open→bet→score-both→resolve→claim + gates; 3-way ladder open→bet→latch→
   resolve→claim + LegMismatch/DeadlineTooSoon/RunsMustDiffer gates;
-  ladder dead-heat: two legs tie at 25 → result_mask 0b011 → the whole pot
-  splits pro-rata; dark commit-reveal market: sealed bets → resolve →
-  reveals → forfeit redistribution + tallied fee sweep, plus the void →
-  preimage-free refund path; pending-sweep liveness gates;
-  capability bounty FCFS claim → operator + retroactive-claim rejection +
-  expiry refund; `init_signer_pda` idempotent grief-recovery)
-  splits pro-rata over winning stakes, loser's claim fails;
-  generated-bank mint→live→score;
-  private-bank mint→decrypt→score + privacy negatives; reshare
-  delegate-decrypt + one-directional disclosure + gates; delegated-runner
-  rebuild-from-grants + MPC score; pending-sweep liveness — markets stay
-  latched after sweeps, swept computations still land, stranger sweep
-  rejected, edge bounds, double-attestation rejected, duel dead-run expiry
-  bail, retired-bank mutation rejected). The suite salts bank ids per run so it's
-  re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a run).
-  `yarn harness:test` — 13/13.
+  ladder dead-heat: two legs tie at 25 → result_mask 0b011 → pot splits
+  pro-rata; dark commit-reveal market: sealed bets → resolve → reveals →
+  forfeit redistribution + tallied fee sweep, plus the void → preimage-free
+  refund path; capability bounty FCFS claim → operator + retroactive-claim
+  rejection + expiry refund; `init_signer_pda` idempotent grief-recovery;
+  `unbrick_pda` prefund-dust reclaim → GC → init-on-same-PDA + wrong-seed and
+  live-account drain rejections (both programs); generated-bank
+  mint→live→score; private-bank mint→decrypt→score + privacy negatives;
+  reshare delegate-decrypt + one-directional disclosure + gates;
+  delegated-runner rebuild-from-grants + MPC score; pending-sweep liveness —
+  markets stay latched after sweeps, swept computations still land, stranger
+  sweep rejected, edge bounds, double-attestation rejected, duel dead-run
+  expiry bail, retired-bank mutation rejected. The suite salts bank ids per
+  run so it's re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a
+  run). `yarn harness:test` — 13/13.
 
 ## Reproduce
 
