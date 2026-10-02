@@ -40,7 +40,7 @@ account must be THE PDA its own stored fields describe).
 | `init_signer_pda` | creates the shared `ArciumSignerAccount` PDA used by every queue path | grief-proof: drains prefunded lamports back to the caller via `invoke_signed`, then `create_account` — also *un-bricks* the singleton after a successful prefund grief. Idempotent. `chain init` calls it eagerly. |
 | `unbrick_pda(seeds, bump)` | sweeps a grief-prefunded PDA's lamports to the caller | permissionless. Anchor's `init` already tolerates prefunds (tops up to rent-exempt, allocate+assign) — this ix reclaims the dust *before* init so a prefunder loses it instead of donating it, and covers any manual `create_account` path. `create_program_address(seeds ‖ bump, ID) == pda` re-proves the account belongs to this program's derivation space; only a system-owned, zero-data (never-initialized) account qualifies — arbitrary wallets can never be drained. `chain unbrick sealed run <bank> <idx>` covers every layout (run/chunk/items/pitems/reveal/grant/benchmark). |
 
-## `market` — five parimutuel primitives on `Run.correct`
+## `market` — four parimutuel primitives + capability bounties on `Run.correct`
 
 Every creator rejects runs that have begun scoring (`ScoringStarted`), runs
 flagged `post_reveal` (`PostRevealRun`), and bait-shaped edge layouts.

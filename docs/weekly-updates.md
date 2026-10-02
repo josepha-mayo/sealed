@@ -13,10 +13,11 @@ deadline.
   would be, `items_root` commitment over the ciphertext.
 - 15s: `scripts/dark.sh` tail — a market that filled while positions AND
   the exam were both sealed, settled by MPC.
-- 20s: numbers — 153 finalized runs, 118 markets + bounties, 6 settlement
-  primitives, 16/16 E2E on a real MPC localnet; gpt-oss-20b scored 64/64
-  on a bank whose key never existed, and 32/32 on an exam it could only
-  read through on-chain grants.
+- 20s: numbers — 153 MPC-scored runs, 118 venues posted (73 band/duel +
+  15 ladders + 17 dark + 13 bounties), 6 settlement primitives, 16/16 E2E
+  on a real MPC localnet; a real qwen2.5-3b claimed a live SOL bounty via
+  MPC proof; gpt-oss-20b scored 64/64 on a bank whose key never existed,
+  and 32/32 on an exam it could only read through on-chain grants.
 - Close: "Repo goes public this week; demo video's already live."
 
 ## Update 2 — "why confidential AI needs this" (post after repo is public)

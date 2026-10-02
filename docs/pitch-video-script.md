@@ -12,8 +12,8 @@ beyond one architecture card if needed.
 | 0:00 | The lie | "Every AI leaderboard number you have ever read was produced by a party who could have made it up. Labs self-report. Benchmark answer keys leak into training data. And the prediction markets already trading on model scores settle against whichever leaderboard they trusted that week." |
 | 0:15 | The insight | "We asked: what if the answer key simply didn't exist? Not hidden — nonexistent. We mint the benchmark INSIDE an MPC enclave. The questions come from enclave randomness; the answers are computed and fingerprinted in-circuit and born encrypted to the cluster key. There is no key to leak, sell, or subpoena — anywhere on Earth." |
 | 0:35 | The inversion | "Every private-market project — Epoch, Flew, Bench — hides what users BET. Sealed hides the truth the market resolves ON. Insider knowledge isn't discouraged; it's cryptographically impossible." |
-| 0:50 | What it is | "Sealed is a referee protocol on Solana + Arcium. Six circuits run inside MPC: banks minted in the enclave, private banks whose questions are ciphertext-only, selective disclosure that hands a judge the exam without publishing it, and scoring that writes only a count. A second program settles five parimutuel market types — score bands, head-to-head duels, K-way ladder races, markets on exams that were never published, and commit-reveal dark markets where even your SIDE is sealed — permissionlessly off the MPC-written score." |
-| 1:20 | Proof | "This isn't a deck. A real model — gpt-oss-20b — scored 64/64 through the full MPC pipeline on a bank whose answer key never existed; the on-chain count matched its local claim exactly. And the hardest test: gpt-oss-20b scored 32/32 on a private exam it could only read through on-chain disclosure grants — the exam was never published anywhere. A stale artifact claiming 64/64 was honestly scored 1/64 — the chain never trusts self-reports. 106 runs, 71 settled markets across six primitives, 15/15 E2E on a real MPC localnet — every artifact and Merkle proof in the repo." |
+| 0:50 | What it is | "Sealed is a referee protocol on Solana + Arcium. Six circuits run inside MPC: banks minted in the enclave, private banks whose questions are ciphertext-only, selective disclosure that hands a judge the exam without publishing it, and scoring that writes only a count. A second program settles six primitives — score bands, head-to-head duels, K-way ladder races, markets on exams that were never published, commit-reveal dark markets where even your SIDE is sealed, and capability bounties where an escrowed pot pays the first operator to PROVE a score — permissionlessly off the MPC-written count." |
+| 1:20 | Proof | "This isn't a deck. Real open-weights models ran the full MPC pipeline: a 3-billion-parameter model claimed a live SOL bounty by provably clearing the threshold — the chain paid its operator, nobody's word taken. gpt-oss-20b scored 64/64 on a bank whose answer key never existed, and 32/32 on a private exam readable only through on-chain grants — the exam was never published anywhere. A stale artifact claiming 64/64 was honestly scored 1/64 — the chain never trusts self-reports. 153 runs, 118 venues posted, 73 resolutions re-verified offline, 16/16 E2E on a real MPC localnet — every artifact and Merkle proof in the repo." |
 | 1:45 | Who pays | "Three buyers today: prediction-market venues that need a neutral resolver; eval orgs and labs that need provable scores without publishing a contaminatable benchmark; judges and insurers who need the exam delegated without a key changing hands. Per-run fees and a settlement take-rate are live on-chain." |
 | 2:05 | Why Solana | "Arcium MXEs coordinate on Solana — per-computation fees and 400ms finality are what make confidential market settlement economically viable at all. The programs are deployed on devnet today; the Arcium devnet cluster has a transient callback outage upstream — the full loop runs on localnet and lands on devnet the moment callbacks resume." |
 | 2:20 | Vision + close | "Arcium just bet on confidential AI — the Inpher acquisition, the Blackthorn inference engine. Sealed is the onchain complement: the evaluation layer that settles what confidential AI computes. Every future claim about what a model can do is addressable market surface. Sealed: the exam nobody can leak, the score nobody can fake, the market that settles itself." |
@@ -39,20 +39,23 @@ Sealed is a referee protocol on Solana plus Arcium. Six circuits run inside
 MPC: banks minted in the enclave, private banks whose questions are
 ciphertext-only, selective disclosure that hands a judge the exam without
 publishing it, and scoring that writes only a count. A second program
-settles five parimutuel market types — score bands, head-to-head duels,
-K-way ladder races, markets on exams that were never published, and
-commit-reveal dark markets where even your side is sealed — permissionlessly
-off the MPC-written score.
+settles six primitives — score bands, head-to-head duels, K-way ladder
+races, markets on exams that were never published, commit-reveal dark
+markets where even your side is sealed, and capability bounties where an
+escrowed pot pays the first operator to prove a score — permissionlessly
+off the MPC-written count.
 
-This isn't a deck. A real model — gpt-oss-20b — scored 64 out of 64 through
-the full MPC pipeline on a bank whose answer key never existed; the on-chain
-count matched its local claim exactly. And the hardest test: the same model
-scored 32 out of 32 on a private exam it could only read through on-chain
-disclosure grants — the exam was never published anywhere. A stale artifact
-claiming 64 was honestly scored 1 of 64 — the chain never trusts
-self-reports. Sixty-one finalized runs, thirty-nine settled markets,
-thirteen-for-thirteen end-to-end on a real MPC localnet — every artifact
-and Merkle proof in the repo.
+This isn't a deck. Real open-weights models ran the full MPC pipeline: a
+three-billion-parameter model claimed a live SOL bounty by provably
+clearing the threshold — the chain paid its operator; nobody's word was
+taken. gpt-oss-20b scored 64 out of 64 on a bank whose answer key never
+existed, and 32 out of 32 on a private exam it could only read through
+on-chain disclosure grants — the exam was never published anywhere. A stale
+artifact claiming 64 was honestly scored 1 of 64 — the chain never trusts
+self-reports. A hundred fifty-three runs, a hundred eighteen venues posted,
+seventy-three resolutions re-verified offline, sixteen-for-sixteen
+end-to-end on a real MPC localnet — every artifact and Merkle proof in the
+repo.
 
 Three buyers today: prediction-market venues that need a neutral resolver;
 eval orgs and labs that need provable scores without publishing a

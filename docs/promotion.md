@@ -43,8 +43,9 @@ operator.
 landing-window expiry, committed-settle semantics, strict ordered leg
 accounts. Every edge has a regression test.
 
-Evidence: 61 MPC-finalized runs, 39 markets settled, 12.56 SOL paid
-pro-rata — all verifiable from a committed snapshot + Merkle proofs.
+Evidence: 153 MPC-scored runs, 118 market+bounty venues posted, 73
+resolutions re-verified by the offline audit — every artifact and Merkle
+proof in the repo, replayable bit-for-bit.
 
 6/ Headline run: gpt-oss-20b scored 64/64 on a bank minted inside MPC —
 no answer key ever existed outside the enclave. A stale-artifact cheat

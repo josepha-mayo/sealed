@@ -62,14 +62,17 @@ key, nothing to leak.
 1:05 delegate rebuild — the bank reconstructed from grant PDAs alone
 1:15 real model scoring — MPC compares committed outputs, posts only a count
 1:25 the anti-cheat beat — gpt-oss-20b 64/64 vs a stale artifact's honest 1/64
-1:35 markets — threshold, score bands, duels, K-way ladder races
+1:35 markets — threshold, score bands, duels, K-way ladder races, dark
+commit-reveal (sides stay sha256-sealed), capability bounties (escrow pays
+the first operator to provably clear T — real-model claim in
+`docs/evidence/real-bounty.txt`)
 1:50 permissionless settle — resolve straight from `Run.correct`, claim
 1:55 audit beat — fingerprint reveal without plaintext
 2:00 close — a benchmark nobody can read, a market that settles itself
 
-Also shipped: dark commit-reveal markets (bettor sides stay sha256-sealed
-until reveal — `docs/dark.cast`) and a head-to-head duel market
-(`docs/duel.cast`).
+Also shipped: dark commit-reveal markets (`docs/dark.cast`), a
+head-to-head duel market (`docs/duel.cast`), and the prefund-grief
+reclaim demo (`docs/evidence/unbrick-demo.txt`).
 
 Everything shown is a real run on `arcium localnet` — transcripts and
 account snapshots are in `docs/evidence/`. Source:
