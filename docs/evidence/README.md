@@ -133,6 +133,28 @@ second sweep rejects `NothingToDrain`; `create_run` then lands on the
 cleaned address; and a drain attempt on the now-live account rejects
 `NotGriefedPda`. Regression-tested in `tests/sealed.ts` on both programs.
 
+### Persistent capability registry — `record-local.txt`
+
+`scripts/record-local.sh` — two real open-weights models answer
+MPC-minted exams (no answer key ever exists) and their finalized runs are
+enrolled into the on-chain **capability registry**:
+
+- `qwen2.5-3b-instruct` → 9/32 (run `4biuMVnc…`, record `7mAKsLaB…`,
+  `localCorrect` == MPC score, as always)
+- `qwen2.5-1.5b-instruct` → 5/32 (run `55iJanaG…`, record `FQGc2nW7…`)
+
+Each `record_score` call is permissionless — the recorder just pays rent;
+the score itself was written by the `score_chunk` callback. The PDA is
+`[modelrec, sha256(model_id)]` so an entry binds the run's *declared*
+identity (`ModelHashMismatch` otherwise), and the init-once `ScoreLog
+[scorelog, run]` receipt makes double-counting structurally impossible —
+the transcript ends with the second enrollment attempt rejected live
+(`Allocate: already in use`). The explorer's "model capability records"
+section renders the aggregates; `verify.mjs [5b]` and the in-browser audit
+replay every `ModelRecord` bit-exact from its receipts. `model_id` remains
+self-reported metadata — `vouched_at_record` is what separates an
+authority-vouched score from a stranger's claim, and the records say so.
+
 ### Flagship: capability bounty — first-to-beat pays the operator, not a bettor (in `snapshot.json`)
 
 `scripts/bounty-local.sh` (transcript `bounty-local.txt`) — a primitive the

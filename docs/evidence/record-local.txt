@@ -1,0 +1,161 @@
+### scripts/record-local.sh — leg 1: qwen2.5-3b-instruct
+
+
+=== 0/5 endpoint sanity — the model must answer before we mint ===
+  http://127.0.0.1:8083/v1 model=qwen2.5-3b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"created":1790961979,"model
+
+=== 1/5 wait for MXE, then comp defs + circuits (once per deployment) ===
+MXE key live after ~10s
+sign_pda_account ensured (5Y6VX3rDzhziFRFnJsFnvJBQcmR7vZxgzWqeCsGv2YcM7VFKmgQCYo6UpF1ijBsnVQDe4ZngHFFiZhKMwgobTceF)
+seal_part: comp def exists (AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf)
+score_chunk: comp def exists (9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo)
+gen_part: comp def exists (AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ)
+gen_part_private: comp def exists (CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN)
+reveal_part: comp def exists (zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG)
+reshare_part: comp def exists (GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS)
+
+=== 2/5 mint the exam INSIDE MPC (id=97970, 32 items — no answer key exists) ===
+create_benchmark id=97970 chunks=1 kind=generated
+benchmark BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z status=0 sealed=0/1
+chunk 0 part 0: minting in MPC... minted
+chunk 0 part 1: minting in MPC... minted
+chunk 0 part 2: minting in MPC... minted
+chunk 0 part 3: minting in MPC... minted
+benchmark BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z status=LIVE minted=1/1
+items_root 3052974d7e796a3ecdbbd453002288157aafd7efd0b80389c29d87f8824dfd83 (32 minted items, answers never existed in plaintext)
+wrote bank/gen-97970.json
+benchmark PDA: BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z
+
+=== 3/5 qwen2.5-3b-instruct answers the exam — artifact commits outputs_root pre-scoring ===
+qwen2.5-3b-instruct: 4/32qwen2.5-3b-instruct: 8/32qwen2.5-3b-instruct: 12/32qwen2.5-3b-instruct: 16/32qwen2.5-3b-instruct: 20/32qwen2.5-3b-instruct: 24/32qwen2.5-3b-instruct: 28/32qwen2.5-3b-instruct: 32/32
+{
+  "wrote": "/tmp/record-local.json",
+  "model": "qwen2.5-3b-instruct",
+  "items": 32,
+  "localCorrect": 9,
+  "localAccuracy": 0.2813,
+  "outputsRoot": "adb584ddb51a42d57aee58a3b05ba61f5007345f055cd39a2c05024ddded5807",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 82
+}
+localCorrect: 9 / None
+
+=== 4/5 score through MPC — the cluster writes Run.correct, not us ===
+create_run #0 model=qwen2.5-3b-instruct fee=0 SOL
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 9)
+run 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 FINALIZED: 9/32 = 28.1%  (matches local pre-score)
+run PDA: 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2
+
+=== 5/5 enroll the proven score into the capability registry ===
+run 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 recorded → qwen2.5-3b-instruct 9/32 (record 7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB, receipt 2WjFpDxcd6akHodS2ToeHR2v9MZVk8cm41vJQGBAyExv, 5QSGSnH9q9uiai71ZiR7aoJ2u2aCxLfUgUPXKoYRU6TzKydFjdYyFDkTXNYhsaEQtEsGcEQr29C9vz4JGDLrmUgU)
+model record 7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
+  model_id=qwen2.5-3b-instruct  hash=e70dab371f91877d…
+  runs=1  aggregate=9/32 (28.1%)
+  best=9/32 on run 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 (bank BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z)
+  last=4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2  first_seen=1790962105  last_scored=1790962105
+
+double-enrollment is structurally impossible — ScoreLog [scorelog, run]
+was created by init; a second record_score re-derives the same PDA and
+the system program refuses to create it twice:
+Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x0. 
+Logs: 
+[
+  "Program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ invoke [1]",
+  "Program log: Instruction: RecordScore",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Allocate: account Address { address: 2WjFpDxcd6akHodS2ToeHR2v9MZVk8cm41vJQGBAyExv, base: None } already in use",
+  "Program 11111111111111111111111111111111 failed: custom program error: 0x0",
+  "Program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ consumed 14051 of 200000 compute units",
+  "Program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ failed: custom program error: 0x0"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+  (rejected — expected)
+
+proof summary:
+  bank   BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z — MPC-minted; no answer key ever existed
+  run    4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 — qwen2.5-3b-instruct @ http://127.0.0.1:8083/v1
+  record modelrec PDA [modelrec, sha256('qwen2.5-3b-instruct')] — persistent aggregate
+EXIT:0
+
+### scripts/record-local.sh — leg 2: qwen2.5-1.5b-instruct
+
+
+=== 0/5 endpoint sanity — the model must answer before we mint ===
+  http://127.0.0.1:8081/v1 model=qwen2.5-1.5b-instruct -> HTTP 200: {"choices":[{"finish_reason":"stop","index":0,"message":{"role":"assistant","content":"5"}}],"created":1790962237,"model
+
+=== 1/5 wait for MXE, then comp defs + circuits (once per deployment) ===
+MXE key live after ~10s
+sign_pda_account ensured (3mBGahyLuxW2athPj7F1fNJdQGr3nG4iD3bFhkjNGgSgkQq6Bn2b2tGkndzAQLAXiXQFDFM7traNvrbL9ZF699tE)
+seal_part: comp def exists (AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf)
+score_chunk: comp def exists (9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo)
+gen_part: comp def exists (AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ)
+gen_part_private: comp def exists (CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN)
+reveal_part: comp def exists (zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG)
+reshare_part: comp def exists (GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS)
+
+=== 2/5 mint the exam INSIDE MPC (id=88593, 32 items — no answer key exists) ===
+create_benchmark id=88593 chunks=1 kind=generated
+benchmark GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N status=0 sealed=0/1
+chunk 0 part 0: minting in MPC... minted
+chunk 0 part 1: minting in MPC... minted
+chunk 0 part 2: minting in MPC... minted
+chunk 0 part 3: minting in MPC... minted
+benchmark GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N status=LIVE minted=1/1
+items_root d294f9dea3c2c76bcdf8c18fb85297fb15bee1e8c0d16f042d3a8ff257c46c10 (32 minted items, answers never existed in plaintext)
+wrote bank/gen-88593.json
+benchmark PDA: GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N
+
+=== 3/5 qwen2.5-1.5b-instruct answers the exam — artifact commits outputs_root pre-scoring ===
+qwen2.5-1.5b-instruct: 4/32qwen2.5-1.5b-instruct: 8/32qwen2.5-1.5b-instruct: 12/32qwen2.5-1.5b-instruct: 16/32qwen2.5-1.5b-instruct: 20/32qwen2.5-1.5b-instruct: 24/32qwen2.5-1.5b-instruct: 28/32qwen2.5-1.5b-instruct: 32/32
+{
+  "wrote": "/tmp/record-local.json",
+  "model": "qwen2.5-1.5b-instruct",
+  "items": 32,
+  "localCorrect": 5,
+  "localAccuracy": 0.1563,
+  "outputsRoot": "0384142ddd54a7dbe2cd90b5c07b4896863aeec01e9cd5f34ea9f8629dff7ec1",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "seconds": 43
+}
+localCorrect: 5 / None
+
+=== 4/5 score through MPC — the cluster writes Run.correct, not us ===
+create_run #0 model=qwen2.5-1.5b-instruct fee=0 SOL
+chunk 0: queued in MPC
+chunk 0: scoring in MPC... scored (total 5)
+run 55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk FINALIZED: 5/32 = 15.6%  (matches local pre-score)
+run PDA: 55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk
+
+=== 5/5 enroll the proven score into the capability registry ===
+run 55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk recorded → qwen2.5-1.5b-instruct 5/32 (record FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j, receipt 7R4uYNUyJZWw4A9c9BE3QKnX7C3BnoGuexWZppA9zoH6, 3suxvqaKQ3r8EWfTFpLuGRJGsqnSmh9qfU3tbduWBn5v5TCMUk98UTQvh9T8512UYBTV17BZHGcRL1uXbxa3JpKx)
+model record FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j
+  model_id=qwen2.5-1.5b-instruct  hash=3b86b10a1040f263…
+  runs=1  aggregate=5/32 (15.6%)
+  best=5/32 on run 55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk (bank GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N)
+  last=55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk  first_seen=1790962325  last_scored=1790962325
+
+double-enrollment is structurally impossible — ScoreLog [scorelog, run]
+was created by init; a second record_score re-derives the same PDA and
+the system program refuses to create it twice:
+Simulation failed. 
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x0. 
+Logs: 
+[
+  "Program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ invoke [1]",
+  "Program log: Instruction: RecordScore",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Allocate: account Address { address: 7R4uYNUyJZWw4A9c9BE3QKnX7C3BnoGuexWZppA9zoH6, base: None } already in use",
+  "Program 11111111111111111111111111111111 failed: custom program error: 0x0",
+  "Program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ consumed 13952 of 200000 compute units",
+  "Program FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ failed: custom program error: 0x0"
+]. 
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+  (rejected — expected)
+
+proof summary:
+  bank   GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N — MPC-minted; no answer key ever existed
+  run    55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk — qwen2.5-1.5b-instruct @ http://127.0.0.1:8081/v1
+  record modelrec PDA [modelrec, sha256('qwen2.5-1.5b-instruct')] — persistent aggregate
+EXIT:0

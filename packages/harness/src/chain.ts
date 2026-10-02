@@ -1513,6 +1513,8 @@ export async function recordScore(runPk: PublicKey) {
   const [scoreLog] = PublicKey.findProgramAddressSync(
     [Buffer.from("scorelog"), runPk.toBuffer()], program.programId,
   );
+  if (await acct.scoreLog.fetchNullable(scoreLog))
+    throw new Error(`run already enrolled (receipt ${scoreLog.toBase58()})`);
   const sig = await program.methods
     .recordScore(new anchor.BN(r.index.toString()), Array.from(modelHash))
     .accounts({ recorder: kp.publicKey, run: runPk, modelRecord, scoreLog })
