@@ -243,6 +243,9 @@ Hard-blockers first (each is a documented DQ path in Colosseum's rules):
 5. **Paste the field values** from `docs/submission-fields.md` into the
    form — char counts are pre-verified against the limits. Pick up to 3
    tracks; Solana is the required one (accelerator is Solana-only).
+5b. **Polish the repo header** — the repo has no homepage or topics set
+   (needs a live `gh` token):
+   `gh repo edit --homepage https://josepha-mayo.github.io/sealed/ --add-topic solana,arcium,mpc,prediction-markets,anchor-lang,confidential-compute`.
 6. **Upload both videos** (pitch + `docs/demo.mp4`).
 7. **Submit ≥2 days early** — late submissions and timezone errors are
    documented DQ'd teams (deadline is Pacific Time).
