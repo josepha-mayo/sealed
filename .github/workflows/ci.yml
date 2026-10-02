@@ -3,7 +3,7 @@ name: CI
 # Everything that doesn't need the Arcium localnet, on every push:
 # harness unit tests, typecheck, the offline cryptographic audit of the
 # committed snapshot, the headless browser-audit regression, and the
-# submission pre-flight. The 13-test E2E needs `arcium localnet` and runs
+# submission pre-flight. The 16-test E2E needs `arcium localnet` and runs
 # locally — see tests/sealed.ts.
 
 on:
