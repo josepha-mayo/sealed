@@ -38,10 +38,18 @@ vm.createContext(ctx);
 vm.runInContext(src, ctx);
 
 await new Promise((r) => setTimeout(r, 50)); // let applySnapshot + renderAll settle
+// renderAll must COMPLETE — a mid-render throw leaves #out empty and only
+// surfaces in #err, which the audit rows alone would never show.
+const renderErr = els.get("err")?.textContent ?? "";
+const rendered = els.get("out")?.innerHTML ?? "";
+if (renderErr || !rendered.length) {
+  console.log(`RENDER FAILURE: ${renderErr || "#out never written"}`);
+  process.exit(1);
+}
 vm.runInContext("runAudit(true)", ctx);
 await new Promise((r) => setTimeout(r, 3000));
 const out = els.get("auditres").innerHTML.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").replace(/&middot;/g, "·").replace(/&amp;/g, "&").trim();
 console.log(out);
 const fails = (out.match(/FAIL/g) || []).length;
-console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"}`);
+console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

@@ -744,6 +744,46 @@ function renderAll(sealedAccs, marketAccs) {
     h += `</table></div><div class="kv" style="margin:4px 0 10px">enrolled via <span class="mono">record_score</span> — permissionless; a <span class="mono">ScoreLog</span> receipt PDA makes each run countable exactly once. <span class="mono">model_id</span> is self-reported, not an identity proof; "attested" counts runs countersigned by the benchmark authority at record time.</div>`;
   }
 
+  // ---- head-to-head: pairwise model records derived from resolved duels
+  // and same-bank ladder legs — every cell is an MPC-scored comparison ----
+  const pairKey = (a, b) => [a, b].sort().join("␟");
+  const pairs = new Map();
+  const addPair = (ra, rb, resA, src) => { // resA: -1 B better, 0 tie, +1 A better
+    if (!ra || !rb || ra.modelId === rb.modelId) return;
+    const k = pairKey(ra.modelId, rb.modelId);
+    if (!pairs.has(k)) pairs.set(k, { a: [ra.modelId, rb.modelId].sort()[0], b: [ra.modelId, rb.modelId].sort()[1], w: 0, l: 0, t: 0, n: 0 });
+    const p = pairs.get(k); p.n++;
+    const awon = ra.modelId === p.a ? resA : -resA;
+    if (awon > 0) p.w++; else if (awon < 0) p.l++; else p.t++;
+  };
+  for (const m of markets) {
+    if (!m.duel || m.status !== 1) continue;
+    const ra = runs.find(r => r.pk === m.run), rb = runs.find(r => r.pk === m.runB);
+    if (ra && rb) addPair(ra, rb, m.outcome === 0 ? 1 : m.outcome === 1 ? -1 : 0, m.pk);
+  }
+  for (const l of ladders) {
+    if (l.status !== 1) continue;
+    const legs = l.legs.slice(0, l.legCount).map(lp => runs.find(r => r.pk === lp)).filter(Boolean);
+    for (let i = 0; i < legs.length; i++) for (let j = i + 1; j < legs.length; j++) {
+      if (legs[i].benchmark !== legs[j].benchmark) continue; // only same-exam pairs compare
+      addPair(legs[i], legs[j], Math.sign(legs[i].correct - legs[j].correct), l.pk);
+    }
+  }
+  if (pairs.size) {
+    const rows = [...pairs.values()].sort((a, b) => b.n - a.n);
+    h += `<h2>head-to-head — pairwise results from resolved duels + same-bank ladder legs</h2><div class="card"><table>` +
+      `<tr><th>model A</th><th>record</th><th>model B</th><th>comparisons</th></tr>`;
+    rows.forEach(p => {
+      const cell = `${p.w}–${p.l}–${p.t}`;
+      const leader = p.w > p.l ? p.a : p.l > p.w ? p.b : null;
+      h += `<tr><td class="mono">${esc(p.a)}</td>
+        <td class="score">${cell}${leader ? ` <span class="pill resolved">${esc(leader)} leads</span>` : ` <span class="pill">even</span>`}</td>
+        <td class="mono">${esc(p.b)}</td>
+        <td>${p.n}</td></tr>`;
+    });
+    h += `</table></div><div class="kv" style="margin:4px 0 10px">each comparison is two runs scored by MPC on the <i>same exam</i> — duel markets resolve A-wins/B-wins/tie directly, ladders contribute every same-bank leg pair. W–L–T from A's side.</div>`;
+  }
+
   if (benches.length) h += `<h2>benchmark banks</h2>`;
   for (const b of benches.sort((a, b2) => a.id - b2.id)) {
     const items = b.chunkCount * 32;
@@ -952,7 +992,7 @@ function renderAll(sealedAccs, marketAccs) {
         h += `<th>[${i}] ${outcomeLabel(n, m.edges, i)}${win ? " ✓" : ""}</th>`;
       }
       h += `</tr><tr>`;
-      for (let i = 0; i < n; i++) h += `<td>${m.status === 1 ? (win ? "revealed " + sol(m.winTotal) : "sealed") : "sealed"}</td>`;
+      for (let i = 0; i < n; i++) { const win = m.status === 1 && m.outcome === i; h += `<td>${win ? "revealed " + sol(m.winTotal) : "sealed"}</td>`; }
       h += `</tr></table>`;
       if (dpos.length) {
         h += `<table><tr><th>bettor</th><th>stake</th><th>commitment</th><th>side</th></tr>`;
