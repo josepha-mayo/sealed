@@ -25,7 +25,7 @@ The bank owner can't see it. The score on-chain is the only score.
 - Selective disclosure — show a judge the questions, not the answers
 - MPC scoring — run.correct is written by the cluster, not an oracle
 
-4/ On top: five parimutuel market types resolving straight from
+4/ On top: six market primitives resolving straight from
 Run.correct — no oracle multisig:
 
 - binary over/under on a score
@@ -33,6 +33,10 @@ Run.correct — no oracle multisig:
 - duels: model A vs model B
 - ladder races: 3–8 runners, argmax wins, dead-heat splits
 - unseen-exam markets: the priced event is itself ciphertext
+- dark commit-reveal markets: bettor sides stay sha256-sealed until reveal
+Plus a non-parimutuel primitive — capability bounties: a sponsor escrows
+SOL on "first MPC-proven run ≥ threshold", pot pays the winning run's
+operator.
 - dark commit-reveal: your side is a sha256 commitment until reveal
 
 5/ The security story is adversarial-reviewed: JIT-commit attacks,
@@ -62,7 +66,7 @@ Built for @colosseum Crypto World's Fair on @arcium.
 > markets resolve directly from the Run accounts your nodes finalize —
 > no oracle. Also shipped a novel K-way "ladder race" market primitive on
 > top (argmax + dead-heat mask), which lines up with the novel-mechanisms
-> ask. 61 MPC-finalized runs on localnet; devnet deployment is live but
+> ask. 153 MPC-finalized runs on localnet; devnet deployment is live but
 > the shared cluster's callback outage is blocking flows — flagging in
 > case it helps: sealed `3a9Cgven…` (2026-09-22), market `271eYBWM…`
 (2026-09-25). Would love a pointer if there's a
@@ -74,4 +78,4 @@ Title: Sealed — benchmark answer keys that never exist in plaintext
 
 Body: link repo + hosted explorer + the one-paragraph pitch from
 docs/pitch.md. Lead with the 64/64 MPC-minted headline run and the
-five market primitives.
+six market primitives + capability bounties.
