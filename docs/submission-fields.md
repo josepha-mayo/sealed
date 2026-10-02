@@ -40,7 +40,7 @@ A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, commit-reveal dark markets, and FCFS capability
 bounties (pot pays the first proven run's operator, not a bettor) —
 resolving permissionlessly on `Run.correct`; bets latch before the
-first scored chunk. Verified: 16/16 E2E + 13/13 unit on a real MPC
+first scored chunk. Verified: 17/17 E2E + 13/13 unit on a real MPC
 localnet; four open-weights models raced, dueled, and settled through
 MPC — a dead-heat, a private exam via reshare grants, a dark market on
 a ciphertext-only bank's run. Every primitive settled a real score.
@@ -63,23 +63,20 @@ against on-chain `outputs_root` in-browser.
 
 ## tractionMilestones
 
-Hundreds of MPC computations across the committed evidence ledger —
-46 banks minted, 153 runs, 118 venues posted across six primitives
-(73 score-band/duel, 15 ladders, 17 dark, 13 capability bounties) —
-73 resolutions re-verified by the offline audit (40 band/duel, 14 ladder
-argmaxes, 10 dark settlements, 9 operator-paid bounty claims, the rest
-expired to sponsor refunds), 60 selective-disclosure grants, 8 reveal
-audits — 0 plaintext answer keys. Every primitive has settled a REAL
-open-weights model's MPC-written score: four local models raced an
-MPC-minted exam — qwen2.5-3b 6/32 tied 1.5b 6/32 (dead-heat mask=0b11),
-llama-3.2-1b 1/32, 0.5b 0/32 — argmax pro-rata plus a dark leg with a
-sealed forfeit. On a PRIVATE exam (ciphertext-only specs): 1.5b scored
-8/32 via grants; a double-sealed dark market priced the 3b's pending run
-(exam + positions both sealed); a full-book band market resolved on the
-0.5b's 2/32. Prior gpt-oss-20b: 64/64 on MPC-minted 6932, 64/64 on
-authored 25864 — and a stale-artifact claim scored 1/64, proving the
-chain never trusts self-reported scores. `verify.mjs` re-audits the
-bundle offline (11/11 checks); the hosted explorer runs it in-browser.
+104 banks minted, 424 runs, 285 venues across six primitives
+(181 band/duel, 42 ladders, 41 dark, 31 bounties) — the offline audit
+re-verifies 170 resolutions + 130 grants + 22 reveal burns on the
+committed ledger: 0 plaintext answer keys. Every primitive has settled a
+REAL open-weights model's MPC score: four local models raced an
+MPC-minted exam — 3b 6/32 tied 1.5b 6/32 (dead-heat pro-rata), llama-1b
+1/32, 0.5b 0/32 — plus a sealed dark leg. On a ciphertext-only PRIVATE
+exam: 1.5b scored 8/32 via grants; a double-sealed dark market priced
+the 3b's pending run; a band market settled the 0.5b's 2/32. gpt-oss-20b
+hit 64/64 on MPC-minted 6932 — and a stale-artifact claim scored 1/64:
+the chain never trusts self-reported scores. The capability registry
+persists per-model records (3b 9/32, 1.5b 5/32) — verify.mjs replays
+every aggregate bit-exact from receipts (12/12); the explorer does it
+in-browser.
 
 ## targetAudience
 

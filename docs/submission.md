@@ -153,6 +153,23 @@ since been wiped and redeployed during hardening. The evidence bundle in
   (`VyAAjrsB…`) whose specs exist on-chain only as ciphertext.
   Historical: bank 99003 32/32 (earlier epoch), ling-3.0 58/64,
   nemotron-3.5 59/64 — all MPC-scored, all matching.
+- **Persistent capability registry (record_score):** scores don't just sit in
+  individual `Run` accounts — the permissionless `record_score` ix folds any
+  finalized run into a durable `ModelRecord` PDA keyed by
+  `sha256(model_id)`, aggregating runs, cumulative totals, an accuracy-first
+  best, and first/last timestamps. A `ScoreLog [scorelog, run]` receipt PDA
+  makes each run countable exactly once (double-enrollment is rejected by
+  the system program itself) and snapshots `attested`/`post_reveal` at
+  record time. `model_hash` must equal `sha256(run.model_id)` — the entry
+  binds the run's declared identity, never a string the recorder invented.
+  Live evidence: `qwen2.5-3b-instruct` 9/32 and `qwen2.5-1.5b-instruct`
+  5/32 hold records from real MPC-minted banks
+  (`scripts/record-local.sh`, transcript `record-local.txt`); the explorer
+  renders a "model capability records" leaderboard plus a "head-to-head"
+  matrix derived from resolved duels and same-bank ladder legs, and both
+  audits replay every record bit-exact from its receipts. Honest framing:
+  enrollment is permissionless and identity-free — `vouched_at_record`
+  distinguishes authority-attested entries from self-reported names.
 - **Output proofs:** `sealed prove --run <file> --item i` emits a Merkle proof
   that output `i` was in the committed `outputs_root`; the web explorer
   verifies it in-browser.
@@ -164,7 +181,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
-- **Test suite:** `yarn test` — 16/16 passing: seal+score+finalize; reveal
+- **Test suite:** `yarn test` — 17/17 passing: seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim (pot splits
   pro-rata over winning stakes, loser's claim fails, expiry, claim-fee-first
   solvency, post-finalize expiry rejection); duel market
@@ -176,7 +193,10 @@ since been wiped and redeployed during hardening. The evidence bundle in
   refund path; capability bounty FCFS claim → operator + retroactive-claim
   rejection + expiry refund; `init_signer_pda` idempotent grief-recovery;
   `unbrick_pda` prefund-dust reclaim → GC → init-on-same-PDA + wrong-seed and
-  live-account drain rejections (both programs); generated-bank
+  live-account drain rejections (both programs); capability-registry enroll —
+  `RunNotFinalized` gate, `ModelHashMismatch` identity binding, permissionless
+  third-party record, vouched snapshot, double-enroll rejection, accuracy-first
+  best ordering; generated-bank
   mint→live→score; private-bank mint→decrypt→score + privacy negatives;
   reshare delegate-decrypt + one-directional disclosure + gates;
   delegated-runner rebuild-from-grants + MPC score; pending-sweep liveness —

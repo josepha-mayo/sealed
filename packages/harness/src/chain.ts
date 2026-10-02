@@ -1523,6 +1523,27 @@ export async function recordScore(runPk: PublicKey) {
     `(record ${modelRecord.toBase58()}, receipt ${scoreLog.toBase58()}, ${sig})`);
 }
 
+/** `chain records` — the whole capability registry, accuracy-first. */
+export async function modelRecordList() {
+  const { program } = sealedProgram();
+  const all: any[] = await (program.account as any).modelRecord.all();
+  if (!all.length) { console.log("no model records — record_score a finalized run first"); return; }
+  const rows = all
+    .map(({ account: r, publicKey: pk }) => ({
+      pk,
+      modelId: r.modelId as string,
+      runs: r.runsScored as number,
+      pct: r.totalItems.toNumber() ? 100 * r.totalCorrect.toNumber() / r.totalItems.toNumber() : 0,
+      bestPct: r.bestItems ? 100 * r.bestCorrect / r.bestItems : 0,
+      best: `${r.bestCorrect}/${r.bestItems}`,
+      last: (r.lastRun as PublicKey).toBase58(),
+    }))
+    .sort((a, b) => b.bestPct - a.bestPct || b.pct - a.pct);
+  console.log(`${rows.length} model record(s) — cumulative MPC-scored performance:`);
+  for (const r of rows)
+    console.log(`  ${r.modelId.padEnd(36)} runs=${r.runs}  agg=${r.pct.toFixed(1)}%  best=${r.best} (${r.bestPct.toFixed(1)}%)  rec=${r.pk.toBase58()}`);
+}
+
 /** `chain modelrec <pubkey|model_id>` — print a registry entry. */
 export async function modelRecordShow(keyOrName: string) {
   const { program } = sealedProgram();
@@ -1689,6 +1710,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "modelrec") {
     await modelRecordShow(String(cmd[1] ?? args.run ?? ""));
+    return;
+  }
+  if (sub === "records") {
+    await modelRecordList();
     return;
   }
   if (sub === "market") {

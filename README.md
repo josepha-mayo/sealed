@@ -245,6 +245,7 @@ sealed chain reset-pending  --run <pk> --chunk <i>                   # sweep a s
 sealed chain attest        --run <pk>                                 # authority pins an attestation flag on a finalized run
 sealed chain record        --run <pk>                                 # enroll a finalized run into the persistent capability registry (anyone)
 sealed chain modelrec      <pubkey|model_id>                          # show a model's aggregate record
+sealed chain records                                                  # the whole registry, accuracy-first
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
 sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring
@@ -279,7 +280,7 @@ Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (ins
 - [x] Web: `web/index.html` single-file leaderboard + proof explorer + market board over any RPC
 - [x] Output proofs: `sealed prove` + in-browser verifier against onchain `outputs_root`
 - [x] Spot-check audit: `reveal_part` circuit + `chain reveal`/`chain verify` — authority declassifies answer fingerprints via MPC; E2E test confirms 8 declassified hashes equal the planted answers and non-authority reveals are rejected. Reveals are *burns*, enforced on-chain: a landed reveal bumps `benchmark.reveal_count`, later runs stamp `post_reveal=1`, and every market creator rejects flagged runs (`PostRevealRun`) — no stake can price a spoiled score
-- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 16/16 tests pass on any ledger
+- [x] **Selective question disclosure**: `reshare_part` re-encrypts a private bank's specs to a delegate's x25519 key inside MPC — `ShareGrant` PDAs record who can see which parts; E2E proves the delegate decrypts items identical to the authority's, the authority's key cannot open the delegate's grant, non-authority reshares are rejected, and the suite salts bank ids per run so 17/17 tests pass on any ledger
 - [x] Devnet: programs `FGVuEo…`/`8VSHkh…`, MXE on cluster 456, comp defs + circuits uploaded
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/seal-devnet-retry.sh` completes sealing automatically when it recovers
 

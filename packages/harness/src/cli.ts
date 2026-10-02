@@ -161,6 +161,7 @@ async function main() {
   sealed chain attest --run <pubkey>                       authority marks a finalized run as venue-vouched
   sealed chain record --run <pubkey>                       enroll a finalized run's MPC score in the on-chain capability registry (permissionless)
   sealed chain modelrec <pubkey|model_id>                  show a model's aggregated score record
+  sealed chain records                                     list every model record, accuracy-first
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)
   sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]         head-to-head: does A outscore B? (A/B/tie)
