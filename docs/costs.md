@@ -22,6 +22,7 @@ the 32-item (one-chunk) shape. Failed transactions are excluded.
 | `gen_part_private` (queue) | 4 | ~116–125k | same, specs returned `Enc<Shared>` |
 | `gen_part_private_callback` | 4 | ~144–159k | writes ciphertext-only specs |
 | `init_signer_pda` | 1 | ~7.5k | grief-proof shared-signer init |
+| `unbrick_pda` | 1 | ~5.6k | grief-dust reclaim: PDA re-derivation + one signed transfer |
 | `create_run` | 1 | ~14.5k | run PDA + committed `outputs_root` |
 | `score_chunk` (queue) | 1 | ~150k | `queue_computation` per chunk |
 | `score_chunk_callback` | 1 | ~156k | writes `Run.correct`, clears pending bits |

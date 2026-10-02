@@ -20,7 +20,10 @@ report channels matter more than usual.
   gating.
 - `programs/market` — score-band markets (incl. unseen-exam markets on
   private-bank runs), duels, ladder races, dark commit-reveal markets,
-  positions, claims, fees, expiry/refund paths.
+  capability bounties, positions, claims, fees, expiry/refund paths.
+- `unbrick_pda` (both programs) — permissionless grief-dust reclaim;
+  seeds-proofed to the program's own PDAs, drains only system-owned
+  never-initialized accounts.
 - `encrypted-ixs` — the Arcis circuits (gen/seal/score/reshare/reveal).
 - `packages/harness` — client bindings, artifact commitments, encryption.
 - `web/` — the explorer; report parsing bugs only if they misrepresent
@@ -46,11 +49,16 @@ report channels matter more than usual.
 
 ## Adversarial review history
 
-Four independent adversarial passes have run over the programs and MPC
+Five independent adversarial passes have run over the programs and MPC
 circuits; found-and-fixed issues include the just-in-time commit/expire
 gap (`all_queued_at` landing window), the 8-leg result-mask truncation,
-forced-resolution inside a leg's landing window, and the
-fingerprint-reveal spoilage path above (disclosed → enforced on-chain).
+forced-resolution inside a leg's landing window, the
+fingerprint-reveal spoilage path above (disclosed → enforced on-chain),
+and the prefund-grief dust class (pass 5 — Anchor's `init` already
+absorbs prefunds as rent subsidy, but griefed lamports sat locked;
+`unbrick_pda` now reclaims them on both programs, and `init_signer_pda`'s
+manual `create_account` path drains them before creation — regression-
+tested, demoed in `docs/evidence/unbrick-demo.txt`).
 Pass 4 re-checked the sealed program's access control end-to-end — every
 bank-mutating instruction is `has_one = authority`-gated, `create_run`'s
 fee recipient is pinned to `benchmark.authority`, `score_chunk` is
