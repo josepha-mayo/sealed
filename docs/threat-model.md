@@ -353,3 +353,21 @@ Live transcripts: `docs/evidence/bounty-local.txt` (mock-flow bait
 rejections + claim + refund) and `docs/evidence/real-bounty.txt` (a real
 open-weights model — qwen2.5-3b via llama.cpp — MPC-scored 7/32, and a
 permissionless claim paid its operator 0.1 SOL).
+
+## Capability registry — what a permissionless leaderboard can be attacked with
+
+`record_score` is intentionally open: a leaderboard that needs an operator
+to enroll scores has already failed. The consequence is a real attack
+surface — `model_id` is a *claim*, and anyone may pay rent to record any
+finalized run under its claimed name.
+
+| Attack | What holds |
+|---|---|
+| **Sybil / impersonated model_id** — run a weak model, claim a frontier model's id, enroll it | Real and *accepted*: the registry aggregates claims, not identities. The discriminator is `ScoreLog.vouched_at_record` — a snapshot of whether the benchmark authority had attested the run at record time. The explorer surfaces vouched counts per record; `recorded_by` is preserved per receipt so a cluster of self-enrolled junk is attributable. |
+| **Aggregate poisoning** — deliberately-bad runs recorded under a competitor's claimed name | Drags a name's cumulative total, never its `best` (argmax only moves on strictly better runs). Standard cost of permissionless registries; vouched receipts and per-receipt provenance let readers weight attested-only evidence. |
+| **Double-counting / replay** | `ScoreLog [scorelog, run]` is `init`-once — the second enrollment fails at the system level (`already in use`), not on a flag. |
+| **Partial-score stuffing** — enroll a run that never finished | `RunNotFinalized`: only `status == RUN_FINALIZED` enrolls. A proven-partial can settle a market but cannot claim a leaderboard slot. |
+| **Wrong-name binding** — recorder passes a hash that doesn't match the run's stored id | `sha256(run.model_id)` is recomputed in the ix; `ModelHashMismatch` otherwise. The stored `model_id` string is re-checked on every subsequent record. |
+| **Post-reveal stuffing** — a run created after fingerprint disclosure commits outputs that replay revealed answers | `ScoreLog.post_reveal` snapshots the run's immutable flag; readers see it as a pill and can discount the receipt. Markets reject such runs outright; the registry keeps them *labeled* rather than banned — a post-reveal score is still truthful about what happened, and pricing the provenance is the reader's call. |
+| **Receipt spam / rent grief** | Each receipt costs the recorder ~0.0026 SOL rent + fees; spam is self-funded and bounded. |
+| **Order-dependence** — two same-second receipts disagree on "best" | Both audits verify `best_run` is *a member* of the optimal set, not a specific replay order — landing order at second resolution is unrecoverable and the check is honest about it. |

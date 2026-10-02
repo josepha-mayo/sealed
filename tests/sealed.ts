@@ -2362,7 +2362,10 @@ describe("Sealed", () => {
     // A wrong model_hash cannot bind a run to the wrong registry entry.
     const runner = Keypair.generate();
     await fund(provider, owner, runner.publicKey, 0.6 * LAMPORTS_PER_SOL);
-    const MODEL = "test/registry-model";
+    // ModelRecord is a GLOBAL aggregate keyed by sha256(model_id) — unlike
+    // banks it is NOT namespaced by authority, so a fixed id would share state
+    // across suite runs on a dirty ledger. Salt it like the bank ids.
+    const MODEL = `test/registry-model-${ID_SALT}`;
     const idxA = BigInt((await program.account.benchmark.fetch(benchmark)).runCount.toString());
     const [runA] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchmark.toBuffer(), u64le(idxA)], program.programId);
     const outputsA: bigint[][] = answers.map((chunk, i) => chunk.map((a, j) => (j < 24 ? a : randomU64())));
@@ -2551,6 +2554,62 @@ describe("Sealed", () => {
       "PostRevealRun",
     );
     console.log("F1 closed: post-reveal run stamped post_reveal=1 on-chain; create_market rejects it (PostRevealRun)");
+
+    // …but scoring still works — post_reveal flags provenance, it doesn't
+    // brick the run. Mint a real artifact on the burned bank and record the
+    // finalized score: the ScoreLog must carry post_reveal=1, marking the
+    // registry entry as "committed after a fingerprint disclosure".
+    const prIdx = nRuns + 1; // runNext took nRuns
+    const [runPr] = PublicKey.findProgramAddressSync(
+      [Buffer.from("run"), benchmark.toBuffer(), u64le(BigInt(prIdx))],
+      program.programId,
+    );
+    const planted = [5, 3];
+    const prOutputs: bigint[][] = answers.map((chunk, i) =>
+      chunk.map((a, j) => (j < planted[i] ? a : randomU64())),
+    );
+    const prLeaves = prOutputs.map((chunk, i) => chunkOutLeaf(i, chunk));
+    await program.methods
+      .createRun(`test/post-reveal-${ID_SALT}`, Array.from(randomBytes(32)), Array.from(merkleRoot(prLeaves)))
+      .accountsPartial({ runner: spoiled.publicKey, authority: owner.publicKey, benchmark, run: runPr })
+      .signers([spoiled])
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    let pr: any = await program.account.run.fetch(runPr);
+    expect(pr.postReveal).to.equal(1);
+    for (let i = 0; i < 2; i++) {
+      const sc = new anchor.BN(randomBytes(8), "hex");
+      const [cp] = PublicKey.findProgramAddressSync(
+        [Buffer.from("chunk"), benchmark.toBuffer(), u16le(i)],
+        program.programId,
+      );
+      await program.methods
+        .scoreChunk(sc, new anchor.BN(prIdx), i, prOutputs[i].map((o) => new anchor.BN(o.toString())), merkleProof(prLeaves, i))
+        .accountsPartial({
+          payer: spoiled.publicKey,
+          run: runPr,
+          runner: spoiled.publicKey,
+          chunk: cp,
+          ...arciumAccounts(sc, "score_chunk"),
+        })
+        .signers([spoiled])
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+      await awaitComputationFinalization(provider, sc, program.programId, "confirmed");
+    }
+    pr = await program.account.run.fetch(runPr);
+    expect(pr.status).to.equal(1, "post-reveal run finalized");
+    expect(pr.correct).to.equal(8);
+
+    const prHash = Buffer.from(sha256(utf8ToBytes(`test/post-reveal-${ID_SALT}`)));
+    const [prRec] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), prHash], program.programId);
+    const [prLog] = PublicKey.findProgramAddressSync([Buffer.from("scorelog"), runPr.toBuffer()], program.programId);
+    await program.methods
+      .recordScore(new anchor.BN(prIdx), Array.from(prHash))
+      .accounts({ recorder: owner.publicKey, run: runPr, modelRecord: prRec, scoreLog: prLog })
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
+    const prLogAcc: any = await program.account.scoreLog.fetch(prLog);
+    expect(prLogAcc.postReveal).to.equal(1, "receipt preserves post-reveal provenance");
+    expect(prLogAcc.vouchedAtRecord).to.equal(0);
+    console.log("registry honesty: post-reveal run scored 8/64 → ScoreLog carries post_reveal=1");
   });
 });
 

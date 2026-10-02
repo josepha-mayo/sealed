@@ -198,7 +198,10 @@ parimutuel markets resolved from `Run.correct`.
   structurally impossible and SNAPSHOT attested/post_reveal at record time.
   `model_hash` must equal sha256(run.model_id) (ModelHashMismatch) — the PDA
   binds the run's declared identity, not the caller's string. The reveal
-  test must still run LAST; the registry test sits just before it.
+  test must still run LAST; the registry test sits just before it. Unlike
+  banks, registry PDAs are GLOBAL (not authority-namespaced) — tests must
+  salt model_ids (`test/registry-model-${ID_SALT}`) or records accumulate
+  across suite runs and absolute-count asserts break.
 - `pending_since` refreshes on EVERY `score_chunk` for the run — a public
   third-party sweep of an older dead bit waits ~15 min past the LAST queue,
   not the dead bit's own queue time (runner self-sweep is always allowed;
