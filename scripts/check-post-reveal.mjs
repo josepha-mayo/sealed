@@ -36,7 +36,7 @@ const [runP] = PublicKey.findProgramAddressSync([Buffer.from("run"), benchPk.toB
 await program.methods
   .createRun("test/post-reveal-check", Array.from(crypto.randomBytes(32)), Array.from(crypto.randomBytes(32)))
   .accountsPartial({ runner: runner.publicKey, authority: owner.publicKey, benchmark: benchPk, run: runP })
-  .signers([runner]).rpc({ commitment: "confirmed" });
+  .signers([runner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 const r = await program.account.run.fetch(runP);
 console.log("new run", runP.toBase58(), "postReveal =", r.postReveal, "— expect 1");
 if (Number(r.postReveal) !== 1) { console.log("FAIL: flag not set"); process.exit(1); }

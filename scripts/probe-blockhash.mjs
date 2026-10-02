@@ -12,7 +12,7 @@ const fire = async (label) => {
   try {
     const sig = await sendAndConfirmTransaction(conn, new Transaction().add(
       SystemProgram.transfer({ fromPubkey: kp.publicKey, toPubkey: to, lamports: 1_000_000 })
-    ), [kp], { commitment: "confirmed" });
+    ), [kp], { preflightCommitment: "processed", commitment: "confirmed" });
     console.log(`${label} OK ${sig.slice(0, 16)}`);
     return true;
   } catch (e) {

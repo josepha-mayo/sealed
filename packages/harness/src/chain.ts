@@ -71,7 +71,7 @@ function setup(): Ctx {
   const walletPath = process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json");
   const wallet = Keypair.fromSecretKey(new Uint8Array(JSON.parse(readFileSync(walletPath, "utf8"))));
   const connection = new Connection(url, "confirmed");
-  const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(wallet), { commitment: "confirmed" });
+  const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(wallet), { preflightCommitment: "processed", commitment: "confirmed" });
   const idl = require(join(ROOT, "target", "idl", "sealed.json"));
   if (process.env.SEALED_PROGRAM_ID) idl.address = process.env.SEALED_PROGRAM_ID;
   const program = new anchor.Program(idl, provider);
@@ -94,7 +94,7 @@ function sealedProgram(kpPath?: string) {
   const kp = kpPath
     ? loadKeypair(kpPath)
     : loadKeypair(process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json"));
-  const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { commitment: "confirmed" });
+  const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { preflightCommitment: "processed", commitment: "confirmed" });
   const idl = require(join(ROOT, "target", "idl", "sealed.json"));
   if (process.env.SEALED_PROGRAM_ID) idl.address = process.env.SEALED_PROGRAM_ID;
   return { program: new anchor.Program(idl, provider), kp, provider };
@@ -166,7 +166,7 @@ export async function init(ctx = setup()) {
   const sig = await program.methods
     .initSignerPda()
     .accounts({ payer: wallet.publicKey, signPdaAccount: signPda })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`sign_pda_account ensured (${sig})`);
   const arciumProgram = getArciumProgram(provider);
   const mxeAccount = getMXEAccAddress(program.programId);
@@ -196,7 +196,7 @@ export async function init(ctx = setup()) {
     }
     const sig = await (program.methods as any)[method]()
       .accounts({ compDefAccount: compDef, payer: wallet.publicKey, mxeAccount, addressLookupTable: lut })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     console.log(`${name}: comp def initialized ${sig}`);
     await uploadCircuit(provider, name, program.programId, readFileSync(join(ROOT, "build", `${name}.arcis`)), true);
     console.log(`${name}: circuit uploaded`);
@@ -216,7 +216,7 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
     await program.methods
       .createBenchmark(bank.benchmarkId, `sealed-v${bank.benchmarkId}`, bank.chunkCount, Array.from(Buffer.from(bank.itemsRoot, "hex")), new anchor.BN(feeLamports.toString()), 0)
       .accounts({ authority: wallet.publicKey })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     b = await acct.benchmark.fetch(benchmark);
   } else if (b.kind !== 0) {
     throw new Error(`benchmark ${benchmark.toBase58()} is a generated bank; use 'chain gen'`);
@@ -248,7 +248,7 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
       continue;
     }
     if (!state) {
-      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ commitment: "confirmed" });
+      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       state = await acct.answerChunk.fetch(c);
     }
     const hashes = chunkHashes(bank, i);
@@ -267,13 +267,13 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
         await program.methods
           .stagePart(i, p, Array.from(pub), new anchor.BN(deserializeLE(nonce).toString()), cts.map((x) => Array.from(x)))
           .accounts({ authority: wallet.publicKey, benchmark, chunk: c })
-          .rpc({ commitment: "confirmed" });
+          .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       }
       const offset = new anchor.BN(randomBytes(8), "hex");
       await program.methods
         .sealPart(offset, i, p)
         .accountsPartial({ payer: wallet.publicKey, benchmark, chunk: c, ...arciumAccounts(ctx, offset, "seal_part") })
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       process.stdout.write(`chunk ${i} part ${p}: staged, sealing in MPC...`);
       state = await waitFor(acct.answerChunk, c, (s) => (s.partsSealed & (1 << p)) !== 0);
       console.log(state.partsSealed & (1 << p) ? " sealed" : " NOT sealed?!");
@@ -306,7 +306,7 @@ export async function gen(benchmarkId: number, chunkCount: number, feeLamports: 
     await program.methods
       .createBenchmark(benchmarkId, `sealed-gen-v${benchmarkId}`, chunkCount, Array.from(new Uint8Array(32)), new anchor.BN(feeLamports.toString()), 1)
       .accounts({ authority: wallet.publicKey })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     b = await acct.benchmark.fetch(benchmark);
   } else if (b.kind !== 1) {
     throw new Error(`benchmark ${benchmark.toBase58()} exists as an authored bank; bump the id`);
@@ -324,11 +324,11 @@ export async function gen(benchmarkId: number, chunkCount: number, feeLamports: 
       continue;
     }
     if (!state) {
-      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ commitment: "confirmed" });
+      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       state = await acct.answerChunk.fetch(c);
     }
     if (!(await fetchOrNull(acct.itemChunk.fetch(it)))) {
-      await program.methods.initItems(i).accounts({ authority: wallet.publicKey, benchmark, items: it }).rpc({ commitment: "confirmed" });
+      await program.methods.initItems(i).accounts({ authority: wallet.publicKey, benchmark, items: it }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     for (let p = 0; p < PARTS; p++) {
       if (state.partsSealed & (1 << p)) continue;
@@ -337,7 +337,7 @@ export async function gen(benchmarkId: number, chunkCount: number, feeLamports: 
         await program.methods
           .genPart(offset, i, p)
           .accountsPartial({ payer: wallet.publicKey, benchmark, chunk: c, items: it, ...arciumAccounts(ctx, offset, "gen_part") })
-          .rpc({ commitment: "confirmed" });
+          .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       }
       process.stdout.write(`chunk ${i} part ${p}: minting in MPC...`);
       state = await waitFor(acct.answerChunk, c, (s) => (s.partsSealed & (1 << p)) !== 0);
@@ -406,7 +406,7 @@ export async function genPrivate(benchmarkId: number, chunkCount: number, feeLam
     await program.methods
       .createBenchmark(benchmarkId, `sealed-pgen-v${benchmarkId}`, chunkCount, Array.from(new Uint8Array(32)), new anchor.BN(feeLamports.toString()), 2)
       .accounts({ authority: wallet.publicKey })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     b = await acct.benchmark.fetch(benchmark);
   } else if (b.kind !== 2) {
     throw new Error(`benchmark ${benchmark.toBase58()} exists with kind=${b.kind}; bump the id`);
@@ -427,11 +427,11 @@ export async function genPrivate(benchmarkId: number, chunkCount: number, feeLam
       continue;
     }
     if (!state) {
-      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ commitment: "confirmed" });
+      await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       state = await acct.answerChunk.fetch(c);
     }
     if (!(await fetchOrNull(acct.privItemChunk.fetch(it)))) {
-      await program.methods.initItemsPrivate(i).accounts({ authority: wallet.publicKey, benchmark, items: it }).rpc({ commitment: "confirmed" });
+      await program.methods.initItemsPrivate(i).accounts({ authority: wallet.publicKey, benchmark, items: it }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     for (let p = 0; p < PARTS; p++) {
       if (state.partsSealed & (1 << p)) continue;
@@ -440,7 +440,7 @@ export async function genPrivate(benchmarkId: number, chunkCount: number, feeLam
         await program.methods
           .genPartPrivate(offset, i, p, Array.from(viewer.pub))
           .accountsPartial({ payer: wallet.publicKey, benchmark, chunk: c, items: it, ...arciumAccounts(ctx, offset, "gen_part_private") })
-          .rpc({ commitment: "confirmed" });
+          .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       }
       process.stdout.write(`chunk ${i} part ${p}: minting privately in MPC...`);
       state = await waitFor(acct.answerChunk, c, (s) => (s.partsSealed & (1 << p)) !== 0);
@@ -531,7 +531,7 @@ export async function resharePart(
       grant: g,
       ...arciumAccounts(ctx, offset, "reshare_part"),
     })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
 
   process.stdout.write("waiting for MPC re-encryption...");
   const grant = await waitFor(acct.shareGrant, g, (s) => !s.sharedAt.isZero());
@@ -683,7 +683,7 @@ export async function score(
     await program.methods
       .createRun(run.model, Array.from(Buffer.from(run.harnessHash, "hex")), Array.from(Buffer.from(run.outputsRoot, "hex")))
       .accountsPartial({ runner: wallet.publicKey, authority, benchmark, run: r })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     state = await acct.run.fetch(r);
   } else {
     if (run.model !== state.modelId) throw new Error(`run #${runIndex} already exists for model ${state.modelId}`);
@@ -723,7 +723,7 @@ export async function score(
       await program.methods
         .scoreChunk(offset, new anchor.BN(runIndex.toString()), i, outputs, proof)
         .accountsPartial({ payer: wallet.publicKey, run: r, runner: wallet.publicKey, chunk: chunk(i), ...arciumAccounts(ctx, offset, "score_chunk") })
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       console.log(`chunk ${i}: queued in MPC`);
     }
   }
@@ -776,7 +776,7 @@ export async function revealPart(benchmarkPk: PublicKey, chunkIndex: number, par
       reveal: rv,
       ...arciumAccounts(ctx, offset, "reveal_part"),
     })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   process.stdout.write(`chunk ${chunkIndex} part ${part}: declassifying in MPC...`);
   state = await waitFor(acct.reveal, rv, (s) => Number(s.revealedAt) !== 0);
   console.log(state && Number(state.revealedAt) !== 0 ? " revealed" : " STILL PENDING");
@@ -834,7 +834,7 @@ export async function resetSealing(benchmarkId: number, chunkIndex: number, ctx 
   const sig = await program.methods
     .resetSealing(chunkIndex)
     .accounts({ authority: wallet.publicKey, benchmark, chunk: chunk(chunkIndex) })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`reset_sealing ${sig}`);
 }
 
@@ -854,7 +854,7 @@ export async function resetPending(runPk: PublicKey, chunkIndex: number, ctx = s
   const sig = await program.methods
     .resetPending(new anchor.BN(Number(r.index)), chunkIndex)
     .accounts({ sweeper: wallet.publicKey, run: runPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`reset_pending ${sig}`);
 }
 
@@ -890,7 +890,7 @@ function loadKeypair(path: string): Keypair {
 function marketProgram(kpPath?: string) {
   const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
   const kp = kpPath ? loadKeypair(kpPath) : loadKeypair(process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json"));
-  const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { commitment: "confirmed" });
+  const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { preflightCommitment: "processed", commitment: "confirmed" });
   const idl = require(join(ROOT, "target", "idl", "market.json"));
   if (process.env.MARKET_PROGRAM_ID) idl.address = process.env.MARKET_PROGRAM_ID;
   return { market: new anchor.Program(idl, provider), kp };
@@ -943,7 +943,7 @@ async function marketOpen(run: PublicKey, edges: number[], salt: bigint, t: Mark
   await (market.methods as any)
     .createMarket(new anchor.BN(salt.toString()), edges, t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()))
     .accounts({ authority: kp.publicKey, run, market: m })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const labels = Array.from({ length: edges.length + 1 }, (_, i) => outcomeLabel(edges.length + 1, edges, i)).join(" | ");
   console.log(`market ${m.toBase58()} opened: run ${run.toBase58()} outcomes: ${labels}${t.feeBps ? ` fee=${t.feeBps}bps` : ""}`);
   return m;
@@ -955,7 +955,7 @@ async function marketOpenDuel(runA: PublicKey, runB: PublicKey, salt: bigint, t:
   await (market.methods as any)
     .createDuel(new anchor.BN(salt.toString()), t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()))
     .accounts({ authority: kp.publicKey, runA, runB, market: m })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`duel market ${m.toBase58()} opened: run ${runA.toBase58()} vs ${runB.toBase58()} — outcomes: A wins | B wins | tie`);
   return m;
 }
@@ -970,11 +970,11 @@ async function marketBet(marketPk: PublicKey, outcome: number, lamports: bigint,
     ? await (market.methods as any)
         .betDuel(outcome, new anchor.BN(lamports.toString()))
         .accounts({ bettor: kp.publicKey, runA: m.run, runB: m.runB, market: marketPk, position })
-        .rpc({ commitment: "confirmed" })
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" })
     : await (market.methods as any)
         .bet(outcome, new anchor.BN(lamports.toString()))
         .accounts({ bettor: kp.publicKey, run: m.run, market: marketPk, position })
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`bet [${label}] ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
 }
 
@@ -985,11 +985,11 @@ async function marketResolve(marketPk: PublicKey, kpPath?: string) {
     ? await (market.methods as any)
         .resolveDuel()
         .accounts({ runA: m.run, runB: m.runB, market: marketPk })
-        .rpc({ commitment: "confirmed" })
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" })
     : await (market.methods as any)
         .resolve()
         .accounts({ run: m.run, market: marketPk })
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after: any = await (market.account as any).market.fetch(marketPk);
   const oc = after.status === 2
     ? "CANCELLED"
@@ -1006,7 +1006,7 @@ async function marketClaim(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .claim()
     .accounts({ bettor: kp.publicKey, market: marketPk, position })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
@@ -1019,11 +1019,11 @@ async function marketVoid(marketPk: PublicKey, kpPath?: string) {
     ? await (market.methods as any)
         .voidDuel()
         .accounts({ authority: kp.publicKey, runA: m.run, runB: m.runB, market: marketPk })
-        .rpc({ commitment: "confirmed" })
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" })
     : await (market.methods as any)
         .voidMarket()
         .accounts({ authority: kp.publicKey, run: m.run, market: marketPk })
-        .rpc({ commitment: "confirmed" });
+        .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`market voided (${sig}): ${marketPk.toBase58()} — all positions refundable via claim`);
 }
 
@@ -1036,7 +1036,7 @@ async function marketExpire(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .expireMarket()
     .accounts({ market: marketPk, runA: m.run, runB })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after = await (market.account as any).market.fetch(marketPk);
   const what = after.status === 1
     ? `settled on proven score ${after.resolvedScore.toString()} (outcome ${after.outcome})`
@@ -1051,7 +1051,7 @@ async function marketClaimFee(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .claimFee()
     .accounts({ authority: kp.publicKey, market: marketPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim-fee (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
@@ -1084,7 +1084,7 @@ async function ladderOpen(legs: PublicKey[], salt: bigint, t: MarketTiming, kpPa
     .createLadder(legs[0], new anchor.BN(salt.toString()), t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()))
     .accounts({ authority: kp.publicKey, ladder: l })
     .remainingAccounts(legs.map(legMeta))
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`ladder ${l.toBase58()} opened: ${legs.length}-way race${t.feeBps ? ` fee=${t.feeBps}bps` : ""}`);
   legRows.forEach((r) => console.log(r));
   console.log(`  outcome index = leg order above — a leg whose runner never scores forfeits at 0`);
@@ -1099,7 +1099,7 @@ async function ladderBet(ladderPk: PublicKey, outcome: number, lamports: bigint,
     .betLadder(outcome, new anchor.BN(lamports.toString()))
     .accounts({ bettor: kp.publicKey, ladder: ladderPk, position })
     .remainingAccounts(ladderLegs(l).map(legMeta))
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`bet leg [${outcome}] ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
 }
 
@@ -1110,7 +1110,7 @@ async function ladderResolve(ladderPk: PublicKey, kpPath?: string) {
     .resolveLadder()
     .accounts({ ladder: ladderPk })
     .remainingAccounts(ladderLegs(l).map(legMeta))
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after: any = await (market.account as any).ladder.fetch(ladderPk);
   const what = after.status === 2
     ? "CANCELLED (wash — nobody backed a leader, or all legs tied)"
@@ -1125,7 +1125,7 @@ async function ladderClaim(ladderPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .claimLadder()
     .accounts({ bettor: kp.publicKey, ladder: ladderPk, position })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
@@ -1137,7 +1137,7 @@ async function ladderVoid(ladderPk: PublicKey, kpPath?: string) {
     .voidLadder()
     .accounts({ authority: kp.publicKey, ladder: ladderPk })
     .remainingAccounts(ladderLegs(l).map(legMeta))
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`ladder voided (${sig}): ${ladderPk.toBase58()} — all positions refundable via claim`);
 }
 
@@ -1147,7 +1147,7 @@ async function ladderClaimFee(ladderPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .claimFeeLadder()
     .accounts({ authority: kp.publicKey, ladder: ladderPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim-fee (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
@@ -1230,7 +1230,7 @@ async function darkOpen(run: PublicKey, edges: number[], salt: bigint, t: Market
   await (market.methods as any)
     .createDark(new anchor.BN(salt.toString()), edges, t.feeBps, new anchor.BN(t.closesAt.toString()), new anchor.BN(t.resolveBy.toString()), new anchor.BN(t.revealSecs.toString()))
     .accounts({ authority: kp.publicKey, run, darkMarket: m })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const labels = Array.from({ length: edges.length + 1 }, (_, i) => outcomeLabel(edges.length + 1, edges, i)).join(" | ");
   console.log(`dark market ${m.toBase58()} opened: run ${run.toBase58()} outcomes: ${labels} — positions are sealed`);
   return m;
@@ -1247,7 +1247,7 @@ async function darkBet(marketPk: PublicKey, outcome: number, lamports: bigint, p
   const sig = await (market.methods as any)
     .darkBet(new anchor.BN(posSalt.toString()), Array.from(commitment), new anchor.BN(lamports.toString()))
     .accounts({ bettor: kp.publicKey, run: m.run, darkMarket: marketPk, position })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const label = outcomeLabel(m.nOutcomes, m.edges, outcome);
   console.log(`sealed bet ${Number(lamports) / LAMPORTS_PER_SOL} SOL by ${kp.publicKey.toBase58()} (${sig})`);
   console.log(`  position ${position.toBase58()} — the chain sees only commitment ${commitment.toString("hex").slice(0, 16)}…`);
@@ -1261,7 +1261,7 @@ async function darkResolve(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .resolveDark()
     .accounts({ run: m.run, darkMarket: marketPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after: any = await (market.account as any).darkMarket.fetch(marketPk);
   const oc = after.status === 2
     ? "CANCELLED"
@@ -1275,7 +1275,7 @@ async function darkReveal(marketPk: PublicKey, posSalt: bigint, outcome: number,
   const sig = await (market.methods as any)
     .revealDark(new anchor.BN(posSalt.toString()), outcome, Array.from(Buffer.from(saltHex, "hex")))
     .accounts({ bettor: kp.publicKey, market: marketPk, position })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const m: any = await (market.account as any).darkMarket.fetch(marketPk);
   const win = m.outcome === outcome ? "WINNER — stake counted in win_total" : "losing side — position recorded";
   console.log(`revealed (${sig}): outcome ${outcome} — ${win}`);
@@ -1286,7 +1286,7 @@ async function darkFinalize(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .finalizeDark()
     .accounts({ darkMarket: marketPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const m: any = await (market.account as any).darkMarket.fetch(marketPk);
   const what = m.status === 2 ? "CANCELLED — nobody revealed; positions refund via claim" : `tallied: win_total=${Number(m.winTotal) / LAMPORTS_PER_SOL} SOL of pool=${Number(m.poolTotal) / LAMPORTS_PER_SOL}`;
   console.log(`dark market finalized (${sig}): ${what}`);
@@ -1299,7 +1299,7 @@ async function darkClaim(marketPk: PublicKey, posSalt: bigint, kpPath?: string) 
   const sig = await (market.methods as any)
     .claimDark(new anchor.BN(posSalt.toString()))
     .accounts({ bettor: kp.publicKey, market: marketPk, position })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after = await provider0().getBalance(kp.publicKey);
   console.log(`claim (${sig}): ${kp.publicKey.toBase58()} balance ${before / LAMPORTS_PER_SOL} -> ${after / LAMPORTS_PER_SOL} SOL`);
 }
@@ -1311,7 +1311,7 @@ async function darkVoid(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .voidDark()
     .accounts({ authority: kp.publicKey, run: m.run, darkMarket: marketPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`dark market ${marketPk.toBase58()} voided (${sig}) — positions refund via claim`);
 }
 
@@ -1322,7 +1322,7 @@ async function darkExpire(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .expireDark()
     .accounts({ runA: m.run, darkMarket: marketPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const after: any = await (market.account as any).darkMarket.fetch(marketPk);
   const status = ["OPEN", "RESOLVED", "CANCELLED"][after.status as number];
   console.log(`dark market expired (${sig}): status=${status} score=${after.resolvedScore}`);
@@ -1334,7 +1334,7 @@ async function darkClaimFee(marketPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .claimFeeDark()
     .accounts({ authority: kp.publicKey, darkMarket: marketPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`dark market fees claimed (${sig})`);
 }
 
@@ -1374,7 +1374,7 @@ async function bountyOpen(bank: PublicKey, threshold: number, amount: bigint, de
   await (market.methods as any)
     .createBounty(new anchor.BN(salt.toString()), threshold, new anchor.BN(amount.toString()), new anchor.BN(deadlineTs.toString()))
     .accounts({ sponsor: kp.publicKey, bank, bounty: b })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`bounty ${b.toBase58()} opened: bank ${bank.toBase58()} threshold=${threshold} pot=${Number(amount) / LAMPORTS_PER_SOL} SOL deadline=${new Date(Number(deadlineTs) * 1000).toISOString()}`);
   return b;
 }
@@ -1390,7 +1390,7 @@ async function bountyClaim(bountyPk: PublicKey, runPk: PublicKey, kpPath?: strin
   const sig = await (market.methods as any)
     .claimBounty()
     .accounts({ run: runPk, bounty: bountyPk, payee: run.runner })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   const afterBal = await provider.connection.getBalance(run.runner);
   const b: any = await (market.account as any).bounty.fetch(bountyPk);
   console.log(`bounty claimed (${sig}): run ${runPk.toBase58()} score=${b.winningScore} paid ${afterBal - before} lamports to runner ${run.runner.toBase58()}`);
@@ -1403,7 +1403,7 @@ async function bountyExpire(bountyPk: PublicKey, kpPath?: string) {
   const sig = await (market.methods as any)
     .expireBounty()
     .accounts({ bounty: bountyPk, sponsor: b.sponsor })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`bounty expired (${sig}): ${bountyPk.toBase58()} — escrow returned to sponsor ${b.sponsor.toBase58()}`);
 }
 
@@ -1469,7 +1469,7 @@ async function unbrickPda(cmd: string[]) {
   const sig = await (prog.methods as any)
     .unbrickPda(seeds, bump)
     .accounts({ rescuer: kp.publicKey, pda })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`unbrick_pda ${pda.toBase58()} (${sig}) — grief lamports swept to ${kp.publicKey.toBase58()}; the init path is unblocked`);
 }
 
@@ -1487,7 +1487,7 @@ export async function attestRun(runPk: PublicKey) {
   await ctx.program.methods
     .attestRun(new anchor.BN(r.index.toString()))
     .accounts({ authority: ctx.wallet.publicKey, benchmark: r.benchmark, run: runPk })
-    .rpc({ commitment: "confirmed" });
+    .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
   console.log(`run ${runPk.toBase58()} attested by authority ${ctx.wallet.publicKey.toBase58()}`);
 }
 
@@ -1506,7 +1506,7 @@ export async function chainMain(cmd: string[], args: Args) {
     const sig = await program.methods
       .initSignerPda()
       .accounts({ payer: wallet.publicKey, signPdaAccount: signPda })
-      .rpc({ commitment: "confirmed" });
+      .rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     console.log(`init_signer_pda ${signPda.toBase58()} (${sig})`);
     return;
   }
