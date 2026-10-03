@@ -167,7 +167,9 @@ since been wiped and redeployed during hardening. The evidence bundle in
   `chain record --all` enrolled the rest of the ledger — 29 model records
   reconstructed bit-exact from 287 `ScoreLog` receipts. The explorer
   renders a "model capability records" leaderboard plus a "head-to-head"
-  matrix derived from resolved duels and same-bank ladder legs, and both
+  matrix derived from resolved duels and same-bank ladder legs — with a
+  Wilson 95% lower bound under every point estimate and a vouched-only
+  aggregate that filters out self-reported claims — and both
   audits replay every record bit-exact from its receipts. Honest framing:
   enrollment is permissionless and identity-free — `vouched_at_record`
   distinguishes authority-attested entries from self-reported names.

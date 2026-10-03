@@ -1607,6 +1607,10 @@ export async function modelRecordShow(keyOrName: string) {
   console.log(`model record ${pda.toBase58()}`);
   console.log(`  model_id=${rec.modelId}  hash=${Buffer.from(rec.modelHash).toString("hex").slice(0, 16)}…`);
   console.log(`  runs=${rec.runsScored}  aggregate=${rec.totalCorrect}/${rec.totalItems} (${pct}%)`);
+  const logs: any[] = (await (program.account as any).scoreLog.all()).filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda));
+  const vc = logs.filter((l: any) => l.account.vouchedAtRecord).reduce((s: number, l: any) => s + l.account.correct, 0);
+  const vi = logs.filter((l: any) => l.account.vouchedAtRecord).reduce((s: number, l: any) => s + l.account.items, 0);
+  if (vi) console.log(`  vouched-only=${vc}/${vi} (${(100 * vc / vi).toFixed(1)}%) across ${logs.filter((l: any) => l.account.vouchedAtRecord).length} attested receipt(s)`);
   console.log(`  best=${rec.bestCorrect}/${rec.bestItems} on run ${(rec.bestRun as PublicKey).toBase58()} (bank ${(rec.bestBank as PublicKey).toBase58()})`);
   console.log(`  last=${(rec.lastRun as PublicKey).toBase58()}  first_seen=${rec.firstSeen}  last_scored=${rec.lastScored}`);
 }
