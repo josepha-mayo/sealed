@@ -63,13 +63,13 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #       every commitment fold replayed, every market resolution recomputed,
 #       AND the calibration rescore: the MPC's arithmetic reproduced
 #       bit-for-bit in your browser (7/32, run GnrRt5GU…).
-#       Should read "12 pass · 0 fail" with twenty-five reveal-burn notes.
+#       Should read "12 pass · 0 fail" with twenty-seven reveal-burn notes.
 #     - "model capability records": persistent per-model aggregates enrolled
 #       by the permissionless record_score ix — each ScoreLog receipt makes
 #       a run countable exactly once, and the audit replays every record
 #       bit-exact from its receipts. Four REAL local models lead the table;
 #       `chain record --all` is the permissionless librarian that enrolled
-#       the other 278 runs — no operator required
+#       the other ~280 runs — no operator required
 #     - a benchmark card: generated-item specs render publicly while the
 #       answers exist only as ciphertext — click "verify commitment" to
 #       replay its items_root fold yourself

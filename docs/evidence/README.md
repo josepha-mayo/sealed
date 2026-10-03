@@ -156,7 +156,7 @@ self-reported metadata — `vouched_at_record` is what separates an
 authority-vouched score from a stranger's claim, and the records say so.
 
 `records.txt` — the full registry after `chain record --all` crawled the
-ledger: 29 model records holding 288 receipts (278+ enrolled by that single
+ledger: 31 model records holding 291 receipts (278+ enrolled by that single
 permissionless sweep — no operator touch). Real models at the top; the
 `test/ mock/ ladder/ duel/ dark/ delegate/` fixtures are suite baselines.
 Both runs above were then authority-attested — their receipts keep
@@ -373,7 +373,7 @@ view of the questions was the on-chain grant trail.
   `ScoreLog` receipts, and re-verifies each `prove-*.json` Merkle path —
   plus cross-validates every on-chain `post_reveal` flag against
   timestamp inference.
-  Current bundle: **12 PASS / 0 FAIL** (+ 25 informational notes — per-bank
+  Current bundle: **12 PASS / 0 FAIL** (+ 27 informational notes — per-bank
   reveal-burn accounting and the grandfathered epoch-2 bounty).
 - **`node scripts/rescore.mjs`** — the calibration check: an authored bank
   whose plaintext answers ship in `calibration/` *on purpose*. The script
