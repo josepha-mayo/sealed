@@ -21,7 +21,7 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 | **Why crypto is load-bearing** | Solana = the commitment layer (roots, PDAs, market settlement). Arcium MPC = the only reason data can be on-chain yet unreadable. Without either, this is a database + a promise. | `docs/threat-model.md` |
 | **Privacy depth** | Three disclosure levels, all proven: public specs (generated), delegate-only specs (`reshare_part` → `ShareGrant` PDAs — one-directional, grant trail on-chain), sealed answers (MXE-only, fingerprints declassifiable via `reveal_part`). | `docs/threat-model.md` tables |
 | **Market fit / viability** | Per-run fees to the benchmark authority are live (`create_run` transfers `fee_lamports`); market take-rate is live too (`fee_bps` at resolution, `claim_fee`). Six novel settlement primitives ship here: **run duels** (head-to-head "does A outscore B", bets latch on either leg's first scoring queue, `RunnersMustDiffer` anti-sybil), **ladder races** (K-way argmax over 3–8 bound runs — dead-heat pro-rata ties, legs that land nothing forfeit at 0 while landed partials count, any-leg betting latch), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: specs are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), **dark commit-reveal markets** (a bettor's side is a `sha256` commitment — sealed until they choose to reveal; no-show winners forfeit into the pot, zero-reveals cancel to gross refunds, `scripts/dark.sh`), **capability bounties** (a sponsor escrows SOL against "first proven run ≥ threshold" — the pot pays the winning run's *operator*, not a bettor; permissionless claim, `runner ≠ sponsor` anti-self-deal, `scripts/bounty-local.sh`), and **committed-settle expiry** (`all_queued_at` + 24h landing window — a stalled run refunds only if the runner never committed every chunk; no transaction can both commit and expire). Any venue resolves permissionlessly off `Run.correct` — the referee is infrastructure, not a vendor. | `programs/market`, `docs/submission.md` |
-| **Honesty / craft** | The devnet note is recorded truthfully: the shared Arcium devnet cluster finalizes computations but is withholding callback txs during an outage, and devnet write congestion has held up the hardened-build redeploy (the deployed sealed binary is the prior v4 build — the tail-read is forward-compatible). Retry loops are armed and every localnet flow is reproducible meanwhile. | `docs/submission.md` "Devnet note" |
+| **Honesty / craft** | The devnet note is recorded truthfully: the shared Arcium devnet cluster finalizes computations but is withholding callback txs during an outage. Sealed's hardened build IS deployed — `scripts/verify-deployed.sh` dumps the on-chain ELF and shows it sha256-matches this repo's `target/deploy/sealed.so` (the market upgrade is in flight and reported STALE until it lands — the tool says so plainly). Every localnet flow is reproducible meanwhile. | `docs/submission.md` "Devnet note" |
 
 ## 3-minute reproduction
 
@@ -109,8 +109,8 @@ node scripts/verify.mjs        # 12 PASS / 0 FAIL on the committed snapshot
 
 # 3d. prove the deployed bytes ARE this repo (not just "trust the deploy"):
 #     dumps each program's on-chain ELF and sha256-compares it against
-#     target/deploy/*.so. Reports STALE honestly while the hardened-build
-#     redeploy grinds through devnet write congestion.
+#     target/deploy/*.so — sealed MATCHes (upgraded 2026-10-03), market
+#     reports STALE until its redeploy lands.
 scripts/verify-deployed.sh     # MATCH per program only when bytes match
 
 # 3c. THE calibration check — recompute the MPC's arithmetic yourself.

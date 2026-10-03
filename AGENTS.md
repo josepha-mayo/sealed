@@ -94,11 +94,12 @@ parimutuel markets resolved from `Run.correct`.
 - Accounts created under the pre-upgrade layout (e.g. bank 99004) are
   Borsh-EOF bricked — mint fresh banks on the new binaries; there is no
   migration ix.
-- Devnet binaries lag HEAD: the post_reveal/F1 + unbrick_pda build is
-  committed + localnet-verified; the upgradeable redeploy keeps hitting
-  devnet write congestion (`scripts/deploy-sealed-devnet.sh` grinds it in
-  tmux). Deployed devnet code = the pre-F1 v4 build above; the tail-read is
-  forward-compatible so a redeploy can happen any time. CONGESTION
+- Devnet binaries: sealed UPGRADED 2026-10-03 — `solana program dump` +
+  sha256 proves deployed ELF == `target/deploy/sealed.so`
+  (`039639b7…`, sig `47YrrQWK…`). Market still runs the pre-F1 build
+  (`271eYBWM…` 2026-09-25) — its redeploy grinds through write congestion.
+  `scripts/verify-deployed.sh` reports per-program MATCH/STALE and is the
+  source of truth. CONGESTION
   GOTCHA: every failed/aborted `program deploy` strands a funded buffer
   account (~5.3 SOL for sealed.so) — `solana program show --buffers`
   lists them and `solana program close <buf>` reclaims the rent

@@ -238,13 +238,14 @@ python3 -m http.server -d . 8788   # serve the repo root so /web/ and /docs/ res
 ## Devnet note (record honestly)
 
 Programs, MXE, comp defs, and circuits are live on devnet (program IDs above;
-verify with `solana -u devnet program show`). Deployed build status: sealed
-`3a9Cgven…` (2026-09-22) is the pre-F1 v4 build — the post-reveal +
-prefund-hardened binary is committed and localnet-verified, and its
-upgradeable redeploy is queued behind devnet write congestion (retry loop
-running; the market program `271eYBWM…` (2026-09-25) already carries
-committed-settle expiry + deadline floor + hardened ladder races + dark
-commit-reveal markets). The one honest
+verify with `solana -u devnet program show`). Deployed build status: **sealed
+was upgraded to the current hardened build on 2026-10-03** (deploy sig
+`47YrrQWKmUBc71LzF3xCcVKR5rSHaKawugBgRHx49tg8Rskt4DHSeZZCDDQtZAM6ovjVMsTSpAS7zjs41KDiWMTw`;
+`scripts/verify-deployed.sh` dumps the on-chain ELF and confirms sha256
+`039639b7…` == `target/deploy/sealed.so` — byte-identical, not just "deployed").
+The market program redeploy is in flight through the same congestion; until it
+lands, `verify-deployed.sh` reports it STALE — the honest state, checkable
+by anyone. The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts
