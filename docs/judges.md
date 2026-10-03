@@ -98,6 +98,18 @@ yarn harness:test              # 13/13 unit
 #     "cryptographic audit" panel auto-executes against the loaded snapshot.
 node scripts/verify.mjs        # 12 PASS / 0 FAIL on the committed snapshot
 
+# 3c. THE calibration check — recompute the MPC's arithmetic yourself.
+#     The calibration bank's plaintext answers ship in the repo (public on
+#     purpose). rescore.mjs recomputes every fingerprint from plaintext,
+#     checks them against the on-chain Reveal accounts, re-binds the run
+#     artifact to Run.outputs_root, and recounts the score — the result is
+#     bit-identical to what the MPC wrote (7/32). Zero trust required.
+node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
+  --run docs/evidence/calibration/run-artifact.json \
+  --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp \
+  --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
+  --snapshot web/snapshot.json      # 7 PASS / 0 FAIL — no RPC needed
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).

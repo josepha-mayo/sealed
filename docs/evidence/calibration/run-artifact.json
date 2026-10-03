@@ -1,0 +1,269 @@
+{
+  "schema": "sealed.run/1",
+  "benchmarkId": 77007,
+  "itemsRoot": "578c091dfb63c996f7069c91e2f293be007eacac1b47ca6bd86a431c5289bc70",
+  "model": "qwen2.5-3b-instruct",
+  "harnessHash": "a3ef8aff3159249714c243a48ae717dfdbe925e98bd9b396259d3f9709a190dc",
+  "outputsRoot": "127c31b14bfa8b1484d6cb3c3543b1b32746baebbeeae96a5213fde63bce1c60",
+  "startedAt": "2026-10-03T11:00:06.549Z",
+  "finishedAt": "2026-10-03T11:14:19.739Z",
+  "items": [
+    {
+      "index": 0,
+      "raw": "Starting with 4:\n4\nAdd 15:\n4 + 15 = 19\nAdd 12:\n19 + 12 = 31\nTake the remainder when divided by 67:\n31 % 67 = 31\nTake the remainder when divided by 17:\n31 % 17 = 14\nSubtract 79:\n14 - 79 = -65\nSubtract 82:\n-65 - 82 = -147\nMultiply by 5:\n-147 * 5 = -735\nAdd 11:\n-735 + 11 = -724\nSubtract 88:\n-724 - 88 = -812\nMultiply by 11:\n-812 * 11 = -8932\nANSWER: -8932",
+      "canonical": "-8932",
+      "outputHash": "15682773261301631569",
+      "correct": true,
+      "latencyMs": 27354
+    },
+    {
+      "index": 1,
+      "raw": "PUSH 7\nDUP; MUL; INC; DUP; INC; NEG; MUL; INC; NEG; DUP; PUSH 16; ADD; INC; INC\n7 DUP -> 7 7\n7 MUL -> 7 49\n49 INC -> 50\n50 DUP -> 50 50\n50 INC -> 51\n51 NEG -> -51\n-51 MUL -> -2601\n-2601 INC -> -2600\n-2600 NEG -> 2600\n2600 DUP -> 2600 2600\n2600 PUSH 16 -> 2600 16\n16 ADD -> 2616\n2616 INC -> 2617\n2617 INC -> 2618\nANSWER: 2618",
+      "canonical": "2618",
+      "outputHash": "6768177791525186774",
+      "correct": false,
+      "latencyMs": 27435
+    },
+    {
+      "index": 2,
+      "raw": "To solve this problem, let's follow the steps outlined:\n\n1. Start with the list: [28, 29, 27, 55, 27, 16, 11, 28]\n2. Reverse the list: [28, 28, 55, 27, 27, 16, 11, 29]\n3. Add each element's 0-based position to it:\n   - 0th element: 28 + 0 = 28\n   - 1st element: 28 + 1 = 29\n   - 2nd element: 55 + 2 = 57\n   - 3rd element: 27 + 3 = 30\n   - 4th element: 27 + 4 = 31\n   - 5th element: 16 + 5 = 21\n   - 6th element: 11 + 6 = 17\n   - 7th element: 29 + 7 = 36\n4. Keep only the elements at even 0",
+      "canonical": "4. keep only the elements at even 0",
+      "outputHash": "15058164956910025922",
+      "correct": false,
+      "latencyMs": 37194
+    },
+    {
+      "index": 3,
+      "raw": "velvet thistle\ni->k, w->y, h->l, s->w, t->y\nANSWER: ikklwy lvyw",
+      "canonical": "ikklwy lvyw",
+      "outputHash": "16355931279274237497",
+      "correct": false,
+      "latencyMs": 6567
+    },
+    {
+      "index": 4,
+      "raw": "To convert the decimal number 3274 to base 8, we need to repeatedly divide the number by 8 and keep track of the remainders.\n\n1. Divide 3274 by 8:\n   \\[\n   3274 \\div 8 = 409 \\text{ with a remainder of } 2\n   \\]\n   So, the least significant digit (rightmost) is 2.\n\n2. Divide 409 by 8:\n   \\[\n   409 \\div 8 = 51 \\text{ with a remainder of } 1\n   \\]\n   The next digit is 1.\n\n3. Divide 51 by 8:\n   \\[\n   51 \\div 8 = 6 \\text{ with a remainder of } 3\n   \\]\n   The next digit is 3.\n\n4. Divide 6 by 8:\n   \\[\n   6 \\div 8 = 0 \\text{ with a remainder of } 6\n   \\]\n   The most significant digit (leftmost) is 6.\n\nPutting all the remainders together from the last division to the first, we get the base-8",
+      "canonical": "putting all the remainders together from the last division to the first,we get the base-8",
+      "outputHash": "15644879941985418795",
+      "correct": false,
+      "latencyMs": 38786
+    },
+    {
+      "index": 5,
+      "raw": "We will execute the commands step by step and track the robot's position and orientation.\n\n1. **Initial Position and Orientation**: (0, 0), facing north (positive y).\n\n2. **R**: Turn left 90 degrees (from north to east).\n   - Position: (0, 0), facing east (positive x).\n\n3. **L**: Turn left 90 degrees (from east to south).\n   - Position: (0, 0), facing south (negative y).\n\n4. **B6**: Move backward 6 units (south).\n   - Position: (0, -6), facing south (negative y).\n\n5. **L**: Turn left 90 degrees (from south to west).\n   - Position: (0, -6), facing west (negative x).\n\n6. **F7**: Move forward 7 units (west).\n   - Position: (-7, -6), facing west (negative x).\n\n7. **B3**: Move backward 3 units (west).\n   - Position: (-7, -9), facing west (negative x).\n\n8. **L**: Turn left 90 degrees (from west to north).\n   - Position: (-7, -9), facing north (",
+      "canonical": "- position: (-7,-9),facing north (",
+      "outputHash": "9343331562496468736",
+      "correct": false,
+      "latencyMs": 34816
+    },
+    {
+      "index": 6,
+      "raw": "To find the greatest common divisor (GCD) of 225 and 1000, we can use the Euclidean algorithm, which involves repeated division and taking remainders.\n\n1. First, divide 1000 by 225 and find the remainder:\n   \\[\n   1000 \\div 225 = 4 \\quad \\text{remainder} \\quad 1000 - 4 \\times 225 = 1000 - 900 = 100\n   \\]\n   So, \\(1000 = 225 \\times 4 + 100\\).\n\n2. Next, divide 225 by 100 and find the remainder:\n   \\[\n   225 \\div 100 = 2 \\quad \\text{remainder} \\quad 225 - 2 \\times 100 = 225 - 200 = 25\n   \\]\n   So, \\(225 = 100 \\times 2 + 25\\).\n\n3. Then, divide 100 by 25 and",
+      "canonical": "3. then,divide 100 by 25 and",
+      "outputHash": "11784336236848255357",
+      "correct": false,
+      "latencyMs": 36382
+    },
+    {
+      "index": 7,
+      "raw": "To solve the problem, we first need to compute the product of 213 and 711.\n\n213 × 711 = 151083\n\nNext, we need to find the sum of the decimal digits of the result, 151083.\n\nThe digits of 151083 are 1, 5, 1, 0, 8, and 3.\n\nSumming these digits: 1 + 5 + 1 + 0 + 8 + 3 = 18\n\nANSWER: 18",
+      "canonical": "18",
+      "outputHash": "361800233782878501",
+      "correct": true,
+      "latencyMs": 23154
+    },
+    {
+      "index": 8,
+      "raw": "To solve this problem, we need to determine how many weeks and extra days are in 399 days, and then find the day of the week 399 days earlier than today.\n\n1. Calculate the number of weeks in 399 days:\n   \\[\n   \\text{Number of weeks} = \\left\\lfloor \\frac{399}{7} \\right\\rfloor\n   \\]\n   \\[\n   \\left\\lfloor \\frac{399}{7} \\right\\rfloor = 57\n   \\]\n   So, 399 days is equivalent to 57 weeks.\n\n2. Determine the number of extra days:\n   \\[\n   \\text{Extra days} = 399 \\mod 7\n   \\]\n   \\[\n   399 \\mod 7 = 0\n   \\]\n   Since the remainder is 0, there are no extra days.\n\n3. Since 399 days is exactly 57 weeks, it means that 399 days earlier is the same day of the week as today.\n\n4. Today is Tuesday.\n\nTherefore, 399 days earlier is also Tuesday.\n\nANSWER:",
+      "canonical": "",
+      "outputHash": "410413214134800299",
+      "correct": false,
+      "latencyMs": 38809
+    },
+    {
+      "index": 9,
+      "raw": "To solve this problem, we first need to sort the given words in reverse alphabetical order. The words are: quill, fable, dusk, cedar, pearl, xenon, lantern.\n\n1. First, we sort the words in alphabetical order: fable, cedar, dusk, lantern, pearl, quill, xenon.\n2. Then, we reverse this order to get the reverse alphabetical order: xenon, quill, pearl, lantern, dusk, cedar, fable.\n\nThe word at the 1-based position 3 in this sorted list is 'pearl'.\nANSWER: pearl",
+      "canonical": "pearl",
+      "outputHash": "10590229095209470826",
+      "correct": true,
+      "latencyMs": 20895
+    },
+    {
+      "index": 10,
+      "raw": "Starting value: 4\nAdd 21: 4 + 21 = 25\nAdd 5: 25 + 5 = 30\nTake remainder when divided by 147: 30 % 147 = 30\nMultiply by 5: 30 * 5 = 150\nTake remainder when divided by 65: 150 % 65 = 20\nAdd 37: 20 + 37 = 57\nAdd 73: 57 + 73 = 130\nAdd 31: 130 + 31 = 161\nSubtract 32: 161 - 32 = 129\nAdd 57: 129 + 57 = 186\nTake remainder when divided by 147: 186 % 147 = 39\nANSWER: 39",
+      "canonical": "39",
+      "outputHash": "9967266778290174674",
+      "correct": false,
+      "latencyMs": 35127
+    },
+    {
+      "index": 11,
+      "raw": "PUSH 7\nINC\nINC\nNEG\nINC\nDUP\nNEG\nADD\nINC\nPUSH 11\nDUP\nINC\nDUP\nSUB\nSUB\nMUL\nSWAP\nPUSH 5\nINC\nANSWER: 5",
+      "canonical": "5",
+      "outputHash": "323841388045206778",
+      "correct": false,
+      "latencyMs": 10454
+    },
+    {
+      "index": 12,
+      "raw": "REVERSE: [42, 32, 27, 50, 15, 52, 53, 1, 45, 27]\nSORT DESC: [53, 52, 50, 45, 42, 32, 27, 15, 1, 51]\nROTATE LEFT BY 4: [1, 51, 53, 52, 45, 42, 32, 27, 15, 1]\nSORT DESC: [53, 52, 45, 42, 32, 27, 15, 1, 1, 51]\nPOSITION EACH ELEMENT: [0, 52, 44, 38, 26, 26, 14, 0, 0, 51]\nANSWER: 44",
+      "canonical": "44",
+      "outputHash": "9144823566418379656",
+      "correct": false,
+      "latencyMs": 34696
+    },
+    {
+      "index": 13,
+      "raw": "meadow harbor velvet\nt->s, s->y, y->h, h->i, i->g, g->f, f->e, e->d\nANSWER: stysihfged",
+      "canonical": "stysihfged",
+      "outputHash": "2721571360557721650",
+      "correct": false,
+      "latencyMs": 8506
+    },
+    {
+      "index": 14,
+      "raw": "To convert the decimal number 35406 to base 12, we repeatedly divide the number by 12 and keep track of the remainders.\n35406 ÷ 12 = 2950 remainder 6\n2950 ÷ 12 = 245 remainder 10 (which is a in base 12)\n245 ÷ 12 = 20 remainder 5\n20 ÷ 12 = 1 remainder 8\n1 ÷ 12 = 0 remainder 1\nReading the remainders from bottom to top, we get the base-12 representation as 185a6.\nANSWER: 185a6",
+      "canonical": "185a6",
+      "outputHash": "12771145640528134116",
+      "correct": true,
+      "latencyMs": 24426
+    },
+    {
+      "index": 15,
+      "raw": "We will execute the commands step by step and keep track of the robot's position and orientation.\n\n1. **Initial Position and Orientation**: (0, 0), facing north (positive y).\n\n2. **L F5 R R L B5 B3 B8 B8 R R F8**:\n   - **L**: Turn left 90 degrees (from north to east).\n   - **F5**: Move forward 5 units (east).\n     - New position: (5, 0).\n   - **R**: Turn right 90 degrees (from east to south).\n   - **R**: Turn right 90 degrees (from south to west).\n   - **L**: Turn left 90 degrees (from west to north).\n   - **B5**: Move backward 5 units (east).\n     - New position: (0, 0).\n   - **B3**: Move backward 3 units (east).\n     - New position: (-3, 0).\n   - **B8**: Move backward 8 units (east).\n     - New position: (-11, 0).\n   - **R**: Turn right 90 degrees (from north to west).\n   - **R**: Turn right ",
+      "canonical": "- r: turn right",
+      "outputHash": "1397243849091055346",
+      "correct": false,
+      "latencyMs": 37616
+    },
+    {
+      "index": 16,
+      "raw": "To find the greatest common divisor (GCD) of 440 and 1352, we can use the Euclidean algorithm, which involves repeated division and taking remainders.\n\n1. First, divide 1352 by 440 and find the remainder:\n   \\[\n   1352 \\div 440 = 3 \\quad \\text{remainder} \\quad 232\n   \\]\n   So, \\(1352 = 440 \\times 3 + 232\\).\n\n2. Next, take 440 and 232 and repeat the process:\n   \\[\n   440 \\div 232 = 1 \\quad \\text{remainder} \\quad 208\n   \\]\n   So, \\(440 = 232 \\times 1 + 208\\).\n\n3. Now, take 232 and 208 and repeat:\n   \\[\n   232 \\div 208 = 1 \\quad \\text{remainder} \\quad 24\n   \\]\n   So, \\(232 = 208",
+      "canonical": "so,\\(232 = 208",
+      "outputHash": "9824561576350920948",
+      "correct": false,
+      "latencyMs": 33083
+    },
+    {
+      "index": 17,
+      "raw": "To solve the problem, we first need to compute the product of 39900 and 19773.\n\n39900 × 19773 = 791004300\n\nNext, we need to find the sum of the decimal digits of the result 791004300.\n\n7 + 9 + 1 + 0 + 0 + 4 + 3 + 0 + 0 = 24\n\nANSWER: 24",
+      "canonical": "24",
+      "outputHash": "3036683433634274241",
+      "correct": false,
+      "latencyMs": 14944
+    },
+    {
+      "index": 18,
+      "raw": "To solve this problem, we need to determine the day of the week 55122 days from today, which is Monday.\n\n1. First, we note that a week has 7 days. We can find the equivalent day within the current week by calculating the remainder when 55122 is divided by 7.\n2. Perform the division: \\( 55122 \\div 7 = 7874 \\) with a remainder of \\( 4 \\).\n\nThe remainder of 4 indicates that 55122 days from today will be 4 days after Monday.\n\n3. Counting 4 days after Monday:\n   - 1 day after Monday is Tuesday\n   - 2 days after Monday is Wednesday\n   - 3 days after Monday is Thursday\n   - 4 days after Monday is Friday\n\nTherefore, 55122 days from today, which is Monday, is Friday.\n\nANSWER: Friday",
+      "canonical": "friday",
+      "outputHash": "10175155324885249092",
+      "correct": true,
+      "latencyMs": 28003
+    },
+    {
+      "index": 19,
+      "raw": "To solve this problem, we first need to sort the given words in reverse alphabetical order. The words are: xenon, bramble, ember, raven, orchid, upland, juniper, glacier, cinder.\n\n1. xenon\n2. glacier\n3. juniper\n4. raven\n5. ember\n6. orchid\n7. bramble\n8. cinder\n9. upland\n10. xenon\n\nThe sorted list in reverse alphabetical order is: xenon, glacier, juniper, raven, ember, orchid, bramble, cinder, upland, xenon.\n\nThe word at 1-based position 4 in this sorted list is: raven.\n\nANSWER: raven",
+      "canonical": "raven",
+      "outputHash": "1314888628371918094",
+      "correct": false,
+      "latencyMs": 25709
+    },
+    {
+      "index": 20,
+      "raw": "56\n77\n121\n126\n81\n1\n74\n165\n162\n64\n256\n257\n258\n258\nANSWER: 258",
+      "canonical": "258",
+      "outputHash": "6773815053226335564",
+      "correct": false,
+      "latencyMs": 14227
+    },
+    {
+      "index": 21,
+      "raw": "PUSH 15\nINC\nPUSH 13\nMUL\nNEG\nINC\nDUP\nNEG\nMUL\nPUSH 18\nADD\nDUP\nMUL\nNEG\nINC\nNEG\nANSWER: -120",
+      "canonical": "-120",
+      "outputHash": "12538048504181176613",
+      "correct": false,
+      "latencyMs": 11211
+    },
+    {
+      "index": 22,
+      "raw": "First, we filter the even-indexed elements: [53, 43, 34, 36].\nNext, we rotate the list left by 4 positions: [53, 43, 34, 36].\nThen, we sort the list in ascending order: [34, 36, 43, 53].\nWe add each element's 0-based position to it: [0+34, 1+36, 2+43, 3+53] = [34, 37, 45, 56].\nWe reverse the list: [56, 45, 37, 34].\nThe maximum is 56 and the minimum is 34.\nANSWER: 22",
+      "canonical": "22",
+      "outputHash": "16821273800855382723",
+      "correct": false,
+      "latencyMs": 36492
+    },
+    {
+      "index": 23,
+      "raw": "jgqkxwqjxw\nANSWER: pepper upland yonder",
+      "canonical": "pepper upland yonder",
+      "outputHash": "2095107292371609817",
+      "correct": false,
+      "latencyMs": 5335
+    },
+    {
+      "index": 24,
+      "raw": "To convert the decimal number 187369 to base 5, we repeatedly divide the number by 5 and keep track of the remainders.\n\n1st division: 187369 ÷ 5 = 37473 remainder 4\n2nd division: 37473 ÷ 5 = 7494 remainder 3\n3rd division: 7494 ÷ 5 = 1498 remainder 4\n4th division: 1498 ÷ 5 = 299 remainder 3\n5th division: 299 ÷ 5 = 59 remainder 4\n6th division: 59 ÷ 5 = 11 remainder 4\n7th division: 11 ÷ 5 = 2 remainder 1\n8th division: 2 ÷ 5 = 0 remainder 2\n\nReading the remainders from bottom to top, we get the base-5 representation of 187369 as 21443434.\nANSWER: 21443434",
+      "canonical": "21443434",
+      "outputHash": "2036608124480271737",
+      "correct": true,
+      "latencyMs": 43234
+    },
+    {
+      "index": 25,
+      "raw": "Starting at (0, 0) facing north, we will execute the given commands step by step.\n\n1. B4: Move 4 units backward, facing south.\n2. L: Turn left 90 degrees, now facing west.\n3. R: Turn right 90 degrees, now facing south.\n4. B4: Move 4 units backward, facing north.\n5. B9: Move 9 units backward, facing north.\n6. L: Turn left 90 degrees, now facing east.\n7. L: Turn left 90 degrees, now facing north.\n8. R: Turn right 90 degrees, now facing east.\n9. F7: Move 7 units forward, facing east.\n10. R: Turn right 90 degrees, now facing south.\n11. R: Turn right 90 degrees, now facing west.\n12. F4: Move 4 units forward, facing west.\n\nNow, let's calculate the final position:\n- Starting at (0, 0)\n- Moved 4 units south: (0, -4)\n- Moved 9 units south: (0, -13)\n- Moved 7 units east: (7, -1",
+      "canonical": "- moved 7 units east: (7,-1",
+      "outputHash": "2800097368625309295",
+      "correct": false,
+      "latencyMs": 35082
+    },
+    {
+      "index": 26,
+      "raw": "To find the greatest common divisor (GCD) of 2119 and 676, we can use the Euclidean algorithm. This algorithm is based on the principle that the GCD of two numbers also divides their difference.\n\n1. First, we divide 2119 by 676 and find the remainder:\n   \\[\n   2119 \\div 676 = 3 \\quad \\text{(quotient)}, \\quad 2119 - 3 \\times 676 = 2119 - 2028 = 91 \\quad \\text{(remainder)}\n   \\]\n   So, \\(2119 = 676 \\times 3 + 91\\).\n\n2. Next, we apply the Euclidean algorithm to 676 and 91:\n   \\[\n   676 \\div 91 = 7 \\quad \\text{(quotient)}, \\quad 676 - 7 \\times 91 = 676 - 637 = 39 \\quad \\text{(remainder)}\n   \\]\n   So, \\(676 = 91 \\times",
+      "canonical": "so,\\(676 = 91 \\times",
+      "outputHash": "363321831997346366",
+      "correct": false,
+      "latencyMs": 34849
+    },
+    {
+      "index": 27,
+      "raw": "To solve the problem, we first need to compute the product of 72576 and 31627.\n\n\\[ 72576 \\times 31627 \\]\n\nLet's perform the multiplication step by step:\n\n1. Multiply 72576 by 7:\n\\[ 72576 \\times 7 = 508032 \\]\n\n2. Multiply 72576 by 160 (which is 100 + 60):\n\\[ 72576 \\times 160 = 11612160 \\]\n\n3. Multiply 72576 by 2700 (which is 2700 = 27 \\times 100):\n\\[ 72576 \\times 2700 = 196057200 \\]\n\nNow, add all these results together:\n\\[ 508032 + 11612160 + 196057200 = 207730392 \\]\n\nNext, we need to find the",
+      "canonical": "next,we need to find the",
+      "outputHash": "17266408213352628508",
+      "correct": false,
+      "latencyMs": 36855
+    },
+    {
+      "index": 28,
+      "raw": "To solve this problem, we need to determine the day of the week 65260 days from today, which is Saturday.\n\n1. First, we note that a week has 7 days. Therefore, every 7 days, the day of the week repeats.\n2. To find out how many complete weeks are in 65260 days, we divide 65260 by 7:\n   \\[\n   65260 \\div 7 = 9322 \\text{ weeks with a remainder of } 6 \\text{ days}\n   \\]\n3. This means that after 65260 days, the day of the week will be the same as 6 days after Saturday.\n4. Counting 6 days after Saturday:\n   - Saturday + 1 day = Sunday\n   - Sunday + 1 day = Monday\n   - Monday + 1 day = Tuesday\n   - Tuesday + 1 day = Wednesday\n   - Wednesday + 1 day = Thursday\n   - Thursday + 1 day = Friday\n\nTherefore, 65260 days from today, which is Saturday, is a Friday.\n\nANSWER: Friday",
+      "canonical": "friday",
+      "outputHash": "11047400860571857983",
+      "correct": true,
+      "latencyMs": 37034
+    },
+    {
+      "index": 29,
+      "raw": "orchid\nANSWER: orchid",
+      "canonical": "orchid",
+      "outputHash": "8368118134537169741",
+      "correct": false,
+      "latencyMs": 4343
+    },
+    {
+      "index": 30,
+      "raw": "91 % 71 = 20\n20 % 194 = 20\n20 % 63 = 20\n20 + 89 = 109\n109 + 16 = 125\n125 * 6 = 750\n750 + 54 = 804\n804 * 7 = 5628\n5628 * 11 = 61908\n61908 * 4 = 247632\n247632 + 86 = 247718\n247718 % 119 = 104\n104 * 3 = 312\n312 + 17 = 329\nANSWER: 329",
+      "canonical": "329",
+      "outputHash": "1669720259335528759",
+      "correct": false,
+      "latencyMs": 36941
+    },
+    {
+      "index": 31,
+      "raw": "PUSH 8\nPUSH -6\nNEG\nADD\nINC\nDUP\nNEG\nADD\nINC\nDUP\nMUL\nPUSH -7\nINC\nNEG\nSWAP\nINC\nPUSH -6\nADD\nPUSH -7\nDUP\nANSWER: -144",
+      "canonical": "-144",
+      "outputHash": "10555377840708289667",
+      "correct": false,
+      "latencyMs": 13620
+    }
+  ],
+  "localCorrect": 7
+}

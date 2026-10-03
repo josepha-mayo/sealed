@@ -369,11 +369,20 @@ view of the questions was the on-chain grant trail.
   replays every gen/private bank's `items_root` commitment fold
   bit-exact, re-checks that every resolved market's outcome is a pure
   function of the MPC-written `Run.correct` (bands, duel argmax, ladder
-  masks, dark), and re-verifies each `prove-*.json` Merkle path —
+  masks, dark), replays every capability-registry aggregate from its
+  `ScoreLog` receipts, and re-verifies each `prove-*.json` Merkle path —
   plus cross-validates every on-chain `post_reveal` flag against
   timestamp inference.
-  Current bundle: **11 PASS / 0 FAIL** (+ 8 informational notes — per-bank
+  Current bundle: **12 PASS / 0 FAIL** (+ 25 informational notes — per-bank
   reveal-burn accounting and the grandfathered epoch-2 bounty).
+- **`node scripts/rescore.mjs`** — the calibration check: an authored bank
+  whose plaintext answers ship in `calibration/` *on purpose*. The script
+  recomputes every `answerHash` from plaintext, checks them against the
+  on-chain `Reveal` accounts, re-binds the run artifact to
+  `Run.outputs_root`, and recounts — **bit-identical to the MPC-written
+  `Run.correct` (7/32), 7 PASS / 0 FAIL, fully offline.** The MPC's
+  arithmetic is not just claimed — it is independently reproduced.
+  See `calibration/README.md`.
 - **`node scripts/decrypt-grants-test.mjs`** — offline regression for the
   explorer's "decrypt as delegate" button: vendors the real `RescueCipher`
   (`web/vendor/rescue.mjs`), decrypts the throwaway demo delegate's 4

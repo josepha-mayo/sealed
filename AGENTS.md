@@ -17,7 +17,16 @@ parimutuel markets resolved from `Run.correct`.
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit: offline verify + headless
-  browser audit + grant-decrypt regression + submission preflight.
+  browser audit + grant-decrypt regression + calibration rescore +
+  submission preflight.
+- `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
+  --benchmark <pk> [--run-pubkey <pk>] [--snapshot web/snapshot.json]` →
+  independent MPC-arithmetic verification: recomputes answerHash from
+  plaintext, checks on-chain Reveal.hashes, re-binds artifact →
+  Run.outputs_root, recounts the score. Fully offline against the bundle.
+  Ships with `docs/evidence/calibration/` — authored bank 77007 whose
+  plaintext answers are public ON PURPOSE (gitignored `bank/` does not
+  apply to the evidence copy); qwen2.5-3b scored 7/32, rescore 7 PASS.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.

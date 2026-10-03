@@ -1,0 +1,11 @@
+bank id=77007 items=32  artifact model=qwen2.5-3b-instruct
+  note  source — snapshot bundle (1714 accounts)
+  PASS  answer fingerprints — all 32 answerHash values recompute from plaintext
+  PASS  items_root — 578c091dfb63c996… == file == on-chain
+  PASS  revealed fingerprints — 32 positions: on-chain Reveal.hashes == recomputed answerHash
+  PASS  outputs_root binding — 127c31b14bfa8b14… == artifact == Run.outputs_root
+  PASS  FULL independent rescore — recomputed 7/32 == MPC-written Run.correct 7
+  PASS  run finalized — status=1, post_reveal flag visible on-chain
+  PASS  local pre-score consistency — localCorrect 7 == independent 7
+
+7 PASS / 0 FAIL / 1 notes — run GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi model=qwen2.5-3b-instruct

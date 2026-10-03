@@ -13,10 +13,17 @@ node scripts/verify.mjs
 say "2/4 in-browser audit regression (same suite, headless)"
 node scripts/audit-browser-test.mjs
 
-say "3/4 delegate grant decryption via the vendored RescueCipher"
+say "3/5 delegate grant decryption via the vendored RescueCipher"
 node scripts/decrypt-grants-test.mjs
 
-say "4/4 submission pre-flight"
+say "4/5 calibration rescore — MPC arithmetic recomputed from plaintext answers"
+node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
+  --run docs/evidence/calibration/run-artifact.json \
+  --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp \
+  --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
+  --snapshot web/snapshot.json
+
+say "5/5 submission pre-flight"
 node scripts/check-submission.mjs
 
 say "ALL GREEN — every check above recomputed, nothing trusted"
