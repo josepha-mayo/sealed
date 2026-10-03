@@ -1738,6 +1738,8 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "reveal") {
+    if (typeof args.chunk !== "string" || typeof args.part !== "string")
+      throw new Error("reveal needs --chunk <i> and --part <0..3> (each part is its own PDA — a missing flag does NOT mean all parts)");
     await revealPart(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part));
     return;
   }
