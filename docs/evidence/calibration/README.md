@@ -61,7 +61,8 @@ blind scoring first, transparency on demand.
 ## Regenerate
 
 ```bash
-yarn --cwd packages/harness tsx src/cli.ts bank build --seed cal-v1 --id 77007 --chunks 1 --out bank/cal-77007.json
+yarn --cwd packages/harness tsx src/cli.ts bank build --seed calibration-77007 --id 77007 --chunks 1 --out bank/cal-77007.json
+# deterministic: the rebuilt file is byte-identical to bank.json in this bundle
 yarn --cwd packages/harness tsx src/cli.ts chain seal --bank bank/cal-77007.json
 SEALED_API_BASE=http://127.0.0.1:8083/v1 SEALED_API_KEY=local \
   yarn --cwd packages/harness tsx src/cli.ts run --bank bank/cal-77007.json \
