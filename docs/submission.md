@@ -184,6 +184,17 @@ since been wiped and redeployed during hardening. The evidence bundle in
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
   equal the planted answers exactly; a non-authority reveal is rejected
   `NotAuthority`; a repeat reveal is rejected.
+- **Independently recomputable MPC scoring (calibration bank):**
+  `docs/evidence/calibration/` ships an authored 32-item bank whose plaintext
+  answers are public *on purpose* (seed `calibration-77007` regenerates it
+  byte-for-byte). A real `qwen2.5-3b` run was scored through the full
+  pipeline — sealed → committed → MPC-scored → then all four parts
+  declassified. `scripts/rescore.mjs` recomputes every `answerHash` from
+  plaintext, verifies them against the on-chain `Reveal` accounts, re-binds
+  the run artifact to `Run.outputs_root`, and recounts — **bit-identical to
+  the MPC-written `Run.correct` (7/32), fully offline.** The same check runs
+  in-browser on the hosted explorer's audit panel — the enclave's arithmetic
+  is reproduced, not trusted.
 - **Test suite:** `yarn test` — 17/17 passing: seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim (pot splits
   pro-rata over winning stakes, loser's claim fails, expiry, claim-fee-first

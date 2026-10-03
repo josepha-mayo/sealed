@@ -124,7 +124,7 @@ for (const [k, d] of accounts) {
 
 let run = null, runPk = null;
 for (const [k, d] of accounts) {
-  if (d.length < 200 || hex(d.subarray(0, 8)) !== DISC.run) continue;
+  if (d.length < 148 || hex(d.subarray(0, 8)) !== DISC.run) continue;
   if (b58(d.subarray(8, 40)) !== benchPk) continue;
   const v = new DataView(d.buffer, d.byteOffset);
   const root = hex(d.subarray(8 + 32 + 32 + 8 + 1 + 1 + 2 + 8 + 8 + 4 + 8 + 8 + 32, 8 + 32 + 32 + 8 + 1 + 1 + 2 + 8 + 8 + 4 + 8 + 8 + 32 + 32));
