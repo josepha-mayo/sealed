@@ -39,6 +39,15 @@ parimutuel markets resolved from `Run.correct`.
   `.anchor/test-ledger`. `--wipe` for a fresh ledger. Both programs deploy
   `--upgradeable-program` now, so `solana program deploy target/deploy/*.so`
   works in place — wipe is only needed for a clean-slate ledger.
+- Snapshot corruption cascade (hit twice): a validator killed mid-write
+  leaves a ZERO-BYTE `snapshot-*.tar.zst` in `.anchor/test-ledger/` → the
+  next boot crashes on "incomplete frame" replaying it. `localnet-up.sh`
+  now prunes truncated archives before launch. Worse variant seen once:
+  after replaying past the truncation the validator WEDGED — Processed/
+  Finalized slots frozen, Confirmed stuck at the snapshot slot, TPU dead
+  but stats still printing. No recovery: `--wipe` and re-mint (bank/run/
+  record PDAs are seed-deterministic, so the calibration chain re-minted
+  at the same addresses).
 - After a fresh ledger: `docker restart artifacts-arx-node-*-1
   artifacts-arcium-trusted-dealer-1` — nodes hold a stale context slot.
 - `sign_pda_account` (shared Arcium callback signer) is created eagerly by
@@ -242,11 +251,21 @@ parimutuel markets resolved from `Run.correct`.
   note `chain score` under a non-authority
   runner wallet needs `--authority <bank-authority-pubkey>` (the bank PDA
   derives from authority, not runner).
-- `web/snapshot.json` merges THREE ledger epochs (pre-wipe flagships,
+- `web/snapshot.json` merges eight ledger epochs (pre-wipe flagships,
   post-wipe bounties, hardened-build epoch 3 incl. a real-model bounty
-  claim) via `scripts/merge-snapshot.mjs`; `meta.epochs` tracks the count
+  claim, …, epoch 8 = post-wedge rebuild carrying the two-run calibration
+  chain) via `scripts/merge-snapshot.mjs`; `meta.epochs` tracks the count
   and the explorer banner shows it. `meta.mxe_x25519` stays the OLD
   epoch's key because the committed ShareGrants decrypt under it.
+  REGISTRY REPAIR: ModelRecord PDAs are global, so a later epoch's
+  ScoreLogs can land under a first-copy aggregate that predates them —
+  merge-snapshot now recomputes every record's aggregate fields from the
+  receipts in the merged bundle (record_score semantics, zero-score
+  best_run stays default); the audit then replays all 31 bit-exact.
+- CLI numeric flags: `--part ""` passes a `typeof === "string"` check and
+  `Number("")` silently becomes 0 — reveal/reshare/grant all validate
+  non-empty + integer + range now. Same trap class applies anywhere
+  `Number(args.x)` is used.
 - The demo delegate (`Cr2bbdGh…`) holds grants on private bank `8HHm4HgA…`
   chunk 0 parts 0-3. If that bank is ever re-minted or the ledger wiped,
   re-grant + regenerate the snapshot or the decrypt button will error.

@@ -2,7 +2,7 @@
 // feeds web/snapshot.json through the real page code, then runs runAudit()
 // and prints the rendered verdicts. Usage: node scripts/audit-browser-test.mjs
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
@@ -29,15 +29,20 @@ const ctx = {
   URLSearchParams,
   fetch: async (u) => {
     const s = String(u);
-    const file = s.includes("calibration/bank") ? "web/calibration/bank.json"
+    const file = s.startsWith("https://raw.githubusercontent.com") ? null // repo cross-check unreachable in test
+      : s === "MANIFEST" ? "web/MANIFEST"
+      : s.includes("calibration/bank") ? "web/calibration/bank.json"
       : s.includes("calibration/run-artifact-15b") ? "web/calibration/run-artifact-15b.json"
       : s.includes("calibration/run-artifact") ? "web/calibration/run-artifact.json"
+      : s === "snapshot.json" ? "web/snapshot.json"
+      : existsSync(join(ROOT, "web", s)) ? join("web", s)  // manifest-listed asset
       : "web/snapshot.json";
+    if (file === null) return { ok: false, json: async () => { throw new Error("no net"); }, text: async () => { throw new Error("no net"); } };
     try {
-      const txt = readFileSync(join(ROOT, file), "utf8");
-      return { ok: true, json: async () => JSON.parse(txt) };
+      const buf = readFileSync(join(ROOT, file));
+      return { ok: true, json: async () => JSON.parse(buf.toString("utf8")), text: async () => buf.toString("utf8"), arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
     } catch {
-      return { ok: false, json: async () => { throw new Error("404"); } };
+      return { ok: false, json: async () => { throw new Error("404"); }, text: async () => { throw new Error("404"); }, arrayBuffer: async () => { throw new Error("404"); } };
     }
   },
   TextEncoder, TextDecoder, DataView, Uint8Array, BigInt, JSON, Math, Number, Date,

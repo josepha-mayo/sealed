@@ -1598,6 +1598,34 @@ async function runAudit(force) {
     }
     flagBad === 0 ? pass("post_reveal flags", `${flagged} flagged on-chain / ${inferred} inferred by timestamp — consistent`) : fail("post_reveal flags", `${flagBad} flag(s) without a prior reveal`);
 
+    // [8] served-bundle integrity — the page re-hashes every web asset it
+    // was served (snapshot, calibration files, this HTML, the vendored
+    // cipher) and compares against web/MANIFEST committed in the repo. A
+    // tampered or stale deploy fails here; when the canonical repo copy is
+    // reachable the manifest itself is cross-checked too.
+    try {
+      const mf = await fetch("MANIFEST").then(r => { if (!r.ok) throw 0; return r.text(); });
+      const lines = mf.trim().split("\n").map(l => l.trim().split(/\s+/)).filter(l => l.length === 2);
+      let okN = 0; const badList = [];
+      for (const [want, file] of lines) {
+        const f = file.replace(/^\.\//, "");
+        try {
+          const buf = new Uint8Array(await (await fetch(f)).arrayBuffer());
+          (hex(await sha(buf)) === want) ? okN++ : badList.push(f);
+        } catch { badList.push(f); }
+      }
+      let canon = "";
+      try {
+        const canonical = await fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/web/MANIFEST").then(r => r.ok ? r.text() : null);
+        canon = canonical === null ? "" : canonical === mf ? " · served manifest == repo manifest" : " · MANIFEST differs from repo main";
+      } catch { canon = " · repo manifest unreachable (offline?)"; }
+      badList.length === 0
+        ? pass("bundle integrity", `all ${okN} served files sha256-match web/MANIFEST — this page's bytes are the repo's bytes${canon}`)
+        : fail("bundle integrity", `${badList.length}/${lines.length} file(s) differ from MANIFEST: ${badList.slice(0, 3).join(", ")}${canon}`);
+    } catch (e) {
+      skip("bundle integrity", "MANIFEST not reachable (serve the repo root or use the hosted explorer)");
+    }
+
     out.innerHTML = rows.join("") + `<div class="kv" style="margin-top:6px">${rows.filter(r => r.includes(">PASS<")).length} pass · ${rows.filter(r => r.includes(">FAIL<")).length} fail — recomputed locally from the rendered accounts; nothing trusted</div>`;
   } catch (e) {
     out.innerHTML = rows.join("") + `<div class="proof" style="color:var(--err)">audit halted: ${esc(e.message)}</div>`;

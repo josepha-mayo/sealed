@@ -36,5 +36,9 @@ jobs:
         run: node scripts/audit-browser-test.mjs
       - name: in-browser grant decryption regression (vendored RescueCipher + demo key)
         run: node scripts/decrypt-grants-test.mjs
+      - name: integrity manifests (evidence bundle + served web assets)
+        run: scripts/evidence-manifest.sh check && scripts/web-manifest.sh check
+      - name: calibration rescore (recompute the MPC's arithmetic offline)
+        run: node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json --run docs/evidence/calibration/run-artifact.json --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp --snapshot web/snapshot.json
       - name: submission pre-flight
         run: node scripts/check-submission.mjs

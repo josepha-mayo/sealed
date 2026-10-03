@@ -23,8 +23,9 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
   --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
   --snapshot web/snapshot.json
 
-say "5/6 evidence integrity manifest (sha256sum -c over the whole bundle)"
+say "5/6 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
 scripts/evidence-manifest.sh check
+scripts/web-manifest.sh check
 
 say "6/6 submission pre-flight"
 node scripts/check-submission.mjs
