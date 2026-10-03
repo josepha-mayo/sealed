@@ -63,7 +63,7 @@ against on-chain `outputs_root` in-browser.
 
 ## tractionMilestones
 
-120 banks minted, 502 runs, 340 venues across six primitives
+120 banks minted, 503 runs, 340 venues across six primitives
 (208 band/duel, 48 ladders, 47 dark, 37 bounties) — the offline audit
 re-verifies 200+ resolutions + 145 grants + 30 reveal burns on the
 committed ledger: 0 plaintext answer keys. Every primitive has settled a
@@ -74,9 +74,10 @@ exam: 1.5b scored 8/32 via grants; a double-sealed dark market priced
 the 3b's pending run; a band market settled the 0.5b's 2/32. gpt-oss-20b
 hit 64/64 on MPC-minted 6932 — and a stale-artifact claim scored 1/64:
 the chain never trusts self-reported scores. The capability registry
-persists per-model records — 31 records / 291 receipts replayed
-bit-exact by verify.mjs (12/12) and in-browser (11/11); the four real
-local models lead the table.
+persists per-model records — 31 records / 292 receipts replayed
+bit-exact by verify.mjs (12/12) and in-browser (13/13); the calibration
+specimen runs the same MPC arithmetic in-browser on a two-model,
+per-item exam (3b 7/32 vs 1.5b 2/32, strict discrimination).
 
 ## targetAudience
 

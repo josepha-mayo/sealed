@@ -30,9 +30,10 @@ cur.meta.takenAt = add.meta?.takenAt ?? new Date().toISOString();
 // Keep the EXISTING mxe_x25519: the ShareGrant ciphertexts in this file
 // were issued under that epoch's cluster key — decrypt must use it.
 cur.meta.mxe_x25519 = cur.meta.mxe_x25519 ?? add.meta?.mxe_x25519;
-// Track the merge count honestly — each merge adds one ledger epoch to the
-// bundle (the committed snapshot already contains every earlier epoch).
-cur.meta.epochs = (cur.meta.epochs ?? 1) + 1;
+// Epoch = one distinct LEDGER (a wipe/rebuild boundary), not one merge call.
+// Pass --epoch only when the incoming dump came from a fresh ledger;
+// re-merging same-ledger accounts must not inflate the count.
+if (process.argv.includes("--epoch")) cur.meta.epochs = (cur.meta.epochs ?? 1) + 1;
 cur.meta.note =
   `Merged across ${cur.meta.epochs} localnet ledger epochs (validator wipes between them). ` +
   `Old-epoch accounts are absent from the current chain by definition — every account still ` +

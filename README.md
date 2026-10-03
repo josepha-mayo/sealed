@@ -10,6 +10,19 @@ Sealed is a referee for AI-capability claims. Benchmark items can be **minted in
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
 > **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. **Live explorer: [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/)** — renders every bank, run, market, and Merkle proof straight from the committed on-chain snapshot, then **re-audits it in your browser**: every account's PDA re-derived, every `items_root` fold replayed bit-exact, every market resolution re-computed — no localnet, nothing trusted. With `arcium localnet` running, `scripts/demo.sh` runs the whole flow end-to-end.
+>
+> **Verify the whole submission in ~60 seconds** (clone → three commands → every claim recomputed):
+>
+> ```bash
+> yarn install --frozen-lockfile
+> node scripts/verify.mjs            # 12 PASS / 0 FAIL — the entire ledger re-derives offline
+> node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
+>   --run docs/evidence/calibration/run-artifact.json \
+>   --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp \
+>   --snapshot web/snapshot.json     # 7 PASS / 0 FAIL — the MPC's own arithmetic, reproduced
+> ```
+>
+> The second command is the one nobody else ships: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **bit-identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
 
 ![Full demo: MPC-minted bank → private bank → selective disclosure → 3 runners → binary/band/duel/ladder markets → settle + claim](docs/demo.gif)
 

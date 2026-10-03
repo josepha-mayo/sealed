@@ -63,7 +63,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #       every commitment fold replayed, every market resolution recomputed,
 #       AND the calibration rescore: the MPC's arithmetic reproduced
 #       bit-for-bit in your browser (7/32, run GnrRt5GU…).
-#       Should read "12 pass · 0 fail" with twenty-seven reveal-burn notes.
+#       Should read "13 pass · 0 fail" with twenty-seven reveal-burn notes.
 #     - "public calibration specimen": the actual 32-item exam rendered in
 #       the page — prompt, canonical answer, the model's own reply (hover for
 #       its full reasoning), and a per-row check that the recomputed answer
