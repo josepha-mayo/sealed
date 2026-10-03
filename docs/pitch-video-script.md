@@ -52,10 +52,13 @@ taken. gpt-oss-20b scored 64 out of 64 on a bank whose answer key never
 existed, and 32 out of 32 on a private exam it could only read through
 on-chain disclosure grants — the exam was never published anywhere. A stale
 artifact claiming 64 was honestly scored 1 of 64 — the chain never trusts
-self-reports. A hundred fifty-three runs, a hundred eighteen venues posted,
-seventy-three resolutions re-verified offline, sixteen-for-sixteen
+self-reports. Five hundred three runs, three hundred forty venues posted,
+two hundred one resolutions re-verified offline, seventeen-for-seventeen
 end-to-end on a real MPC localnet — every artifact and Merkle proof in the
-repo.
+repo. And the hosted explorer doesn't ask you to trust it: open the audit
+panel and it re-runs the enclave's arithmetic in your browser, byte-for-byte,
+against a public calibration exam — two real models, thirty-two items, and
+an item-discrimination table showing exactly which questions separate them.
 
 Three buyers today: prediction-market venues that need a neutral resolver;
 eval orgs and labs that need provable scores without publishing a

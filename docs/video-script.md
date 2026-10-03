@@ -24,8 +24,9 @@ the whole arc end-to-end; this script splits it into narrated segments.
 | 1:25 | The anti-cheat beat | bank 25864 leaderboard: `openai` (= gpt-oss-20b) 64/64 above `openai` 1/64 | "This bank holds two runs from the same model — gpt-oss-20b, shown as `openai` on-chain. The clean run scored 64/64 — MPC matching its local claim exactly. The other artifact also claimed 64/64, but it answered a stale bank file, so MPC scored it 1/64. The chain doesn't care what your artifact *claims* — the enclave's count is the score." |
 | 1:35 | Markets | explorer markets card: binary + 3-way + duel + ladder | "And the score is a settlement source: threshold markets, score bands, head-to-head duels — and K-way ladder races: three models, one pot, argmax takes it, ties split dead-heat. Bets close the moment ANY leg starts scoring, so nobody trades on a half-known result." |
 | 1:50 | Resolution | `market resolve` → `claim` + leaderboard | "Permissionless settle straight off `Run.correct`. Winner withdraws. No oracle operator, no admin key." |
-| 1:55 | Audit beat | `chain reveal` + `chain verify` | "Need to audit a score? The authority declassifies answer *fingerprints* — never plaintext — and the client recomputes the run's committed outputs against them." |
-| 2:00 | Close | leaderboard + grant trail | "A benchmark nobody can read, scored by nobody in particular — and a market that settles itself." |
+| 1:55 | Audit beat | `chain reveal` + `chain verify`, then the hosted explorer's audit panel auto-running — 13 green checks ending on the calibration rescore | "Need to audit a score? The authority declassifies answer *fingerprints* — never plaintext. And you don't have to trust this page: the hosted explorer re-derives every PDA, replays every resolution, and recomputes the MPC's arithmetic on a public calibration exam — in your browser, right now." |
+| 2:00 | Specimen beat | explorer calibration card: 32 rows, canonical answer vs two models' outputs, discrimination line | "This is a real exam the enclave sealed then revealed on purpose: qwen-3b scored 7 of 32, the 1.5b scored 2 — and the matrix shows exactly which five items separate them. Every hash on this table was recomputed live." |
+| 2:10 | Close | leaderboard + grant trail | "A benchmark nobody can read, scored by nobody in particular — and a market that settles itself." |
 
 ## Cut points if you only have 60s
 
@@ -67,8 +68,11 @@ commit-reveal (sides stay sha256-sealed), capability bounties (escrow pays
 the first operator to provably clear T — real-model claim in
 `docs/evidence/real-bounty.txt`)
 1:50 permissionless settle — resolve straight from `Run.correct`, claim
-1:55 audit beat — fingerprint reveal without plaintext
-2:00 close — a benchmark nobody can read, a market that settles itself
+1:55 audit beat — fingerprint reveal; the hosted explorer's 13-check audit
+panel (it even verifies its own served bytes against web/MANIFEST)
+2:00 calibration specimen — the exam the enclave sealed then revealed:
+3b 7/32 vs 1.5b 2/32, per-item discrimination recomputed in-browser
+2:10 close — a benchmark nobody can read, a market that settles itself
 
 Also shipped: dark commit-reveal markets (`docs/dark.cast`), a
 head-to-head duel market (`docs/duel.cast`), and the prefund-grief
@@ -76,8 +80,9 @@ reclaim demo (`docs/evidence/unbrick-demo.txt`).
 
 Everything shown is a real run on `arcium localnet` — transcripts and
 account snapshots are in `docs/evidence/`. Source:
-https://github.com/<ORG-OR-USER>/sealed (program IDs + explorer link in
-README). Devnet note: the shared Arcium cluster currently withholds callback
+https://github.com/josepha-mayo/sealed — hosted explorer:
+https://josepha-mayo.github.io/sealed/ (runs the full audit in-browser).
+Devnet note: the shared Arcium cluster currently withholds callback
 transactions; the full loop is proven on localnet.
 
 **Tags:** solana, arcium, mpc, confidential computing, prediction markets,
