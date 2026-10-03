@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 // Pre-flight check for docs/submission-fields.md: every field present,
 // every body under the per-field character budget, no stray TODO markers
-// outside the intentional teamBackground template.
+// outside the intentional teamBackground template. Also scans the tracked
+// tree for private-bank plaintext leaks (items carrying prompt+answer) —
+// only the intentional public calibration specimen is exempt.
 // Usage: node scripts/check-submission.mjs   (exit 1 on any violation)
 import { readFileSync } from "fs";
+import { execSync } from "child_process";
 
 const LIMIT = 1200;
 const REQUIRED = [
@@ -55,5 +58,33 @@ if (/\[[A-Z][^\]]*\]/.test(tb)) {
   console.log(`WARN     teamBackground        still a template — replace [bracketed] markers before submitting`);
   warn = 1;
 }
+// ── plaintext leak scan ────────────────────────────────────────────────
+// Private/authored bank files store items as {prompt, answer, salt, ...} in
+// PLAINTEXT — they live under gitignored bank/ and must never be tracked.
+// The calibration specimen is public ON PURPOSE (its whole point is that
+// judges can recompute the MPC score), so its two copies are allowlisted.
+const PLAINTEXT_ALLOW = new Set([
+  "docs/evidence/calibration/bank.json",
+  "web/calibration/bank.json",
+]);
+const tracked = execSync("git ls-files", {
+  cwd: new URL("..", import.meta.url).pathname,
+  encoding: "utf8",
+}).split("\n").filter(Boolean);
+let leaks = 0;
+for (const f of tracked) {
+  if (!f.endsWith(".json") || PLAINTEXT_ALLOW.has(f)) continue;
+  let doc;
+  try { doc = JSON.parse(readFileSync(new URL("../" + f, import.meta.url), "utf8")); }
+  catch { continue; }
+  const items = doc?.items;
+  if (Array.isArray(items) && items.some((it) => typeof it?.prompt === "string" && typeof it?.answer === "string")) {
+    console.log(`LEAK     ${f} — tracked JSON carries plaintext prompt+answer items (private bank material)`);
+    leaks++;
+    fail = 1;
+  }
+}
+console.log(`${leaks ? "FAIL   " : "ok     "} plaintext leak scan    ${tracked.length} tracked files, ${leaks} leaks`);
+
 if (warn) console.log("\n(pre-flight passed but the submission is NOT ready — warnings above)");
 process.exit(fail);

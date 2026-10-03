@@ -107,6 +107,12 @@ yarn harness:test              # 13/13 unit
 #     "cryptographic audit" panel auto-executes against the loaded snapshot.
 node scripts/verify.mjs        # 12 PASS / 0 FAIL on the committed snapshot
 
+# 3d. prove the deployed bytes ARE this repo (not just "trust the deploy"):
+#     dumps each program's on-chain ELF and sha256-compares it against
+#     target/deploy/*.so. Reports STALE honestly while the hardened-build
+#     redeploy grinds through devnet write congestion.
+scripts/verify-deployed.sh     # MATCH per program only when bytes match
+
 # 3c. THE calibration check — recompute the MPC's arithmetic yourself.
 #     The calibration bank's plaintext answers ship in the repo (public on
 #     purpose). rescore.mjs recomputes every fingerprint from plaintext,

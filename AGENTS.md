@@ -96,6 +96,11 @@ parimutuel markets resolved from `Run.correct`.
   `gen` queued a computation whose callback never landed). Do not claim
   devnet success until a callback-backed flow lands; the honest framing is
   "deployed + queued, cluster callback outage upstream".
+- `scripts/verify-deployed.sh [cluster]` dumps each program's on-chain ELF
+  (`solana program dump` returns raw ELF — compare it DIRECTLY, no 45-byte
+  programdata header) and sha256-compares against `target/deploy/*.so`.
+  It is the source of truth for "is devnet running THIS build" — currently
+  reports both programs STALE while the redeploy grinds through congestion.
 
 ## Gotchas
 
