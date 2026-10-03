@@ -12,14 +12,21 @@ cluster's say-so required.
 |---|---|
 | `bank.json` | The authored 32-item bank (10 families) — prompts, **plaintext answers**, salts, and precomputed `answerHash` fingerprints. Bank id `77007`. |
 | `run-artifact.json` | `qwen2.5-3b-instruct` (local llama.cpp) answering all 32 items — canonical replies + `outputHash` u64s + `outputsRoot` commitment. |
+| `run-artifact-15b.json` | `qwen2.5-1.5b-instruct` on the same exam — the second model makes the specimen a per-item **discrimination table**, not just a score. |
 | `rescore.txt` | Transcript of `scripts/rescore.mjs` replaying the whole chain — **7 PASS / 0 FAIL**. |
 
 On-chain artifacts (all in `web/snapshot.json`):
 
 - Benchmark `CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp` (id 77007, 1 chunk, 4 sealed parts)
 - Run `GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi` — **MPC wrote `correct = 7`**, `post_reveal = 0` (created while answers were still sealed)
+- Run `Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7` — **MPC wrote `correct = 2`**, `post_reveal = 1` (honestly flagged: minted after the fingerprints went public — fine for a deliberately public bank, refused by market creators)
 - Four `Reveal` accounts — the declassified answer fingerprints, 8 per part
 - `ScoreLog` `2YncpZ3Fib8pCAmwUpnD4B3rDtGisjm2RAsqoWePD77d` on `ModelRecord` `7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB`
+
+**Item discrimination** (rendered live in the explorer's calibration card):
+both models right on **2** items, **5** items the 3b alone solved, **0** the
+1.5b alone solved, **25** neither — strict capability ordering, and the
+"only-3b" items are exactly the questions that separate the two models.
 
 ## Replay it yourself
 
@@ -52,11 +59,18 @@ The MPC did not just claim 7 — the arithmetic is reproduced publicly.
 
 ## Why the ordering matters
 
-The run was created and scored **before** any `reveal_part` landed, so
+The 3b run was created and scored **before** any `reveal_part` landed, so
 `post_reveal = 0`: the model's outputs were committed (and scored inside the
 enclave) while every fingerprint was still sealed. Only then did the
 authority declassify — the sequence mirrors the intended production audit:
 blind scoring first, transparency on demand.
+
+The 1.5b run came **after** the reveals, so its `post_reveal = 1` flag is
+the protocol honestly reporting that answer fingerprints were public when
+it was created. On a deliberately public calibration bank that flag is
+informational — but the same flag is exactly what makes a spoiled run
+unusable for market settlement (`PostRevealRun`), and its ScoreLog receipt
+carries the flag permanently.
 
 ## Regenerate
 

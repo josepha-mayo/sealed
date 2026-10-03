@@ -30,9 +30,15 @@ const ctx = {
   fetch: async (u) => {
     const s = String(u);
     const file = s.includes("calibration/bank") ? "web/calibration/bank.json"
+      : s.includes("calibration/run-artifact-15b") ? "web/calibration/run-artifact-15b.json"
       : s.includes("calibration/run-artifact") ? "web/calibration/run-artifact.json"
       : "web/snapshot.json";
-    return { ok: true, json: async () => JSON.parse(readFileSync(join(ROOT, file), "utf8")) };
+    try {
+      const txt = readFileSync(join(ROOT, file), "utf8");
+      return { ok: true, json: async () => JSON.parse(txt) };
+    } catch {
+      return { ok: false, json: async () => { throw new Error("404"); } };
+    }
   },
   TextEncoder, TextDecoder, DataView, Uint8Array, BigInt, JSON, Math, Number, Date,
   crypto, console, setInterval: () => 0, setTimeout, queueMicrotask,

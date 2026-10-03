@@ -1174,36 +1174,53 @@ async function loadCalibrationSpecimen() {
   const box = document.getElementById("calspec");
   if (!box) return;
   try {
-    const [cb, ca] = await Promise.all([
+    // every published run on this specimen — the first is the canonical
+    // artifact; later models land as run-artifact-*.json next to it.
+    const artFiles = ["calibration/run-artifact.json", "calibration/run-artifact-15b.json"];
+    const [cb, ...arts] = await Promise.all([
       fetch("calibration/bank.json").then(r => r.json()),
-      fetch("calibration/run-artifact.json").then(r => r.json()),
+      ...artFiles.map(f => fetch(f).then(r => r.ok ? r.json() : null).catch(() => null)),
     ]);
+    const cas = arts.filter(Boolean);
     const D_ANS = utf8("sealed/v1/answer\0");
     const trunc64 = (u8) => new DataView(u8.buffer, u8.byteOffset).getBigUint64(0, true);
     const A = window.__audit;
     const bench = A?.benches?.find(b => b.id === cb.benchmarkId);
-    const run = bench ? A.runs.find(r => r.benchmark === bench.pk && r.status === 1) : null;
+    // bind each artifact to its own Run by outputs_root — two runs on the
+    // same bank are distinguished by what the model committed.
+    const runOf = (ca) => bench ? A.runs.find(r => r.benchmark === bench.pk && r.status === 1 && r.outputsRoot === ca.outputsRoot) : null;
     const revealHashes = new Map();
     if (bench) for (const r of A.reveals.filter(x => x.bench === bench.pk))
       r.hashes.forEach((h, j) => revealHashes.set(r.chunk * 32 + r.part * 8 + j, BigInt("0x" + h)));
-    let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${cb.benchmarkId}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). <b>${esc(ca.model)}</b> answered all ${cb.items.length} items; the MPC wrote <b>${run ? run.correct : "?"}/${cb.items.length}</b>; the fingerprint column below is the on-chain value the enclave compared against.</div>`;
-    h += `<div style="overflow-x:auto"><table><tr><th>#</th><th>family</th><th>prompt</th><th>canonical</th><th>model said</th><th>match</th><th>fingerprint == on-chain</th></tr>`;
-    let indep = 0;
+    const modelCols = cas.map((ca) => ({ ca, run: runOf(ca), name: esc(ca.model.length > 24 ? ca.model.slice(0, 24) : ca.model) }));
+    let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${cb.benchmarkId}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). ${modelCols.map(m => `<b>${m.name}</b> → MPC wrote <b>${m.run ? m.run.correct : "?"}/${cb.items.length}</b>`).join(" · ")}. The fingerprint column is the on-chain value the enclave compared against.</div>`;
+    h += `<div style="overflow-x:auto"><table><tr><th>#</th><th>family</th><th>prompt</th><th>canonical</th>${modelCols.map(m => `<th>${m.name}</th>`).join("")}<th>fingerprint == on-chain</th></tr>`;
+    const indep = cas.map(() => 0);
+    const agree = { both: 0, neither: 0, only: new Array(cas.length).fill(0) };
     for (const it of cb.items) {
       const myHash = trunc64(await sha(cat(D_ANS, u32le(cb.benchmarkId), u32le(it.index), utf8(it.answer))));
       const onchain = revealHashes.get(it.index);
-      const rec = ca.items[it.index];
-      const match = rec && BigInt(rec.outputHash) === myHash;
-      if (match) indep++;
       const hashOk = onchain !== undefined && onchain === myHash;
+      let cells = "", hitCount = 0, sole = -1;
+      cas.forEach((ca, k) => {
+        const rec = ca.items[it.index];
+        const match = rec && BigInt(rec.outputHash) === myHash;
+        if (match) { indep[k]++; hitCount++; sole = k; }
+        cells += `<td class="mono" title="${esc(rec ? String(rec.raw).slice(0, 500) : "")}">${esc(rec ? rec.canonical : "—")} ${match ? `<span class="pill resolved">✓</span>` : `<span class="pill">✗</span>`}</td>`;
+      });
+      if (cas.length > 1) { if (hitCount === cas.length) agree.both++; else if (hitCount === 0) agree.neither++; else agree.only[sole]++; }
       h += `<tr><td>${it.index}</td><td class="mono" style="font-size:10px">${esc(it.family)}</td>
         <td style="font-size:11px;max-width:340px">${esc(it.prompt.length > 140 ? it.prompt.slice(0, 140) + "…" : it.prompt)}</td>
-        <td class="mono score">${esc(it.answer)}</td>
-        <td class="mono" title="${esc(rec ? String(rec.raw).slice(0, 500) : "")}">${esc(rec ? rec.canonical : "—")}</td>
-        <td>${match ? `<span class="pill resolved">✓</span>` : `<span class="pill">✗</span>`}</td>
+        <td class="mono score">${esc(it.answer)}</td>${cells}
         <td>${hashOk ? `<span class="kv" style="color:var(--acc)">✓ ${short0x(myHash)}</span>` : onchain === undefined ? `<span class="kv">sealed</span>` : `<span class="pill open">MISMATCH</span>`}</td></tr>`;
     }
-    h += `</table></div><div class="kv" style="margin-top:6px">independent recount from this page: <b>${indep}/${cb.items.length}</b>${run ? ` — Run.correct on-chain: <b>${run.correct}</b>` : ""}${indep === (run?.correct ?? indep) ? ` <span class="pill resolved">MPC arithmetic reproduced</span>` : ` <span class="pill open">MISMATCH vs Run.correct</span>`} · replayed fully in the audit panel below</div>`;
+    h += `</table></div><div class="kv" style="margin-top:6px">` +
+      modelCols.map((m, k) => `independent recount for <b>${m.name}</b>: <b>${indep[k]}/${cb.items.length}</b>${m.run ? ` — Run.correct on-chain: <b>${m.run.correct}</b>` : ""}${indep[k] === (m.run?.correct ?? indep[k]) ? ` <span class="pill resolved">MPC arithmetic reproduced</span>` : ` <span class="pill open">MISMATCH vs Run.correct</span>`}`).join("<br>");
+    if (cas.length > 1) {
+      const disc = agree.only.map((n, k) => n + " only-" + modelCols[k].name).join(" · ");
+      h += `<br>item discrimination — both right: <b>${agree.both}</b> · ${disc} · neither: <b>${agree.neither}</b> — the "only-" items are the questions that actually separate the models`;
+    }
+    h += ` · replayed fully in the audit panel below</div>`;
     box.innerHTML = h;
   } catch (e) {
     box.innerHTML = `<div class="kv">calibration bundle not reachable — the audit panel still verifies it when served over HTTP.</div>`;

@@ -21,6 +21,19 @@ if [ "${1:-}" = "--wipe" ]; then
 fi
 
 if ! pgrep -f "solana-test-validator.*test-ledger" >/dev/null; then
+  # Self-heal: a validator killed mid-snapshot-write leaves a truncated
+  # (0-byte) snapshot-*.tar.zst that crashes the NEXT boot ("incomplete
+  # frame" — happened twice). Prune zero-byte archives before launch so the
+  # node replays from the last intact snapshot + blockstore.
+  pruned=0
+  while IFS= read -r f; do
+    if [ ! -s "$f" ]; then
+      rm -f "$f" "$f.meta" "${f%.tar.zst}".tar.zst.meta 2>/dev/null || true
+      echo "pruned truncated snapshot: $(basename "$f")"
+      pruned=$((pruned + 1))
+    fi
+  done < <(find .anchor/test-ledger -maxdepth 1 -name "snapshot-*.tar.zst" 2>/dev/null)
+  [ "$pruned" -gt 0 ] && echo "ledger will replay from the previous intact snapshot"
   args=(
     --ledger .anchor/test-ledger
     --mint 4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc

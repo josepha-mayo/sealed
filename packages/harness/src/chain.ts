@@ -1702,11 +1702,19 @@ export async function chainMain(cmd: string[], args: Args) {
     // Delegate a private bank's questions to a second key (judge, runner, panel).
     const to = args.to ? new PublicKey(String(args.to)) : undefined;
     if (!to) throw new Error("--to <solana-pubkey>");
+    if (typeof args.chunk !== "string" || typeof args.part !== "string" || !args.chunk || !args.part
+      || !Number.isInteger(Number(args.chunk)) || !Number.isInteger(Number(args.part))
+      || Number(args.part) < 0 || Number(args.part) > 3)
+      throw new Error("reshare needs --chunk <i> and --part <0..3>");
     await resharePart(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part), to);
     return;
   }
   if (sub === "grant") {
     // Fetch + decrypt a ShareGrant addressed to the local wallet.
+    if (typeof args.chunk !== "string" || typeof args.part !== "string" || !args.chunk || !args.part
+      || !Number.isInteger(Number(args.chunk)) || !Number.isInteger(Number(args.part))
+      || Number(args.part) < 0 || Number(args.part) > 3)
+      throw new Error("grant needs --chunk <i> and --part <0..3>");
     const g = await fetchGrant(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part));
     console.log(`grant ${g.grant.toBase58()} shared_at=${g.sharedAt}`);
     for (const [i, s] of g.specs.entries()) console.log(`  item ${i}: ${renderPrompt(s)}`);
@@ -1738,8 +1746,10 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "reveal") {
-    if (typeof args.chunk !== "string" || typeof args.part !== "string")
-      throw new Error("reveal needs --chunk <i> and --part <0..3> (each part is its own PDA — a missing flag does NOT mean all parts)");
+    if (typeof args.chunk !== "string" || typeof args.part !== "string" || !args.chunk || !args.part
+      || !Number.isInteger(Number(args.chunk)) || !Number.isInteger(Number(args.part))
+      || Number(args.part) < 0 || Number(args.part) > 3)
+      throw new Error("reveal needs --chunk <i> and --part <0..3> (each part is its own PDA — a missing/empty flag does NOT mean all parts)");
     await revealPart(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part));
     return;
   }

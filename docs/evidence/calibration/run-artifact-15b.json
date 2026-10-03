@@ -1,0 +1,269 @@
+{
+  "schema": "sealed.run/1",
+  "benchmarkId": 77007,
+  "itemsRoot": "578c091dfb63c996f7069c91e2f293be007eacac1b47ca6bd86a431c5289bc70",
+  "model": "qwen2.5-1.5b-instruct",
+  "harnessHash": "5546e36b8d2973280472c3bb8865fe9a83472554e06d3b6263e684e66490f3db",
+  "outputsRoot": "e168325b9b6cb032ba564338c43cd6e92ff7f62d250d87108965eb5bb8b8b443",
+  "startedAt": "2026-10-03T13:48:44.376Z",
+  "finishedAt": "2026-10-03T13:56:03.845Z",
+  "items": [
+    {
+      "index": 0,
+      "raw": "ANSWER: 10",
+      "canonical": "10",
+      "outputHash": "3757028918533645571",
+      "correct": false,
+      "latencyMs": 2297
+    },
+    {
+      "index": 1,
+      "raw": "To determine the integer on top of the stack when the program ends, we need to follow the sequence of instructions step by step.\n\n1. **Initial state**: The stack is empty.\n2. **Instruction 1**: PUSH 7\n   - Stack: [7]\n3. **Instruction 2**: DUP\n   - Stack: [7, 7]\n4. **Instruction 3**: MUL\n   - Stack: [7 * 7, 7] = [49, 7]\n5. **Instruction 4**: INC\n   - Stack: [49 + 1, 7] = [50, 7]\n6. **Instruction 5**: DUP\n   - Stack: [50, 50, 7]\n7. **Instruction 6**: INC\n   - Stack: [50 + 1, 50, 7] = [51, 50, 7]\n8. **Instruction 7**: NEG\n   - Stack: [51, -50, 7]\n9. **Instruction 8**: MUL\n   - Stack: [51 * -50, -50] = [-2550, -50]\n10. **Instruction 9**: INC\n    - Stack: [-2550 + 1, -50] = [-2549, -50]\n11. **Instruction 10**: NEG\n    - Stack: [-2549, -50, -50]\n12. **Instruction 11**: DUP\n    - Stack: [-2549, -2549, -50, -50]\n13. **Instruction 12**: PUSH 16\n    - Stack: [-2549, -2549, -50, -50, 16]\n14. **Instruction 13**: ADD\n    - Stack: [-2549 + 16, -2549, -50, -50, 16] = [-2533, -2549, -50, -50, 16]\n15. **Instruction 14**: INC\n    - Stack: [-2533 + 1, -2549, -50, -50, 16] = [-2532, -2549, -50, -50, 16]\n16. **Instruction 15**: INC\n    - Stack: [-2532 + 1, -2549, -50, -50, 16] = [-2531, -2549, -50, -50, 16]\n17. **Instruction 16**: INC\n    - Stack: [-2531 + 1, -2549, -50, -50, 16] = [-2530, -2549, -50, -50, 16]\n\nThe final state of the stack is [-2530, -2549, -50, -50, 16]. The integer on top of the stack is **-2530**.",
+      "canonical": "the final state of the stack is [-2530,-2549,-50,-50,16]. the integer on top of the stack is -2530",
+      "outputHash": "139358917380172683",
+      "correct": false,
+      "latencyMs": 43516
+    },
+    {
+      "index": 2,
+      "raw": "ANSWER: 188",
+      "canonical": "188",
+      "outputHash": "17789752711571178663",
+      "correct": false,
+      "latencyMs": 1501
+    },
+    {
+      "index": 3,
+      "raw": "viqy yqjz",
+      "canonical": "viqy yqjz",
+      "outputHash": "1609298473322513503",
+      "correct": false,
+      "latencyMs": 1065
+    },
+    {
+      "index": 4,
+      "raw": "3762",
+      "canonical": "3762",
+      "outputHash": "7573094054814729713",
+      "correct": false,
+      "latencyMs": 1014
+    },
+    {
+      "index": 5,
+      "raw": "To solve this, we'll follow the commands step by step:\n\n1. **R L B6 L F7 B4 B3 L B3 R**: \n   - R: Turn right 90 degrees, so the robot is now facing east (positive x).\n   - L: Turn left 90 degrees, so the robot is now facing north (positive y).\n   - B6: Move backward 6 units.\n   - L: Turn left 90 degrees, so the robot is now facing east (positive x).\n   - F7: Move forward 7 units.\n   - B4: Move backward 4 units.\n   - B3: Move backward 3 units.\n   - L: Turn left 90 degrees, so the robot is now facing north (positive y).\n   - B3: Move backward 3 units.\n   - R: Turn right 90 degrees, so the robot is now facing east (positive x).\n\n2. **Final position**:\n   - Starting at (0, 0), after R, the robot is facing east.\n   - After L, the robot is facing north.\n   - After B6, the robot is at (0, -6).\n   - After L, the robot is at (0, -6).\n   - After F7, the robot is at (7, -6).\n   - After B4, the robot is at (7, -10).\n   - After B3, the robot is at (7, -13).\n   - After L, the robot is at (7, -13).\n   - After B3, the robot is at (7, -16).\n   - After R, the robot is at (7, -16).\n\nANSWER: 7,-16",
+      "canonical": "7,-16",
+      "outputHash": "3527926885681482511",
+      "correct": false,
+      "latencyMs": 21445
+    },
+    {
+      "index": 6,
+      "raw": "To find the greatest common divisor (GCD) of 225 and 1000, we can use the Euclidean algorithm, which involves repeated division.\n\n1. Divide 1000 by 225:\n   1000 = 225 * 4 + 100\n   1000 mod 225 = 100\n\n2. Now, divide 225 by the remainder 100:\n   225 = 100 * 2 + 25\n   225 mod 100 = 25\n\n3. Next, divide 100 by 25:\n   100 = 25 * 4 + 0\n   100 mod 25 = 0\n\nSince the remainder is 0, the GCD is the last non-zero remainder, which is 25.\n\nTherefore, the greatest common divisor of 225 and 1000 is 25.",
+      "canonical": "therefore,the greatest common divisor of 225 and 1000 is 25",
+      "outputHash": "16128791662757176242",
+      "correct": false,
+      "latencyMs": 12627
+    },
+    {
+      "index": 7,
+      "raw": "213 × 711 = 150,003\nThe sum of the decimal digits of the result is 15.",
+      "canonical": "the sum of the decimal digits of the result is 15",
+      "outputHash": "11088336040210187019",
+      "correct": false,
+      "latencyMs": 2184
+    },
+    {
+      "index": 8,
+      "raw": "Friday",
+      "canonical": "friday",
+      "outputHash": "15005378629335060566",
+      "correct": false,
+      "latencyMs": 535
+    },
+    {
+      "index": 9,
+      "raw": "ANSWER: xenon",
+      "canonical": "xenon",
+      "outputHash": "1013249497987491638",
+      "correct": false,
+      "latencyMs": 981
+    },
+    {
+      "index": 10,
+      "raw": "ANSWER: 14",
+      "canonical": "14",
+      "outputHash": "16562719701231789644",
+      "correct": false,
+      "latencyMs": 1523
+    },
+    {
+      "index": 11,
+      "raw": "To determine the integer on top of the stack when the program ends, we need to follow the sequence of instructions step by step.\n\n1. **Initial state**: Stack is empty.\n2. **Instruction sequence**:\n   - PUSH 7\n   - INC\n   - INC\n   - NEG\n   - INC\n   - DUP\n   - NEG\n   - ADD\n   - INC\n   - PUSH 11\n   - DUP\n   - INC\n   - DUP\n   - SUB\n   - SUB\n   - MUL\n   - PUSH 5\n   - SWAP\n   - PUSH 2\n\nLet's go through each step:\n\n1. **PUSH 7**: Stack: [7]\n2. **INC**: Stack: [8]\n3. **INC**: Stack: [9]\n4. **NEG**: Stack: [-9]\n5. **INC**: Stack: [-8]\n6. **DUP**: Stack: [-8, -8]\n7. **NEG**: Stack: [8, 8]\n8. **ADD**: Stack: [16]\n9. **INC**: Stack: [17]\n10. **PUSH 11**: Stack: [17, 11]\n11. **DUP**: Stack: [17, 17, 11]\n12. **INC**: Stack: [18, 18, 11]\n13. **DUP**: Stack: [18, 18, 18, 11]\n14. **SUB**: Stack: [18, 18, 7, 11]\n15. **SUB**: Stack: [18, 18, 6, 11]\n16. **MUL**: Stack: [18, 18, 6, 66]\n17. **PUSH 5**: Stack: [18, 18, 6, 66, 5]\n18. **SWAP**: Stack: [5, 18, 6, 66, 18]\n19. **PUSH 2**: Stack: [5, 18, 6, 66, 18, 2]\n\nThe final state of the stack is [5, 18, 6, 66, 18, 2]. The integer on top of the stack when the program ends is **2**.",
+      "canonical": "the final state of the stack is [5,18,6,66,18,2]. the integer on top of the stack when the program ends is 2",
+      "outputHash": "16431812593762193050",
+      "correct": false,
+      "latencyMs": 31301
+    },
+    {
+      "index": 12,
+      "raw": "ANSWER: 53",
+      "canonical": "53",
+      "outputHash": "3741372855272705297",
+      "correct": false,
+      "latencyMs": 1613
+    },
+    {
+      "index": 13,
+      "raw": "meowrj fprqj yxjy",
+      "canonical": "meowrj fprqj yxjy",
+      "outputHash": "17261245977888582638",
+      "correct": false,
+      "latencyMs": 1274
+    },
+    {
+      "index": 14,
+      "raw": "35406 in base 12 is 10a9c",
+      "canonical": "35406 in base 12 is 10a9c",
+      "outputHash": "5530102652541390732",
+      "correct": false,
+      "latencyMs": 1867
+    },
+    {
+      "index": 15,
+      "raw": "To solve this problem, we need to follow the sequence of commands step by step and keep track of the robot's position and orientation.\n\n1. **Initial Position and Orientation:**\n   - Start at (0, 0) facing north (positive y).\n\n2. **Command Sequence:**\n   - L F5 R R L B5 B3 B8 B8 R R F8\n\n3. **Step-by-Step Execution:**\n\n   - **L F5 R R L B5 B3 B8 B8 R R F8**\n     - **L** (Left): Turn left 90 degrees. The robot now faces east (positive x).\n     - **F5** (Forward 5 units): Move 5 units east.\n       - New position: (5, 0)\n     - **R R** (Right 90 degrees twice): Turn right 90 degrees twice. The robot now faces north (positive y).\n     - **L B5 B3 B8 B8 R R F8**\n       - **L** (Left): Turn left 90 degrees. The robot now faces east (positive x).\n       - **B5** (Back 5 units): Move 5 units west.\n         - New position: (0, -5)\n       - **B3** (Back 3 units): Move 3 units west.\n         - New position: (-3, -5)\n       - **B8** (Back 8 units): Move 8 units west.\n         - New position: (-8, -5)\n       - **B8** (Back 8 units): Move 8 units west.\n         - New position: (-16, -5)\n       - **R** (Right): Turn right 90 degrees. The robot now faces north (positive y).\n       - **R** (Right): Turn right 90 degrees. The robot now faces east (positive x).\n       - **F8** (Forward 8 units): Move 8 units east.\n         - New position: (2, -5)\n\n4. **Final Position:**\n   - The final position is (2, -5).\n\nANSWER: 2,-5",
+      "canonical": "2,-5",
+      "outputHash": "17541387749848984966",
+      "correct": false,
+      "latencyMs": 26922
+    },
+    {
+      "index": 16,
+      "raw": "To find the greatest common divisor (GCD) of 440 and 1352, we can use the Euclidean algorithm, which involves repeated division.\n\n1. Divide 1352 by 440:\n   \\[\n   1352 = 440 \\times 3 + 132\n   \\]\n   So, the remainder is 132.\n\n2. Now, divide 440 by 132:\n   \\[\n   440 = 132 \\times 3 + 24\n   \\]\n   The remainder is 24.\n\n3. Next, divide 132 by 24:\n   \\[\n   132 = 24 \\times 5 + 12\n   \\]\n   The remainder is 12.\n\n4. Then, divide 24 by 12:\n   \\[\n   24 = 12 \\times 2 + 0\n   \\]\n   The remainder is 0.\n\nSince the remainder is now 0, the last non-zero remainder is the GCD. Therefore, the GCD of 440 and 1352 is 12.\n\nANSWER: 12",
+      "canonical": "12",
+      "outputHash": "6449423227045046907",
+      "correct": false,
+      "latencyMs": 13893
+    },
+    {
+      "index": 17,
+      "raw": "To compute 39900 × 19773, we first perform the multiplication:\n\n\\[ 39900 \\times 19773 = 785733100 \\]\n\nNext, we find the sum of the decimal digits of 785733100:\n\n\\[ 7 + 8 + 5 + 7 + 3 + 3 + 1 + 0 + 0 = 31 \\]\n\nTherefore, the sum of the decimal digits of the result is 31.",
+      "canonical": "therefore,the sum of the decimal digits of the result is 31",
+      "outputHash": "6516384418751189290",
+      "correct": false,
+      "latencyMs": 7302
+    },
+    {
+      "index": 18,
+      "raw": "Friday",
+      "canonical": "friday",
+      "outputHash": "10175155324885249092",
+      "correct": true,
+      "latencyMs": 593
+    },
+    {
+      "index": 19,
+      "raw": "glacier, cinder, raven, bramble, orchid, upland, juniper, ember, xenon\n\nANSWER: xenon",
+      "canonical": "xenon",
+      "outputHash": "13427871638206941959",
+      "correct": false,
+      "latencyMs": 2613
+    },
+    {
+      "index": 20,
+      "raw": "Let's go through the steps one by one:\n\n1. Start with 56.\n2. Add 77: \\(56 + 77 = 133\\)\n3. Add 44: \\(133 + 44 = 177\\)\n4. Subtract 45: \\(177 - 45 = 132\\)\n5. Subtract 21: \\(132 - 21 = 111\\)\n6. Take the remainder when divided by 78: \\(111 \\mod 78 = 33\\)\n7. Add 74: \\(33 + 74 = 107\\)\n8. Take the remainder when divided by 193: \\(107 \\mod 193 = 107\\)\n9. Multiply by 4: \\(107 \\times 4 = 428\\)\n10. Take the remainder when divided by 53: \\(428 \\mod 53 = 42\\)\n11. Add 80: \\(42 + 80 = 122\\)\n12. Multiply by 4: \\(122 \\times 4 = 488\\)\n13. Add 6: \\(488 + 6 = 494\\)\n\nThe final value is 494.",
+      "canonical": "the final value is 494",
+      "outputHash": "10852710816191301206",
+      "correct": false,
+      "latencyMs": 19050
+    },
+    {
+      "index": 21,
+      "raw": "To determine the integer on top of the stack when the program ends, we will follow each instruction step by step:\n\n1. **PUSH 15; INC; PUSH 13; MUL; NEG; INC; DUP; NEG; MUL; PUSH 18; ADD; DUP; MUL; NEG; INC; NEG.**\n\nLet's start with the initial stack: `[0]`.\n\n**Step 1: PUSH 15**\n- Stack: `[15]`\n\n**Step 2: INC**\n- Stack: `[16]`\n\n**Step 3: PUSH 13**\n- Stack: `[16, 13]`\n\n**Step 4: MUL**\n- Stack: `[16 * 13] = [208]`\n\n**Step 5: NEG**\n- Stack: `[208 * -1] = [-208]`\n\n**Step 6: INC**\n- Stack: `[208 + 1] = [209]`\n\n**Step 7: DUP**\n- Stack: `[209, 209]`\n\n**Step 8: NEG**\n- Stack: `[209 * -1] = [-209]`\n\n**Step 9: MUL**\n- Stack: `[209 * -209] = [-43681]`\n\n**Step 10: PUSH 18**\n- Stack: `[-43681, 18]`\n\n**Step 11: ADD**\n- Stack: `[-43681 + 18] = [-43663]`\n\n**Step 12: DUP**\n- Stack: `[-43663, -43663]`\n\n**Step 13: MUL**\n- Stack: `[-43663 * -43663] = [1900035569]`\n\n**Step 14: NEG**\n- Stack: `[1900035569 * -1] = [-1900035569]`\n\n**Step 15: INC**\n- Stack: `[1900035569 + 1] = [1900035570]`\n\n**Step 16: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 17: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 18: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 19: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 20: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 21: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 22: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 23: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 24: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 25: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 26: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 27: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 28: NEG**\n- Stack: `[1900035570 * -1] = [-1900035570]`\n\n**Step 29:",
+      "canonical": "step 29:",
+      "outputHash": "5889372138234874088",
+      "correct": false,
+      "latencyMs": 62462
+    },
+    {
+      "index": 22,
+      "raw": "ANSWER: 104",
+      "canonical": "104",
+      "outputHash": "9658573846603920187",
+      "correct": false,
+      "latencyMs": 2065
+    },
+    {
+      "index": 23,
+      "raw": "jzqj xqj yjzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz",
+      "canonical": "jzqj xqj yjzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz jzjz",
+      "outputHash": "9718137701754919739",
+      "correct": false,
+      "latencyMs": 60346
+    },
+    {
+      "index": 24,
+      "raw": "344024",
+      "canonical": "344024",
+      "outputHash": "9447159028394352215",
+      "correct": false,
+      "latencyMs": 1256
+    },
+    {
+      "index": 25,
+      "raw": "To solve this, we'll break down the commands and track the robot's movements step by step.\n\n1. **B4 L R B4 B9 L B6 L R F7 R R F3 R F4**\n   - **B4**: Move 4 units to the left (negative x direction).\n   - **L**: Turn left 90 degrees, so now facing south (negative y direction).\n   - **R**: Turn right 90 degrees, so now facing west (negative x direction).\n   - **B4**: Move 4 units to the left (negative x direction).\n   - **B9**: Move 9 units to the left (negative x direction).\n   - **L**: Turn left 90 degrees, so now facing south (negative y direction).\n   - **B6**: Move 6 units to the left (negative x direction).\n   - **L**: Turn left 90 degrees, so now facing west (negative x direction).\n   - **R**: Turn right 90 degrees, so now facing north (positive y direction).\n   - **F7**: Move 7 units to the north (positive y direction).\n   - **R**: Turn right 90 degrees, so now facing east (positive x direction).\n   - **R**: Turn right 90 degrees, so now facing north (positive y direction).\n   - **F3**: Move 3 units to the north (positive y direction).\n   - **R**: Turn right 90 degrees, so now facing east (positive x direction).\n   - **F4**: Move 4 units to the east (positive x direction).\n\nAfter executing all the commands, the final position is:\n- x-coordinate: -4 - 4 - 6 - 9 - 6 - 7 - 3 - 4 = -40\n- y-coordinate: 0 - 4 - 9 - 6 - 7 - 3 - 4 = -30\n\nTherefore, the final position is:\n- x, y = -40, -30",
+      "canonical": "- x,y = -40,-30",
+      "outputHash": "16558408619425395076",
+      "correct": false,
+      "latencyMs": 25598
+    },
+    {
+      "index": 26,
+      "raw": "To find the greatest common divisor (GCD) of 2119 and 676, we can use the Euclidean algorithm, which involves repeated division and taking remainders.\n\n1. Divide 2119 by 676:\n   \\[\n   2119 = 676 \\times 3 + 201\n   \\]\n   So, the remainder is 201.\n\n2. Now, divide 676 by 201:\n   \\[\n   676 = 201 \\times 3 + 173\n   \\]\n   The remainder is 173.\n\n3. Next, divide 201 by 173:\n   \\[\n   201 = 173 \\times 1 + 28\n   \\]\n   The remainder is 28.\n\n4. Then, divide 173 by 28:\n   \\[\n   173 = 28 \\times 6 + 1\n   \\]\n   The remainder is 1.\n\n5. Finally, divide 28 by 1:\n   \\[\n   28 = 1 \\times 28 + 0\n   \\]\n   The remainder is 0.\n\nSince the remainder is now 0, the last non-zero remainder is the GCD. Therefore, the greatest common divisor of 2119 and 676 is 1.",
+      "canonical": "since the remainder is now 0,the last non-zero remainder is the gcd. therefore,the greatest common divisor of 2119 and 676 is 1",
+      "outputHash": "2090845360063341744",
+      "correct": false,
+      "latencyMs": 17260
+    },
+    {
+      "index": 27,
+      "raw": "To compute 72576 × 31627, we first perform the multiplication:\n\n\\[ 72576 \\times 31627 = 22999999332 \\]\n\nNext, we find the sum of the decimal digits of this result:\n\n\\[ 2 + 2 + 9 + 9 + 9 + 9 + 9 + 9 + 3 + 3 + 2 = 48 \\]\n\nTherefore, the sum of the decimal digits of the result is 48.",
+      "canonical": "therefore,the sum of the decimal digits of the result is 48",
+      "outputHash": "3493343343975446033",
+      "correct": false,
+      "latencyMs": 7161
+    },
+    {
+      "index": 28,
+      "raw": "Friday",
+      "canonical": "friday",
+      "outputHash": "11047400860571857983",
+      "correct": true,
+      "latencyMs": 508
+    },
+    {
+      "index": 29,
+      "raw": "ANSWER: falcon",
+      "canonical": "falcon",
+      "outputHash": "16545502700691842899",
+      "correct": false,
+      "latencyMs": 1184
+    },
+    {
+      "index": 30,
+      "raw": "ANSWER: 104",
+      "canonical": "104",
+      "outputHash": "4210806532500582411",
+      "correct": false,
+      "latencyMs": 2455
+    },
+    {
+      "index": 31,
+      "raw": "To determine the integer on top of the stack when the program ends, we will follow each instruction step by step:\n\n1. **Push 8**: \n   - Stack: [8]\n\n2. **Push -6**: \n   - Stack: [8, -6]\n\n3. **NEG**: \n   - Stack: [-8, -6]\n\n4. **ADD**: \n   - Stack: [-8, -6, -8 - 6] = [-8, -6, -14]\n\n5. **INC**: \n   - Stack: [-8, -6, -14, -8 + 1] = [-8, -6, -14, -7]\n\n6. **DUP**: \n   - Stack: [-8, -6, -14, -7, -7]\n\n7. **NEG**: \n   - Stack: [-8, -6, -14, -7, -7, -8 - 6] = [-8, -6, -14, -7, -7, -14]\n\n8. **ADD**: \n   - Stack: [-8, -6, -14, -7, -7, -14, -8 - 6] = [-8, -6, -14, -7, -7, -14, -14]\n\n9. **INC**: \n   - Stack: [-8, -6, -14, -7, -7, -14, -14, -8 + 1] = [-8, -6, -14, -7, -7, -14, -14, -13]\n\n10. **DUP**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13]\n\n11. **MUL**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13, -8 * -6] = [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48]\n\n12. **PUSH -7**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7]\n\n13. **INC**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -8 + 1] = [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -7]\n\n14. **NEG**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -7, -8 - 6] = [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -7, -14]\n\n15. **SWAP**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -7, -14, -8]\n\n16. **INC**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -7, -14, -13, -8 + 1] = [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -7, -14, -13, -8, -7]\n\n17. **PUSH -6**: \n    - Stack: [-8, -6, -14, -7, -7, -14, -14, -13, -13, 48, -7, -7, -14, -13, -8, -7, -6]\n\n18. **ADD**: \n    - Stack: [-8, -6, -14, -",
+      "canonical": "- stack: [-8,-6,-14,-",
+      "outputHash": "5577028258770549566",
+      "correct": false,
+      "latencyMs": 64044
+    }
+  ],
+  "localCorrect": 2
+}
