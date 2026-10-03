@@ -919,6 +919,25 @@ function renderAll(sealedAccs, marketAccs) {
           <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
           <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vres').innerHTML='';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "scored " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${committed && r.status !== 1 ? ` <span class="pill resolved" title="${commitTitle}">committed${settleableAt && !windowOpen ? " · settleable" : ""}</span>` : ""}${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}${postReveal ? ` <span class="pill cancelled" title="created after fingerprint reveals on this bank — outputs on the revealed items could be stuffed (the u64 targets are public)">post-reveal ⚠</span>` : ""}</td>
           <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;
+        // custody drilldown — the run's full lifecycle + everything that settled on it
+        const rMks = markets.filter(m => m.run === r.pk || m.runB === r.pk);
+        const rLads = ladders.filter(l => l.legs.slice(0, l.legCount).includes(r.pk));
+        const rDarks = darkMarkets.filter(d => d.run === r.pk);
+        const rBounts = bounties.filter(b => b.winnerRun === r.pk);
+        const rLog = scoreLogs.find(l => l.run === r.pk);
+        const rLat = r.firstPendingAt > 0 && r.finalizedAt > r.firstPendingAt ? r.finalizedAt - r.firstPendingAt : null;
+        const venues = [];
+        for (const m of rMks) venues.push(`${m.duel ? "duel" : "band"} ${link(m.pk)} — ${m.status === 1 ? "resolved " + esc(m.duel ? (m.outcome === 0 ? "A won" : m.outcome === 1 ? "B won" : "tie") : outcomeLabel(m.nOutcomes, m.edges, m.outcome)) : MSTATUS[m.status]}`);
+        for (const l of rLads) { const li = l.legs.indexOf(r.pk); venues.push(`ladder ${link(l.pk)} — ${l.status === 1 ? ((Number(l.resultMask) >> li) & 1 ? "leg won" : "leg lost") : MSTATUS[l.status]}`); }
+        for (const d of rDarks) venues.push(`dark ${link(d.pk)} — ${d.status === 1 ? "resolved " + esc(outcomeLabel(d.n, d.edges, d.outcome)) : MSTATUS[d.status]}`);
+        for (const b of rBounts) venues.push(`bounty ${link(b.pk)} — claimed at ${b.winningScore} (threshold ${b.threshold})`);
+        h += `<tr class="custody"><td colspan="7"><details><summary class="kv" style="cursor:pointer">custody chain — ${rLog ? "registry receipt ✓" : "no receipt"}${venues.length ? ` · ${venues.length} venue(s)` : ""}${postReveal ? " · post-reveal ⚠" : ""}</summary>
+          <div class="kv" style="padding:4px 0 2px 8px">
+          created ${fmtTs(r.createdAt)} → first MPC queue ${fmtTs(r.firstPendingAt)} → finalized ${fmtTs(r.finalizedAt)}${rLat !== null ? ` (enclave ${rLat}s)` : ""} · scored ${popcount(r.scoredMask)}/${r.chunkCount} chunks · outputs_root <span class="mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 24)}…</span>
+          ${venues.length ? `<div>settled venues — ${venues.join(" · ")}</div>` : ""}
+          ${rLog ? `<div>registry — receipt ${link(rLog.pk)} → record ${link(rLog.modelRecord)} @ ${fmtTs(rLog.recordedAt)}${rLog.vouched ? ` <span class="pill resolved">vouched snapshot</span>` : ""}${rLog.postReveal ? ` <span class="pill cancelled">receipt marked post-reveal</span>` : ""}</div>` : ""}
+          ${postReveal ? `<div><span class="pill cancelled">post-reveal</span> minted after fingerprint disclosure on this bank — market creators refuse it on-chain (PostRevealRun)</div>` : ""}
+          </div></details></td></tr>`;
       });
       h += `</table>`;
     } else h += `<div class="kv" style="margin-top:8px">no runs yet</div>`;
