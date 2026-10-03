@@ -383,6 +383,12 @@ view of the questions was the on-chain grant trail.
   `Run.correct` (7/32), 7 PASS / 0 FAIL, fully offline.** The MPC's
   arithmetic is not just claimed — it is independently reproduced.
   See `calibration/README.md`.
+- **`SHA256SUMS`** — integrity manifest over every file in this bundle.
+  `sha256sum -c SHA256SUMS` (or `scripts/evidence-manifest.sh check`)
+  verifies nothing here was modified after commit; `verify-all.sh` runs it
+  as stage 5/6 so a stale or tampered artifact fails the pipeline loudly.
+  Regenerate after intentionally changing any evidence file:
+  `scripts/evidence-manifest.sh update`.
 - **`node scripts/decrypt-grants-test.mjs`** — offline regression for the
   explorer's "decrypt as delegate" button: vendors the real `RescueCipher`
   (`web/vendor/rescue.mjs`), decrypts the throwaway demo delegate's 4
