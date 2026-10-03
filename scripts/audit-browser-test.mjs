@@ -56,6 +56,13 @@ vm.runInContext("runAudit(true)", ctx);
 await new Promise((r) => setTimeout(r, 3000));
 const out = els.get("auditres").innerHTML.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").replace(/&middot;/g, "·").replace(/&amp;/g, "&").trim();
 console.log(out);
-const fails = (out.match(/FAIL/g) || []).length;
+let fails = (out.match(/FAIL/g) || []).length;
+// the calibration specimen viewer must render the full 32-item exam with the
+// browser-side recount agreeing with the MPC-written score.
+const calspec = els.get("calspec")?.innerHTML ?? "";
+const calRows = (calspec.match(/<tr>/g) || []).length - 1;
+const calOk = calRows === 32 && /MPC arithmetic reproduced/.test(calspec) && /7\/32/.test(calspec);
+console.log(`calibration specimen viewer — ${calRows} item rows, recount-vs-MPC ${calOk ? "PASS" : "FAIL"}`);
+if (!calOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

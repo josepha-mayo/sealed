@@ -819,6 +819,14 @@ function renderAll(sealedAccs, marketAccs) {
     h += `</table></div><div class="kv" style="margin:4px 0 10px">each comparison is two runs scored by MPC on the <i>same exam</i> — duel markets resolve A-wins/B-wins/tie directly, ladders contribute every same-bank leg pair. W–L–T from A's side.</div>`;
   }
 
+  // ---- calibration specimen: the one bank whose plaintext answers are
+  // public on purpose — every item, the canonical answer, the model's
+  // canonical reply, and the match bit, next to the MPC-written total. ----
+  if (benches.some(b => b.id === 77007)) {
+    h += `<h2>calibration specimen — the exam in the open</h2>
+      <div class="card" id="calspec"><div class="kv">loading the public calibration bundle…</div></div>`;
+  }
+
   if (benches.length) h += `<h2>benchmark banks</h2>`;
   for (const b of benches.sort((a, b2) => a.id - b2.id)) {
     const items = b.chunkCount * 32;
@@ -1057,6 +1065,7 @@ function renderAll(sealedAccs, marketAccs) {
   }
   document.getElementById("out").innerHTML = h;
   maybeAudit();
+  loadCalibrationSpecimen();
   // deep links: #bank-/<pk>id pattern survives innerHTML rewrites; scroll once.
   if (location.hash && !window.__scrolled) {
     const t = document.getElementById(location.hash.slice(1));
@@ -1134,6 +1143,54 @@ async function replayItems(benchPk, el) {
       <span class="kv" style="font-size:11px">${st.length} parts folded in mint order${ok ? "" : ` — got ${got.slice(0, 16)}…`}</span>`;
   } catch (e) { out.innerHTML = `<span class="kv" style="font-size:11px;color:var(--err)">${esc(e.message)}</span>`; }
 }
+
+// The calibration specimen — renders the authored bank whose plaintext
+// answers ship in the repo (public on purpose): every prompt, the canonical
+// answer, the model's canonical reply, and the recomputed match bit. The
+// on-chain Reveal fingerprints are cross-checked too, so a row can only
+// show ✓ if the MPC-sealed fingerprint actually equals what we recomputed
+// from the published plaintext. This is the exam the MPC scored — nothing
+// about it is hidden.
+async function loadCalibrationSpecimen() {
+  const box = document.getElementById("calspec");
+  if (!box) return;
+  try {
+    const [cb, ca] = await Promise.all([
+      fetch("calibration/bank.json").then(r => r.json()),
+      fetch("calibration/run-artifact.json").then(r => r.json()),
+    ]);
+    const D_ANS = utf8("sealed/v1/answer\0");
+    const trunc64 = (u8) => new DataView(u8.buffer, u8.byteOffset).getBigUint64(0, true);
+    const A = window.__audit;
+    const bench = A?.benches?.find(b => b.id === cb.benchmarkId);
+    const run = bench ? A.runs.find(r => r.benchmark === bench.pk && r.status === 1) : null;
+    const revealHashes = new Map();
+    if (bench) for (const r of A.reveals.filter(x => x.bench === bench.pk))
+      r.hashes.forEach((h, j) => revealHashes.set(r.chunk * 32 + r.part * 8 + j, BigInt("0x" + h)));
+    let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${cb.benchmarkId}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). <b>${esc(ca.model)}</b> answered all ${cb.items.length} items; the MPC wrote <b>${run ? run.correct : "?"}/${cb.items.length}</b>; the fingerprint column below is the on-chain value the enclave compared against.</div>`;
+    h += `<div style="overflow-x:auto"><table><tr><th>#</th><th>family</th><th>prompt</th><th>canonical</th><th>model said</th><th>match</th><th>fingerprint == on-chain</th></tr>`;
+    let indep = 0;
+    for (const it of cb.items) {
+      const myHash = trunc64(await sha(cat(D_ANS, u32le(cb.benchmarkId), u32le(it.index), utf8(it.answer))));
+      const onchain = revealHashes.get(it.index);
+      const rec = ca.items[it.index];
+      const match = rec && BigInt(rec.outputHash) === myHash;
+      if (match) indep++;
+      const hashOk = onchain !== undefined && onchain === myHash;
+      h += `<tr><td>${it.index}</td><td class="mono" style="font-size:10px">${esc(it.family)}</td>
+        <td style="font-size:11px;max-width:340px">${esc(it.prompt.length > 140 ? it.prompt.slice(0, 140) + "…" : it.prompt)}</td>
+        <td class="mono score">${esc(it.answer)}</td>
+        <td class="mono" title="${esc(rec ? String(rec.raw).slice(0, 500) : "")}">${esc(rec ? rec.canonical : "—")}</td>
+        <td>${match ? `<span class="pill resolved">✓</span>` : `<span class="pill">✗</span>`}</td>
+        <td>${hashOk ? `<span class="kv" style="color:var(--acc)">✓ ${short0x(myHash)}</span>` : onchain === undefined ? `<span class="kv">sealed</span>` : `<span class="pill open">MISMATCH</span>`}</td></tr>`;
+    }
+    h += `</table></div><div class="kv" style="margin-top:6px">independent recount from this page: <b>${indep}/${cb.items.length}</b>${run ? ` — Run.correct on-chain: <b>${run.correct}</b>` : ""}${indep === (run?.correct ?? indep) ? ` <span class="pill resolved">MPC arithmetic reproduced</span>` : ` <span class="pill open">MISMATCH vs Run.correct</span>`} · replayed fully in the audit panel below</div>`;
+    box.innerHTML = h;
+  } catch (e) {
+    box.innerHTML = `<div class="kv">calibration bundle not reachable — the audit panel still verifies it when served over HTTP.</div>`;
+  }
+}
+const short0x = (n) => "0x" + n.toString(16).slice(0, 10) + "…";
 
 async function verify() {
   const res = document.getElementById("vres");

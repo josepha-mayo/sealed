@@ -64,6 +64,13 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #       AND the calibration rescore: the MPC's arithmetic reproduced
 #       bit-for-bit in your browser (7/32, run GnrRt5GU…).
 #       Should read "12 pass · 0 fail" with twenty-seven reveal-burn notes.
+#     - "public calibration specimen": the actual 32-item exam rendered in
+#       the page — prompt, canonical answer, the model's own reply (hover for
+#       its full reasoning), and a per-row check that the recomputed answer
+#       fingerprint equals the value revealed on-chain. The footer recounts
+#       the score live and compares it to Run.correct. This bank is
+#       deliberately public (plaintext ships in the repo); generated and
+#       private banks stay ciphertext-only — that contrast is the point.
 #     - "model capability records": persistent per-model aggregates enrolled
 #       by the permissionless record_score ix — each ScoreLog receipt makes
 #       a run countable exactly once, and the audit replays every record
