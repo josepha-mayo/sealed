@@ -75,5 +75,15 @@ const calRows = (calspec.match(/<tr>/g) || []).length - 1;
 const calOk = calRows === 32 && /MPC arithmetic reproduced/.test(calspec) && /7\/32/.test(calspec);
 console.log(`calibration specimen viewer — ${calRows} item rows, recount-vs-MPC ${calOk ? "PASS" : "FAIL"}`);
 if (!calOk) fails++;
+// two-model discrimination matrix must be computed from the artifacts:
+// both=2, only-3b=5, only-1.5b=0, neither=25 (qwen ordering is strict).
+const discTxt = calspec.replace(/<[^>]+>/g, " ");
+const discOk = /both right:\s*2\b/.test(discTxt)
+  && /5 only-qwen2\.5-3b/.test(discTxt)
+  && /0 only-qwen2\.5-1\.5b/.test(discTxt)
+  && /neither:\s*25\b/.test(discTxt)
+  && /2\/32/.test(discTxt);
+console.log(`item discrimination matrix — two-model counts ${discOk ? "PASS" : "FAIL"}`);
+if (!discOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);
