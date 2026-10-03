@@ -192,9 +192,12 @@ since been wiped and redeployed during hardening. The evidence bundle in
   declassified. `scripts/rescore.mjs` recomputes every `answerHash` from
   plaintext, verifies them against the on-chain `Reveal` accounts, re-binds
   the run artifact to `Run.outputs_root`, and recounts — **bit-identical to
-  the MPC-written `Run.correct` (7/32), fully offline.** The same check runs
-  in-browser on the hosted explorer's audit panel — the enclave's arithmetic
-  is reproduced, not trusted.
+  the MPC-written `Run.correct` (7/32), fully offline.** A second real
+  model (`qwen2.5-1.5b`, 2/32) ran the same specimen — the explorer renders
+  the two-model item-discrimination matrix (both 2 / only-3b 5 / only-1.5b
+  0 / neither 25), so judges see which questions separate capability, not
+  just two totals. The same check runs in-browser on the hosted explorer's
+  audit panel — the enclave's arithmetic is reproduced, not trusted.
 - **Test suite:** `yarn test` — 17/17 passing: seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim (pot splits
   pro-rata over winning stakes, loser's claim fails, expiry, claim-fee-first

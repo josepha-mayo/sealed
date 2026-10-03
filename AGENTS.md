@@ -45,9 +45,22 @@ parimutuel markets resolved from `Run.correct`.
   now prunes truncated archives before launch. Worse variant seen once:
   after replaying past the truncation the validator WEDGED — Processed/
   Finalized slots frozen, Confirmed stuck at the snapshot slot, TPU dead
-  but stats still printing. No recovery: `--wipe` and re-mint (bank/run/
-  record PDAs are seed-deterministic, so the calibration chain re-minted
-  at the same addresses).
+  but stats still printing. A third variant: replay stalls on
+  "Couldn't vote on heaviest fork: LockedOut(<slot>)" with every
+  commitment level frozen at the last intact snapshot. No recovery for
+  either wedge: `--wipe` and re-mint (bank/run/record PDAs are
+  seed-deterministic, so the calibration chain re-minted at the same
+  addresses).
+- Blockstore retention is ~330 slots — `getBlocks(0, tip)` returns only the
+  tail. Any tx you want `measure-cu.mjs` to see must be measured right
+  after it lands (the cu-sweep scripts interleave `measure` calls for
+  exactly this reason).
+- `chain score`/`create_run` derive the benchmark PDA from `--authority`
+  (default: the signing wallet). Running legs under a different wallet for
+  runner diversity REQUIRES `--authority <bank-authority-pubkey>` or the
+  derived benchmark PDA doesn't exist — `cu-sweep-markets.sh` shows the
+  pattern (leg wallets sign as `runner`, `--authority` stays on the bank
+  owner).
 - After a fresh ledger: `docker restart artifacts-arx-node-*-1
   artifacts-arcium-trusted-dealer-1` — nodes hold a stale context slot.
 - `sign_pda_account` (shared Arcium callback signer) is created eagerly by
