@@ -1,0 +1,265 @@
+{
+  "schema": "sealed.bank/1",
+  "benchmarkId": 77007,
+  "chunkCount": 1,
+  "chunk": 32,
+  "itemsRoot": "578c091dfb63c996f7069c91e2f293be007eacac1b47ca6bd86a431c5289bc70",
+  "items": [
+    {
+      "index": 0,
+      "family": "arith_chain",
+      "prompt": "Start with 4. Add 15. Add 12. Take the remainder when divided by 67 (result in 0..66). Take the remainder when divided by 17 (result in 0..16). Subtract 79. Subtract 82. Multiply by 5. Add 11. Subtract 88. Multiply by 11. What is the final value?",
+      "answer": "-8932",
+      "salt": "e314c375d055b6ae64a8ddd81284c074",
+      "answerHash": "15682773261301631569"
+    },
+    {
+      "index": 1,
+      "family": "stack_machine",
+      "prompt": "A stack machine starts with an empty stack and executes these instructions in order. PUSH n pushes n. DUP duplicates the top. NEG negates the top. INC adds 1 to the top. ADD, SUB, MUL pop b (top) then a and push a+b, a-b, a*b respectively. SWAP swaps the top two. POP discards the top. Program: PUSH 7; DUP; MUL; INC; DUP; INC; NEG; MUL; INC; NEG; DUP; PUSH 16; ADD; INC; INC. What integer is on top of the stack when the program ends?",
+      "answer": "2567",
+      "salt": "c4a97d4337d87ee6842c48d8a2b31ef8",
+      "answerHash": "7406201479978283112"
+    },
+    {
+      "index": 2,
+      "family": "list_ops",
+      "prompt": "Start with the list [28, 29, 27, 55, 27, 16, 11, 28]. Reverse the list. Add each element's 0-based position to it. Keep only the elements at even 0-based positions (positions 0, 2, 4, ...). Sort the list in ascending order. What is the sum of the resulting list?",
+      "answer": "140",
+      "salt": "a9121ea3392776edbaaa2e4b9d0fce43",
+      "answerHash": "14489824938394718786"
+    },
+    {
+      "index": 3,
+      "family": "caesar",
+      "prompt": "Apply a Caesar shift of +8 to each letter of the phrase \"velvet thistle\" (a->i, wrapping z back to a). Give the resulting phrase in lowercase, words separated by single spaces.",
+      "answer": "dmtdmb bpqabtm",
+      "salt": "29afacd20d9a95312604fe443ac0b8b6",
+      "answerHash": "9352764009149978037"
+    },
+    {
+      "index": 4,
+      "family": "base_convert",
+      "prompt": "Write the decimal number 3274 in base 8. Use the digits 0-9 and then lowercase letters a, b, c, ... for digit values 10, 11, 12, ... Give only the base-8 representation without any prefix.",
+      "answer": "6312",
+      "salt": "30d60e692ad703208eaa782bcdf29bba",
+      "answerHash": "7426336510706468935"
+    },
+    {
+      "index": 5,
+      "family": "grid_walk",
+      "prompt": "A robot starts at (0, 0) facing north (positive y). Commands: Fk moves forward k units, Bk moves backward k units, L turns left 90 degrees, R turns right 90 degrees. East is positive x. Execute: R L B6 L F7 B4 B3 L B3 R. Give the final position as x,y (two integers separated by a comma).",
+      "answer": "0,-3",
+      "salt": "721759e80c2e514f72c9670a85546697",
+      "answerHash": "6011673244726783560"
+    },
+    {
+      "index": 6,
+      "family": "gcd_lcm",
+      "prompt": "What is the greatest common divisor of 225 and 1000?",
+      "answer": "25",
+      "salt": "fe8af88ff89694430126069ca1b215f1",
+      "answerHash": "15094719786257359068"
+    },
+    {
+      "index": 7,
+      "family": "digit_sum",
+      "prompt": "Compute 213 × 711. What is the sum of the decimal digits of the result?",
+      "answer": "18",
+      "salt": "aac5ff256abef10cd187b1f77399a78a",
+      "answerHash": "361800233782878501"
+    },
+    {
+      "index": 8,
+      "family": "weekday",
+      "prompt": "If today is tuesday, what day of the week is it 399 days earlier? Give the day name.",
+      "answer": "tuesday",
+      "salt": "97b50d49358b5c0e78a342c4ecc221f7",
+      "answerHash": "2647924881920113183"
+    },
+    {
+      "index": 9,
+      "family": "word_sort",
+      "prompt": "Sort these words in reverse alphabetical (z to a) order: quill, fable, dusk, cedar, pearl, xenon, lantern. Which word is at 1-based position 3 in the sorted list?",
+      "answer": "pearl",
+      "salt": "d0988cea7e5d9577aae213730a08c03a",
+      "answerHash": "10590229095209470826"
+    },
+    {
+      "index": 10,
+      "family": "arith_chain",
+      "prompt": "Start with 4. Add 21. Add 5. Take the remainder when divided by 147 (result in 0..146). Multiply by 5. Take the remainder when divided by 65 (result in 0..64). Add 37. Add 73. Add 31. Subtract 32. Add 57. What is the final value?",
+      "answer": "186",
+      "salt": "347728043beafa24e840ced0e6848964",
+      "answerHash": "13000296803600809462"
+    },
+    {
+      "index": 11,
+      "family": "stack_machine",
+      "prompt": "A stack machine starts with an empty stack and executes these instructions in order. PUSH n pushes n. DUP duplicates the top. NEG negates the top. INC adds 1 to the top. ADD, SUB, MUL pop b (top) then a and push a+b, a-b, a*b respectively. SWAP swaps the top two. POP discards the top. Program: PUSH 7; INC; INC; NEG; INC; DUP; NEG; ADD; INC; PUSH 11; DUP; INC; DUP; SUB; SUB; MUL; PUSH 5; SWAP; PUSH 2. What integer is on top of the stack when the program ends?",
+      "answer": "2",
+      "salt": "7ee88c45a4978c1911776fff15758990",
+      "answerHash": "14177016035871147267"
+    },
+    {
+      "index": 12,
+      "family": "list_ops",
+      "prompt": "Start with the list [45, 1, 53, 27, 52, 50, 15, 27, 42, 32]. Reverse the list. Sort the list in descending order. Rotate the list left by 4 positions (the first 4 elements move to the end). Sort the list in descending order. Add each element's 0-based position to it. What is the element at 0-based index 2 of the resulting list?",
+      "answer": "52",
+      "salt": "4d5ec80c2fb57c71fa8be2b8d29123bc",
+      "answerHash": "851102464498299993"
+    },
+    {
+      "index": 13,
+      "family": "caesar",
+      "prompt": "Apply a Caesar shift of +19 to each letter of the phrase \"meadow harbor velvet\" (a->t, wrapping z back to a). Give the resulting phrase in lowercase, words separated by single spaces.",
+      "answer": "fxtwhp atkuhk oxeoxm",
+      "salt": "5d4e2c9185849ccb1bf8803692a18b37",
+      "answerHash": "10081907981433173988"
+    },
+    {
+      "index": 14,
+      "family": "base_convert",
+      "prompt": "Write the decimal number 35406 in base 12. Use the digits 0-9 and then lowercase letters a, b, c, ... for digit values 10, 11, 12, ... Give only the base-12 representation without any prefix.",
+      "answer": "185a6",
+      "salt": "4eb90283c177e0ccfe9dde887f5df783",
+      "answerHash": "12771145640528134116"
+    },
+    {
+      "index": 15,
+      "family": "grid_walk",
+      "prompt": "A robot starts at (0, 0) facing north (positive y). Commands: Fk moves forward k units, Bk moves backward k units, L turns left 90 degrees, R turns right 90 degrees. East is positive x. Execute: L F5 R R L B5 B3 B8 B8 R R F8. Give the final position as x,y (two integers separated by a comma).",
+      "answer": "-5,-32",
+      "salt": "47cefcfad42455dd8fa649a68baec3e1",
+      "answerHash": "13813159020824643523"
+    },
+    {
+      "index": 16,
+      "family": "gcd_lcm",
+      "prompt": "What is the greatest common divisor of 440 and 1352?",
+      "answer": "8",
+      "salt": "0bd4eeed74c3f05a23b3aba81696069d",
+      "answerHash": "15999962034050850380"
+    },
+    {
+      "index": 17,
+      "family": "digit_sum",
+      "prompt": "Compute 39900 × 19773. What is the sum of the decimal digits of the result?",
+      "answer": "45",
+      "salt": "f947daa44a50b3d4148d067005885162",
+      "answerHash": "12036642523625088537"
+    },
+    {
+      "index": 18,
+      "family": "weekday",
+      "prompt": "If today is monday, what day of the week is it 55122 days later? Give the day name.",
+      "answer": "friday",
+      "salt": "40ae4c4f93efa2b7f9d60283b80df71f",
+      "answerHash": "10175155324885249092"
+    },
+    {
+      "index": 19,
+      "family": "word_sort",
+      "prompt": "Sort these words in reverse alphabetical (z to a) order: xenon, bramble, ember, raven, orchid, upland, juniper, glacier, cinder. Which word is at 1-based position 4 in the sorted list?",
+      "answer": "orchid",
+      "salt": "4303a87d3bc9984528e03ca81abd7f8c",
+      "answerHash": "781218745287200742"
+    },
+    {
+      "index": 20,
+      "family": "arith_chain",
+      "prompt": "Start with 56. Add 77. Add 44. Subtract 45. Subtract 21. Take the remainder when divided by 78 (result in 0..77). Add 74. Take the remainder when divided by 193 (result in 0..192). Multiply by 4. Take the remainder when divided by 53 (result in 0..52). Add 80. Multiply by 4. Add 6. What is the final value?",
+      "answer": "342",
+      "salt": "aa307bd0a5fa639e2b240007e17959e2",
+      "answerHash": "2446882343405996905"
+    },
+    {
+      "index": 21,
+      "family": "stack_machine",
+      "prompt": "A stack machine starts with an empty stack and executes these instructions in order. PUSH n pushes n. DUP duplicates the top. NEG negates the top. INC adds 1 to the top. ADD, SUB, MUL pop b (top) then a and push a+b, a-b, a*b respectively. SWAP swaps the top two. POP discards the top. Program: PUSH 15; INC; PUSH 13; MUL; NEG; INC; DUP; NEG; MUL; PUSH 18; ADD; DUP; MUL; NEG; INC; NEG. What integer is on top of the stack when the program ends?",
+      "answer": "1834494560",
+      "salt": "5008b823a553b1709cac1506512188e6",
+      "answerHash": "1941123925490167321"
+    },
+    {
+      "index": 22,
+      "family": "list_ops",
+      "prompt": "Start with the list [53, 38, 43, 8, 34, 49, 3, 22, 48, 25, 36, 57]. Sort the list in ascending order. Keep only the elements at even 0-based positions (positions 0, 2, 4, ...). Rotate the list left by 4 positions (the first 4 elements move to the end). Sort the list in ascending order. Add each element's 0-based position to it. Reverse the list. What is the maximum minus the minimum of the resulting list?",
+      "answer": "55",
+      "salt": "41019c687d29b35dd2da346cd54e54df",
+      "answerHash": "11474841202337433757"
+    },
+    {
+      "index": 23,
+      "family": "caesar",
+      "prompt": "Apply a Caesar shift of +9 to each letter of the phrase \"pepper upland yonder\" (a->j, wrapping z back to a), then reverse the letters of each word. Give the resulting phrase in lowercase, words separated by single spaces.",
+      "answer": "anyyny mwjuyd anmwxh",
+      "salt": "c0e9c375110f3464231d81e4a762b81b",
+      "answerHash": "9953074861799707043"
+    },
+    {
+      "index": 24,
+      "family": "base_convert",
+      "prompt": "Write the decimal number 187369 in base 5. Use the digits 0-9 and then lowercase letters a, b, c, ... for digit values 10, 11, 12, ... Give only the base-5 representation without any prefix.",
+      "answer": "21443434",
+      "salt": "c5b0bf2389d5b921d4dae21fd63f7629",
+      "answerHash": "2036608124480271737"
+    },
+    {
+      "index": 25,
+      "family": "grid_walk",
+      "prompt": "A robot starts at (0, 0) facing north (positive y). Commands: Fk moves forward k units, Bk moves backward k units, L turns left 90 degrees, R turns right 90 degrees. East is positive x. Execute: B4 L R B4 B9 L B6 L R F7 R R F3 R F4. Give the final position as x,y (two integers separated by a comma).",
+      "answer": "2,-21",
+      "salt": "2b567cb119382841e5424cc5b67fccb5",
+      "answerHash": "375820804211439356"
+    },
+    {
+      "index": 26,
+      "family": "gcd_lcm",
+      "prompt": "What is the greatest common divisor of 2119 and 676?",
+      "answer": "13",
+      "salt": "12f408e23fc904b0046b9adc29bd0a5f",
+      "answerHash": "16080886263190929195"
+    },
+    {
+      "index": 27,
+      "family": "digit_sum",
+      "prompt": "Compute 72576 × 31627. What is the sum of the decimal digits of the result?",
+      "answer": "36",
+      "salt": "de349663163c5fb1e1f3c1d79ba1aac3",
+      "answerHash": "5002389452091871839"
+    },
+    {
+      "index": 28,
+      "family": "weekday",
+      "prompt": "If today is saturday, what day of the week is it 65260 days later? Give the day name.",
+      "answer": "friday",
+      "salt": "5dd3bc1374aa4b2d2d3fe8f8a714af63",
+      "answerHash": "11047400860571857983"
+    },
+    {
+      "index": 29,
+      "family": "word_sort",
+      "prompt": "Sort these words alphabetically (a to z) order: orchid, lemon, cedar, falcon, sable, kestrel, violet, walnut, zephyr, hazel, amber. Which word is at 1-based position 1 in the sorted list?",
+      "answer": "amber",
+      "salt": "f0e76a6d80b136fc85ef08cbc98a58ec",
+      "answerHash": "11443414710050437253"
+    },
+    {
+      "index": 30,
+      "family": "arith_chain",
+      "prompt": "Start with 91. Take the remainder when divided by 71 (result in 0..70). Take the remainder when divided by 194 (result in 0..193). Take the remainder when divided by 63 (result in 0..62). Add 89. Add 16. Multiply by 6. Add 54. Multiply by 7. Multiply by 11. Multiply by 4. Add 86. Take the remainder when divided by 119 (result in 0..118). Multiply by 3. Add 17. What is the final value?",
+      "answer": "254",
+      "salt": "24db1ad528666ad632ccf697cc6b33c2",
+      "answerHash": "16417119874170196239"
+    },
+    {
+      "index": 31,
+      "family": "stack_machine",
+      "prompt": "A stack machine starts with an empty stack and executes these instructions in order. PUSH n pushes n. DUP duplicates the top. NEG negates the top. INC adds 1 to the top. ADD, SUB, MUL pop b (top) then a and push a+b, a-b, a*b respectively. SWAP swaps the top two. POP discards the top. Program: PUSH 8; PUSH -6; NEG; ADD; INC; DUP; NEG; ADD; INC; DUP; MUL; PUSH -7; INC; NEG; SWAP; INC; PUSH -6; ADD; PUSH -7; DUP. What integer is on top of the stack when the program ends?",
+      "answer": "-7",
+      "salt": "bf860b862da4d0a41e607f62e99c8219",
+      "answerHash": "18192936707275693270"
+    }
+  ]
+}

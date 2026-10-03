@@ -27,7 +27,13 @@ const ctx = {
   document: documentStub,
   location: { search: "?snapshot=bundled" },
   URLSearchParams,
-  fetch: async () => ({ ok: true, json: async () => JSON.parse(snapText) }),
+  fetch: async (u) => {
+    const s = String(u);
+    const file = s.includes("calibration/bank") ? "web/calibration/bank.json"
+      : s.includes("calibration/run-artifact") ? "web/calibration/run-artifact.json"
+      : "web/snapshot.json";
+    return { ok: true, json: async () => JSON.parse(readFileSync(join(ROOT, file), "utf8")) };
+  },
   TextEncoder, TextDecoder, DataView, Uint8Array, BigInt, JSON, Math, Number, Date,
   crypto, console, setInterval: () => 0, setTimeout, queueMicrotask,
   atob: (s) => Buffer.from(s, "base64").toString("binary"),

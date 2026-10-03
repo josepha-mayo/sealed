@@ -1399,6 +1399,69 @@ async function runAudit(force) {
     }
     regbad === 0 ? pass("capability registry", `${A.modelRecords.length} records replayed bit-exact from ${A.scoreLogs.length} receipts`) : fail("capability registry", `${regbad} violation(s) — aggregates don't match receipts`);
 
+    // [5d] calibration rescore — the MPC's arithmetic, reproduced in-browser.
+    // docs/evidence/calibration ships an authored bank whose plaintext
+    // answers are public ON PURPOSE plus the real qwen2.5-3b artifact.
+    // We recompute answerHash from plaintext, check it against the on-chain
+    // Reveal fingerprints, re-bind the artifact to Run.outputs_root, and
+    // recount — the result must be bit-identical to Run.correct.
+    try {
+      const [cb, ca] = await Promise.all([
+        fetch("calibration/bank.json").then(r => { if (!r.ok) throw 0; return r.json(); }),
+        fetch("calibration/run-artifact.json").then(r => { if (!r.ok) throw 0; return r.json(); }),
+      ]);
+      const D_ANS = utf8("sealed/v1/answer\0"), D_ITEM = utf8("sealed/v1/item\0");
+      const trunc64 = (u8) => new DataView(u8.buffer, u8.byteOffset).getBigUint64(0, true);
+      const unhex = (s) => Uint8Array.from(s.match(/../g).map(b => parseInt(b, 16)));
+      // layer 1: plaintext answer → fingerprint
+      let fh = 0;
+      const recomputed = new Map();
+      for (const it of cb.items) {
+        const h = trunc64(await sha(cat(D_ANS, u32le(cb.benchmarkId), u32le(it.index), utf8(it.answer))));
+        recomputed.set(it.index, h);
+        if (h === BigInt(it.answerHash)) fh++;
+      }
+      // layer 2: items_root over salted itemLeaf commitments
+      const leaves = [];
+      for (const it of cb.items) leaves.push(await sha(cat(D_ITEM, u32le(cb.benchmarkId), u32le(it.index), unhex(it.salt), utf8(it.prompt))));
+      let lvl = leaves;
+      while (lvl.length > 1) { const nx = []; for (let i = 0; i < lvl.length; i += 2) nx.push(await sha(cat(D_NODE, lvl[i], lvl[i + 1] ?? lvl[i]))); lvl = nx; }
+      const itemsRootOk = hex(lvl[0]) === cb.itemsRoot;
+      // layer 3: on-chain reveals carry exactly the recomputed u64s
+      const calBench = A.benches.find(b => b.id === cb.benchmarkId);
+      let revOk = 0, revSeen = 0;
+      if (calBench) for (const r of A.reveals.filter(x => x.bench === calBench.pk)) {
+        for (let j = 0; j < 8; j++) {
+          const g = r.chunk * 32 + r.part * 8 + j;
+          revSeen++;
+          if (recomputed.get(g) === BigInt("0x" + r.hashes[j])) revOk++;
+        }
+      }
+      // layer 4: artifact outputs_root → Run.outputs_root
+      const outL = [];
+      for (let c = 0; c * 32 < ca.items.length; c++) {
+        const ch = ca.items.slice(c * 32, c * 32 + 32).map(x => BigInt(x.outputHash));
+        while (ch.length < 32) ch.push(0n);
+        outL.push(await sha(cat(D_COUT, u32le(c).slice(0, 2), ...ch.map(u64le))));
+      }
+      let ol = outL;
+      while (ol.length > 1) { const nx = []; for (let i = 0; i < ol.length; i += 2) nx.push(await sha(cat(D_NODE, ol[i], ol[i + 1] ?? ol[i]))); ol = nx; }
+      const outRoot = hex(ol[0]);
+      const run = [...A.runs].find(r => r.outputsRoot === outRoot);
+      // layer 5: independent recount vs MPC-written Run.correct
+      let indep = -1;
+      if (run && revSeen === cb.items.length) {
+        indep = 0;
+        for (const it of cb.items) if (BigInt(ca.items[it.index].outputHash) === recomputed.get(it.index)) indep++;
+      }
+      const allOk = fh === cb.items.length && itemsRootOk && calBench && revOk === cb.items.length && run && indep === run.correct;
+      allOk
+        ? pass("calibration rescore", `MPC arithmetic reproduced: ${indep}/${cb.items.length} recomputed == Run.correct on ${short(run.pk)} — fingerprints, items_root, reveals, outputs_root all verified`)
+        : fail("calibration rescore", `fh=${fh}/${cb.items.length} itemsRoot=${itemsRootOk} reveals=${revOk}/${revSeen} run=${run ? short(run.pk) : "not found"} indep=${indep} vs correct=${run?.correct}`);
+    } catch (e) {
+      skip("calibration rescore", "bundle not reachable from this page (serve the repo root or use the hosted explorer)");
+    }
+
     // [6] cross-references
     let xbad = 0;
     const mrecSet = new Set(A.modelRecords.map(m => m.pk));

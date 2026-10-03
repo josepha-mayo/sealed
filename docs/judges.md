@@ -60,8 +60,10 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   On the hosted page, in order:
 #     - hero strip: MPC ciphertext → proven score, one glance
 #     - cryptographic audit panel: auto-runs — every account PDA re-derived,
-#       every commitment fold replayed, every market resolution recomputed.
-#       Should read "11 pass · 0 fail" with twenty-five reveal-burn notes.
+#       every commitment fold replayed, every market resolution recomputed,
+#       AND the calibration rescore: the MPC's arithmetic reproduced
+#       bit-for-bit in your browser (7/32, run GnrRt5GU…).
+#       Should read "12 pass · 0 fail" with twenty-five reveal-burn notes.
 #     - "model capability records": persistent per-model aggregates enrolled
 #       by the permissionless record_score ix — each ScoreLog receipt makes
 #       a run countable exactly once, and the audit replays every record
