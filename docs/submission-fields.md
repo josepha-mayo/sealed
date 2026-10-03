@@ -63,9 +63,9 @@ against on-chain `outputs_root` in-browser.
 
 ## tractionMilestones
 
-112 banks minted, 473 runs, 325 venues across six primitives
+113 banks minted, 474 runs, 325 venues across six primitives
 (199 band/duel, 46 ladders, 45 dark, 35 bounties) — the offline audit
-re-verifies 191 resolutions + 140 grants + 24 reveal burns on the
+re-verifies 191 resolutions + 140 grants + 28 reveal burns on the
 committed ledger: 0 plaintext answer keys. Every primitive has settled a
 REAL open-weights model's MPC score: four local models raced an
 MPC-minted exam — 3b 6/32 tied 1.5b 6/32 (dead-heat pro-rata), llama-1b
@@ -74,7 +74,7 @@ exam: 1.5b scored 8/32 via grants; a double-sealed dark market priced
 the 3b's pending run; a band market settled the 0.5b's 2/32. gpt-oss-20b
 hit 64/64 on MPC-minted 6932 — and a stale-artifact claim scored 1/64:
 the chain never trusts self-reported scores. The capability registry
-persists per-model records — 29 records / 287 receipts replayed
+persists per-model records — 29 records / 288 receipts replayed
 bit-exact by verify.mjs (12/12) and in-browser (11/11); the four real
 local models lead the table.
 
