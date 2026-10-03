@@ -9,6 +9,9 @@ Sealed is a referee for AI-capability claims. Benchmark items can be **minted in
 
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
+[![CI](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml/badge.svg)](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml)
+[![Explorer](https://github.com/josepha-mayo/sealed/actions/workflows/pages.yml/badge.svg)](https://josepha-mayo.github.io/sealed/)
+
 > **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. **Live explorer: [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/)** — renders every bank, run, market, and Merkle proof straight from the committed on-chain snapshot, then **re-audits it in your browser**: every account's PDA re-derived, every `items_root` fold replayed bit-exact, every market resolution re-computed — no localnet, nothing trusted. With `arcium localnet` running, `scripts/demo.sh` runs the whole flow end-to-end.
 >
 > **Verify the whole submission in ~60 seconds** (clone → three commands → every claim recomputed):
