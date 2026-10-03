@@ -175,7 +175,17 @@ $CLI chain score --bank "bank/gen-$BID.json" --run "runs/mainnet-smoke-$BID.json
 
 If the run reaches `FINALIZED`, the pipeline is live on mainnet
 end-to-end. Check the leaderboard with
-`$CLI chain status --benchmark <benchmark-pda>`.
+`$CLI chain status --benchmark <benchmark-pda>` — then enroll the score
+into the persistent registry and print it:
+
+```bash
+$CLI chain record --run <run-pda>     # ScoreLog receipt + ModelRecord aggregate
+$CLI chain modelrec mock/oracle-0.65  # the record, keyed by sha256(model_id)
+```
+
+`record_score` is permissionless — any wallet can enroll any finalized
+run, the receipt makes it countable exactly once, and `model_id` stays a
+claim (weigh `vouched_at_record`, not the string).
 
 ## 6. What the deploy costs
 

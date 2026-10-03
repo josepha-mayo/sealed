@@ -732,6 +732,13 @@ function renderAll(sealedAccs, marketAccs) {
     const real = recs.filter(m => !suite.test(m.modelId)), fixtures = recs.filter(m => suite.test(m.modelId));
     h += `<h2>model capability records — persistent per-model aggregates</h2><div class="card"><table>` +
       `<tr><th>model</th><th>runs</th><th>cumulative</th><th>best run</th><th>last run</th><th>attested</th><th>updated</th></tr>`;
+    // Wilson 95% lower confidence bound — a leaderboard that ranks raw
+    // point estimates lies: 9/32 and 45/64 don't mean what they look like.
+    const wilson = (c, n) => {
+      if (!n) return 0;
+      const z = 1.959963984540054, p = c / n, z2 = z * z;
+      return (p + z2 / (2 * n) - z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n))) / (1 + z2 / n);
+    };
     const row = m => {
       const cum = m.totalItems ? (100 * m.totalCorrect) / m.totalItems : 0;
       const best = m.bestItems ? (100 * m.bestCorrect) / m.bestItems : 0;
@@ -740,14 +747,19 @@ function renderAll(sealedAccs, marketAccs) {
       const vouched = vouchedBy.get(m.pk) || 0;
       const postRev = postRevBy.get(m.pk) || 0;
       const logs = (logsBy.get(m.pk) || []).sort((a, b) => b.recordedAt - a.recordedAt);
+      const vl = logs.filter(l => l.vouched);
+      const vc = vl.reduce((s, l) => s + l.correct, 0), vi = vl.reduce((s, l) => s + l.items, 0);
+      const lb = 100 * wilson(m.totalCorrect, m.totalItems);
       const receipts = logs.length ? `<details style="margin-top:4px"><summary class="kv" style="cursor:pointer">${logs.length} receipt${logs.length === 1 ? "" : "s"}</summary>` +
         logs.map(l => `<div class="kv mono" style="font-size:11px">${link(l.run)} ${l.correct}/${l.items}` +
           `${l.vouched ? ' <span class="pill resolved" title="authority-attested at record time">vouched</span>' : ""}` +
           `${l.postReveal ? ' <span class="pill cancelled" title="run created after a fingerprint reveal on its bank">post-reveal</span>' : ""}` +
           ` · by ${link(l.recordedBy)} · ${fmtTs(l.recordedAt)}</div>`).join("") + `</details>` : "";
-      h += `<tr><td class="mono">${esc(m.modelId)}${receipts}</td>
+      h += `<tr id="rec-${m.pk}"><td class="mono">${esc(m.modelId)}${receipts}</td>
         <td>${m.runsScored}</td>
-        <td class="score">${m.totalCorrect}/${m.totalItems} (${cum.toFixed(1)}%)<div class="bar"><i style="width:${cum}%"></i></div></td>
+        <td class="score">${m.totalCorrect}/${m.totalItems} (${cum.toFixed(1)}%)<div class="bar"><i style="width:${cum}%"></i></div>` +
+        `<div class="kv" style="font-size:11px" title="Wilson score lower bound at 95% — the accuracy this model can claim with statistical confidence, given sample size">≥${lb.toFixed(1)}% @95%</div>` +
+        (vi ? `<div class="kv" style="font-size:11px" title="recomputed over vouched receipts only — self-reported claims excluded">${vc}/${vi} vouched (${(100 * vc / vi).toFixed(1)}%)</div>` : "") + `</td>
         <td class="score">${m.bestCorrect}/${m.bestItems} (${best.toFixed(1)}%) <span class="kv">on</span> ${link(m.bestRun)}</td>
         <td>${link(m.lastRun)}${lastBank ? ` <span class="kv">${esc(lastBank.name)}</span>` : ""}</td>
         <td>${vouched}/${m.runsScored}${postRev ? ` <span class="pill cancelled" title="${postRev} recorded run(s) came after fingerprint reveals — outputs could be stuffed">post-reveal ${postRev}</span>` : ""}</td>
@@ -889,7 +901,7 @@ function renderAll(sealedAccs, marketAccs) {
             ? `runner queued every chunk — partial settles only after its landing window (${fmtTs(settleableAt)})`
             : "runner queued every chunk and the landing window elapsed — expiry settles this partial")
           : "runner queued every chunk — a stall is provably cluster-side";
-        h += `<tr><td>#${i + 1}</td><td>${esc(r.modelId)}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
+        h += `<tr id="run-${r.pk}"><td>#${i + 1}</td><td>${esc(r.modelId)}${r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ""}</td>
           <td class="score">${r.correct}/${items} (${pct.toFixed(1)}%)<div class="bar"><i style="width:${pct}%"></i></div></td><td></td>
           <td>${link(r.pk)} <span class="verlink" title="fill the verify widget below" onclick="document.getElementById('vrun').value='${r.pk}';document.getElementById('vres').innerHTML='';document.getElementById('vproof').scrollIntoView({behavior:'smooth'})">proof→</span></td><td><span class="pill ${r.status === 1 ? "resolved" : "pending"}">${r.status === 1 ? "final" : "scored " + popcount(r.scoredMask) + "/" + r.chunkCount}</span>${committed && r.status !== 1 ? ` <span class="pill resolved" title="${commitTitle}">committed${settleableAt && !windowOpen ? " · settleable" : ""}</span>` : ""}${stale ? ` <span class="pill cancelled" title="last scoring queue >15min ago — anyone can sweep its pending bits">stuck · sweepable</span>` : ""}${postReveal ? ` <span class="pill cancelled" title="created after fingerprint reveals on this bank — outputs on the revealed items could be stuffed (the u64 targets are public)">post-reveal ⚠</span>` : ""}</td>
           <td class="kv mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 12)}…</td></tr>`;

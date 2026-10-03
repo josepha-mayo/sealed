@@ -1,8 +1,11 @@
 29 model record(s) — cumulative MPC-scored performance:
-  test/sweep-run                       runs=16  agg=100.0%  best=64/64 (100.0%)  rec=Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6
+  test/sweep-run                       runs=16  agg=100.0%  best=64/64 (100.0%)  vouched=1024/1024  rec=Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6
   dark/model-a                         runs=16  agg=93.8%  best=30/32 (93.8%)  rec=9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt
   ladder/model-a                       runs=17  agg=93.8%  best=30/32 (93.8%)  rec=A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3
   mock/oracle-0.75                     runs=2  agg=80.2%  best=53/64 (82.8%)  rec=HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ
   ladder/tie-b                         runs=16  agg=78.1%  best=25/32 (78.1%)  rec=EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi
   ladder/tie-a                         runs=17  agg=78.1%  best=25/32 (78.1%)  rec=9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL
   duel/model-a                         runs=16  agg=78.1%  best=25/32 (78.1%)  rec=J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B
+  test/registry-model                  runs=3  agg=58.3%  best=48/64 (75.0%)  vouched=96/128  rec=BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK
+  test/registry-model-87070            runs=2  agg=50.0%  best=48/64 (75.0%)  vouched=48/64  rec=GEuHM2EuDwjAKt3wiGNUv7xo8WpPfhw5HsmNg2nne4Xd
+  test/oracle                          runs=18  agg=70.3%  best=45/64 (70.3%)  rec=HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn

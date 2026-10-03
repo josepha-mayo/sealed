@@ -1560,22 +1560,35 @@ export async function recordAllScores() {
 /** `chain records` — the whole capability registry, accuracy-first. */
 export async function modelRecordList() {
   const { program } = sealedProgram();
-  const all: any[] = await (program.account as any).modelRecord.all();
+  const acct = program.account as any;
+  const [all, logs] = await Promise.all([acct.modelRecord.all(), acct.scoreLog.all()]);
   if (!all.length) { console.log("no model records — record_score a finalized run first"); return; }
+  // Vouched-only aggregate, recomputed over receipts — the answer to
+  // self-reported model_id claims: what the venue-vouched evidence shows.
+  const vAgg = new Map<string, { c: number; i: number }>();
+  for (const l of logs) {
+    const a = l.account as any;
+    if (!a.vouchedAtRecord) continue;
+    const k = (a.modelRecord as PublicKey).toBase58();
+    const v = vAgg.get(k) ?? { c: 0, i: 0 };
+    v.c += a.correct; v.i += a.items; vAgg.set(k, v);
+  }
   const rows = all
-    .map(({ account: r, publicKey: pk }) => ({
+    .map(({ account: r, publicKey: pk }: any) => ({
       pk,
       modelId: r.modelId as string,
       runs: r.runsScored as number,
       pct: r.totalItems.toNumber() ? 100 * r.totalCorrect.toNumber() / r.totalItems.toNumber() : 0,
       bestPct: r.bestItems ? 100 * r.bestCorrect / r.bestItems : 0,
       best: `${r.bestCorrect}/${r.bestItems}`,
+      vouched: vAgg.get(pk.toBase58()),
       last: (r.lastRun as PublicKey).toBase58(),
     }))
-    .sort((a, b) => b.bestPct - a.bestPct || b.pct - a.pct);
+    .sort((a: any, b: any) => b.bestPct - a.bestPct || b.pct - a.pct);
   console.log(`${rows.length} model record(s) — cumulative MPC-scored performance:`);
   for (const r of rows)
-    console.log(`  ${r.modelId.padEnd(36)} runs=${r.runs}  agg=${r.pct.toFixed(1)}%  best=${r.best} (${r.bestPct.toFixed(1)}%)  rec=${r.pk.toBase58()}`);
+    console.log(`  ${r.modelId.padEnd(36)} runs=${r.runs}  agg=${r.pct.toFixed(1)}%  best=${r.best} (${r.bestPct.toFixed(1)}%)` +
+      `${r.vouched ? `  vouched=${r.vouched.c}/${r.vouched.i}` : ""}  rec=${r.pk.toBase58()}`);
 }
 
 /** `chain modelrec <pubkey|model_id>` — print a registry entry. */
