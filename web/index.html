@@ -671,7 +671,12 @@ function renderAll(sealedAccs, marketAccs) {
   const mintedPriv = privChunks.reduce((s, c) => s + popcount(c.partsWritten) * 8, 0);
   const potLamports = markets.reduce((s, m) => s + m.totals.reduce((x, t) => x + Number(t), 0), 0)
     + ladders.reduce((s, l) => s + l.totals.reduce((x, t) => x + Number(t), 0), 0)
-    + darkMarkets.reduce((s, m) => s + Number(m.poolTotal), 0);
+    + darkMarkets.reduce((s, m) => s + Number(m.poolTotal), 0)
+    + bounties.reduce((s, b) => s + Number(b.amount), 0);
+  // protocol revenue actually collected across every venue kind.
+  const feesLamports = markets.reduce((s, m) => s + Number(m.feesAccrued), 0)
+    + ladders.reduce((s, l) => s + Number(l.feesAccrued), 0)
+    + darkMarkets.reduce((s, m) => s + Number(m.feesAccrued), 0);
   // MPC latency telemetry: first scoring queue → finalized timestamp,
   // percentiles across every finalized run on the ledger.
   const lats = finalized.map(r => r.firstPendingAt > 0 && r.finalizedAt > r.firstPendingAt ? r.finalizedAt - r.firstPendingAt : 0).filter(x => x > 0).sort((a, b) => a - b);
@@ -684,7 +689,8 @@ function renderAll(sealedAccs, marketAccs) {
     [mintedPriv, "private · ciphertext-only"],
     [grants.length, "disclosure grants"],
     [reveals.length, "audit reveals"],
-    [sol(potLamports), "SOL in markets"],
+    [sol(potLamports), "SOL escrowed across venues"],
+    [sol(feesLamports), "protocol fees collected"],
     [lats.length ? `${fmtSecs(qp(50))} / ${fmtSecs(qp(95))}` : 0, "MPC latency p50 / p95"],
   ].filter(([v]) => typeof v === "string" ? v.length > 0 : Number.isFinite(Number(v)) && Number(v) !== 0);
 
