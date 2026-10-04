@@ -236,7 +236,7 @@ sealed chain score --bank bank/1.json --run runs/….json --create-only  # park 
 sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score an existing run
                               [--authority <pubkey>]  # bank authority when the
                                                       # scoring wallet is a separate runner
-sealed chain status --benchmark <pubkey>                             # leaderboard from chain state
+sealed chain status --benchmark <pubkey> [--snapshot f]                # leaderboard from chain state (snapshot = offline replay)
 
 sealed chain market board   [--json] [--snapshot f]                    # keeper surface: claimable bounties, resolvable/tallyable/sweepable venues
 sealed chain market board   --snapshot web/snapshot.json              # same board replayed offline from the committed evidence bundle — keyless, no RPC

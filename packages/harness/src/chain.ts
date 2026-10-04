@@ -798,19 +798,30 @@ export async function revealPart(benchmarkPk: PublicKey, chunkIndex: number, par
  * run's committed output hashes. Anyone holding the run artifact can recompute
  * what `score_chunk` must have seen on the revealed positions.
  */
-export async function verifyRun(benchmarkPk: PublicKey, run: RunArtifact, runIndex?: bigint, ctx = setup()) {
-  const { program } = ctx;
-  const acct = program.account as any;
-  const b: any = await acct.benchmark.fetch(benchmarkPk);
-  const reveals: any[] = await acct.reveal.all([{ memcmp: { offset: 8, bytes: benchmarkPk.toBase58() } }]);
+export async function verifyRun(benchmarkPk: PublicKey, run: RunArtifact, runIndex?: bigint, ctx?: Ctx, snapPath?: string) {
+  let b: any, reveals: SnapAccount[], ss: ReturnType<typeof decodeSnapshotSection> | null = null;
+  if (snapPath) {
+    ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    b = snapOf(ss, "Benchmark").find((x) => x.publicKey.equals(benchmarkPk))?.account;
+    if (!b) { console.log(`no benchmark ${benchmarkPk.toBase58()} in snapshot`); return; }
+    reveals = snapOf(ss, "Reveal").filter((x) => (x.account.benchmark as PublicKey).equals(benchmarkPk));
+  } else {
+    ctx ??= setup();
+    const acct = ctx.program.account as any;
+    b = await acct.benchmark.fetch(benchmarkPk);
+    reveals = await acct.reveal.all([{ memcmp: { offset: 8, bytes: benchmarkPk.toBase58() } }]);
+  }
   if (reveals.length === 0) {
     console.log(`no revealed parts for ${benchmarkPk.toBase58()} — ask the authority to 'chain reveal' first`);
     return;
   }
   // If the run is on-chain, prove the artifact's outputs are the committed ones.
   if (runIndex !== undefined) {
-    const { run: runPda } = pdas(ctx, b.authority, b.id);
-    const r: any = await fetchOrNull(acct.run.fetch(runPda(runIndex)));
+    const [runPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("run"), benchmarkPk.toBuffer(), u64le(runIndex)], sealedProgramId());
+    const r: any = ss
+      ? snapOf(ss, "Run").find((x) => x.publicKey.equals(runPda))?.account
+      : await fetchOrNull((ctx!.program.account as any).run.fetch(runPda));
     if (r && Buffer.from(r.outputsRoot).toString("hex") !== run.outputsRoot) {
       throw new Error(`outputs_root mismatch: run artifact is not the committed run #${runIndex}`);
     }
@@ -870,12 +881,21 @@ export async function resetPending(runPk: PublicKey, chunkIndex: number, ctx = s
 
 // ------------------------------------------------------------------ status
 
-export async function status(benchmark: PublicKey, ctx = setup()) {
-  const acct = ctx.program.account as any;
-  const b = await acct.benchmark.fetch(benchmark);
+export async function status(benchmark: PublicKey, ctx?: Ctx, snapPath?: string) {
+  let b: any, runs: SnapAccount[];
+  if (snapPath) {
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    b = snapOf(ss, "Benchmark").find((x) => x.publicKey.equals(benchmark))?.account;
+    if (!b) { console.log(`no benchmark ${benchmark.toBase58()} in snapshot`); return; }
+    runs = snapOf(ss, "Run").filter((x) => (x.account.benchmark as PublicKey).equals(benchmark));
+  } else {
+    ctx ??= setup();
+    const acct = ctx.program.account as any;
+    b = await acct.benchmark.fetch(benchmark);
+    runs = await acct.run.all([{ memcmp: { offset: 8, bytes: benchmark.toBase58() } }]);
+  }
   const items = b.chunkCount * CHUNK;
   console.log(`benchmark ${benchmark.toBase58()} "${b.name}" status=${b.status} items=${items} runs=${b.runCount} root=${Buffer.from(b.itemsRoot).toString("hex")}`);
-  const runs = await acct.run.all([{ memcmp: { offset: 8, bytes: benchmark.toBase58() } }]);
   const rows = runs
     .map((x: any) => x.account)
     .filter((r: any) => r.status === 1)
@@ -2102,11 +2122,13 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "verify") {
     const run = loadJson(String(args.run)) as RunArtifact;
     const idx = args["run-index"] !== undefined ? BigInt(String(args["run-index"])) : undefined;
-    await verifyRun(new PublicKey(String(args.benchmark)), run, idx);
+    await verifyRun(new PublicKey(String(args.benchmark)), run, idx, undefined,
+      args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "status") {
-    await status(new PublicKey(String(args.benchmark)));
+    await status(new PublicKey(String(args.benchmark)), undefined,
+      args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "attest") {
