@@ -2,7 +2,7 @@
 3d5b6b008634a78c3bd5a371827dd834ca9c28659a57438cdaf5d40433574bd2  ./calibration/run-artifact-15b.json
 c352fb0b994cba31b7a461edaa30820c465234b99e2391bbfcdae9739dc78b1d  ./calibration/run-artifact.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
-bc35a7469daf2beda940eaa6d845cc420aec73d6cc70becb278109cc8ed9a266  ./index.html
+c1211c5c2dca31bb4e1e1c396fe0384d72a3770f88e91752cd106576ffc80c2a  ./index.html
 f09dd766837ac4b64f7d873a394ba5fa36b8005bd40d6f3305c5dbb826a0bb64  ./sample-proof.json
 ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079  ./snapshot.json
 59e90295d975db53e599b9509cf84c9214d00b544c90511fac9b7229fe0ed57c  ./vendor/rescue.mjs
