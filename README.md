@@ -256,6 +256,7 @@ sealed chain history qwen2.5-3b                                      # trajector
 sealed chain compare qwen2.5-3b-instruct qwen2.5-1.5b-instruct         # head-to-head on shared banks (exit 0/1/2)
 sealed chain compare --all                                           # paired-evidence leaderboard — W-L-T, disjoint pairs unranked
 sealed chain trail <run-pk>                                          # custody chain — every venue that priced it, resolutions re-verified
+sealed chain market bounties                                         # runner index — open bounties by pot, claimable marked honestly
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market void    --market <pk>                            # authority cancels, pre-scoring only
 sealed chain market expire  --market <pk>                            # anyone, once resolve_by passes (not if finalized)

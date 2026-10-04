@@ -111,7 +111,12 @@ print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `verify`,
-`grants`, `reveals`, `market board`, `market positions`.
+`grants`, `reveals`, `market board`, `market bounties`, `market positions`.
+`market bounties` is the runner-facing index — open capability bounties
+sorted by pot, marking which are claimable NOW under the exact
+`bounty_qualifies` rules (retroactivity wall, no self-deal, proven runs,
+no post-reveal) and which expired ones just need `expire_bounty` to
+refund their sponsor.
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed
 borsh layouts the RPC path uses, so the surfaces replay **keyless and

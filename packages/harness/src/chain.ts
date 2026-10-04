@@ -50,7 +50,7 @@ import {
 import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
 import { evalGate, type GatePolicy, type GateVerdict, type ScoreReceipt } from "./gate.js";
-import { classifyBoard } from "./board.js";
+import { classifyBoard, proven, type BoardRun } from "./board.js";
 import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount } from "./snapshot.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
@@ -2003,6 +2003,76 @@ export async function chainTrail(runPkStr: string, json = false, snapPath?: stri
   return out;
 }
 
+/** `chain bounties [--snapshot f] [--json]` — the runner-facing index: every
+ *  capability bounty (open / claimed / expired), threshold, pot, deadline.
+ *  Board serves keepers; this answers "where can my model earn?" */
+export async function bountyList(snapPath?: string, json = false) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const marketAcct = () => (marketProgram().market.account as any);
+  const [bounties, runs, bankRows]: [SnapAccount[], SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(sm!, "Bounty"), snapOf(ss, "Run"), snapOf(ss, "Benchmark")]
+    : await Promise.all([marketAcct().bounty.all(), (sealedProgram().program.account as any).run.all(),
+        (sealedProgram().program.account as any).benchmark.all()]);
+  const bankName = new Map(bankRows.map((b) => [b.publicKey.toBase58(), (b.account as any).name as string]));
+  const bankItems = new Map(bankRows.map((b) => [b.publicKey.toBase58(), Number((b.account as any).chunkCount) * 32]));
+  const runsOnBank = new Map<string, any[]>();
+  const bestOnBank = new Map<string, number>();
+  for (const r of runs) {
+    const k = ((r.account as any).benchmark as PublicKey).toBase58();
+    (runsOnBank.get(k) ?? runsOnBank.set(k, []).get(k)!).push(r.account);
+    if ((r.account as any).status === 1)
+      bestOnBank.set(k, Math.max(bestOnBank.get(k) ?? 0, Number((r.account as any).correct)));
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const BSTATUS = ["open", "claimed", "expired"];
+  const rows = bounties.map((x) => {
+    const b = x.account as any;
+    const bank = (b.bank as PublicKey).toBase58();
+    const status = BSTATUS[b.status as number] ?? String(b.status);
+    const best = bestOnBank.get(bank) ?? 0;
+    const items = bankItems.get(bank) ?? 0;
+    return {
+      pk: x.publicKey.toBase58(), bank, bankName: bankName.get(bank) ?? "?",
+      sponsor: (b.sponsor as PublicKey).toBase58(), threshold: Number(b.threshold), items,
+      amount: Number(b.amount), deadline: Number(b.deadline),
+      status, winnerRun: b.status === 1 ? (b.winnerRun as PublicKey).toBase58() : null,
+      winningScore: b.status === 1 ? Number(b.winningScore) : null,
+      bestScoreOnBank: best,
+      // bounty_qualifies mirrored exactly (board.ts): proven run on the bank
+      // with correct >= threshold, created_at >= bounty.created_at
+      // (retroactivity wall), runner != sponsor, not post-reveal.
+      clearableNow: b.status === 0 && now <= Number(b.deadline) && (runsOnBank.get(bank) ?? []).some((r: any) =>
+        proven({
+          pubkey: "", benchmark: bank, status: r.status, correct: Number(r.correct),
+          createdAt: Number(r.createdAt), runner: (r.runner as PublicKey).toBase58(),
+          postReveal: !!r.postReveal, scoredMask: String(r.scoredMask ?? "0"),
+          firstPendingAt: Number(r.firstPendingAt ?? 0), allQueuedAt: Number(r.allQueuedAt ?? 0),
+        } as BoardRun, now) &&
+        Number(r.correct) >= Number(b.threshold) && Number(r.createdAt) >= Number(b.createdAt) &&
+        !(r.runner as PublicKey).equals(b.sponsor) && !r.postReveal),
+      expired: b.status === 0 && now > Number(b.deadline),
+      deadlineIn: Number(b.deadline) - now,
+    };
+  }).sort((p, q) => Number(p.status !== "open") - Number(q.status !== "open") || q.amount - p.amount);
+  if (json) { console.log(JSON.stringify(rows)); return rows; }
+  const open = rows.filter((r) => r.status === "open" && !r.expired);
+  const claimable = rows.filter((r) => r.clearableNow);
+  console.log(`${rows.length} bounties — ${open.length} open (${claimable.length} claimable right now):`);
+  for (const r of rows) {
+    const stat = r.status === "open" && r.expired ? "open·expired" : r.status;
+    console.log(`  ${r.pk.slice(0, 12)}… ${stat.padEnd(12)} ${String(r.bankName).padEnd(16)} ` +
+      `≥${r.threshold}/${r.items}  pot=${(r.amount / 1e9).toFixed(3)}◎  ` +
+      (r.status === "claimed" ? `won ${r.winningScore} by ${r.winnerRun?.slice(0, 12)}…` :
+        r.status === "open" && r.expired ? `deadline passed — expire_bounty refunds sponsor` :
+        `deadline in ${Math.max(0, Math.round(r.deadlineIn / 3600))}h  best-on-bank=${r.bestScoreOnBank}` +
+        (r.clearableNow ? `  ← a qualifying run already clears it — claim_bounty` :
+          r.bestScoreOnBank >= r.threshold ? ` (predates bounty — retroactivity wall)` : "")));
+  }
+  return rows;
+}
+
 /** `chain gate --all <policy>` — the gate as a leaderboard filter: run the
  *  same admission policy over EVERY ModelRecord's receipts and report who
  *  clears it. "Which models provably clear ≥80% with ≥10 vouched runs?"
@@ -2604,6 +2674,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketBoard(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "sweep") {
       await marketSweep(bettor, Number(args.watch ?? 0) || 0);
+    } else if (m0 === "bounties") {
+      await bountyList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
     } else if (m0 === "positions") {
       await marketPositions(bettor, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
         args.viewer ? String(args.viewer) : undefined);
