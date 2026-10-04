@@ -93,8 +93,16 @@ receipts oldest-first with running accuracy after each — the capability
 trajectory ("did it regress after the fine-tune?") answered from
 on-chain data; vouched/post-reveal flags ride on every row.
 
+`chain compare <A> <B>` joins the two models' receipts **by benchmark** —
+the paired question the markets exist to price ("does A beat B on the
+SAME evidence?"). Per-bank deltas, pooled shared-item score, bank-win
+count, and unshared-coverage reporting. Disjoint coverage exits 2 — an
+honest "the registry can't rank them" instead of an aggregate lie.
+`chain banks` indexes every benchmark (kind, items, runs, best score) —
+the pk list `status`/`compare` need without the explorer.
+
 Every read command also takes `--snapshot <file>` — `records`,
-`modelrec`, `gate`, `history`, `status`, `banks`, `verify`,
+`modelrec`, `gate`, `history`, `compare`, `status`, `banks`, `verify`,
 `market board`, `market positions`.
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed

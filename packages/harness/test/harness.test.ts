@@ -432,3 +432,29 @@ test("snapshot decoder replays the committed bundle, camelCase-normalized", asyn
   assert.equal(b.filling, 24);
 });
 
+test("chain compare joins receipts by benchmark — paired verdict, honest disjoint sets", async () => {
+  const { modelCompare } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    // ladder/model-a vs model-b: 17 shared banks, decisive +31.3pp.
+    const win: any = await modelCompare("ladder/model-a", "ladder/model-b", false, snapPath);
+    assert.equal(win.verdict, "a");
+    assert.equal(win.sharedBanks.length, 17);
+    assert.equal(win.bankWins.a, 17);
+    assert.ok(Math.abs(win.pooled.pctA - 93.75) < 0.01);
+    assert.equal(process.exitCode, 0);
+    // Identical evidence → tie → exit 1.
+    const tie: any = await modelCompare("dark/model-a", "ladder/model-a", false, snapPath);
+    assert.equal(tie.verdict, "tie");
+    assert.equal(process.exitCode, 1);
+    // Disjoint coverage → can't rank → exit 2 (aggregate leaderboards lie;
+    // shared evidence is the honest answer).
+    const disjoint: any = await modelCompare("test/sweep-run", "dark/model-a", false, snapPath);
+    assert.equal(disjoint.verdict, "no-evidence");
+    assert.equal(disjoint.sharedBanks.length, 0);
+    assert.equal(process.exitCode, 2);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+

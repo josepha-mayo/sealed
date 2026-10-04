@@ -1747,6 +1747,87 @@ export async function gateModelRecord(
   return verdict;
 }
 
+/** `chain compare <A> <B> [--json]` — the registry's actual question: "does
+ *  A beat B on the SAME evidence?" Aggregates lie (different banks, different
+ *  item counts); this joins each model's ScoreLog receipts by benchmark and
+ *  reports paired deltas. Banks only one model ran are reported as coverage
+ *  asymmetry, not silently dropped. Exit 0 decisive / 1 tie / 2 no shared
+ *  benchmark — composable like `gate`. */
+export async function modelCompare(keyA: string, keyB: string, json = false, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const resolve = (keyOrName: string): PublicKey => {
+    try { return new PublicKey(keyOrName); } catch { /* model_id */ }
+    const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
+    return PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], sealedProgramId())[0];
+  };
+  const pkA = resolve(keyA), pkB = resolve(keyB);
+  const [records, logs, banks]: [SnapAccount[], SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog"), snapOf(ss, "Benchmark")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all(), acct().benchmark.all()]);
+  const recA = records.find((r) => r.publicKey.equals(pkA));
+  const recB = records.find((r) => r.publicKey.equals(pkB));
+  const bankName = new Map(banks.map((b) => [b.publicKey.toBase58(), b.account.name as string]));
+  const byBank = (pk: PublicKey) => {
+    const m = new Map<string, { correct: number; items: number; runs: number }>();
+    for (const l of logs) {
+      if (!(l.account.modelRecord as PublicKey).equals(pk)) continue;
+      const k = (l.account.benchmark as PublicKey).toBase58();
+      const e = m.get(k) ?? { correct: 0, items: 0, runs: 0 };
+      e.correct += Number(l.account.correct); e.items += Number(l.account.items); e.runs++;
+      m.set(k, e);
+    }
+    return m;
+  };
+  const a = byBank(pkA), b = byBank(pkB);
+  const shared = [...a.keys()].filter((k) => b.has(k));
+  const rows = shared.map((k) => {
+    const ea = a.get(k)!, eb = b.get(k)!;
+    const pa = ea.items ? (100 * ea.correct) / ea.items : 0;
+    const pb = eb.items ? (100 * eb.correct) / eb.items : 0;
+    return { bank: k, name: bankName.get(k) ?? "?", a: ea, b: eb, pctA: pa, pctB: pb, delta: pa - pb };
+  }).sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+  const pooledA = shared.reduce((s, k) => s + a.get(k)!.correct, 0);
+  const pooledAi = shared.reduce((s, k) => s + a.get(k)!.items, 0);
+  const pooledB = shared.reduce((s, k) => s + b.get(k)!.correct, 0);
+  const pooledBi = shared.reduce((s, k) => s + b.get(k)!.items, 0);
+  const pctA = pooledAi ? (100 * pooledA) / pooledAi : 0;
+  const pctB = pooledBi ? (100 * pooledB) / pooledBi : 0;
+  const wins = { a: rows.filter((r) => r.delta > 0).length, tie: rows.filter((r) => r.delta === 0).length,
+    b: rows.filter((r) => r.delta < 0).length };
+  const verdict = shared.length === 0 ? "no-evidence" : pctA === pctB ? "tie" : pctA > pctB ? "a" : "b";
+  const out = {
+    a: { record: pkA.toBase58(), modelId: recA?.account.modelId ?? keyA },
+    b: { record: pkB.toBase58(), modelId: recB?.account.modelId ?? keyB },
+    sharedBanks: rows, pooled: { a: `${pooledA}/${pooledAi}`, b: `${pooledB}/${pooledBi}`, pctA, pctB },
+    bankWins: wins, onlyA: [...a.keys()].filter((k) => !b.has(k)).length,
+    onlyB: [...b.keys()].filter((k) => !a.has(k)).length, verdict,
+  };
+  if (json) { console.log(JSON.stringify(out)); }
+  else {
+    const nA = out.a.modelId, nB = out.b.modelId;
+    console.log(`${nA} vs ${nB} — ${shared.length} shared benchmark(s)` +
+      (recA && recB ? "" : `  (${!recA ? nA : nB} has no ModelRecord)`));
+    for (const r of rows)
+      console.log(`  ${r.bank.slice(0, 12)}… ${String(r.name).padEnd(14)} ` +
+        `${r.pctA.toFixed(1)}% vs ${r.pctB.toFixed(1)}%  Δ${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(1)}` +
+        `  (${r.a.correct}/${r.a.items} vs ${r.b.correct}/${r.b.items}, ${r.a.runs}v${r.b.runs} runs)`);
+    if (shared.length) {
+      console.log(`pooled shared items: ${nA} ${pooledA}/${pooledAi} (${pctA.toFixed(1)}%)  ` +
+        `${nB} ${pooledB}/${pooledBi} (${pctB.toFixed(1)}%)`);
+      console.log(`bank wins: ${nA} ${wins.a} — tie ${wins.tie} — ${nB} ${wins.b}` +
+        `  | unshared: ${out.onlyA} bank(s) only ${nA} ran, ${out.onlyB} only ${nB}`);
+      console.log(verdict === "tie" ? "VERDICT: tie on shared items"
+        : `VERDICT: ${verdict === "a" ? nA : nB} +${Math.abs(pctA - pctB).toFixed(1)}pp on shared evidence`);
+    } else {
+      console.log("VERDICT: no shared benchmark — the registry can't rank them against each other" +
+        ` (${a.size} vs ${b.size} bank(s) covered, disjoint)`);
+    }
+  }
+  process.exitCode = verdict === "no-evidence" ? 2 : verdict === "tie" ? 1 : 0;
+  return out;
+}
+
 /** `chain gate --all <policy>` — the gate as a leaderboard filter: run the
  *  same admission policy over EVERY ModelRecord's receipts and report who
  *  clears it. "Which models provably clear ≥80% with ≥10 vouched runs?"
@@ -2284,6 +2365,12 @@ export async function chainMain(cmd: string[], args: Args) {
     const target = String(cmd[1] ?? args.model ?? "");
     if (!target) throw new Error("usage: chain history <model_id|record-pk> [--json]");
     await chainHistory(target, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "compare") {
+    const a = cmd[1], b = cmd[2];
+    if (!a || !b) throw new Error("usage: chain compare <model_id|record-pk> <model_id|record-pk> [--json] [--snapshot f]");
+    await modelCompare(String(a), String(b), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "market") {

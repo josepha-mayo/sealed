@@ -802,6 +802,12 @@ function renderAll(sealedAccs, marketAccs) {
       <label class="kv"><input type="checkbox" id="gateNoPR"> exclude post-reveal</label>
       <button onclick="runGate()">evaluate</button>
       <div id="gateOut" class="kv" style="margin-top:6px"></div></div>`;
+    h += `<div class="card"><b>compare</b> — <span class="kv">does A beat B on the SAME benchmarks? receipts joined per-bank, not pooled aggregates:</span><br>
+      <span class="mono">chain compare</span>
+      <select id="cmpA">${recs.map(m => `<option value="${m.pk}">${esc(m.modelId)}</option>`).join("")}</select> vs
+      <select id="cmpB">${recs.map((m, i) => `<option value="${m.pk}"${i === 1 ? " selected" : ""}>${esc(m.modelId)}</option>`).join("")}</select>
+      <button onclick="runCompare()">compare</button>
+      <div id="cmpOut" class="kv" style="margin-top:6px"></div></div>`;
   }
 
   // ---- head-to-head: pairwise model records derived from resolved duels
@@ -1756,6 +1762,56 @@ function runGate() {
     ` <span class="kv">[registry: ${all.length} total, ${postRev} post-reveal]</span>` +
     checks.map(c => `<div class="kv">${c.ok ? "ok" : "MISS"} ${c.name}: ${c.act} (needed ${c.need})</div>`).join("") +
     `<div class="kv" style="margin-top:4px">same verdict on the CLI: <span class="mono">sealed chain gate ${name} --min-pct ${minPct ?? "…"}${minWilson !== null ? ` --wilson ${minWilson}` : ""}${vouched ? " --vouched" : ""}${noPR ? " --no-post-reveal" : ""}</span></div>`;
+}
+
+// Receipt-scoped head-to-head — mirrors `chain compare` in chain.ts exactly:
+// ScoreLogs joined by benchmark, per-bank paired deltas, pooled shared-item
+// verdict. Disjoint coverage reports "unrankable", never an aggregate lie.
+function runCompare() {
+  const out = document.getElementById("cmpOut");
+  const a = window.__audit || {};
+  const pkA = document.getElementById("cmpA").value, pkB = document.getElementById("cmpB").value;
+  if (pkA === pkB) { out.innerHTML = "pick two different records"; return; }
+  const recA = (a.modelRecords || []).find(m => m.pk === pkA), recB = (a.modelRecords || []).find(m => m.pk === pkB);
+  const name = r => r ? esc(r.modelId) : "?";
+  const byBank = pk => {
+    const m = new Map();
+    for (const l of a.scoreLogs || []) {
+      if (l.modelRecord !== pk) continue;
+      const e = m.get(l.benchmark) || { correct: 0, items: 0, runs: 0 };
+      e.correct += l.correct; e.items += l.items; e.runs++;
+      m.set(l.benchmark, e);
+    }
+    return m;
+  };
+  const mA = byBank(pkA), mB = byBank(pkB);
+  const shared = [...mA.keys()].filter(k => mB.has(k));
+  if (!shared.length) {
+    out.innerHTML = `<span class="pill cancelled">UNRANKABLE</span> no shared benchmark — ` +
+      `${name(recA)} covered ${mA.size} bank(s), ${name(recB)} ${mB.size}, disjoint. ` +
+      `aggregate leaderboards would still rank them — shared evidence won't.`;
+    return;
+  }
+  const rows = shared.map(k => {
+    const ea = mA.get(k), eb = mB.get(k);
+    const bench = (a.benches || []).find(b => b.pk === k);
+    const pa = ea.items ? 100 * ea.correct / ea.items : 0, pb = eb.items ? 100 * eb.correct / eb.items : 0;
+    return { k, name: bench ? bench.name : k.slice(0, 8), ea, eb, pa, pb, d: pa - pb };
+  }).sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
+  const sA = rows.reduce((s, r) => s + r.ea.correct, 0), sAi = rows.reduce((s, r) => s + r.ea.items, 0);
+  const sB = rows.reduce((s, r) => s + r.eb.correct, 0), sBi = rows.reduce((s, r) => s + r.eb.items, 0);
+  const pA = sAi ? 100 * sA / sAi : 0, pB = sBi ? 100 * sB / sBi : 0;
+  const wA = rows.filter(r => r.d > 0).length, wB = rows.filter(r => r.d < 0).length, ties = rows.length - wA - wB;
+  const verdict = pA === pB ? null : pA > pB ? name(recA) : name(recB);
+  out.innerHTML = `<span class="pill ${verdict ? "resolved" : ""}">${verdict ? `${verdict} +${Math.abs(pA - pB).toFixed(1)}pp` : "TIE"}</span> ` +
+    `${shared.length} shared bank(s) — pooled ${sA}/${sAi} (${pA.toFixed(1)}%) vs ${sB}/${sBi} (${pB.toFixed(1)}%); ` +
+    `bank wins ${wA}–${wB}–${ties}` +
+    `<table style="margin-top:6px"><tr><th>bank</th><th>${name(recA)}</th><th>${name(recB)}</th><th>Δ</th></tr>` +
+    rows.map(r => `<tr><td class="mono">${link(r.k)} ${esc(r.name)}</td>` +
+      `<td class="score">${r.pa.toFixed(1)}% <span class="kv">${r.ea.correct}/${r.ea.items}·${r.ea.runs}r</span></td>` +
+      `<td class="score">${r.pb.toFixed(1)}% <span class="kv">${r.eb.correct}/${r.eb.items}·${r.eb.runs}r</span></td>` +
+      `<td class="score">${r.d >= 0 ? "+" : ""}${r.d.toFixed(1)}</td></tr>`).join("") +
+    `</table><div class="kv">same verdict on the CLI: <span class="mono">sealed chain compare ${name(recA)} ${name(recB)}</span></div>`;
 }
 
 // `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.

@@ -164,6 +164,7 @@ async function main() {
   sealed chain modelrec <pubkey|model_id>                  show a model's aggregated score record
   sealed chain records                                     list every model record, accuracy-first
   sealed chain banks                                       list every benchmark, run-count first
+  sealed chain compare <A> <B>                             head-to-head on shared benchmarks, paired deltas
   sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]
   sealed chain gate --all <same policy flags>                          the gate as a leaderboard: who clears the policy, ranked
   sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first

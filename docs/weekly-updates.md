@@ -47,7 +47,7 @@ deadline.
   over the registry receipts, exit 0/1/2 — composability you can paste
   into a CI job or a venue admission check; same verdict in the explorer.
 - 15s: `--snapshot web/snapshot.json` on every read command — `board`,
-  `gate`, `history`, `records`, `banks`, `status`, `verify`, `positions` all replay the committed
+  `gate`, `history`, `compare`, `records`, `banks`, `status`, `verify`, `positions` all replay the committed
   evidence bundle keyless, no RPC. CLI = explorer parity, proven by a
   unit test that pins the 36-actionable classification. And `gate --all`
   applies a policy to every record — "which models provably clear
