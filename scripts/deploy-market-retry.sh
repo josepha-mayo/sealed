@@ -30,16 +30,21 @@ for i in $(seq 1 30); do
   # congestion — re-signing is free, give it room. A modest CU price buys
   # real landing priority on the write txs (~1500 tiny-CU writes ≈ a few
   # SOL worst case, still far below stranded-buffer losses).
-  if solana program deploy target/deploy/market.so \
+  out=$(solana program deploy target/deploy/market.so \
       --program-id "$MARKET_PID" -u devnet \
       --keypair "$KEYPAIR" \
       --with-compute-unit-price 1000 \
-      --max-sign-attempts 200; then
+      --max-sign-attempts 200 2>&1)
+  rc=$?
+  echo "$out"
+  if [ $rc -eq 0 ]; then
     echo "=== DEPLOY_OK attempt $i"
     exit 0
   fi
   reclaim
-  sleep 10
+  # 429s mean the public RPC is saturated — hammering it makes the rate
+  # limit worse for everyone including us. Back off harder than usual.
+  if echo "$out" | grep -q "429"; then sleep 60; else sleep 10; fi
 done
 echo "=== still failing after 30 attempts"
 exit 1
