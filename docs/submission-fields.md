@@ -40,7 +40,7 @@ A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, commit-reveal dark markets, and FCFS capability
 bounties (pot pays the first proven run's operator, not a bettor) —
 resolving permissionlessly on `Run.correct`; bets latch before the
-first scored chunk. Verified: 17/17 E2E + 13/13 unit on a real MPC
+first scored chunk. Verified: 17/17 E2E + 15/15 unit on a real MPC
 localnet; four open-weights models raced, dueled, and settled through
 MPC — a dead-heat, a private exam via reshare grants, a dark market on
 a ciphertext-only bank's run. Every primitive settled a real score.
@@ -59,7 +59,10 @@ RescueCipher encrypt staged parts to the MXE key and shared grants to
 delegates. Tooling: @solana/web3.js + @coral-xyz/anchor + arcium-anchor
 client libs; `solana program deploy` for upgrades; a single-file explorer
 reads program accounts or a committed snapshot and verifies Merkle proofs
-against on-chain `outputs_root` in-browser.
+against on-chain `outputs_root` in-browser. Composability is executable:
+`chain gate --min-pct 60 --vouched` evaluates a capability policy over the
+registry's receipts (exit 0/1/2) — and the hosted explorer runs the same
+policy in-page, off either a live RPC or the committed snapshot.
 
 ## tractionMilestones
 

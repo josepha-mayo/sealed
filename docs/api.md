@@ -54,7 +54,12 @@ score itself was written by MPC), but it is **not** attestation:
 `vouched_at_record = run.attested` distinguishes authority-vouched entries.
 The harness exposes it as `chain record --run <pk>` / `chain modelrec
 <pubkey|model_id>`; `verify.mjs` and the explorer audit replay every
-record bit-exact from its receipts.
+record bit-exact from its receipts. `chain gate <model_id> --min-pct N
+[--min-items N] [--vouched] [--no-post-reveal] [--min-runs N]
+[--wilson P]` evaluates an admission policy over a record — exit 0
+pass / 1 fail / 2 no evidence — with the Wilson lower bound so
+small-sample records can't flatter a gate. Same evaluation runs
+in-page in the hosted explorer.
 
 ## `market` — four parimutuel primitives + capability bounties on `Run.correct`
 

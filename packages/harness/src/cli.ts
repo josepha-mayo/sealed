@@ -163,7 +163,7 @@ async function main() {
   sealed chain record --all                                enroll EVERY finalized-but-unrecorded run — the permissionless librarian
   sealed chain modelrec <pubkey|model_id>                  show a model's aggregated score record
   sealed chain records                                     list every model record, accuracy-first
-  sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--vouched] [--json]
+  sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)

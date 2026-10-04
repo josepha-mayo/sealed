@@ -12,8 +12,11 @@
  * Honesty contract (same flags a resolver must respect — see
  * docs/integrate.md): `vouchedOnly` restricts evidence to receipts whose
  * runs were venue-attested at record time; `post_reveal` receipts are
- * reported separately, never silently counted — a score minted after the
- * answer fingerprints went public doesn't measure the same thing.
+ * always reported separately and `noPostReveal` drops them from the
+ * evidence pool — a score minted after the answer fingerprints went
+ * public doesn't measure the same thing. `minWilsonPct` applies the
+ * Wilson 95% lower confidence bound so a thin perfect sample can't
+ * flatter a strict gate.
  */
 
 export interface ScoreReceipt {
@@ -32,6 +35,24 @@ export interface GatePolicy {
   minItems?: number;
   /** Restrict evidence to venue-attested runs (vouched_at_record). */
   vouchedOnly?: boolean;
+  /** Drop receipts minted after the bank's fingerprints were revealed —
+   *  a post-reveal score doesn't measure the same thing. */
+  noPostReveal?: boolean;
+  /** Wilson 95% lower-confidence-bound floor in percent — the point
+   *  estimate can't pass on a thin sample: 3/3 (100%) has LCB ≈ 44%. */
+  minWilsonPct?: number;
+}
+
+/** Wilson score interval lower bound for a binomial proportion, as a
+ *  percent. `z = 1.96` is the usual 95% bound. */
+export function wilsonLowerBoundPct(correct: number, items: number, z = 1.96): number {
+  if (items <= 0) return 0;
+  const p = correct / items;
+  const z2 = z * z;
+  const denom = 1 + z2 / items;
+  const centre = p + z2 / (2 * items);
+  const margin = z * Math.sqrt((p * (1 - p) + z2 / (4 * items)) / items);
+  return (100 * (centre - margin)) / denom;
 }
 
 export interface GateCheck {
@@ -70,7 +91,8 @@ export function evalGate(
 ): GateVerdict {
   const totalRuns = receipts.length;
   const postRevealRuns = receipts.filter((r) => !!r.postReveal).length;
-  const selected = policy.vouchedOnly ? receipts.filter((r) => !!r.vouchedAtRecord) : receipts;
+  let selected = policy.vouchedOnly ? receipts.filter((r) => !!r.vouchedAtRecord) : receipts;
+  if (policy.noPostReveal) selected = selected.filter((r) => !r.postReveal);
   const runs = selected.length;
   const correct = selected.reduce((s, r) => s + r.correct, 0);
   const items = selected.reduce((s, r) => s + r.items, 0);
@@ -112,6 +134,15 @@ export function evalGate(
       pass: items >= policy.minItems,
       actual: `${items} scored items`,
       needed: `>= ${policy.minItems}`,
+    });
+  }
+  if (policy.minWilsonPct !== undefined) {
+    const lcb = wilsonLowerBoundPct(correct, items);
+    checks.push({
+      name: "wilson-95",
+      pass: lcb >= policy.minWilsonPct,
+      actual: `${lcb.toFixed(1)}% LCB (${correct}/${items})`,
+      needed: `>= ${policy.minWilsonPct}%`,
     });
   }
   const pass = checks.every((c) => c.pass);

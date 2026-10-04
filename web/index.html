@@ -790,7 +790,9 @@ function renderAll(sealedAccs, marketAccs) {
       accuracy &ge; <input id="gatePct" value="60" size="3">% &nbsp;
       runs &ge; <input id="gateRuns" value="1" size="3"> &nbsp;
       items &ge; <input id="gateItems" size="4" placeholder="—"> &nbsp;
+      wilson LCB &ge; <input id="gateWilson" size="4" placeholder="—">% &nbsp;
       <label class="kv"><input type="checkbox" id="gateVouched"> venue-attested runs only</label>
+      <label class="kv"><input type="checkbox" id="gateNoPR"> exclude post-reveal</label>
       <button onclick="runGate()">evaluate</button>
       <div id="gateOut" class="kv" style="margin-top:6px"></div></div>`;
   }
@@ -1658,32 +1660,37 @@ function runGate() {
   const rec = (a.modelRecords || []).find(m => m.pk === pk);
   const all = (a.scoreLogs || []).filter(l => l.modelRecord === pk);
   const vouched = document.getElementById("gateVouched").checked;
-  const sel = vouched ? all.filter(l => l.vouched) : all;
+  const noPR = document.getElementById("gateNoPR").checked;
+  let sel = vouched ? all.filter(l => l.vouched) : all;
+  if (noPR) sel = sel.filter(l => !l.postReveal);
   const postRev = all.filter(l => l.postReveal).length;
   const runs = sel.length, correct = sel.reduce((s, l) => s + l.correct, 0),
     items = sel.reduce((s, l) => s + l.items, 0), pct = items ? 100 * correct / items : 0;
+  const wilson = (c, n, z = 1.96) => n <= 0 ? 0 :
+    100 * ((c / n + z * z / (2 * n)) - z * Math.sqrt((c / n * (1 - c / n) + z * z / (4 * n)) / n)) / (1 + z * z / n);
   const num = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : Number(v); };
-  const minPct = num("gatePct"), minRuns = num("gateRuns"), minItems = num("gateItems");
-  if (minPct === null && minRuns === null && minItems === null) {
-    out.innerHTML = `a gate needs a criterion — set at least one of accuracy/runs/items`;
+  const minPct = num("gatePct"), minRuns = num("gateRuns"), minItems = num("gateItems"), minWilson = num("gateWilson");
+  if (minPct === null && minRuns === null && minItems === null && minWilson === null) {
+    out.innerHTML = `a gate needs a criterion — set at least one of accuracy/runs/items/wilson`;
     return;
   }
   const name = rec ? esc(rec.modelId) : pk;
   if (!all.length || !sel.length) {
     out.innerHTML = `<span class="pill cancelled">NO EVIDENCE</span> ${name} — ` +
-      (all.length && !sel.length ? `no venue-attested receipts (uncheck to evaluate all)` : `no receipts enrolled — run record_score first`);
+      (all.length && !sel.length ? `no receipts survive the filter (attested/post-reveal)` : `no receipts enrolled — run record_score first`);
     return;
   }
   const checks = [];
   if (minPct !== null) checks.push({ name: "accuracy", ok: pct >= minPct, act: `${pct.toFixed(1)}% (${correct}/${items})`, need: `≥ ${minPct}%` });
   if (minRuns !== null) checks.push({ name: "runs", ok: runs >= minRuns, act: `${runs} receipt${runs === 1 ? "" : "s"}`, need: `≥ ${minRuns}` });
   if (minItems !== null) checks.push({ name: "items", ok: items >= minItems, act: `${items} scored items`, need: `≥ ${minItems}` });
+  if (minWilson !== null) { const lcb = wilson(correct, items); checks.push({ name: "wilson-95", ok: lcb >= minWilson, act: `${lcb.toFixed(1)}% LCB (${correct}/${items})`, need: `≥ ${minWilson}%` }); }
   const pass = checks.every(c => c.ok);
   out.innerHTML = `<span class="pill ${pass ? "resolved" : "cancelled"}">${pass ? "PASS" : "FAIL"}</span> ` +
     `${name} — ${runs} ${vouched ? "vouched" : ""} run(s), ${correct}/${items} (${pct.toFixed(1)}%)` +
     ` <span class="kv">[registry: ${all.length} total, ${postRev} post-reveal]</span>` +
     checks.map(c => `<div class="kv">${c.ok ? "ok" : "MISS"} ${c.name}: ${c.act} (needed ${c.need})</div>`).join("") +
-    `<div class="kv" style="margin-top:4px">same verdict on the CLI: <span class="mono">sealed chain gate ${name} --min-pct ${minPct ?? "…"}${vouched ? " --vouched" : ""}</span></div>`;
+    `<div class="kv" style="margin-top:4px">same verdict on the CLI: <span class="mono">sealed chain gate ${name} --min-pct ${minPct ?? "…"}${minWilson !== null ? ` --wilson ${minWilson}` : ""}${vouched ? " --vouched" : ""}${noPR ? " --no-post-reveal" : ""}</span></div>`;
 }
 
 // `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.

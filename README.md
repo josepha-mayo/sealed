@@ -277,7 +277,7 @@ Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `SEALED_CLUSTER_O
 
 Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALED_API_KEY`; defaults to OpenRouter).
 
-Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (instruction/circuit reference) · [circuits.md](docs/circuits.md) (line-by-line Arcis review guide) · [threat-model.md](docs/threat-model.md) (findings + residual assumptions) · [costs.md](docs/costs.md) (measured per-instruction CU table) · [integrate.md](docs/integrate.md) (compose on `Run.correct` + the capability registry — account layouts, PDAs, honesty flags) · [evidence/](docs/evidence/README.md) (snapshot + proof files) · [mainnet.md](docs/mainnet.md) (deploy runbook)
+Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (instruction/circuit reference) · [circuits.md](docs/circuits.md) (line-by-line Arcis review guide) · [threat-model.md](docs/threat-model.md) (findings + residual assumptions) · [costs.md](docs/costs.md) (measured per-instruction CU table) · [integrate.md](docs/integrate.md) (compose on `Run.correct` + the capability registry — account layouts, PDAs, honesty flags) · [engineering-log.md](docs/engineering-log.md) (every hard failure + fix — the adversarial-review receipts) · [evidence/](docs/evidence/README.md) (snapshot + proof files) · [mainnet.md](docs/mainnet.md) (deploy runbook)
 
 ## Status
 

@@ -1617,7 +1617,8 @@ export async function modelRecordShow(keyOrName: string) {
 }
 
 /** `chain gate <model_id|record-pk> [--min-pct N] [--min-runs N]
- *  [--min-items N] [--vouched] [--json]` — evaluate a capability policy
+ *  [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]`
+ *  — evaluate a capability policy
  *  over the on-chain registry and exit 0/1/2 (pass / fail / no evidence).
  *  Composability made executable: a script, CI job, or downstream venue
  *  can gate on MPC-scored receipts instead of a leaderboard's word. The
@@ -1834,7 +1835,7 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "gate") {
     const target = String(cmd[1] ?? args.model ?? args.run ?? "");
-    if (!target) throw new Error("usage: chain gate <model_id|record-pk> [--min-pct N] [--min-runs N] [--min-items N] [--vouched] [--json]");
+    if (!target) throw new Error("usage: chain gate <model_id|record-pk> [--min-pct N] [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]");
     const num = (k: string) => {
       const v = args[k];
       if (v === undefined) return undefined;
@@ -1846,10 +1847,13 @@ export async function chainMain(cmd: string[], args: Args) {
       minPct: num("min-pct"),
       minRuns: num("min-runs"),
       minItems: num("min-items"),
+      minWilsonPct: num("wilson"),
       vouchedOnly: Boolean(args.vouched),
+      noPostReveal: Boolean(args["no-post-reveal"]),
     };
-    if (policy.minPct === undefined && policy.minRuns === undefined && policy.minItems === undefined)
-      throw new Error("a gate needs a criterion: --min-pct N and/or --min-runs N and/or --min-items N");
+    if (policy.minPct === undefined && policy.minRuns === undefined &&
+        policy.minItems === undefined && policy.minWilsonPct === undefined)
+      throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
     await gateModelRecord(target, policy, Boolean(args.json));
     return;
   }

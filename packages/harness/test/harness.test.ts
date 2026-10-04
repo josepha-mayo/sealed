@@ -275,3 +275,29 @@ test("capability gate: policy evaluation over registry receipts", async () => {
   // record existing at all.
   assert.equal(evalGate([], {}, true).reason, "no-evidence");
 });
+
+test("capability gate: post-reveal exclusion + Wilson bound", async () => {
+  const { evalGate, wilsonLowerBoundPct } = await import("../src/gate.js");
+  const receipts = [
+    { correct: 24, items: 32, vouchedAtRecord: 1, postReveal: 0 },
+    { correct: 20, items: 32, vouchedAtRecord: 1, postReveal: 0 },
+    { correct: 2, items: 32, vouchedAtRecord: 0, postReveal: 1 },
+  ];
+  // noPostReveal drops the 2/32 stuffed receipt -> 44/64 = 68.8%.
+  const npr = evalGate(receipts, { minPct: 60, noPostReveal: true });
+  assert.equal(npr.pass, true);
+  assert.equal(npr.runs, 2);
+  assert.equal(npr.postRevealRuns, 1); // still reported, just not counted
+  // Combined with vouchedOnly: both filters apply.
+  assert.equal(evalGate(receipts, { minPct: 60, vouchedOnly: true, noPostReveal: true }).runs, 2);
+  // Wilson LCB: a perfect thin sample can't flatter a strict gate —
+  // 3/3 = 100% point estimate but only ~43.8% LCB.
+  const perfect = [{ correct: 3, items: 3, vouchedAtRecord: 1, postReveal: 0 }];
+  assert.equal(evalGate(perfect, { minPct: 90 }).pass, true); // naive floor passes
+  assert.equal(evalGate(perfect, { minWilsonPct: 50 }).pass, false); // LCB doesn't
+  // 44/64 LCB ≈ 56.6% — passes a 50% bound, fails a 60% bound.
+  assert.ok(wilsonLowerBoundPct(44, 64) > 56 && wilsonLowerBoundPct(44, 64) < 58);
+  assert.equal(evalGate(receipts, { minWilsonPct: 50, vouchedOnly: true }).pass, true);
+  assert.equal(evalGate(receipts, { minWilsonPct: 60, vouchedOnly: true }).pass, false);
+  assert.equal(wilsonLowerBoundPct(0, 0), 0);
+});
