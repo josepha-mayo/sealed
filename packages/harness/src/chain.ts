@@ -2443,6 +2443,34 @@ export async function chainMain(cmd: string[], args: Args) {
     for (const g of list) console.log(`chunk ${g.chunkIndex} part ${g.part} → viewer ${g.viewer.slice(0, 16)}… at ${g.sharedAt} (${g.address.toBase58()})`);
     return;
   }
+  if (sub === "reveals") {
+    const bankPk = new PublicKey(String(args.benchmark));
+    if (args.snapshot) {
+      const ss = decodeSnapshotSection(loadSnapshotJson(String(args.snapshot)), "sealed");
+      const rs = snapOf(ss, "Reveal")
+        .filter((r) => (r.account.benchmark as PublicKey).equals(bankPk))
+        .sort((x, y) => Number(x.account.chunkIndex) - Number(y.account.chunkIndex) || Number(x.account.part) - Number(y.account.part));
+      if (!rs.length) console.log("no reveals — the bank's answers are still fully sealed");
+      for (const r of rs) {
+        const a = r.account as any;
+        const hashes: any[] = Array.from(a.hashes ?? []);
+        console.log(`chunk ${a.chunkIndex} part ${a.part} — ${hashes.length} fingerprint(s) declassified @ ${a.revealedAt}` +
+          `  ${hashes.slice(0, 3).map((h: any) => Buffer.from(h).toString("hex").slice(0, 8)).join(" ")}…  (${r.publicKey.toBase58()})`);
+      }
+      if (rs.length) console.log(`⚠ ${rs.length} revealed part(s) — runs committed after these timestamps stamp post_reveal; markets refuse to open on them`);
+      return;
+    }
+    const ctx = setup();
+    const rs: any[] = await (ctx.program.account as any).reveal.all([{ memcmp: { offset: 8, bytes: bankPk.toBase58() } }]);
+    if (!rs.length) console.log("no reveals — the bank's answers are still fully sealed");
+    for (const r of rs) {
+      const a = r.account as any;
+      const hashes: any[] = Array.from(a.hashes ?? []);
+      console.log(`chunk ${a.chunkIndex} part ${a.part} — ${hashes.length} fingerprint(s) declassified @ ${a.revealedAt}` +
+        `  ${hashes.slice(0, 3).map((h: any) => Buffer.from(h).toString("hex").slice(0, 8)).join(" ")}…  (${r.publicKey.toBase58()})`);
+    }
+    return;
+  }
   if (sub === "delegate-bank") {
     // Rebuild a private bank entirely from this wallet's ShareGrants — the
     // delegated-runner path: questions decrypted locally, never on chain.

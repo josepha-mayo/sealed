@@ -153,6 +153,7 @@ async function main() {
   sealed chain reshare --benchmark <pk> --chunk <i> --part <0..3> --to <viewer-pubkey>   grant a delegate the questions
   sealed chain grant  --benchmark <pk> --chunk <i> --part <0..3>             fetch + decrypt YOUR grant (delegate)
   sealed chain grants --benchmark <pubkey>                                 list ShareGrant PDAs (who can see which parts)
+  sealed chain reveals --benchmark <pubkey>                                the fingerprint-disclosure audit trail
   sealed chain delegate-bank --benchmark <pubkey> [--out file]             rebuild a bank from YOUR grants (delegate)
   sealed chain score --bank <file> --run <file> [--create-only] [--run-index n] [--authority <pk>]
   sealed chain reveal --benchmark <pk> --chunk <i> --part <0..3>   authority declassifies 8 answer hashes
