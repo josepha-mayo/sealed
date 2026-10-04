@@ -49,6 +49,7 @@ import {
 } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
+import { evalGate, type GatePolicy, type GateVerdict, type ScoreReceipt } from "./gate.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -1615,6 +1616,56 @@ export async function modelRecordShow(keyOrName: string) {
   console.log(`  last=${(rec.lastRun as PublicKey).toBase58()}  first_seen=${rec.firstSeen}  last_scored=${rec.lastScored}`);
 }
 
+/** `chain gate <model_id|record-pk> [--min-pct N] [--min-runs N]
+ *  [--min-items N] [--vouched] [--json]` — evaluate a capability policy
+ *  over the on-chain registry and exit 0/1/2 (pass / fail / no evidence).
+ *  Composability made executable: a script, CI job, or downstream venue
+ *  can gate on MPC-scored receipts instead of a leaderboard's word. The
+ *  policy check is pure (`gate.ts`) — same verdict off a live RPC or the
+ *  explorer's committed snapshot. */
+export async function gateModelRecord(
+  keyOrName: string,
+  policy: GatePolicy,
+  json = false,
+): Promise<GateVerdict> {
+  const { program } = sealedProgram();
+  let pda: PublicKey;
+  try {
+    pda = new PublicKey(keyOrName);
+  } catch {
+    const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
+    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], program.programId);
+  }
+  const rec: any = await (program.account as any).modelRecord.fetchNullable(pda);
+  const logs: any[] = rec
+    ? (await (program.account as any).scoreLog.all())
+        .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda))
+    : [];
+  const receipts: ScoreReceipt[] = logs.map((l: any) => ({
+    correct: l.account.correct as number,
+    items: l.account.items as number,
+    vouchedAtRecord: l.account.vouchedAtRecord,
+    postReveal: l.account.postReveal,
+  }));
+  const verdict = evalGate(receipts, policy, !!rec);
+  verdict.modelId = rec ? (rec.modelId as string) : keyOrName;
+  const out = { record: pda.toBase58(), ...verdict };
+  if (json) {
+    console.log(JSON.stringify(out));
+  } else if (!rec) {
+    console.log(`NO EVIDENCE — no model record for ${keyOrName} (${pda.toBase58()})`);
+  } else {
+    const tag = verdict.pass ? "PASS" : verdict.reason === "policy" ? "FAIL" : "NO EVIDENCE";
+    console.log(`${tag} — ${verdict.modelId} ${verdict.runs} ${verdict.scope} run(s), ` +
+      `${verdict.correct}/${verdict.items} (${verdict.pct.toFixed(1)}%)` +
+      `  [registry: ${verdict.totalRuns} total, ${verdict.postRevealRuns} post-reveal]`);
+    for (const c of verdict.checks)
+      console.log(`  ${c.pass ? "ok" : "MISS"} ${c.name}: ${c.actual} (needed ${c.needed})`);
+  }
+  process.exitCode = verdict.pass ? 0 : verdict.reason === "policy" ? 1 : 2;
+  return verdict;
+}
+
 export async function chainMain(cmd: string[], args: Args) {
   const loadJson = (p: string) => JSON.parse(readFileSync(p, "utf8"));
   const [sub] = cmd;
@@ -1779,6 +1830,27 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "records") {
     await modelRecordList();
+    return;
+  }
+  if (sub === "gate") {
+    const target = String(cmd[1] ?? args.model ?? args.run ?? "");
+    if (!target) throw new Error("usage: chain gate <model_id|record-pk> [--min-pct N] [--min-runs N] [--min-items N] [--vouched] [--json]");
+    const num = (k: string) => {
+      const v = args[k];
+      if (v === undefined) return undefined;
+      const n = Number(v);
+      if (!Number.isFinite(n)) throw new Error(`--${k} must be a number`);
+      return n;
+    };
+    const policy: GatePolicy = {
+      minPct: num("min-pct"),
+      minRuns: num("min-runs"),
+      minItems: num("min-items"),
+      vouchedOnly: Boolean(args.vouched),
+    };
+    if (policy.minPct === undefined && policy.minRuns === undefined && policy.minItems === undefined)
+      throw new Error("a gate needs a criterion: --min-pct N and/or --min-runs N and/or --min-items N");
+    await gateModelRecord(target, policy, Boolean(args.json));
     return;
   }
   if (sub === "market") {

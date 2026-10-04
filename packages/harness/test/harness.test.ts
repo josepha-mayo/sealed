@@ -243,3 +243,35 @@ test("generated bank scores model outputs through the same pipeline", async () =
   const matches = runChunkOutputs(run, 0).filter((h, i) => h === refs[i]).length;
   assert.equal(matches, (CHUNK / 4) * 3);
 });
+
+test("capability gate: policy evaluation over registry receipts", async () => {
+  const { evalGate } = await import("../src/gate.js");
+  const receipts = [
+    { correct: 24, items: 32, vouchedAtRecord: 1, postReveal: 0 },
+    { correct: 20, items: 32, vouchedAtRecord: 1, postReveal: 0 },
+    { correct: 2, items: 32, vouchedAtRecord: 0, postReveal: 1 },
+  ];
+  // All evidence: 46/96 = 47.9% — fails a 60% floor, passes 45%.
+  const all = evalGate(receipts, { minPct: 45 });
+  assert.equal(all.pass, true);
+  assert.equal(all.scope, "all");
+  assert.equal(all.postRevealRuns, 1);
+  assert.equal(evalGate(receipts, { minPct: 60 }).pass, false);
+  // Vouched-only drops the self-reported 2/32 -> 44/64 = 68.8% passes 60%.
+  const v = evalGate(receipts, { minPct: 60, vouchedOnly: true });
+  assert.equal(v.pass, true);
+  assert.equal(v.scope, "vouched");
+  assert.equal(v.runs, 2);
+  // Runs/items floors are measured on the selected set.
+  assert.equal(evalGate(receipts, { minRuns: 3, vouchedOnly: true }).pass, false);
+  assert.equal(evalGate(receipts, { minItems: 100 }).pass, false);
+  assert.equal(evalGate(receipts, { minItems: 96 }).pass, true);
+  // Honest absence: no record -> no-record; record but no vouched receipts
+  // -> no-evidence (absent proof is not disproof). Neither counts as a
+  // policy failure.
+  assert.equal(evalGate([], { minPct: 1 }, false).reason, "no-record");
+  assert.equal(evalGate([{ correct: 1, items: 1, vouchedAtRecord: 0 }], { minPct: 1, vouchedOnly: true }).reason, "no-evidence");
+  // A zero-threshold gate on an empty registry still distinguishes the
+  // record existing at all.
+  assert.equal(evalGate([], {}, true).reason, "no-evidence");
+});

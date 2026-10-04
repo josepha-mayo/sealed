@@ -94,6 +94,25 @@ ignore these are reimplementing the failure modes Sealed exists to prevent:
 - **`ScoreLog.post_reveal`** — the same flag at enrollment time; later
   reveals show as later events, never retroactive contamination.
 
+## Composability, executable: `chain gate`
+
+The canned example is a capability gate — the "insurers and DAOs pricing
+capability risk" surface as a one-line command:
+
+```bash
+# exit 0 if the model's MPC-scored record clears the policy, 1 on fail,
+# 2 when there is no evidence (absent proof ≠ disproof)
+sealed chain gate qwen2.5-3b --min-pct 60 --min-runs 2 --vouched
+sealed chain gate <record-pda> --min-items 128 --json
+```
+
+`--vouched` restricts evidence to venue-attested runs
+(`vouched_at_record`); `--json` emits `{pass, scope, runs, items, correct,
+pct, postRevealRuns, checks[]}` for scripted policy. The evaluation is
+pure (`packages/harness/src/gate.ts` — `evalGate(receipts, policy)`) —
+the same verdict runs against a live RPC or the explorer's committed
+snapshot, no trust in the caller's box.
+
 ## What a consumer never gets
 
 The answer key. `items_root`/`outputs_root` are Merkle commitments — the
