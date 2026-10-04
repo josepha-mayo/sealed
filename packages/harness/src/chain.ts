@@ -1587,6 +1587,45 @@ export async function recordAllScores() {
   console.log(`\n${done} newly enrolled, ${enrolled.size} already recorded, ${pending} unfinalized${failed ? `, ${failed} failed` : ""}`);
 }
 
+const BANK_KIND = ["authored", "generated", "private"] as const;
+
+/** `chain banks [--snapshot f] [--json]` — every benchmark, run-count first:
+ *  the index `chain status --benchmark <pk>` needs without an explorer. */
+export async function bankList(snapPath?: string, json = false) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [banks, runs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
+    : await Promise.all([acct().benchmark.all(), acct().run.all()]);
+  const best = new Map<string, number>();
+  const finalized = new Map<string, number>();
+  for (const r of runs) {
+    if (r.account.status !== 1) continue;
+    const k = (r.account.benchmark as PublicKey).toBase58();
+    const items = Number(r.account.chunkCount) * 32;
+    const pct = items ? (100 * Number(r.account.correct)) / items : 0;
+    best.set(k, Math.max(best.get(k) ?? 0, pct));
+    finalized.set(k, (finalized.get(k) ?? 0) + 1);
+  }
+  const rows = banks.map((x) => {
+    const b = x.account;
+    const pk = x.publicKey.toBase58();
+    return {
+      pk, name: b.name as string, kind: BANK_KIND[b.kind as number] ?? String(b.kind),
+      items: Number(b.chunkCount) * 32, runs: Number(b.runCount),
+      finalized: finalized.get(pk) ?? 0, best: best.get(pk) ?? 0,
+      reveals: Number(b.revealCount), createdAt: Number(b.createdAt),
+      authority: (b.authority as PublicKey).toBase58(),
+    };
+  }).sort((p, q) => q.runs - p.runs || p.name.localeCompare(q.name));
+  if (json) { console.log(JSON.stringify(rows)); return rows; }
+  console.log(`${rows.length} benchmarks — run count first:`);
+  for (const r of rows)
+    console.log(`  ${r.pk}  ${r.name.padEnd(20)} ${r.kind.padEnd(9)} items=${String(r.items).padStart(3)} runs=${String(r.runs).padStart(3)}` +
+      ` finalized=${String(r.finalized).padStart(3)} best=${r.best.toFixed(1)}%${r.reveals ? ` reveals=${r.reveals}` : ""}`);
+  return rows;
+}
+
 /** `chain records` — the whole capability registry, accuracy-first. */
 export async function modelRecordList(snapPath?: string) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
@@ -2192,6 +2231,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "records") {
     await modelRecordList(args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "banks") {
+    await bankList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
     return;
   }
   if (sub === "gate") {

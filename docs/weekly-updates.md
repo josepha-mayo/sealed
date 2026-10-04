@@ -47,12 +47,12 @@ deadline.
   over the registry receipts, exit 0/1/2 — composability you can paste
   into a CI job or a venue admission check; same verdict in the explorer.
 - 15s: `--snapshot web/snapshot.json` on every read command — `board`,
-  `gate`, `history`, `records`, `status`, `verify`, `positions` all replay the committed
+  `gate`, `history`, `records`, `banks`, `status`, `verify`, `positions` all replay the committed
   evidence bundle keyless, no RPC. CLI = explorer parity, proven by a
   unit test that pins the 36-actionable classification. And `gate --all`
-  applies a policy to every record — "which models provably clear ≥70%
-  with ≥2 runs" is a ranked table, not a claim (8/31 on the bundled
-  ledger).
+  applies a policy to every record — "which models provably clear
+  pct≥70 + min-runs 2" is a ranked table, not a claim (8/31 on the
+  bundled ledger).
 - 15s: devnet status — **both** programs byte-verified MATCH against the
   committed build; the Arcium devnet callback outage is upstream and
   disclosed — the reproducible surface is the bundled localnet snapshot.

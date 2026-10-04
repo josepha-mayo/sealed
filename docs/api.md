@@ -94,8 +94,8 @@ trajectory ("did it regress after the fine-tune?") answered from
 on-chain data; vouched/post-reveal flags ride on every row.
 
 Every read command also takes `--snapshot <file>` — `records`,
-`modelrec`, `gate`, `history`, `status`, `verify`, `market board`,
-`market positions`.
+`modelrec`, `gate`, `history`, `status`, `banks`, `verify`,
+`market board`, `market positions`.
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed
 borsh layouts the RPC path uses, so the surfaces replay **keyless and
