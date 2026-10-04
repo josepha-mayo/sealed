@@ -26,9 +26,15 @@ reclaim
 
 for i in $(seq 1 30); do
   echo "=== attempt $i $(date +%H:%M:%S)"
+  # max-sign-attempts: the write phase dies on blockhash expiry under
+  # congestion — re-signing is free, give it room. A modest CU price buys
+  # real landing priority on the write txs (~1500 tiny-CU writes ≈ a few
+  # SOL worst case, still far below stranded-buffer losses).
   if solana program deploy target/deploy/market.so \
       --program-id "$MARKET_PID" -u devnet \
-      --keypair "$KEYPAIR"; then
+      --keypair "$KEYPAIR" \
+      --with-compute-unit-price 1000 \
+      --max-sign-attempts 200; then
     echo "=== DEPLOY_OK attempt $i"
     exit 0
   fi
