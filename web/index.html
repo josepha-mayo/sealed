@@ -964,6 +964,64 @@ function renderAll(sealedAccs, marketAccs) {
   }
   if (!benches.length) h += `<div class="card kv">no benchmarks on ${esc(rpcIn.value.trim())} — seal one: <code>sealed chain seal --bank …</code></div>`;
 
+  // ---- keeper board — the venue set classified exactly like
+  // `chain market board` (packages/harness/src/board.ts): what a
+  // permissionless keeper could act on right now over this ledger.
+  {
+    const HC = 24 * 3600, now = Math.floor(Date.now() / 1000);
+    const mov = r => r.status !== 1 &&
+      ((r.firstPendingAt !== 0 && now <= r.firstPendingAt + HC) ||
+       (r.allQueuedAt !== 0 && now <= r.allQueuedAt + HC));
+    const prov = r => r.status === 1 ||
+      (r.allQueuedAt !== 0 && now > r.allQueuedAt + HC && r.scoredMask !== 0n);
+    const byPk = new Map(runs.map(r => [r.pk, r]));
+    const byBank = new Map();
+    for (const r of runs) if (prov(r)) {
+      const l = byBank.get(r.benchmark) || []; l.push(r); byBank.set(r.benchmark, l);
+    }
+    const claim = [], liveB = [], expB = [], res = [], exp = [], tal = [], lad = [];
+    let claimed = 0, rev = 0, fill = 0, set = 0;
+    for (const b of bounties) {
+      if (b.status !== 0) { claimed++; continue; }
+      if (now > b.deadline) { expB.push(b); continue; }
+      const q = (byBank.get(b.bank) || []).filter(r =>
+        r.correct >= b.threshold && r.createdAt >= b.createdAt &&
+        r.runner !== b.sponsor && !r.postReveal)
+        .sort((x, y) => y.correct - x.correct)[0];
+      if (q) claim.push([b, q]); else liveB.push(b);
+    }
+    const venues = [
+      ...markets.map(m => ({ pk: m.pk, kind: m.duel ? "duel" : "band", status: m.status, run: m.run, runB: m.duel ? m.runB : null, resolveBy: m.resolveBy })),
+      ...darkMarkets.map(m => ({ pk: m.pk, kind: "dark", status: m.status, run: m.run, runB: null, resolveBy: m.resolveBy, revealUntil: m.revealUntil, tallied: m.tallied })),
+    ];
+    for (const m of venues) {
+      if (m.kind === "dark" && m.status === 1 && !m.tallied) {
+        if (now > m.revealUntil) tal.push(m); else rev++;
+        continue;
+      }
+      if (m.status !== 0) { set++; continue; }
+      const a = byPk.get(m.run), rb = m.runB ? byPk.get(m.runB) : null;
+      if (a && a.status === 1 && (m.kind !== "duel" || (rb && rb.status === 1))) { res.push(m); continue; }
+      if (!a || (m.kind === "duel" && !rb) || m.resolveBy === 0 || now <= m.resolveBy || mov(a) || (rb && mov(rb))) { fill++; continue; }
+      exp.push([m, m.kind === "duel" ? prov(a) && prov(rb) : prov(a)]);
+    }
+    for (const l of ladders) {
+      if (l.status !== 0) { set++; continue; }
+      const legs = l.legs.slice(0, l.legCount).map(p => byPk.get(p));
+      if (legs.some(r => !r || mov(r))) fill++; else lad.push(l);
+    }
+    const acts = claim.length + res.length + exp.length + tal.length + lad.length + expB.length;
+    h += `<h2>keeper board — what a permissionless operator can do right now</h2><div class="card">
+      <div class="kv">the same classification <span class="mono">chain market board</span> prints (<span class="mono">board.ts</span> — mirroring the on-chain still_moving / proven / bounty_qualifies gates), evaluated over ${venues.length + ladders.length + bounties.length} venue accounts on this ledger. ${acts ? `<b>${acts} actionable:</b>` : `<b>nothing stranded:</b> every venue reached a terminal state through permissionless paths.`}</div>`;
+    const line = (t, pk, note) => `<div class="proof">→ ${t} ${link(pk)}${note ? ` — ${note}` : ""}</div>`;
+    for (const [b, q] of claim) h += line(`<span class="pill live">claimable</span> bounty`, b.pk, `run ${link(q.pk)} scored ${q.correct} — pays its operator ${sol(b.amount)} SOL`);
+    for (const m of res) h += line(`<span class="pill resolved">resolvable</span> ${m.kind}`, m.pk, `run(s) finalized`);
+    for (const l of lad) h += line(`<span class="pill resolved">resolvable</span> ladder`, l.pk, `no leg still moving`);
+    for (const m of tal) h += line(`<span class="pill open">tallyable</span> dark`, m.pk, `reveal window closed ${fmtTs(m.revealUntil)}`);
+    for (const [m, settles] of exp) h += line(`<span class="pill cancelled">sweepable</span> ${m.kind}`, m.pk, `expire ${settles ? "settles the proven partial" : "refunds gross"}`);
+    for (const b of expB) h += line(`<span class="pill cancelled">sweepable</span> bounty`, b.pk, `past deadline — returns ${sol(b.amount)} SOL to sponsor`);
+    h += `<div class="kv" style="margin-top:4px">still in play: ${liveB.length} live bounties · ${fill} venues filling · ${rev} darks revealing — settled: ${set} venues · ${claimed} claimed bounties. <span class="mono">chain market sweep</span> executes every row above permissionlessly.</div></div>`;
+  }
   if (markets.length) {
     h += `<h2>markets</h2>`;
     for (const m of markets.sort((a, b) => b.createdAt - a.createdAt)) {

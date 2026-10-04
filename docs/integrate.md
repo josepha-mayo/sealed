@@ -129,7 +129,11 @@ settle-vs-refund. Third-party keepers don't need our binary — the table
 above is the whole read contract. `chain market sweep` goes one step
 further: it executes every permissionless action the board lists —
 the no-operator design as a runnable cron job (bounty pots still pay the
-winning run's operator on-chain, never the sweeper).
+winning run's operator on-chain, never the sweeper). The explorer renders
+the same classification in-page over the committed snapshot — on the
+bundled ledger it flags 36 actionable venues (resolvable markets and
+ladders, a tallyable dark, and expired bounties worth ~0.25 SOL to their
+sponsors).
 
 ## What a consumer never gets
 
