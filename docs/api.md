@@ -68,12 +68,13 @@ pro-rata payouts (same fee math the claim ixes recompute on-chain).
 Claim commands prefilled — except darks, where `pos_salt` is a PDA seed
 only the bettor knows.
 
-`chain market sweep [--bettor kp.json]` runs the board then EXECUTES every
-permissionless action on it — bounty claims (the pot pays the winning
-run's operator, not the sweeper), `resolve`, `resolve_ladder`,
-`finalize_dark`, `expire_*`, `expire_bounty`. A raced keeper's tx fails
-on the already-transitioned account and the sweep continues. The
-no-operator design as a runnable cron job.
+`chain market sweep [--bettor kp.json] [--watch secs]` runs the board then
+EXECUTES every permissionless action on it — bounty claims (the pot pays
+the winning run's operator, not the sweeper), `resolve`,
+`resolve_ladder`, `finalize_dark`, `expire_*`, `expire_bounty`. A raced
+keeper's tx fails on the already-transitioned account and the sweep
+continues. `--watch` loops it into a keeper daemon — the no-operator
+design as a runnable process, not a promise.
 
 `chain market board [--json]` scans every venue account + run and reports
 the keeper inventory: bounties claimable *right now* (a qualifying run is

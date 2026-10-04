@@ -1754,13 +1754,22 @@ export async function marketBoard(json = false) {
  *  winning run's operator on-chain, not the sweeper — pure public good),
  *  venue resolves, dark finalizes, and expiry sweeps. A raced keeper's tx
  *  fails on the already-transitioned account and the sweep continues. */
-export async function marketSweep(kpPath?: string) {
+export async function marketSweep(kpPath?: string, watchSecs = 0) {
+  for (;;) {
+    await sweepOnce(kpPath);
+    if (!watchSecs) return;
+    await new Promise((r) => setTimeout(r, watchSecs * 1000));
+  }
+}
+
+async function sweepOnce(kpPath?: string) {
   const { board } = await loadBoard();
   const total = board.claimable.length + board.resolvable.length +
     board.resolvableLadders.length + board.tallyable.length +
     board.expirable.length + board.expiredBounties.length;
-  if (!total) { console.log("market sweep — nothing actionable"); return; }
-  console.log(`market sweep — ${total} permissionless actions queued`);
+  const stamp = new Date().toISOString().slice(11, 19);
+  if (!total) { console.log(`${stamp} market sweep — nothing actionable`); return; }
+  console.log(`${stamp} market sweep — ${total} permissionless actions queued`);
   const act = async (what: string, fn: () => Promise<unknown>) => {
     try { await fn(); }
     catch (e: any) {
@@ -2112,7 +2121,7 @@ export async function chainMain(cmd: string[], args: Args) {
     if (m0 === "board") {
       await marketBoard(Boolean(args.json));
     } else if (m0 === "sweep") {
-      await marketSweep(bettor);
+      await marketSweep(bettor, Number(args.watch ?? 0) || 0);
     } else if (m0 === "positions") {
       await marketPositions(bettor, Boolean(args.json));
     } else if (m0 === "open") {

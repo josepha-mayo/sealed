@@ -102,7 +102,16 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > (`ModelRecord` + `ScoreLog` receipts) turns those runs into a
 > capability record any program can gate on — `chain gate` evaluates a
 > policy (min accuracy / min items / vouched-only / Wilson lower bound /
-> no-post-reveal) with exit 0/1/2.
+> no-post-reveal) with exit 0/1/2, and `chain history` replays a model's
+> receipt trajectory (a regression detector). Operations are
+> permissionless end-to-end: `chain market board` inventories what a
+> keeper can act on (claimable bounties, resolvable venues, tallyable
+> darks, sweepable expiries — mirroring the on-chain
+> still_moving/proven gates), `chain market sweep --watch` is the
+> keeper daemon that executes all of it, and `chain market positions`
+> is the bettor-side book with estimated payouts. The explorer renders
+> the same keeper board in-page — on the bundled ledger it flags 36
+> actionable venues.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201

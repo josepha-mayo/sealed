@@ -167,7 +167,7 @@ async function main() {
   sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
   sealed chain market board   [--json]                                     keeper surface: claimable bounties, resolvable + sweepable venues
-  sealed chain market sweep   [--bettor kp.json]                           execute every permissionless action the board lists
+  sealed chain market sweep   [--bettor kp.json] [--watch secs]            execute every permissionless action the board lists (loop = keeper daemon)
   sealed chain market positions [--bettor kp.json] [--json]                your book: payable/refundable/live positions across all venues
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)
