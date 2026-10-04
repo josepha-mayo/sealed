@@ -112,9 +112,15 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > is the bettor-side book with estimated payouts. The explorer renders
 > the same keeper board in-page — on the bundled ledger it flags 36
 > actionable venues. And every read surface — `board`, `gate`,
-> `history`, `records`, `positions` — takes `--snapshot web/snapshot.json`
-> to replay the committed evidence bundle keyless: the CLI and the
-> explorer agree bit-for-bit on a file you can download and diff.
+> `history`, `compare`, `records`, `banks`, `positions` — takes
+> `--snapshot web/snapshot.json` to replay the committed evidence bundle
+> keyless: the CLI and the explorer agree bit-for-bit on a file you can
+> download and diff. `chain compare` goes further than a leaderboard:
+> it joins receipts by benchmark — "does A beat B on the SAME exams?"
+> — and `compare --all` tallies every pair's shared-bank result into a
+> W-L-T table where disjoint coverage counts as unranked, not assumed
+> (on this ledger: 392/465 pairs share nothing — the paired ranking
+> tells a different story than aggregate accuracy, which is the point).
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201
