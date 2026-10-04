@@ -13,7 +13,7 @@ deadline.
   would be, `items_root` commitment over the ciphertext.
 - 15s: `scripts/dark.sh` tail — a market that filled while positions AND
   the exam were both sealed, settled by MPC.
-- 20s: numbers — 503 MPC-scored runs, 340 venues posted (208 band/duel +
+- 20s: numbers — 503 runs on the evidence ledger (most MPC-finalized), 340 venues posted (208 band/duel +
   48 ladders + 47 dark + 37 bounties), 6 settlement primitives, 17/17 E2E
   on a real MPC localnet; a real qwen2.5-3b claimed a live SOL bounty via
   MPC proof; gpt-oss-20b scored 64/64 on a bank whose key never existed,
