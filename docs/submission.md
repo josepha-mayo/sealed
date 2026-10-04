@@ -167,8 +167,8 @@ since been wiped and redeployed during hardening. The evidence bundle in
   binds the run's declared identity, never a string the recorder invented.
   Live evidence: all four local models hold records from real MPC-minted
   banks (`scripts/record-local.sh`, transcript `record-local.txt`), and
-  `chain record --all` enrolled the rest of the ledger — 29 model records
-  reconstructed bit-exact from 287 `ScoreLog` receipts. The explorer
+  `chain record --all` enrolled the rest of the ledger — 31 model records
+  reconstructed bit-exact from 292 `ScoreLog` receipts. The explorer
   renders a "model capability records" leaderboard plus a "head-to-head"
   matrix derived from resolved duels and same-bank ladder legs — with a
   Wilson 95% lower bound under every point estimate and a vouched-only

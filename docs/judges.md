@@ -77,7 +77,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #       a run countable exactly once, and the audit replays every record
 #       bit-exact from its receipts. Four REAL local models lead the table;
 #       `chain record --all` is the permissionless librarian that enrolled
-#       the other ~280 runs — no operator required
+#       the rest of the ledger's runs — no operator required
 #     - a benchmark card: generated-item specs render publicly while the
 #       answers exist only as ciphertext — click "verify commitment" to
 #       replay its items_root fold yourself

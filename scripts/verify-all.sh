@@ -7,27 +7,30 @@ cd "$(dirname "$0")/.."
 
 say() { printf '\n=== %s ===\n' "$*"; }
 
-say "1/6 offline cryptographic audit (PDA re-derivation, commitment folds, resolution purity)"
+say "1/7 offline cryptographic audit (PDA re-derivation, commitment folds, resolution purity)"
 node scripts/verify.mjs
 
-say "2/6 in-browser audit regression (same suite, headless)"
+say "2/7 in-browser audit regression (same suite, headless)"
 node scripts/audit-browser-test.mjs
 
-say "3/6 delegate grant decryption via the vendored RescueCipher"
+say "3/7 delegate grant decryption via the vendored RescueCipher"
 node scripts/decrypt-grants-test.mjs
 
-say "4/6 calibration rescore — MPC arithmetic recomputed from plaintext answers"
+say "4/7 calibration rescore — MPC arithmetic recomputed from plaintext answers"
 node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
   --run docs/evidence/calibration/run-artifact.json \
   --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp \
   --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
   --snapshot web/snapshot.json
 
-say "5/6 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
+say "5/7 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
 scripts/evidence-manifest.sh check
 scripts/web-manifest.sh check
 
-say "6/6 submission pre-flight"
+say "6/7 doc-count freshness — every numeric claim must match the bundle"
+node scripts/freshness.mjs
+
+say "7/7 submission pre-flight"
 node scripts/check-submission.mjs
 
 say "ALL GREEN — every check above recomputed, nothing trusted"
