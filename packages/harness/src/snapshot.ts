@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type * as AnchorTypes from "@anchor-lang/core";
 import { PublicKey } from "@solana/web3.js";
@@ -15,8 +16,25 @@ export interface SnapAccount {
 }
 export type SnapMap = Map<string, SnapAccount[]>;
 
+const warnedPaths = new Set<string>();
+
 export function loadSnapshotJson(path: string): any {
-  return JSON.parse(readFileSync(path, "utf8"));
+  const raw = readFileSync(path);
+  // Tamper check: when the file rides the committed web/MANIFEST (the
+  // `snapshot.json` next to it), prove the bytes are the ones the repo
+  // signed off on. A mismatch is a loud warning, not a refusal — the file
+  // may have been legitimately regenerated.
+  const manifest = join(dirname(path), "MANIFEST");
+  if (basename(path) === "snapshot.json" && existsSync(manifest)) {
+    const pinned = readFileSync(manifest, "utf8").split("\n")
+      .map((l) => l.trim()).find((l) => l.endsWith("./snapshot.json"))?.split(/\s+/)[0];
+    if (pinned && createHash("sha256").update(raw).digest("hex") !== pinned && !warnedPaths.has(path)) {
+      warnedPaths.add(path);
+      console.error(`!! snapshot.json sha256 differs from web/MANIFEST (${pinned.slice(0, 12)}…) — ` +
+        "the bundle was regenerated or tampered with; replay proceeds but do not cite it as committed evidence");
+    }
+  }
+  return JSON.parse(raw.toString("utf8"));
 }
 
 /** Decode one snapshot program section (`sealed` or `market`) into

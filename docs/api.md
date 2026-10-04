@@ -110,8 +110,16 @@ venue's score against `Run.correct`** (duel `resolved_score` unpacked
 print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
-`modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `verify`,
-`grants`, `reveals`, `market board`, `market bounties`, `market positions`.
+`modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
+`verify`, `grants`, `reveals`, `market board`, `market bounties`, `market positions`.
+`chain stats` is the executive dashboard — ledger counts, escrow, fees,
+MPC latency p50/p95, the keeper surface, and two verdicts recomputed
+on the spot: every `ModelRecord`'s stored aggregate replayed bit-exact
+from its `ScoreLog` receipts, and every resolved venue's stored score
+checked against `Run.correct` (exit 1 on any violation). When the
+snapshot rides `web/MANIFEST`, the loader sha256-checks the bundle
+first and warns loudly on a mismatch. `chain modelrec` prints the same
+per-record replay verdict inline.
 `market bounties` is the runner-facing index — open capability bounties
 sorted by pot, marking which are claimable NOW under the exact
 `bounty_qualifies` rules (retroactivity wall, no self-deal, proven runs,

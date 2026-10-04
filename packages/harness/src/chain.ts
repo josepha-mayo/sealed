@@ -1711,6 +1711,13 @@ export async function modelRecordShow(keyOrName: string, snapPath?: string, json
   const vc = logs.filter((l: any) => l.account.vouchedAtRecord).reduce((s: number, l: any) => s + l.account.correct, 0);
   const vi = logs.filter((l: any) => l.account.vouchedAtRecord).reduce((s: number, l: any) => s + l.account.items, 0);
   if (vi) console.log(`  vouched-only=${vc}/${vi} (${(100 * vc / vi).toFixed(1)}%) across ${logs.filter((l: any) => l.account.vouchedAtRecord).length} attested receipt(s)`);
+  // Self-verification: the stored aggregate must recompute bit-exact from
+  // this record's receipts — the registry cannot lie.
+  const rc = logs.reduce((s: number, l: any) => s + Number(l.account.correct), 0);
+  const ri = logs.reduce((s: number, l: any) => s + Number(l.account.items), 0);
+  console.log(logs.length === (rec.runsScored as number) && rc === rec.totalCorrect.toNumber() && ri === rec.totalItems.toNumber()
+    ? `  replayed ${logs.length} receipt(s) — stored aggregate verified bit-exact`
+    : `  !! VIOLATION — receipts sum ${rc}/${ri} over ${logs.length} run(s), record claims ${rec.totalCorrect}/${rec.totalItems} over ${rec.runsScored}`);
   console.log(`  best=${rec.bestCorrect}/${rec.bestItems} on run ${(rec.bestRun as PublicKey).toBase58()} (bank ${(rec.bestBank as PublicKey).toBase58()})`);
   console.log(`  last=${(rec.lastRun as PublicKey).toBase58()}  first_seen=${rec.firstSeen}  last_scored=${rec.lastScored}`);
 }
@@ -2071,6 +2078,132 @@ export async function bountyList(snapPath?: string, json = false) {
           r.bestScoreOnBank >= r.threshold ? ` (predates bounty — retroactivity wall)` : "")));
   }
   return rows;
+}
+
+/** `chain stats [--snapshot f] [--json]` — the executive dashboard: ledger
+ *  counts, escrow, fees, and the two integrity verdicts recomputed inline —
+ *  every ModelRecord's aggregate replayed from its ScoreLogs bit-exact, and
+ *  every resolved venue's stored score checked against `Run.correct`.
+ *  Numbers you don't have to trust: they recompute on the spot. */
+export async function chainStats(snapPath?: string, json = false) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sAcct = () => (sealedProgram().program.account as any);
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [banks, runs, logs, records, reveals, grants, itemChunks, privChunks]: Acct[][] =
+    ss ? ["Benchmark", "Run", "ScoreLog", "ModelRecord", "Reveal", "ShareGrant", "ItemChunk", "PrivItemChunk"]
+        .map((n) => snapOf(ss, n))
+       : await Promise.all(["benchmark", "run", "scoreLog", "modelRecord", "reveal", "shareGrant", "itemChunk", "privItemChunk"]
+        .map((n) => (sAcct() as any)[n].all()));
+  const [markets, darks, ladders, bounties, positions, darkPositions]: Acct[][] =
+    sm ? ["Market", "DarkMarket", "Ladder", "Bounty", "Position", "DarkPosition"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "darkMarket", "ladder", "bounty", "position", "darkPosition"]
+        .map((n) => (mAcct() as any)[n].all()));
+
+  const lam = (x: any) => Number(x ?? 0);
+  const sum = (xs: any[], f: (a: any) => number) => xs.reduce((s, x) => s + f(x.account ?? x), 0);
+  const escrow = sum(markets, (m) => (m.totals as any[]).reduce((s2: number, t: any) => s2 + lam(t), 0))
+    + sum(ladders, (l) => (l.totals as any[]).reduce((s2: number, t: any) => s2 + lam(t), 0))
+    + sum(darks, (d) => lam(d.poolTotal)) + sum(bounties, (b) => lam(b.amount));
+  const fees = sum(markets, (m) => lam(m.feesAccrued)) + sum(ladders, (l) => lam(l.feesAccrued)) + sum(darks, (d) => lam(d.feesAccrued));
+
+  // Verdict 1: every ModelRecord's stored aggregate must recompute bit-exact
+  // from its ScoreLog receipts — the registry cannot lie.
+  const logsByRec = new Map<string, any[]>();
+  for (const l of logs) {
+    const k = (l.account.modelRecord as PublicKey).toBase58();
+    (logsByRec.get(k) ?? logsByRec.set(k, []).get(k)!).push(l.account);
+  }
+  let recOk = 0, recBad = 0;
+  for (const r of records) {
+    const ls = logsByRec.get(r.publicKey.toBase58()) ?? [];
+    const ok = ls.length === (r.account.runsScored as number)
+      && ls.reduce((s: number, l: any) => s + Number(l.correct), 0) === Number(r.account.totalCorrect)
+      && ls.reduce((s: number, l: any) => s + Number(l.items), 0) === Number(r.account.totalItems);
+    ok ? recOk++ : recBad++;
+  }
+
+  // Verdict 2: every resolved venue's stored score must equal the run's
+  // MPC-written correct (duels pack (a << 16) | b; ladders argmax legs).
+  const runByPk = new Map(runs.map((r) => [r.publicKey.toBase58(), r.account as any]));
+  const correctOf = (pk: PublicKey) => Number(runByPk.get(pk.toBase58())?.correct ?? -1);
+  let resOk = 0, resBad = 0;
+  const chk = (cond: boolean) => { cond ? resOk++ : resBad++; };
+  for (const m of markets) {
+    const M = m.account as any;
+    if (M.status !== 1) continue;
+    if (M.runB && !(M.runB as PublicKey).equals(PublicKey.default)) {
+      const a = Number(M.resolvedScore) >> 16, b = Number(M.resolvedScore) & 0xffff;
+      chk(a === correctOf(M.run) && b === correctOf(M.runB));
+    } else chk(Number(M.resolvedScore) === correctOf(M.run));
+  }
+  for (const d of darks) {
+    const D = d.account as any;
+    if (D.status === 1) chk(Number(D.resolvedScore) === correctOf(D.run));
+  }
+  for (const b of bounties) {
+    const B = b.account as any;
+    if (B.status === 1) chk(Number(B.winningScore) === correctOf(B.winnerRun));
+  }
+  for (const l of ladders) {
+    const L = l.account as any;
+    if (L.status !== 1) continue;
+    const legs = (L.legs as PublicKey[]).slice(0, Number(L.legCount));
+    const scores = legs.map((p) => correctOf(p));
+    const winners = scores.map((s, i) => s === Math.max(...scores) ? i : -1).filter((i) => i >= 0);
+    chk(Number(L.resolvedScore) === Math.max(...scores)
+      && winners.every((i) => (Number(L.resultMask) >> i) & 1)
+      && scores.every((s, i) => s === Math.max(...scores) || !((Number(L.resultMask) >> i) & 1)));
+  }
+
+  const fin = runs.filter((r) => (r.account as any).status === 1);
+  const lats = fin.map((r) => { const a = r.account as any; return Number(a.firstPendingAt) > 0 && Number(a.finalizedAt) > Number(a.firstPendingAt) ? Number(a.finalizedAt) - Number(a.firstPendingAt) : 0; }).filter((x) => x > 0).sort((a, b) => a - b);
+  const pct = (p: number) => lats.length ? lats[Math.min(lats.length - 1, Math.floor(p * lats.length / 100))] : 0;
+  const vouched = logs.filter((l) => (l.account as any).vouchedAtRecord).length;
+  const postRev = logs.filter((l) => (l.account as any).postReveal).length;
+
+  const out = {
+    ledger: {
+      banks: banks.length, runs: runs.length, finalized: fin.length,
+      itemChunks: itemChunks.length, privChunks: privChunks.length,
+      reveals: reveals.length, grants: grants.length,
+      records: records.length, receipts: logs.length,
+      venues: markets.length + darks.length + ladders.length + bounties.length,
+      markets: markets.length, darks: darks.length, ladders: ladders.length, bounties: bounties.length,
+      positions: positions.length + darkPositions.length,
+    },
+    money: { escrowLamports: escrow, feesLamports: fees },
+    integrity: {
+      registryReplay: `${recOk}/${records.length} bit-exact${recBad ? ` (${recBad} VIOLATIONS)` : ""}`,
+      resolutionsVerified: `${resOk}/${resOk + resBad} match Run.correct${resBad ? ` (${resBad} MISMATCHES)` : ""}`,
+      vouchedReceipts: `${vouched}/${logs.length}`,
+      postRevealReceipts: postRev,
+    },
+    mpcLatency: { samples: lats.length, p50s: pct(50), p95s: pct(95) },
+    keeper: (await loadBoard(snapPath)).board,
+  };
+  if (json) {
+    const { keeper, ...rest } = out;
+    const actionable = keeper.claimable.length + keeper.resolvable.length + keeper.resolvableLadders.length +
+      keeper.tallyable.length + keeper.expirable.length + keeper.expiredBounties.length;
+    console.log(JSON.stringify({ ...rest, keeper: { actionable, settled: keeper.settled, filling: keeper.filling } }));
+    return out;
+  }
+  const actionable = out.keeper.claimable.length + out.keeper.resolvable.length + out.keeper.resolvableLadders.length +
+    out.keeper.tallyable.length + out.keeper.expirable.length + out.keeper.expiredBounties.length;
+  console.log(`ledger — ${out.ledger.banks} banks · ${out.ledger.runs} runs (${out.ledger.finalized} MPC-finalized)` +
+    ` · ${out.ledger.venues} venues (${out.ledger.markets} band/duel, ${out.ledger.darks} dark, ${out.ledger.ladders} ladder, ${out.ledger.bounties} bounty)` +
+    ` · ${out.ledger.positions} positions`);
+  console.log(`registry — ${out.ledger.records} records · ${out.ledger.receipts} receipts (${out.integrity.vouchedReceipts} vouched, ${postRev} post-reveal)`);
+  console.log(`disclosure — ${out.ledger.reveals} reveals · ${out.ledger.grants} reshare grants · ${out.ledger.itemChunks}+${out.ledger.privChunks} item chunks`);
+  console.log(`money — ${(escrow / 1e9).toFixed(3)}◎ escrowed · ${(fees / 1e9).toFixed(4)}◎ protocol fees collected`);
+  console.log(`integrity — registry ${out.integrity.registryReplay} · resolutions ${out.integrity.resolutionsVerified}`);
+  console.log(`mpc — scoring latency p50 ${out.mpcLatency.p50s}s / p95 ${out.mpcLatency.p95s}s (${lats.length} timed runs)`);
+  console.log(`keeper — ${actionable} actionable now · ${out.keeper.settled} settled · ${out.keeper.filling} in play`);
+  if (recBad || resBad) process.exitCode = 1;
+  return out;
 }
 
 /** `chain gate --all <policy>` — the gate as a leaderboard filter: run the
@@ -2600,6 +2733,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "banks") {
     await bankList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    return;
+  }
+  if (sub === "stats") {
+    await chainStats(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
     return;
   }
   if (sub === "gate") {

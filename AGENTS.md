@@ -42,10 +42,19 @@ parimutuel markets resolved from `Run.correct`.
   defaults (pre-`scored_mask`/`post_reveal` epochs).
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
   `status`, `records`, `modelrec`, `gate` (+`--all`), `history`, `compare`
-  (+`--all`), `trail`, `verify`, `grants`, `reveals`, `market board`,
+  (+`--all`), `trail`, `stats`, `verify`, `grants`, `reveals`, `market board`,
   `market positions` (+`--viewer <pk>` keyless). `sealedProgramId()`
   derives the program id WITHOUT loading a wallet — snapshot mode is
-  keyless end-to-end.
+  keyless end-to-end. `loadSnapshotJson` sha256-checks the file against a
+  sibling `MANIFEST` (the committed web/MANIFEST pins `snapshot.json`) and
+  warns loudly on mismatch — replay proceeds, evidence claims don't.
+- `chain stats` is the executive dashboard: counts, escrow, fees, MPC
+  latency p50/p95, keeper surface — plus two verdicts recomputed inline:
+  every `ModelRecord` aggregate replayed bit-exact from `ScoreLog`s, and
+  every resolved venue's stored score vs `Run.correct` (ladder field is
+  `resultMask`, not `winnerMask` — misnaming reads as 45 phantom
+  mismatches). Exit 1 on any violation. `chain modelrec` prints the same
+  per-record replay line.
 - Pure logic lives in `board.ts` (keeper classification mirroring the
   on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
   (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and

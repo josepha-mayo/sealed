@@ -275,6 +275,7 @@ sealed chain modelrec      <pubkey|model_id>                          # show a m
 sealed chain record --all                                            # enroll EVERY finalized run — permissionless librarian
 sealed chain records                                                  # the whole registry, accuracy-first
 sealed chain banks                                                    # every benchmark — kind, items, runs, best score
+sealed chain stats                                                    # the dashboard — counts, escrow, and two bit-exact verdicts
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
 sealed prove                --run <file> --item <i>                # Merkle proof that output i was committed pre-scoring
