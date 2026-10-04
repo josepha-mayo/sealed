@@ -127,7 +127,13 @@ enforces: bank match, retroactivity wall, runner ≠ sponsor, threshold,
 finalized-or-proven, not post-reveal), resolvable markets and ladders
 (the ladder gate is `!still_moving` per leg, not `resolve_by`), resolved
 darks awaiting `finalize_dark`, and sweepable expiries annotated
-settle-vs-refund. Third-party keepers don't need our binary — the table
+settle-vs-refund. Every read command also takes `--snapshot
+web/snapshot.json` — `packages/harness/src/snapshot.ts` decodes the
+committed bundle through the same discriminator-keyed layouts the RPC
+path uses, so `board`, `gate`, `history`, `records`, and
+`market positions --viewer <pk>` replay **keyless, connection-free**
+(and a unit test pins the replay against the bundle's published counts).
+Third-party keepers don't need our binary — the table
 above is the whole read contract. `chain market sweep` goes one step
 further: it executes every permissionless action the board lists —
 the no-operator design as a runnable cron job (bounty pots still pay the

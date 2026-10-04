@@ -40,7 +40,7 @@ A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, commit-reveal dark markets, and FCFS capability
 bounties (pot pays the first proven run's operator, not a bettor) —
 resolving permissionlessly on `Run.correct`; bets latch before the
-first scored chunk. Verified: 17/17 E2E + 16/16 unit on a real MPC
+first scored chunk. Verified: 17/17 E2E + 17/17 unit on a real MPC
 localnet; four open-weights models raced, dueled, and settled through
 MPC — a dead-heat, a private exam via reshare grants, a dark market on
 a ciphertext-only bank's run. Every primitive settled a real score.

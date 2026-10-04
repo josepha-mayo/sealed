@@ -400,3 +400,35 @@ test("venue board: keeper classification over bounties, markets, ladders", async
   assert.equal(b.settled, 2);          // mSettled + tallied mDarkDone
   assert.equal(b.filling, 5);          // mHalf, mMoving, mDuelMoving, ladWait, ladCommitted
 });
+
+test("snapshot decoder replays the committed bundle, camelCase-normalized", async () => {
+  const { decodeSnapshotSection, loadSnapshotJson, snapOf } = await import("../src/snapshot.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const snap = loadSnapshotJson(snapPath);
+  const ss = decodeSnapshotSection(snap, "sealed");
+  const sm = decodeSnapshotSection(snap, "market");
+  // The bundle's published counts — decode must find every account.
+  assert.equal(snapOf(ss, "Run").length, 503);
+  assert.equal(snapOf(ss, "ModelRecord").length, 31);
+  assert.equal(snapOf(ss, "ScoreLog").length, 292);
+  assert.equal(snapOf(sm, "Market").length + snapOf(sm, "DarkMarket").length +
+    snapOf(sm, "Ladder").length + snapOf(sm, "Bounty").length, 340);
+  // Fields arrive camelCase (matching `.all()`), not the coder's snake_case.
+  const run = snapOf(ss, "Run")[0].account;
+  assert.ok("scoredMask" in run && "firstPendingAt" in run && !("scored_mask" in run));
+  // And the decoded accounts feed the REAL board path — the explorer's
+  // 36-actionable keeper surface reproduced offline through marketBoard().
+  const { marketBoard } = await import("../src/chain.js");
+  const origLog = console.log;
+  console.log = () => {};
+  let b: any;
+  try { b = await marketBoard(true, snapPath); } finally { console.log = origLog; }
+  const actionable = b.claimable.length + b.resolvable.length +
+    b.resolvableLadders.length + b.tallyable.length +
+    b.expirable.length + b.expiredBounties.length;
+  assert.equal(actionable, 36);
+  assert.equal(b.settled, 246);
+  assert.equal(b.claimedBounties, 33);
+  assert.equal(b.filling, 24);
+});
+

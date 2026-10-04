@@ -51,6 +51,7 @@ import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
 import { evalGate, type GatePolicy, type GateVerdict, type ScoreReceipt } from "./gate.js";
 import { classifyBoard } from "./board.js";
+import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount } from "./snapshot.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -91,6 +92,13 @@ function setup(): Ctx {
 
 /** Sealed program client WITHOUT the Arcium env — for read paths (run/bank
  *  fetches) and recovery ixs like `unbrick_pda` that don't touch the cluster. */
+/** Program id without a wallet — enough for PDA derivation in
+ *  `--snapshot` replay mode, which must work keyless. */
+function sealedProgramId(): PublicKey {
+  const idl = require(join(ROOT, "target", "idl", "sealed.json"));
+  return new PublicKey(process.env.SEALED_PROGRAM_ID ?? idl.address);
+}
+
 function sealedProgram(kpPath?: string) {
   const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
   const kp = kpPath
@@ -1560,10 +1568,14 @@ export async function recordAllScores() {
 }
 
 /** `chain records` — the whole capability registry, accuracy-first. */
-export async function modelRecordList() {
-  const { program } = sealedProgram();
-  const acct = program.account as any;
-  const [all, logs] = await Promise.all([acct.modelRecord.all(), acct.scoreLog.all()]);
+export async function modelRecordList(snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const [all, logs] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
+    : await Promise.all([
+        (sealedProgram().program.account as any).modelRecord.all(),
+        (sealedProgram().program.account as any).scoreLog.all(),
+      ]);
   if (!all.length) { console.log("no model records — record_score a finalized run first"); return; }
   // Vouched-only aggregate, recomputed over receipts — the answer to
   // self-reported model_id claims: what the venue-vouched evidence shows.
@@ -1594,22 +1606,26 @@ export async function modelRecordList() {
 }
 
 /** `chain modelrec <pubkey|model_id>` — print a registry entry. */
-export async function modelRecordShow(keyOrName: string) {
-  const { program } = sealedProgram();
+export async function modelRecordShow(keyOrName: string, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
   let pda: PublicKey;
   try {
     pda = new PublicKey(keyOrName);
   } catch {
     const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
-    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], program.programId);
+    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], sealedProgramId());
   }
-  const rec: any = await (program.account as any).modelRecord.fetchNullable(pda);
+  const rec: any = ss
+    ? snapOf(ss, "ModelRecord").find((x) => x.publicKey.equals(pda))?.account
+    : await acct().modelRecord.fetchNullable(pda);
   if (!rec) { console.log(`no model record at ${pda.toBase58()}`); return; }
   const pct = rec.totalItems.toNumber() ? (100 * rec.totalCorrect.toNumber() / rec.totalItems.toNumber()).toFixed(1) : "0.0";
   console.log(`model record ${pda.toBase58()}`);
   console.log(`  model_id=${rec.modelId}  hash=${Buffer.from(rec.modelHash).toString("hex").slice(0, 16)}…`);
   console.log(`  runs=${rec.runsScored}  aggregate=${rec.totalCorrect}/${rec.totalItems} (${pct}%)`);
-  const logs: any[] = (await (program.account as any).scoreLog.all()).filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda));
+  const logs: any[] = (ss ? snapOf(ss, "ScoreLog") : await acct().scoreLog.all())
+    .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda));
   const vc = logs.filter((l: any) => l.account.vouchedAtRecord).reduce((s: number, l: any) => s + l.account.correct, 0);
   const vi = logs.filter((l: any) => l.account.vouchedAtRecord).reduce((s: number, l: any) => s + l.account.items, 0);
   if (vi) console.log(`  vouched-only=${vc}/${vi} (${(100 * vc / vi).toFixed(1)}%) across ${logs.filter((l: any) => l.account.vouchedAtRecord).length} attested receipt(s)`);
@@ -1629,18 +1645,22 @@ export async function gateModelRecord(
   keyOrName: string,
   policy: GatePolicy,
   json = false,
+  snapPath?: string,
 ): Promise<GateVerdict> {
-  const { program } = sealedProgram();
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
   let pda: PublicKey;
   try {
     pda = new PublicKey(keyOrName);
   } catch {
     const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
-    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], program.programId);
+    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], sealedProgramId());
   }
-  const rec: any = await (program.account as any).modelRecord.fetchNullable(pda);
+  const rec: any = ss
+    ? snapOf(ss, "ModelRecord").find((x) => x.publicKey.equals(pda))?.account
+    : await acct().modelRecord.fetchNullable(pda);
   const logs: any[] = rec
-    ? (await (program.account as any).scoreLog.all())
+    ? (ss ? snapOf(ss, "ScoreLog") : await acct().scoreLog.all())
         .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda))
     : [];
   const receipts: ScoreReceipt[] = logs.map((l: any) => ({
@@ -1672,14 +1692,23 @@ export async function gateModelRecord(
  *  ledger's venues and report what a permissionless actor can do RIGHT NOW:
  *  claimable bounties (a qualifying run already finalized), resolvable
  *  markets/ladders, and expired venues awaiting the sweeps. Read-only. */
-async function loadBoard() {
-  const { market } = marketProgram();
-  const { program } = sealedProgram();
-  const mAcct = market.account as any;
-  const [bounties, markets, darks, ladders, runs] = await Promise.all([
-    mAcct.bounty.all(), mAcct.market.all(), mAcct.darkMarket.all(),
-    mAcct.ladder.all(), (program.account as any).run.all(),
-  ]);
+async function loadBoard(snapPath?: string) {
+  let bounties: SnapAccount[], markets: SnapAccount[], darks: SnapAccount[],
+      ladders: SnapAccount[], runs: SnapAccount[];
+  if (snapPath) {
+    const snap = loadSnapshotJson(snapPath);
+    const sm = decodeSnapshotSection(snap, "market"), ss = decodeSnapshotSection(snap, "sealed");
+    [bounties, markets, darks, ladders, runs] =
+      [snapOf(sm, "Bounty"), snapOf(sm, "Market"), snapOf(sm, "DarkMarket"), snapOf(sm, "Ladder"), snapOf(ss, "Run")];
+  } else {
+    const { market } = marketProgram();
+    const { program } = sealedProgram();
+    const mAcct = market.account as any;
+    [bounties, markets, darks, ladders, runs] = await Promise.all([
+      mAcct.bounty.all(), mAcct.market.all(), mAcct.darkMarket.all(),
+      mAcct.ladder.all(), (program.account as any).run.all(),
+    ]);
+  }
   const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
   const now = Math.floor(Date.now() / 1000);
   const board = classifyBoard({
@@ -1720,8 +1749,8 @@ async function loadBoard() {
   return { board, counts: { bounties: bounties.length, markets: markets.length, darks: darks.length, ladders: ladders.length, runs: runs.length } };
 }
 
-export async function marketBoard(json = false) {
-  const { board, counts } = await loadBoard();
+export async function marketBoard(json = false, snapPath?: string) {
+  const { board, counts } = await loadBoard(snapPath);
   if (json) { console.log(JSON.stringify(board)); return board; }
   const sol = (l: number) => (l / LAMPORTS_PER_SOL).toFixed(3);
   console.log(`venue board — ${counts.bounties} bounties, ${counts.markets} markets, ${counts.darks} dark, ${counts.ladders} ladders over ${counts.runs} runs`);
@@ -1802,14 +1831,24 @@ async function sweepOnce(kpPath?: string) {
  *  every position the signing wallet holds, across bands/duels/ladders/
  *  darks, classified as payable / refundable / lost-rent / live. A bettor
  *  shouldn't need to track market PDAs to find their money. */
-export async function marketPositions(kpPath?: string, json = false) {
-  const { market, kp } = marketProgram(kpPath);
-  const me = kp.publicKey.toBase58();
-  const mAcct = market.account as any;
-  const [markets, ladders, darks, positions, darkPositions] = await Promise.all([
-    mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
-    mAcct.position.all(), mAcct.darkPosition.all(),
-  ]);
+export async function marketPositions(kpPath?: string, json = false, snapPath?: string, viewerStr?: string) {
+  let me: string;
+  if (viewerStr) me = new PublicKey(viewerStr).toBase58();
+  else me = marketProgram(kpPath).kp.publicKey.toBase58();
+  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
+      positions: SnapAccount[], darkPositions: SnapAccount[];
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
+  } else {
+    const { market } = marketProgram(kpPath);
+    const mAcct = market.account as any;
+    [markets, ladders, darks, positions, darkPositions] = await Promise.all([
+      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
+      mAcct.position.all(), mAcct.darkPosition.all(),
+    ]);
+  }
   const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
   const mk: Map<string, any> = new Map(markets.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: isDuel(x.account) ? "duel" : "band", status: x.account.status as number, outcome: x.account.outcome as number, totals: (x.account.totals as any[]).map((t) => BigInt(t.toString())), feeBps: num(x.account.feeBps) }]));
   const lk: Map<string, any> = new Map(ladders.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: "ladder", status: x.account.status as number, mask: x.account.resultMask as number, totals: (x.account.totals as any[]).map((t) => BigInt(t.toString())), feeBps: num(x.account.feeBps) }]));
@@ -1879,23 +1918,26 @@ export async function marketPositions(kpPath?: string, json = false) {
  *  ScoreLog receipt for a model, oldest first, with the running accuracy
  *  after each run. "Did it regress after the fine-tune?" is an on-chain
  *  question — vouched and post-reveal flags ride on every row. */
-export async function chainHistory(keyOrName: string, json = false) {
-  const { program } = sealedProgram();
+export async function chainHistory(keyOrName: string, json = false, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
   let pda: PublicKey;
   try {
     pda = new PublicKey(keyOrName);
   } catch {
     const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
-    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], program.programId);
+    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], sealedProgramId());
   }
-  const rec: any = await (program.account as any).modelRecord.fetchNullable(pda);
+  const rec: any = ss
+    ? snapOf(ss, "ModelRecord").find((x) => x.publicKey.equals(pda))?.account
+    : await acct().modelRecord.fetchNullable(pda);
   if (!rec) {
     console.log(`no model record for ${keyOrName} (${pda.toBase58()})`);
     process.exitCode = 2;
     return [];
   }
   const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
-  const logs = (await (program.account as any).scoreLog.all())
+  const logs = (ss ? snapOf(ss, "ScoreLog") : await acct().scoreLog.all())
     .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda))
     .map((l: any) => ({
       run: (l.account.run as PublicKey).toBase58(),
@@ -2078,11 +2120,11 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "modelrec") {
-    await modelRecordShow(String(cmd[1] ?? args.run ?? ""));
+    await modelRecordShow(String(cmd[1] ?? args.run ?? ""), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "records") {
-    await modelRecordList();
+    await modelRecordList(args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "gate") {
@@ -2106,24 +2148,25 @@ export async function chainMain(cmd: string[], args: Args) {
     if (policy.minPct === undefined && policy.minRuns === undefined &&
         policy.minItems === undefined && policy.minWilsonPct === undefined)
       throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
-    await gateModelRecord(target, policy, Boolean(args.json));
+    await gateModelRecord(target, policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "history") {
     const target = String(cmd[1] ?? args.model ?? "");
     if (!target) throw new Error("usage: chain history <model_id|record-pk> [--json]");
-    await chainHistory(target, Boolean(args.json));
+    await chainHistory(target, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "market") {
     const [m0] = cmd.slice(1);
     const bettor = args.bettor as string | undefined;
     if (m0 === "board") {
-      await marketBoard(Boolean(args.json));
+      await marketBoard(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "sweep") {
       await marketSweep(bettor, Number(args.watch ?? 0) || 0);
     } else if (m0 === "positions") {
-      await marketPositions(bettor, Boolean(args.json));
+      await marketPositions(bettor, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
+        args.viewer ? String(args.viewer) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

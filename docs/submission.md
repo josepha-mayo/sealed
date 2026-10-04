@@ -110,8 +110,12 @@ since been wiped and redeployed during hardening. The evidence bundle in
   executes every action the board lists — bounty pots still pay the
   winning run's *operator* on-chain, never the sweeper — so venue
   liveness is a runnable cron job, not a promise. The classifier is pure
-  (`packages/harness/src/board.ts`), unit-tested 16/16, `--json` for
-  third-party keepers.
+  (`packages/harness/src/board.ts`), unit-tested 17/17, `--json` for
+  third-party keepers. And every read surface takes
+  `--snapshot web/snapshot.json` — `board`, `gate`, `history`,
+  `records`, `positions` replay the committed evidence bundle
+  keyless (`snapshot.ts` decodes the discriminator-keyed layouts),
+  CLI-for-CLI identical to the explorer's in-browser rendering.
 - **Generated banks — the headline feature.** `chain gen` mints a benchmark
   *inside* MPC: the `gen_part` Arcis instruction draws item specs from
   `ArcisRNG`, computes answers in-circuit, fingerprints them (SHA3-256 over
@@ -237,7 +241,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   sweep rejected, edge bounds, double-attestation rejected, duel dead-run
   expiry bail, retired-bank mutation rejected. The suite salts bank ids per
   run so it's re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a
-  run). `yarn harness:test` — 16/16.
+  run). `yarn harness:test` — 17/17.
 
 ## Reproduce
 

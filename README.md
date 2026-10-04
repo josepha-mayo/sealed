@@ -238,7 +238,8 @@ sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score
                                                       # scoring wallet is a separate runner
 sealed chain status --benchmark <pubkey>                             # leaderboard from chain state
 
-sealed chain market board   [--json]                                # keeper surface: claimable bounties, resolvable/tallyable/sweepable venues
+sealed chain market board   [--json] [--snapshot f]                    # keeper surface: claimable bounties, resolvable/tallyable/sweepable venues
+sealed chain market board   --snapshot web/snapshot.json              # same board replayed offline from the committed evidence bundle — keyless, no RPC
 sealed chain market sweep                                           # executes every permissionless action the board lists
 sealed chain market positions [--bettor kp.json]                    # your book: payable/refundable/live positions + est. payouts
 sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"

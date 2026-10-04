@@ -91,6 +91,23 @@ receipts oldest-first with running accuracy after each — the capability
 trajectory ("did it regress after the fine-tune?") answered from
 on-chain data; vouched/post-reveal flags ride on every row.
 
+Every read command also takes `--snapshot <file>` — `records`,
+`modelrec`, `gate`, `history`, `market board`, `market positions`.
+`packages/harness/src/snapshot.ts` decodes the committed evidence
+bundle (`web/snapshot.json`) through the same discriminator-keyed
+borsh layouts the RPC path uses, so the surfaces replay **keyless and
+connection-free**:
+
+```bash
+sealed chain market board --snapshot web/snapshot.json   # 36 actionable — the explorer's keeper panel, in the CLI
+sealed chain gate dark/model-a --min-pct 80 --min-runs 5 --snapshot web/snapshot.json
+sealed chain market positions --snapshot web/snapshot.json --viewer <pubkey>
+```
+
+`positions` in snapshot mode takes `--viewer <pubkey>` — a read-only
+look at any wallet's book without a keypair. Write paths (`sweep`,
+`claim`, `open`, …) stay RPC+signer only, obviously.
+
 ## `market` — four parimutuel primitives + capability bounties on `Run.correct`
 
 Every creator rejects runs that have begun scoring (`ScoringStarted`), runs

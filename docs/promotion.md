@@ -111,7 +111,10 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > keeper daemon that executes all of it, and `chain market positions`
 > is the bettor-side book with estimated payouts. The explorer renders
 > the same keeper board in-page — on the bundled ledger it flags 36
-> actionable venues.
+> actionable venues. And every read surface — `board`, `gate`,
+> `history`, `records`, `positions` — takes `--snapshot web/snapshot.json`
+> to replay the committed evidence bundle keyless: the CLI and the
+> explorer agree bit-for-bit on a file you can download and diff.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201
