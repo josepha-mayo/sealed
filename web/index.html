@@ -783,6 +783,16 @@ function renderAll(sealedAccs, marketAccs) {
       fixtures.forEach(row);
     }
     h += `</table></div><div class="kv" style="margin:4px 0 10px">enrolled via <span class="mono">record_score</span> — permissionless; a <span class="mono">ScoreLog</span> receipt PDA makes each run countable exactly once. <span class="mono">model_id</span> is self-reported, not an identity proof; "attested" counts runs countersigned by the benchmark authority at record time.</div>`;
+    // Capability gate — the registry as a policy surface, evaluated in-page.
+    // Same semantics as packages/harness/src/gate.ts evalGate / `chain gate`.
+    h += `<div class="card"><b>capability gate</b> — <span class="kv">evaluate a policy over the registry's receipts, right here (the composable surface from docs/integrate.md):</span><br>
+      <span class="mono">chain gate</span> <select id="gateModel">${recs.map(m => `<option value="${m.pk}">${esc(m.modelId)}</option>`).join("")}</select>
+      accuracy &ge; <input id="gatePct" value="60" size="3">% &nbsp;
+      runs &ge; <input id="gateRuns" value="1" size="3"> &nbsp;
+      items &ge; <input id="gateItems" size="4" placeholder="—"> &nbsp;
+      <label class="kv"><input type="checkbox" id="gateVouched"> venue-attested runs only</label>
+      <button onclick="runGate()">evaluate</button>
+      <div id="gateOut" class="kv" style="margin-top:6px"></div></div>`;
   }
 
   // ---- head-to-head: pairwise model records derived from resolved duels
@@ -1636,6 +1646,44 @@ async function runAudit(force) {
   } catch (e) {
     out.innerHTML = rows.join("") + `<div class="proof" style="color:var(--err)">audit halted: ${esc(e.message)}</div>`;
   }
+}
+
+// Capability gate — same semantics as packages/harness/src/gate.ts:
+// policy over a record's ScoreLog receipts, exit-style verdict. Absent
+// proof is not disproof: zero selected receipts reads NO EVIDENCE.
+function runGate() {
+  const out = document.getElementById("gateOut");
+  const a = window.__audit || {};
+  const pk = document.getElementById("gateModel").value;
+  const rec = (a.modelRecords || []).find(m => m.pk === pk);
+  const all = (a.scoreLogs || []).filter(l => l.modelRecord === pk);
+  const vouched = document.getElementById("gateVouched").checked;
+  const sel = vouched ? all.filter(l => l.vouched) : all;
+  const postRev = all.filter(l => l.postReveal).length;
+  const runs = sel.length, correct = sel.reduce((s, l) => s + l.correct, 0),
+    items = sel.reduce((s, l) => s + l.items, 0), pct = items ? 100 * correct / items : 0;
+  const num = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : Number(v); };
+  const minPct = num("gatePct"), minRuns = num("gateRuns"), minItems = num("gateItems");
+  if (minPct === null && minRuns === null && minItems === null) {
+    out.innerHTML = `a gate needs a criterion — set at least one of accuracy/runs/items`;
+    return;
+  }
+  const name = rec ? esc(rec.modelId) : pk;
+  if (!all.length || !sel.length) {
+    out.innerHTML = `<span class="pill cancelled">NO EVIDENCE</span> ${name} — ` +
+      (all.length && !sel.length ? `no venue-attested receipts (uncheck to evaluate all)` : `no receipts enrolled — run record_score first`);
+    return;
+  }
+  const checks = [];
+  if (minPct !== null) checks.push({ name: "accuracy", ok: pct >= minPct, act: `${pct.toFixed(1)}% (${correct}/${items})`, need: `≥ ${minPct}%` });
+  if (minRuns !== null) checks.push({ name: "runs", ok: runs >= minRuns, act: `${runs} receipt${runs === 1 ? "" : "s"}`, need: `≥ ${minRuns}` });
+  if (minItems !== null) checks.push({ name: "items", ok: items >= minItems, act: `${items} scored items`, need: `≥ ${minItems}` });
+  const pass = checks.every(c => c.ok);
+  out.innerHTML = `<span class="pill ${pass ? "resolved" : "cancelled"}">${pass ? "PASS" : "FAIL"}</span> ` +
+    `${name} — ${runs} ${vouched ? "vouched" : ""} run(s), ${correct}/${items} (${pct.toFixed(1)}%)` +
+    ` <span class="kv">[registry: ${all.length} total, ${postRev} post-reveal]</span>` +
+    checks.map(c => `<div class="kv">${c.ok ? "ok" : "MISS"} ${c.name}: ${c.act} (needed ${c.need})</div>`).join("") +
+    `<div class="kv" style="margin-top:4px">same verdict on the CLI: <span class="mono">sealed chain gate ${name} --min-pct ${minPct ?? "…"}${vouched ? " --vouched" : ""}</span></div>`;
 }
 
 // `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.
