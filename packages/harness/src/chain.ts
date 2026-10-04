@@ -1626,6 +1626,57 @@ export async function bankList(snapPath?: string, json = false) {
   return rows;
 }
 
+/** `chain runs [--bank <pk|name>] [--model <id>] [--min-pct n] [--status s]`
+ *  — the run substrate index: who ran what, scored what, on which bank.
+ *  The question behind every bounty and market — "which runs cleared X on
+ *  bank Y" — as a grep-able table. */
+export async function runList(opts: {
+  snapPath?: string; json?: boolean; bank?: string; model?: string;
+  minPct?: number; status?: string;
+}) {
+  const ss = opts.snapPath ? decodeSnapshotSection(loadSnapshotJson(opts.snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [banks, runs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
+    : await Promise.all([acct().benchmark.all(), acct().run.all()]);
+  const bankName = new Map(banks.map((b) => [b.publicKey.toBase58(), b.account.name as string]));
+  // Bank names are human labels, not unique — a name filter matches every
+  // bank carrying it; a pk filter matches exactly one.
+  const bankPks = opts.bank
+    ? (() => {
+        const m = banks.filter((b) => b.publicKey.toBase58() === opts.bank || b.account.name === opts.bank);
+        if (!m.length) throw new Error(`no benchmark named/addressed ${opts.bank}`);
+        return new Set(m.map((b) => b.publicKey.toBase58()));
+      })()
+    : undefined;
+  const statusMap: Record<string, number> = { pending: 0, finalized: 1, cancelled: 2 };
+  const want = opts.status ? statusMap[opts.status] : undefined;
+  if (opts.status && want === undefined) throw new Error(`--status one of ${Object.keys(statusMap).join("|")}`);
+  const rows = runs.map((x) => {
+    const r = x.account;
+    const items = Number(r.chunkCount) * 32;
+    const pct = items && Number(r.status) === 1 ? (100 * Number(r.correct)) / items : 0;
+    return {
+      pk: x.publicKey.toBase58(), model: r.modelId as string,
+      bank: (r.benchmark as PublicKey).toBase58(), bankName: bankName.get((r.benchmark as PublicKey).toBase58()) ?? "?",
+      status: Number(r.status), correct: Number(r.correct), items, pct,
+      postReveal: !!r.postReveal, runner: (r.runner as PublicKey).toBase58(),
+      createdAt: Number(r.createdAt), finalizedAt: Number(r.finalizedAt),
+    };
+  }).filter((r) =>
+    (!bankPks || bankPks.has(r.bank)) &&
+    (!opts.model || r.model === opts.model) &&
+    (opts.minPct === undefined || r.pct >= opts.minPct) &&
+    (want === undefined || r.status === want))
+    .sort((a, b) => b.pct - a.pct || b.finalizedAt - a.finalizedAt);
+  if (opts.json) { console.log(JSON.stringify(rows)); return rows; }
+  console.log(`${rows.length} run(s)${bankPks ? ` on ${opts.bank}` : ""}${opts.model ? ` by ${opts.model}` : ""} — score first:`);
+  for (const r of rows.slice(0, 100))
+    console.log(`  ${r.pk}  ${r.model.padEnd(24)} ${r.bankName.padEnd(18)} ${r.status === 1 ? `${String(r.correct).padStart(3)}/${r.items} (${r.pct.toFixed(1)}%)` : (["PENDING", "?", "CANCELLED"][r.status] ?? r.status)}${r.postReveal ? " post-reveal" : ""}`);
+  if (rows.length > 100) console.log(`  … ${rows.length - 100} more (narrow with --bank/--model/--min-pct)`);
+  return rows;
+}
+
 /** `chain records` — the whole capability registry, accuracy-first. */
 export async function modelRecordList(snapPath?: string, json = false) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
@@ -2526,6 +2577,9 @@ export async function chainHistory(keyOrName: string, json = false, snapPath?: s
 
 export async function chainMain(cmd: string[], args: Args) {
   const loadJson = (p: string) => JSON.parse(readFileSync(p, "utf8"));
+  // `export SEALED_SNAPSHOT=web/snapshot.json` makes every read command
+  // replay the evidence bundle without repeating the flag.
+  if (!args.snapshot && process.env.SEALED_SNAPSHOT) args.snapshot = process.env.SEALED_SNAPSHOT;
   const [sub] = cmd;
   if (sub === "init") {
     await init();
@@ -2737,6 +2791,15 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "stats") {
     await chainStats(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    return;
+  }
+  if (sub === "runs") {
+    await runList({
+      snapPath: args.snapshot ? String(args.snapshot) : undefined, json: Boolean(args.json),
+      bank: args.bank ? String(args.bank) : undefined, model: args.model ? String(args.model) : undefined,
+      minPct: args["min-pct"] !== undefined ? Number(args["min-pct"]) : undefined,
+      status: args.status ? String(args.status) : undefined,
+    });
     return;
   }
   if (sub === "gate") {

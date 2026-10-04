@@ -42,12 +42,16 @@ parimutuel markets resolved from `Run.correct`.
   defaults (pre-`scored_mask`/`post_reveal` epochs).
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
   `status`, `records`, `modelrec`, `gate` (+`--all`), `history`, `compare`
-  (+`--all`), `trail`, `stats`, `verify`, `grants`, `reveals`, `market board`,
+  (+`--all`), `trail`, `stats`, `runs`, `verify`, `grants`, `reveals`, `market board`,
   `market positions` (+`--viewer <pk>` keyless). `sealedProgramId()`
   derives the program id WITHOUT loading a wallet — snapshot mode is
   keyless end-to-end. `loadSnapshotJson` sha256-checks the file against a
   sibling `MANIFEST` (the committed web/MANIFEST pins `snapshot.json`) and
   warns loudly on mismatch — replay proceeds, evidence claims don't.
+- `chain runs` is the substrate index (`--bank` accepts a name AND matches
+  every bank carrying it — names are not unique; `--model`, `--min-pct`,
+  `--status`). `SEALED_SNAPSHOT=<path>` env-fills `--snapshot` for every
+  read command so a judge can set it once.
 - `chain stats` is the executive dashboard: counts, escrow, fees, MPC
   latency p50/p95, keeper surface — plus two verdicts recomputed inline:
   every `ModelRecord` aggregate replayed bit-exact from `ScoreLog`s, and
