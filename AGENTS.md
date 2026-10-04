@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test → 17/17 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 20/20 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -30,6 +30,30 @@ parimutuel markets resolved from `Run.correct`.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.
+
+## Snapshot replay architecture (judge-facing, keyless)
+
+- `web/snapshot.json` is the committed evidence bundle — raw
+  `{pubkey, data-b64}` accounts across `sealed`/`market` sections.
+- `packages/harness/src/snapshot.ts` decodes them OFFLINE: explicit
+  account-discriminator matching (the fork's `decodeAny` is broken),
+  snake_case → camelCase normalization to the exact shape `.all()` returns,
+  `{publicKey, account}` wrappers. Old-layout Runs decode with safe tail
+  defaults (pre-`scored_mask`/`post_reveal` epochs).
+- Every read command takes `--snapshot web/snapshot.json`: `banks`,
+  `status`, `records`, `modelrec`, `gate` (+`--all`), `history`, `compare`
+  (+`--all`), `trail`, `verify`, `grants`, `reveals`, `market board`,
+  `market positions` (+`--viewer <pk>` keyless). `sealedProgramId()`
+  derives the program id WITHOUT loading a wallet — snapshot mode is
+  keyless end-to-end.
+- Pure logic lives in `board.ts` (keeper classification mirroring the
+  on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
+  (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and
+  on the bundle; the harness tests pin 36-actionable/340-venue/246-settled
+  and the paired-evidence leaderboard against the committed file.
+- `chain trail <run>` re-verifies each resolved venue against
+  `Run.correct` — duels unpack `resolved_score = (a << 16) | b` (a is the
+  `run` field's score; bands store `correct` directly).
 
 ## Localnet
 
