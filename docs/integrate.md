@@ -105,6 +105,7 @@ capability risk" surface as a one-line command:
 sealed chain gate qwen2.5-3b --min-pct 60 --min-runs 2 --vouched
 sealed chain gate <record-pda> --min-items 128 --json
 sealed chain gate llama-3.2-1b --wilson 50 --no-post-reveal
+sealed chain gate --all --min-pct 70 --min-runs 2   # the leaderboard filtered by policy
 ```
 
 `--vouched` restricts evidence to venue-attested runs

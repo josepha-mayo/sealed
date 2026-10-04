@@ -1708,6 +1708,51 @@ export async function gateModelRecord(
   return verdict;
 }
 
+/** `chain gate --all <policy>` — the gate as a leaderboard filter: run the
+ *  same admission policy over EVERY ModelRecord's receipts and report who
+ *  clears it. "Which models provably clear ≥80% with ≥10 vouched runs?"
+ *  is a one-line answer, not a leaderboard's word. */
+export async function gateAll(policy: GatePolicy, json = false, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [records, logs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all()]);
+  const byRec = new Map<string, any[]>();
+  for (const l of logs) {
+    const k = (l.account.modelRecord as PublicKey).toBase58();
+    const list = byRec.get(k) ?? [];
+    list.push(l.account);
+    byRec.set(k, list);
+  }
+  const rows = records.map((r) => {
+    const receipts: ScoreReceipt[] = (byRec.get(r.publicKey.toBase58()) ?? []).map((a: any) => ({
+      correct: a.correct as number, items: a.items as number,
+      vouchedAtRecord: a.vouchedAtRecord, postReveal: a.postReveal,
+    }));
+    return { record: r.publicKey.toBase58(), modelId: r.account.modelId as string, verdict: evalGate(receipts, policy, receipts.length > 0) };
+  }).sort((a, b) => Number(b.verdict.pass) - Number(a.verdict.pass) || b.verdict.pct - a.verdict.pct);
+  const passes = rows.filter((r) => r.verdict.pass).length;
+  if (json) { console.log(JSON.stringify(rows.map((r) => ({ record: r.record, ...r.verdict, modelId: r.modelId })))); return rows; }
+  const parts = [
+    policy.minPct !== undefined && `pct≥${policy.minPct}`,
+    policy.minRuns !== undefined && `runs≥${policy.minRuns}`,
+    policy.minItems !== undefined && `items≥${policy.minItems}`,
+    policy.minWilsonPct !== undefined && `wilson≥${policy.minWilsonPct}`,
+    policy.vouchedOnly && "vouched",
+    policy.noPostReveal && "no-post-reveal",
+  ].filter(Boolean).join(" ");
+  console.log(`gate --all [${parts}] — ${passes}/${rows.length} model(s) clear:`);
+  for (const r of rows) {
+    const v = r.verdict;
+    const tag = v.pass ? "PASS" : v.reason === "policy" ? "FAIL" : "NOEV";
+    const miss = v.checks.find((c) => !c.pass);
+    console.log(`  ${tag}  ${r.modelId.padEnd(36)} ${v.pct.toFixed(1).padStart(5)}% (${v.correct}/${v.items}) ${v.runs} ${v.scope} run(s)` +
+      (miss ? `  ← ${miss.name}: ${miss.actual} < ${miss.needed}` : ""));
+  }
+  return rows;
+}
+
 /** `chain market board [--json]` — the keeper + discovery surface: scan the
  *  ledger's venues and report what a permissionless actor can do RIGHT NOW:
  *  claimable bounties (a qualifying run already finalized), resolvable
@@ -2150,6 +2195,25 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "gate") {
+    const numF = (k: string) => {
+      const v = args[k];
+      if (v === undefined) return undefined;
+      const n = Number(v);
+      if (!Number.isFinite(n)) throw new Error(`--${k} must be a number`);
+      return n;
+    };
+    if (cmd[1] === "--all" || args.all) {
+      const policy: GatePolicy = {
+        minPct: numF("min-pct"), minRuns: numF("min-runs"), minItems: numF("min-items"),
+        minWilsonPct: numF("wilson"), vouchedOnly: Boolean(args.vouched),
+        noPostReveal: Boolean(args["no-post-reveal"]),
+      };
+      if (policy.minPct === undefined && policy.minRuns === undefined &&
+          policy.minItems === undefined && policy.minWilsonPct === undefined)
+        throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
+      await gateAll(policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
     const target = String(cmd[1] ?? args.model ?? args.run ?? "");
     if (!target) throw new Error("usage: chain gate <model_id|record-pk> [--min-pct N] [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]");
     const num = (k: string) => {

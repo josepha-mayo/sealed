@@ -59,7 +59,9 @@ record bit-exact from its receipts. `chain gate <model_id> --min-pct N
 [--wilson P]` evaluates an admission policy over a record — exit 0
 pass / 1 fail / 2 no evidence — with the Wilson lower bound so
 small-sample records can't flatter a gate. Same evaluation runs
-in-page in the hosted explorer.
+in-page in the hosted explorer. `chain gate --all` applies the policy
+to *every* ModelRecord and prints the ranked pass/fail table — the
+capability registry as a filterable leaderboard, not a list.
 
 `chain market positions [--bettor kp.json] [--json]` — the bettor-side
 mirror: every position the wallet holds across bands/duels/ladders/darks,

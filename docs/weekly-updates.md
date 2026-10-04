@@ -49,7 +49,10 @@ deadline.
 - 15s: `--snapshot web/snapshot.json` on every read command — `board`,
   `gate`, `history`, `records`, `status`, `verify`, `positions` all replay the committed
   evidence bundle keyless, no RPC. CLI = explorer parity, proven by a
-  unit test that pins the 36-actionable classification.
+  unit test that pins the 36-actionable classification. And `gate --all`
+  applies a policy to every record — "which models provably clear ≥70%
+  with ≥2 runs" is a ranked table, not a claim (8/31 on the bundled
+  ledger).
 - 15s: devnet status — **both** programs byte-verified MATCH against the
   committed build; the Arcium devnet callback outage is upstream and
   disclosed — the reproducible surface is the bundled localnet snapshot.
