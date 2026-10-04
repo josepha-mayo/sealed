@@ -116,7 +116,9 @@ emits `{pass, scope, runs, items, correct, pct, postRevealRuns,
 checks[]}` for scripted policy. The evaluation is pure
 (`packages/harness/src/gate.ts` — `evalGate(receipts, policy)`) —
 the same verdict runs against a live RPC or the explorer's committed
-snapshot, no trust in the caller's box.
+snapshot, no trust in the caller's box. `chain history <model>` is the
+complement: the raw receipt trajectory with running accuracy after each
+run — a regression detector read straight off the receipts.
 
 `chain market board` is the sibling read surface for venues: a pure
 classifier (`board.ts`) that turns the account set into a keeper

@@ -164,6 +164,7 @@ async function main() {
   sealed chain modelrec <pubkey|model_id>                  show a model's aggregated score record
   sealed chain records                                     list every model record, accuracy-first
   sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]
+  sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
   sealed chain market board   [--json]                                     keeper surface: claimable bounties, resolvable + sweepable venues
   sealed chain market sweep   [--bettor kp.json]                           execute every permissionless action the board lists

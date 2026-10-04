@@ -31,3 +31,24 @@ deadline.
   position; Sealed hides the resolution truth.
 - 20s: live evidence — devnet deployment + hosted explorer URL + the
   grant-only real-model run.
+
+## Update 3 — "no operator needed" (post this week)
+
+- 15s: `chain market board` on the live explorer — the keeper board
+  rendered in-page over the bundled ledger: 36 actionable venues flagged
+  (resolvable markets, a tallyable dark, expired bounties worth ~0.25 SOL
+  back to sponsors) — the classification mirrors the on-chain
+  `still_moving`/`proven`/`bounty_qualifies` gates exactly.
+- 15s: `chain market sweep` — one command executes every permissionless
+  action the board lists (claims pay the winning run's *operator*, never
+  the sweeper); `chain market positions` — the bettor-side mirror with
+  estimated payouts and prefilled claim commands.
+- 15s: `chain gate --min-pct 60 --vouched --wilson` — a capability policy
+  over the registry receipts, exit 0/1/2 — composability you can paste
+  into a CI job or a venue admission check; same verdict in the explorer.
+- 15s: devnet status — **both** programs byte-verified MATCH against the
+  committed build; the Arcium devnet callback outage is upstream and
+  disclosed — the reproducible surface is the bundled localnet snapshot.
+- Close: "Every feature this week is executable — a judge can run the
+  audit, the gate, the board, and the rescore without installing
+  anything."

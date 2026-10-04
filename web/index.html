@@ -763,11 +763,17 @@ function renderAll(sealedAccs, marketAccs) {
       const vl = logs.filter(l => l.vouched);
       const vc = vl.reduce((s, l) => s + l.correct, 0), vi = vl.reduce((s, l) => s + l.items, 0);
       const lb = 100 * wilson(m.totalCorrect, m.totalItems);
-      const receipts = logs.length ? `<details style="margin-top:4px"><summary class="kv" style="cursor:pointer">${logs.length} receipt${logs.length === 1 ? "" : "s"}</summary>` +
-        logs.map(l => `<div class="kv mono" style="font-size:11px">${link(l.run)} ${l.correct}/${l.items}` +
-          `${l.vouched ? ' <span class="pill resolved" title="authority-attested at record time">vouched</span>' : ""}` +
-          `${l.postReveal ? ' <span class="pill cancelled" title="run created after a fingerprint reveal on its bank">post-reveal</span>' : ""}` +
-          ` · by ${link(l.recordedBy)} · ${fmtTs(l.recordedAt)}</div>`).join("") + `</details>` : "";
+      // Trajectory view — same rows `chain history` prints: oldest first,
+      // running accuracy after each receipt (a regression detector).
+      let rc = 0, ri = 0;
+      const receipts = logs.length ? `<details style="margin-top:4px"><summary class="kv" style="cursor:pointer">${logs.length} receipt${logs.length === 1 ? "" : "s"} — trajectory</summary>` +
+        [...logs].reverse().map(l => {
+          rc += l.correct; ri += l.items;
+          return `<div class="kv mono" style="font-size:11px">${link(l.run)} ${l.correct}/${l.items} → ${(100 * rc / ri).toFixed(1)}%` +
+            `${l.vouched ? ' <span class="pill resolved" title="authority-attested at record time">vouched</span>' : ""}` +
+            `${l.postReveal ? ' <span class="pill cancelled" title="run created after a fingerprint reveal on its bank">post-reveal</span>' : ""}` +
+            ` · by ${link(l.recordedBy)} · ${fmtTs(l.recordedAt)}</div>`;
+        }).join("") + `</details>` : "";
       h += `<tr id="rec-${m.pk}"><td class="mono">${esc(m.modelId)}${modelTag(m.modelId)}${receipts}</td>
         <td>${m.runsScored}</td>
         <td class="score">${m.totalCorrect}/${m.totalItems} (${cum.toFixed(1)}%)<div class="bar"><i style="width:${cum}%"></i></div>` +

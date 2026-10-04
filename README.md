@@ -250,6 +250,7 @@ sealed chain market bet     --market <pk> --outcome 1 --lamports 500000000 [--be
 sealed chain market bet     --market <pk> --side yes --lamports 500000000   # binary shorthand
 sealed chain market resolve --market <pk>                            # settles off Run.correct
 sealed chain gate qwen2.5-3b --min-pct 60 --vouched                  # capability gate over the registry (exit 0/1/2)
+sealed chain history qwen2.5-3b                                      # trajectory: every receipt, running accuracy
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market void    --market <pk>                            # authority cancels, pre-scoring only
 sealed chain market expire  --market <pk>                            # anyone, once resolve_by passes (not if finalized)

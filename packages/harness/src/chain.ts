@@ -1866,6 +1866,50 @@ export async function marketPositions(kpPath?: string, json = false) {
   return rows;
 }
 
+/** `chain history <model_id|record-pk>` — the capability trajectory: every
+ *  ScoreLog receipt for a model, oldest first, with the running accuracy
+ *  after each run. "Did it regress after the fine-tune?" is an on-chain
+ *  question — vouched and post-reveal flags ride on every row. */
+export async function chainHistory(keyOrName: string, json = false) {
+  const { program } = sealedProgram();
+  let pda: PublicKey;
+  try {
+    pda = new PublicKey(keyOrName);
+  } catch {
+    const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
+    [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], program.programId);
+  }
+  const rec: any = await (program.account as any).modelRecord.fetchNullable(pda);
+  if (!rec) {
+    console.log(`no model record for ${keyOrName} (${pda.toBase58()})`);
+    process.exitCode = 2;
+    return [];
+  }
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const logs = (await (program.account as any).scoreLog.all())
+    .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda))
+    .map((l: any) => ({
+      run: (l.account.run as PublicKey).toBase58(),
+      benchmark: (l.account.benchmark as PublicKey).toBase58(),
+      recordedAt: num(l.account.recordedAt),
+      correct: l.account.correct as number,
+      items: l.account.items as number,
+      vouched: l.account.vouchedAtRecord as number,
+      postReveal: l.account.postReveal as number,
+    }))
+    .sort((a: { recordedAt: number }, b: { recordedAt: number }) => a.recordedAt - b.recordedAt);
+  if (json) { console.log(JSON.stringify({ record: pda.toBase58(), modelId: rec.modelId, logs })); return logs; }
+  console.log(`history — ${rec.modelId} (${pda.toBase58()}) · ${logs.length} receipt(s)`);
+  let c = 0, i = 0;
+  const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
+  for (const l of logs) {
+    c += l.correct; i += l.items;
+    console.log(`  ${fmt(l.recordedAt)}  ${l.run.slice(0, 12)}…  ${l.correct}/${l.items} (${(100 * l.correct / Math.max(1, l.items)).toFixed(1)}%)` +
+      `  running ${(100 * c / Math.max(1, i)).toFixed(1)}%${l.vouched ? "  vouched" : ""}${l.postReveal ? "  post-reveal" : ""}`);
+  }
+  return logs;
+}
+
 export async function chainMain(cmd: string[], args: Args) {
   const loadJson = (p: string) => JSON.parse(readFileSync(p, "utf8"));
   const [sub] = cmd;
@@ -2054,6 +2098,12 @@ export async function chainMain(cmd: string[], args: Args) {
         policy.minItems === undefined && policy.minWilsonPct === undefined)
       throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
     await gateModelRecord(target, policy, Boolean(args.json));
+    return;
+  }
+  if (sub === "history") {
+    const target = String(cmd[1] ?? args.model ?? "");
+    if (!target) throw new Error("usage: chain history <model_id|record-pk> [--json]");
+    await chainHistory(target, Boolean(args.json));
     return;
   }
   if (sub === "market") {

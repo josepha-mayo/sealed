@@ -85,6 +85,11 @@ same `expire_decision` split the program makes). Read-only; the
 classification is pure (`packages/harness/src/board.ts`) and mirrors the
 on-chain `still_moving`/`proven`/`bounty_qualifies` gates exactly.
 
+`chain history <model_id|record-pk> [--json]` lists a model's ScoreLog
+receipts oldest-first with running accuracy after each — the capability
+trajectory ("did it regress after the fine-tune?") answered from
+on-chain data; vouched/post-reveal flags ride on every row.
+
 ## `market` — four parimutuel primitives + capability bounties on `Run.correct`
 
 Every creator rejects runs that have begun scoring (`ScoringStarted`), runs
