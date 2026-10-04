@@ -8,15 +8,19 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 MARKET_PID=8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN
 KEYPAIR="$HOME/.config/solana/id.json"
+# SEALED_RPC_URL overrides the public devnet endpoint — a dedicated RPC
+# (e.g. Helius free tier: https://devnet.helius-rpc.com/?api-key=<key>)
+# lands the deploy in minutes instead of grinding through 429s.
+RPC="${SEALED_RPC_URL:-devnet}"
 
 reclaim() {
   # Every buffer authority-owned by this wallet is a failed deploy leftover —
   # a completed deploy consumes its buffer. Reclaim the rent.
-  solana program show --buffers -u devnet --keypair "$KEYPAIR" 2>/dev/null \
+  solana program show --buffers -u "$RPC" --keypair "$KEYPAIR" 2>/dev/null \
     | awk 'NR>2 && $1 ~ /^[1-9A-HJ-NP-Za-km-z]{32,}$/ {print $1}' \
     | while read -r buf; do
         echo "  reclaiming $buf"
-        solana program close "$buf" -u devnet --keypair "$KEYPAIR" 2>&1 | tail -1
+        solana program close "$buf" -u "$RPC" --keypair "$KEYPAIR" 2>&1 | tail -1
       done
 }
 
@@ -31,7 +35,7 @@ for i in $(seq 1 30); do
   # real landing priority on the write txs (~1500 tiny-CU writes ≈ a few
   # SOL worst case, still far below stranded-buffer losses).
   out=$(solana program deploy target/deploy/market.so \
-      --program-id "$MARKET_PID" -u devnet \
+      --program-id "$MARKET_PID" -u "$RPC" \
       --keypair "$KEYPAIR" \
       --with-compute-unit-price 1000 \
       --max-sign-attempts 200 2>&1)
