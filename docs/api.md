@@ -111,7 +111,7 @@ print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `verify`,
-`market board`, `market positions`.
+`grants`, `market board`, `market positions`.
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed
 borsh layouts the RPC path uses, so the surfaces replay **keyless and

@@ -1627,7 +1627,7 @@ export async function bankList(snapPath?: string, json = false) {
 }
 
 /** `chain records` — the whole capability registry, accuracy-first. */
-export async function modelRecordList(snapPath?: string) {
+export async function modelRecordList(snapPath?: string, json = false) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const [all, logs] = ss
     ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
@@ -1658,6 +1658,14 @@ export async function modelRecordList(snapPath?: string) {
       last: (r.lastRun as PublicKey).toBase58(),
     }))
     .sort((a: any, b: any) => b.bestPct - a.bestPct || b.pct - a.pct);
+  if (json) {
+    console.log(JSON.stringify(rows.map((r: any) => ({
+      record: r.pk.toBase58(), modelId: r.modelId, runs: r.runs,
+      pct: r.pct, best: r.best, bestPct: r.bestPct,
+      vouched: r.vouched ? `${r.vouched.c}/${r.vouched.i}` : null, lastRun: r.last,
+    }))));
+    return rows;
+  }
   console.log(`${rows.length} model record(s) — cumulative MPC-scored performance:`);
   for (const r of rows)
     console.log(`  ${r.modelId.padEnd(36)} runs=${r.runs}  agg=${r.pct.toFixed(1)}%  best=${r.best} (${r.bestPct.toFixed(1)}%)` +
@@ -1665,7 +1673,7 @@ export async function modelRecordList(snapPath?: string) {
 }
 
 /** `chain modelrec <pubkey|model_id>` — print a registry entry. */
-export async function modelRecordShow(keyOrName: string, snapPath?: string) {
+export async function modelRecordShow(keyOrName: string, snapPath?: string, json = false) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
   let pda: PublicKey;
@@ -1679,6 +1687,21 @@ export async function modelRecordShow(keyOrName: string, snapPath?: string) {
     ? snapOf(ss, "ModelRecord").find((x) => x.publicKey.equals(pda))?.account
     : await acct().modelRecord.fetchNullable(pda);
   if (!rec) { console.log(`no model record at ${pda.toBase58()}`); return; }
+  if (json) {
+    const logs: any[] = (ss ? snapOf(ss, "ScoreLog") : await acct().scoreLog.all())
+      .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda));
+    console.log(JSON.stringify({
+      record: pda.toBase58(), modelId: rec.modelId,
+      modelHash: Buffer.from(rec.modelHash).toString("hex"),
+      runs: rec.runsScored, totalCorrect: rec.totalCorrect.toNumber(), totalItems: rec.totalItems.toNumber(),
+      best: `${rec.bestCorrect}/${rec.bestItems}`, bestRun: (rec.bestRun as PublicKey).toBase58(),
+      bestBank: (rec.bestBank as PublicKey).toBase58(), lastRun: (rec.lastRun as PublicKey).toBase58(),
+      firstSeen: rec.firstSeen, lastScored: rec.lastScored,
+      vouchedReceipts: logs.filter((l: any) => l.account.vouchedAtRecord).length,
+      postRevealReceipts: logs.filter((l: any) => l.account.postReveal).length,
+    }));
+    return;
+  }
   const pct = rec.totalItems.toNumber() ? (100 * rec.totalCorrect.toNumber() / rec.totalItems.toNumber()).toFixed(1) : "0.0";
   console.log(`model record ${pda.toBase58()}`);
   console.log(`  model_id=${rec.modelId}  hash=${Buffer.from(rec.modelHash).toString("hex").slice(0, 16)}…`);
@@ -2404,7 +2427,18 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "grants") {
-    const list = await listGrants(new PublicKey(String(args.benchmark)));
+    const bankPk = new PublicKey(String(args.benchmark));
+    if (args.snapshot) {
+      const ss = decodeSnapshotSection(loadSnapshotJson(String(args.snapshot)), "sealed");
+      const gs = snapOf(ss, "ShareGrant").filter((g) => (g.account.benchmark as PublicKey).equals(bankPk));
+      if (!gs.length) console.log("no grants");
+      for (const g of gs) {
+        const a = g.account as any;
+        console.log(`chunk ${a.chunkIndex} part ${a.part} → viewer ${Buffer.from(a.viewer).toString("hex").slice(0, 16)}… at ${a.sharedAt} (${g.publicKey.toBase58()})`);
+      }
+      return;
+    }
+    const list = await listGrants(bankPk);
     if (!list.length) console.log("no grants");
     for (const g of list) console.log(`chunk ${g.chunkIndex} part ${g.part} → viewer ${g.viewer.slice(0, 16)}… at ${g.sharedAt} (${g.address.toBase58()})`);
     return;
@@ -2459,11 +2493,11 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "modelrec") {
-    await modelRecordShow(String(cmd[1] ?? args.run ?? ""), args.snapshot ? String(args.snapshot) : undefined);
+    await modelRecordShow(String(cmd[1] ?? args.run ?? ""), args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
     return;
   }
   if (sub === "records") {
-    await modelRecordList(args.snapshot ? String(args.snapshot) : undefined);
+    await modelRecordList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
     return;
   }
   if (sub === "banks") {
