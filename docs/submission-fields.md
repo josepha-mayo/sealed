@@ -65,7 +65,7 @@ against on-chain `outputs_root` in-browser.
 
 120 banks minted, 503 runs, 340 venues across six primitives
 (208 band/duel, 48 ladders, 47 dark, 37 bounties) — the offline audit
-re-verifies 200+ resolutions + 145 grants + 30 reveal burns on the
+re-verifies 201 resolutions + 145 grants + 30 reveal burns on the
 committed ledger: 0 plaintext answer keys. Every primitive has settled a
 REAL open-weights model's MPC score: four local models raced an
 MPC-minted exam — 3b 6/32 tied 1.5b 6/32 (dead-heat pro-rata), llama-1b

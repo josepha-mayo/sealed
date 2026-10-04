@@ -43,9 +43,10 @@ operator.
 landing-window expiry, committed-settle semantics, strict ordered leg
 accounts. Every edge has a regression test.
 
-Evidence: 503 MPC-scored runs, 340 market+bounty venues across six
-primitives, 200+ resolutions re-verified by the offline audit — every
-artifact and Merkle proof in the repo, replayable bit-for-bit.
+Evidence: 503 runs on the merged evidence ledger (8 localnet epochs), 340
+market+bounty venues across six primitives, 201 resolutions re-verified by
+the offline audit — every artifact and Merkle proof in the repo,
+replayable bit-for-bit.
 
 6/ Headline run: gpt-oss-20b scored 64/64 on a bank minted inside MPC —
 no answer key ever existed outside the enclave. A stale-artifact cheat
@@ -67,8 +68,9 @@ Built for @colosseum Crypto World's Fair on @arcium.
 > markets resolve directly from the Run accounts your nodes finalize —
 > no oracle. Also shipped a novel K-way "ladder race" market primitive on
 > top (argmax + dead-heat mask), which lines up with the novel-mechanisms
-> ask. 503 MPC-finalized runs on localnet; devnet deployment is live and
-> byte-verified (scripts/verify-deployed.sh sha256-compares the on-chain
+> ask. 503 runs on the evidence ledger, most MPC-finalized; the sealed
+> program is devnet-deployed and byte-verified
+> (scripts/verify-deployed.sh sha256-compares the on-chain
 > ELF to the repo build) but the shared cluster's callback outage is
 > blocking flows — flagging in case it helps. Would love a pointer if
 > there's a recommended workaround or a mainnet-cluster path for the demo.

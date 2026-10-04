@@ -93,14 +93,20 @@ not the commands.
   authority — questions AND answers both absent from public state), selective
   question disclosure to delegate keys (`reshare_part` — one-directional,
   grant trail onchain), on-chain MPC scores matching local pre-scores exactly,
-  binary + N-way markets resolved and paid out, fingerprint reveal audits,
+  six settlement primitives resolved and paid out (score-bands, duels,
+  K-way ladder races with dead-heat pro-rata, unseen-exam markets, dark
+  commit-reveal markets, capability bounties), a persistent permissionless
+  capability registry (`ModelRecord`/`ScoreLog`), fingerprint reveal audits,
   mocha suite 17/17 + 13/13 unit tests green. Authored banks work too (seal+score).
-- **Traction evidence:** dozens of MPC computations executed on the evidence
-  ledger (mint, seal, score, reshare, reveal circuits; generated + private +
-  delegated runs), incl. real models — gpt-oss-20b 64/64 on an MPC-minted
-  bank (run HW5H5bT7) and 64/64 on a sealed authored bank (run 4uns99WD),
-  ling-3.0 58/64, nemotron-3.5 59/64 — every MPC score identical to the
-  local pre-score, artifacts + tx proofs in `docs/evidence/`.
+- **Traction evidence:** 503 runs / 120 banks / 340 venues across six
+  primitives on the merged evidence ledger (8 epochs) — 201 resolutions
+  re-derived bit-exact by the offline audit, 31 capability records replayed
+  from 292 receipts. Real models through the full MPC pipeline: a
+  four-model race on an MPC-minted exam with a natural dead-heat, a
+  sponsor-paid **0.1 SOL bounty claimed by an independent operator** whose
+  model provably cleared the threshold, a double-sealed dark market on a
+  ciphertext-only bank, gpt-oss-20b 64/64 on a bank whose answer key never
+  existed — and a stale-artifact cheat scored 1/64 honestly.
 - **Business:** per-run fee to the benchmark authority (live on-chain); market
   take-rate on settlement (`fee_bps`, capped at 10%, live on-chain);
   sealed-eval as a service to labs, markets, and insurers.
