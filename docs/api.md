@@ -103,9 +103,14 @@ the pk list `status`/`compare` need without the explorer.
 `chain compare --all` tallies every model×model pair's shared-bank
 result into a W-L-T leaderboard — rankings grounded on shared evidence
 only, with disjoint pairs reported as unranked rather than assumed.
+`chain trail <run-pk>` prints one run's custody chain — bank, registry
+receipt, and every venue that priced it — and **re-verifies each resolved
+venue's score against `Run.correct`** (duel `resolved_score` unpacked
+`(a << 16) | b`), so a settlement that disagreed with the run would
+print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
-`modelrec`, `gate`, `history`, `compare`, `status`, `banks`, `verify`,
+`modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `verify`,
 `market board`, `market positions`.
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed

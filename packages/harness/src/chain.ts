@@ -1882,6 +1882,104 @@ export async function compareAll(json = false, snapPath?: string) {
   return ranked;
 }
 
+/** `chain trail <run-pk> [--json]` — one run's custody chain: bank → receipt
+ *  → every venue that priced it → resolution re-verified. The explorer's
+ *  custody row as a portable report: each resolved venue's `resolvedScore`
+ *  / `winningScore` is checked against `Run.correct` rather than trusted. */
+export async function chainTrail(runPkStr: string, json = false, snapPath?: string) {
+  const runPk = new PublicKey(runPkStr);
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sealedAcct = () => (sealedProgram().program.account as any);
+  const marketAcct = () => (marketProgram().market.account as any);
+  const [runs, banks, logs, markets, darks, ladders, bounties]: [SnapAccount[], SnapAccount[], SnapAccount[], SnapAccount[], SnapAccount[], SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "Run"), snapOf(ss, "Benchmark"), snapOf(ss, "ScoreLog"),
+       snapOf(sm!, "Market"), snapOf(sm!, "DarkMarket"), snapOf(sm!, "Ladder"), snapOf(sm!, "Bounty")]
+    : await Promise.all([
+        sealedAcct().run.all(), sealedAcct().benchmark.all(), sealedAcct().scoreLog.all(),
+        marketAcct().market.all(), marketAcct().darkMarket.all(), marketAcct().ladder.all(), marketAcct().bounty.all()]);
+  const run = runs.find((r) => r.publicKey.equals(runPk));
+  if (!run) { console.log(`no run at ${runPkStr}`); return; }
+  const R = run.account as any;
+  const bank = banks.find((b) => (b.account as any) && (b.publicKey as PublicKey).equals(R.benchmark));
+  const receipt = logs.find((l) => (l.account.run as PublicKey).equals(runPk));
+  const B = bank?.account as any;
+  const items = Number(R.chunkCount) * 32;
+  const venues: any[] = [];
+  const STATUS = ["open", "resolved", "expired"];
+  for (const m of markets) {
+    const M = m.account as any;
+    const isA = (M.run as PublicKey).equals(runPk);
+    const isB = M.runB && !(M.runB as PublicKey).equals(PublicKey.default) && (M.runB as PublicKey).equals(runPk);
+    if (!isA && !isB) continue;
+    const duel = isB || (M.runB && !(M.runB as PublicKey).equals(PublicKey.default));
+    // duels pack resolved_score = (a << 16) | b; bands store the run's correct.
+    const ourScore = duel ? (isA ? Number(M.resolvedScore) >> 16 : Number(M.resolvedScore) & 0xffff) : Number(M.resolvedScore);
+    const verified = M.status === 1 ? ourScore === Number(R.correct) : null;
+    venues.push({ kind: duel ? "duel" : "band", pk: m.publicKey.toBase58(), status: STATUS[M.status as number] ?? M.status,
+      outcome: M.status === 1 ? (duel ? (Number(M.outcome) === 0 ? "A won" : Number(M.outcome) === 1 ? "B won" : "tie") : `bucket ${M.outcome}`) : null,
+      edges: duel ? [] : (M.edges as any[]).slice(0, Math.max(0, Number(M.nOutcomes) - 1)).map(Number),
+      resolvedScore: M.status === 1 ? (duel ? `${Number(M.resolvedScore) >> 16}-${Number(M.resolvedScore) & 0xffff}` : Number(M.resolvedScore)) : null, verified,
+      pool: (M.totals as any[]).reduce((s: number, t: any) => s + Number(t), 0) });
+  }
+  for (const d of darks) {
+    const D = d.account as any;
+    if (!(D.run as PublicKey).equals(runPk)) continue;
+    venues.push({ kind: "dark", pk: d.publicKey.toBase58(), status: STATUS[D.status as number] ?? D.status,
+      tallied: !!D.tallied, pool: Number(D.poolTotal), resolvedScore: D.status === 1 ? Number(D.resolvedScore) : null,
+      verified: D.status === 1 ? Number(D.resolvedScore) === Number(R.correct) : null });
+  }
+  for (const l of ladders) {
+    const L = l.account as any;
+    const legIx = (L.legs as PublicKey[]).slice(0, Number(L.legCount)).findIndex((p) => p.equals(runPk));
+    if (legIx < 0) continue;
+    const legs = (L.legs as PublicKey[]).slice(0, Number(L.legCount));
+    const legRuns = legs.map((lp) => runs.find((r) => r.publicKey.equals(lp))?.account as any);
+    const scores = legRuns.map((lr) => (lr && lr.status === 1 ? Number(lr.correct) : 0));
+    const winner = scores.length ? scores.indexOf(Math.max(...scores)) : -1;
+    venues.push({ kind: "ladder", pk: l.publicKey.toBase58(), status: STATUS[L.status as number] ?? L.status,
+      leg: `${legIx + 1}/${L.legCount}`, outcome: L.status === 1 ? (winner === legIx ? "won" : scores[legIx] === scores[winner] ? "dead-heat" : "lost") : null,
+      resolvedScore: L.status === 1 ? scores[legIx] : null, verified: L.status === 1 ? scores[legIx] === Number(R.correct) : null });
+  }
+  for (const b of bounties) {
+    const Bo = b.account as any;
+    if (!(Bo.winnerRun as PublicKey).equals(runPk)) continue;
+    venues.push({ kind: "bounty", pk: b.publicKey.toBase58(), status: "claimed",
+      threshold: Number(Bo.threshold), winningScore: Number(Bo.winningScore),
+      amount: Number(Bo.amount), verified: Number(Bo.winningScore) === Number(R.correct) });
+  }
+  const out = {
+    run: runPkStr, modelId: R.modelId, benchmark: (R.benchmark as PublicKey).toBase58(),
+    bankName: B?.name ?? "?", bankKind: BANK_KIND[B?.kind as number] ?? "?",
+    score: `${R.correct}/${items}`, status: R.status === 1 ? "finalized" : `pending (${R.status})`,
+    postReveal: !!R.postReveal, runner: (R.runner as PublicKey).toBase58(), createdAt: Number(R.createdAt),
+    receipt: receipt ? { pk: receipt.publicKey.toBase58(), recordedBy: (receipt.account.recordedBy as PublicKey).toBase58(),
+      recordedAt: Number(receipt.account.recordedAt), vouched: !!receipt.account.vouchedAtRecord,
+      postReveal: !!receipt.account.postReveal } : null,
+    venues,
+  };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`trail ${runPkStr}`);
+  console.log(`  run — model "${R.modelId}" by ${out.runner.slice(0, 12)}… on ${out.bankName} (${out.bankKind})`);
+  console.log(`  score — ${out.score} ${out.status}${out.postReveal ? "  ⚠ post-reveal (committed after a fingerprint reveal — spoiled items)" : ""}`);
+  console.log(`  bank  — ${(R.benchmark as PublicKey).toBase58()}`);
+  if (receipt) {
+    const r = receipt.account as any;
+    console.log(`  receipt — ${receipt.publicKey.toBase58()} recorded by ${(r.recordedBy as PublicKey).toBase58().slice(0, 12)}…` +
+      ` @ ${Number(r.recordedAt)}${r.vouchedAtRecord ? "  [vouched by bank authority]" : ""}${r.postReveal ? "  [post-reveal]" : ""}`);
+  } else console.log(`  receipt — none (run not enrolled — \`chain record --run ${runPkStr.slice(0, 12)}…\` enrolls it)`);
+  if (!venues.length) console.log(`  venues — none priced this run`);
+  for (const v of venues) {
+    const check = v.verified === null ? "" : v.verified ? "  ✓ score matches Run.correct" : "  ✗ MISMATCH vs Run.correct";
+    console.log(`  venue ${v.kind.padEnd(6)} ${v.pk}  ${v.status}${v.outcome != null ? ` → ${v.outcome}` : ""}` +
+      `${v.leg ? ` leg ${v.leg}` : ""}${v.edges?.length ? ` edges=[${v.edges.join(",")}]` : ""}` +
+      `${v.resolvedScore != null ? ` resolved=${v.resolvedScore}` : ""}${v.threshold != null ? ` threshold=${v.threshold}` : ""}` +
+      `${v.pool != null ? ` pool=${(v.pool / 1e9).toFixed(3)}◎` : ""}${v.amount != null ? ` pot=${(v.amount / 1e9).toFixed(3)}◎` : ""}${check}`);
+  }
+  return out;
+}
+
 /** `chain gate --all <policy>` — the gate as a leaderboard filter: run the
  *  same admission policy over EVERY ModelRecord's receipts and report who
  *  clears it. "Which models provably clear ≥80% with ≥10 vouched runs?"
@@ -2419,6 +2517,12 @@ export async function chainMain(cmd: string[], args: Args) {
     const target = String(cmd[1] ?? args.model ?? "");
     if (!target) throw new Error("usage: chain history <model_id|record-pk> [--json]");
     await chainHistory(target, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "trail") {
+    const run = cmd[1] ?? args.run;
+    if (!run) throw new Error("usage: chain trail <run-pk> [--json] [--snapshot f]");
+    await chainTrail(String(run), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "compare") {

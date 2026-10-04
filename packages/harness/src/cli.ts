@@ -166,6 +166,7 @@ async function main() {
   sealed chain banks                                       list every benchmark, run-count first
   sealed chain compare <A> <B>                             head-to-head on shared benchmarks, paired deltas
   sealed chain compare --all                               paired-evidence leaderboard (W-L-T over shared banks)
+  sealed chain trail <run-pk>                              custody chain: bank → receipt → venues, resolutions re-verified
   sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]
   sealed chain gate --all <same policy flags>                          the gate as a leaderboard: who clears the policy, ranked
   sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first

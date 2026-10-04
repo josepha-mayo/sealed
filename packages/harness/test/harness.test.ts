@@ -481,3 +481,24 @@ test("chain compare --all ranks on shared evidence only — disjoint pairs stay 
   assert.ok(ix("qwen2.5-1.5b-instruct") < ix("qwen2.5-0.5b-instruct"));
 });
 
+test("chain trail re-verifies every venue's resolution against Run.correct — duels unpacked", async () => {
+  const { chainTrail } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  let out: any;
+  // A run with a band, a duel, a binary band, and a ladder leg priced on it.
+  try { out = await chainTrail("BoEDCeg4jP9vCyaj2Q1Y9jVCeZd2rweFCJcmM2GNRvY9", false, snapPath); }
+  finally { console.log = origLog; }
+  assert.equal(out.modelId, "mock/oracle-0.75");
+  assert.equal(out.score, "53/64");
+  assert.ok(out.receipt, "ScoreLog receipt found");
+  assert.equal(out.venues.length, 4);
+  assert.ok(out.venues.every((v: any) => v.verified === true),
+    "every resolved venue's score re-verified against Run.correct");
+  // The duel packs (a << 16) | b — 53-32, our run is side A.
+  const duel = out.venues.find((v: any) => v.kind === "duel");
+  assert.equal(duel.resolvedScore, "53-32");
+  assert.equal(duel.outcome, "A won");
+});
+
