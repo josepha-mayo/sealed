@@ -1672,7 +1672,7 @@ export async function gateModelRecord(
  *  ledger's venues and report what a permissionless actor can do RIGHT NOW:
  *  claimable bounties (a qualifying run already finalized), resolvable
  *  markets/ladders, and expired venues awaiting the sweeps. Read-only. */
-export async function marketBoard(json = false) {
+async function loadBoard() {
   const { market } = marketProgram();
   const { program } = sealedProgram();
   const mAcct = market.account as any;
@@ -1717,10 +1717,14 @@ export async function marketBoard(json = false) {
       postReveal: x.account.postReveal,
     })),
   }, now);
+  return { board, counts: { bounties: bounties.length, markets: markets.length, darks: darks.length, ladders: ladders.length, runs: runs.length } };
+}
 
+export async function marketBoard(json = false) {
+  const { board, counts } = await loadBoard();
   if (json) { console.log(JSON.stringify(board)); return board; }
   const sol = (l: number) => (l / LAMPORTS_PER_SOL).toFixed(3);
-  console.log(`venue board — ${bounties.length} bounties, ${markets.length} markets, ${darks.length} dark, ${ladders.length} ladders over ${runs.length} runs`);
+  console.log(`venue board — ${counts.bounties} bounties, ${counts.markets} markets, ${counts.darks} dark, ${counts.ladders} ladders over ${counts.runs} runs`);
   if (board.claimable.length) {
     console.log(`\nCLAIMABLE NOW — qualifying run already finalized:`);
     for (const b of board.claimable)
@@ -1743,6 +1747,46 @@ export async function marketBoard(json = false) {
   }
   console.log(`\nstill live: ${board.liveBounties.length} bounties, ${board.filling} venues in play, ${board.revealing} darks revealing — settled: ${board.settled} venues, ${board.claimedBounties} claimed bounties`);
   return board;
+}
+
+/** The no-operator design made executable: scan the board, then EXECUTE
+ *  every permissionless action it lists — bounty claims (the pot pays the
+ *  winning run's operator on-chain, not the sweeper — pure public good),
+ *  venue resolves, dark finalizes, and expiry sweeps. A raced keeper's tx
+ *  fails on the already-transitioned account and the sweep continues. */
+export async function marketSweep(kpPath?: string) {
+  const { board } = await loadBoard();
+  const total = board.claimable.length + board.resolvable.length +
+    board.resolvableLadders.length + board.tallyable.length +
+    board.expirable.length + board.expiredBounties.length;
+  if (!total) { console.log("market sweep — nothing actionable"); return; }
+  console.log(`market sweep — ${total} permissionless actions queued`);
+  const act = async (what: string, fn: () => Promise<unknown>) => {
+    try { await fn(); }
+    catch (e: any) {
+      console.log(`  ${what}: skipped (${e?.error?.errorMessage ?? e?.errorMessage ?? e?.message ?? e})`);
+    }
+  };
+  for (const b of board.claimable)
+    await act(`bounty claim ${b.pubkey} → pays operator of ${b.qualifyingRun}`,
+      () => bountyClaim(new PublicKey(b.pubkey), new PublicKey(b.qualifyingRun), kpPath));
+  for (const m of board.resolvable)
+    await act(`${m.kind} resolve ${m.pubkey}`, () => m.kind === "dark"
+      ? darkResolve(new PublicKey(m.pubkey), kpPath)
+      : marketResolve(new PublicKey(m.pubkey), kpPath));
+  for (const l of board.resolvableLadders)
+    await act(`ladder resolve ${l.pubkey}`,
+      () => ladderResolve(new PublicKey(l.pubkey), kpPath));
+  for (const m of board.tallyable)
+    await act(`dark finalize ${m.pubkey}`,
+      () => darkFinalize(new PublicKey(m.pubkey), kpPath));
+  for (const m of board.expirable)
+    await act(`${m.kind} expire ${m.pubkey} (${m.expireOutcome})`, () => m.kind === "dark"
+      ? darkExpire(new PublicKey(m.pubkey), kpPath)
+      : marketExpire(new PublicKey(m.pubkey), kpPath));
+  for (const b of board.expiredBounties)
+    await act(`bounty expire ${b.pubkey} → refunds sponsor`,
+      () => bountyExpire(new PublicKey(b.pubkey), kpPath));
 }
 
 export async function chainMain(cmd: string[], args: Args) {
@@ -1940,6 +1984,8 @@ export async function chainMain(cmd: string[], args: Args) {
     const bettor = args.bettor as string | undefined;
     if (m0 === "board") {
       await marketBoard(Boolean(args.json));
+    } else if (m0 === "sweep") {
+      await marketSweep(bettor);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

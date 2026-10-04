@@ -98,6 +98,20 @@ since been wiped and redeployed during hardening. The evidence bundle in
   rejected `LegMismatch`, post-latch bet rejected `RunNotPending`. Disclosed
   residual: dormant-runner "ringer" legs are priced by bettors (the CLI
   prints every leg's runner/model).
+- **Keeper operations — the no-operator design made executable:**
+  `chain market board` scans every venue account + run into an operator
+  inventory — claimable bounties (mirroring `bounty_qualifies`:
+  finalized-or-proven runs, retroactivity wall, runner ≠ sponsor,
+  post-reveal exclusion — the claim command prefilled), resolvable
+  markets/ladders (the ladder gate is `!still_moving` per leg, not
+  `resolve_by` — a race of dormant legs resolves early), resolved darks
+  awaiting `finalize_dark`, and sweepable expiries annotated with
+  `expire_decision`'s settle-vs-refund outcome. `chain market sweep`
+  executes every action the board lists — bounty pots still pay the
+  winning run's *operator* on-chain, never the sweeper — so venue
+  liveness is a runnable cron job, not a promise. The classifier is pure
+  (`packages/harness/src/board.ts`), unit-tested 16/16, `--json` for
+  third-party keepers.
 - **Generated banks — the headline feature.** `chain gen` mints a benchmark
   *inside* MPC: the `gen_part` Arcis instruction draws item specs from
   `ArcisRNG`, computes answers in-circuit, fingerprints them (SHA3-256 over

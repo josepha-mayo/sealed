@@ -63,6 +63,8 @@ against on-chain `outputs_root` in-browser. Composability is executable:
 `chain gate --min-pct 60 --vouched` evaluates a capability policy over the
 registry's receipts (exit 0/1/2) — and the hosted explorer runs the same
 policy in-page, off either a live RPC or the committed snapshot.
+`chain market sweep` executes every permissionless venue action — venue
+ops need no operator.
 
 ## tractionMilestones
 

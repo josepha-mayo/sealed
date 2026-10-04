@@ -126,7 +126,10 @@ finalized-or-proven, not post-reveal), resolvable markets and ladders
 (the ladder gate is `!still_moving` per leg, not `resolve_by`), resolved
 darks awaiting `finalize_dark`, and sweepable expiries annotated
 settle-vs-refund. Third-party keepers don't need our binary — the table
-above is the whole read contract.
+above is the whole read contract. `chain market sweep` goes one step
+further: it executes every permissionless action the board lists —
+the no-operator design as a runnable cron job (bounty pots still pay the
+winning run's operator on-chain, never the sweeper).
 
 ## What a consumer never gets
 

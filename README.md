@@ -239,6 +239,7 @@ sealed chain score --bank bank/1.json --run runs/….json --run-index 1  # score
 sealed chain status --benchmark <pubkey>                             # leaderboard from chain state
 
 sealed chain market board   [--json]                                # keeper surface: claimable bounties, resolvable/tallyable/sweepable venues
+sealed chain market sweep                                           # executes every permissionless action the board lists
 sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"
 sealed chain market open    --run <pubkey> --edges 40,55 --salt 1    # 3-way score bands, 2nd market
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts

@@ -61,6 +61,13 @@ pass / 1 fail / 2 no evidence — with the Wilson lower bound so
 small-sample records can't flatter a gate. Same evaluation runs
 in-page in the hosted explorer.
 
+`chain market sweep [--bettor kp.json]` runs the board then EXECUTES every
+permissionless action on it — bounty claims (the pot pays the winning
+run's operator, not the sweeper), `resolve`, `resolve_ladder`,
+`finalize_dark`, `expire_*`, `expire_bounty`. A raced keeper's tx fails
+on the already-transitioned account and the sweep continues. The
+no-operator design as a runnable cron job.
+
 `chain market board [--json]` scans every venue account + run and reports
 the keeper inventory: bounties claimable *right now* (a qualifying run is
 already finalized-or-proven — the claim command prefilled), live and
