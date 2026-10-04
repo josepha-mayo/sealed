@@ -84,6 +84,8 @@ nothing is a claim.
 - **`unbrick_pda`'s accepted risk.** A lamport-bearing uninitialized PDA
   is grief by definition — a parked honest prefund is indistinguishable
   and also gets swept. Documented, permissionless, sign-proven.
-- **Devnet claims stay honest.** Programs are deployed; the shared Arcium
-  cluster's callback outage stalls bank flows upstream. The docs say
-  exactly that — `verify-deployed.sh` reports STALE, not "deployed".
+- **Devnet claims stay honest.** Programs are deployed and byte-verified
+  (MATCH ×2 — the market upgrade ground through devnet congestion for
+  days before a dedicated RPC landed it in minutes); the shared Arcium
+  cluster's callback outage stalls bank flows upstream, and the docs
+  said STALE-not-"deployed" the whole time it was true.

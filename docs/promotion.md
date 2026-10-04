@@ -111,8 +111,8 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > calibration exam where the page recomputes the MPC score per item.
 > No install, no trust in us.
 >
-> Honest status: programs live on devnet (`sealed` byte-verified against
-> this repo; `market` upgrade in flight); the shared Arcium devnet
+> Honest status: both programs live on devnet and byte-verified against
+> this repo (`verify-deployed.sh` — MATCH, MATCH); the shared Arcium devnet
 > cluster's callback outage stalls new bank flows upstream — every flow
 > is proven on the committed localnet evidence bundle.
 >

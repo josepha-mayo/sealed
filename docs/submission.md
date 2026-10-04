@@ -17,10 +17,9 @@ predates this week's hardening: current source additionally carries
 `post_reveal` reveal-burn stamping, `unbrick_pda` grief reclaim,
 `DeadlineTooFar` labeling, `BountyExpired.refunded_lamports`, and the
 empty-pool `expire_dark` fast-path — all verified end-to-end on localnet.
-The market redeploy is grinding through devnet write congestion (retry
-loop armed, funded, `scripts/deploy-market-retry.sh`); until it lands
-`verify-deployed.sh` reports it STALE — the honest state. The remaining
-devnet caveat is the Arcium callback outage (below).
+The market program was upgraded 2026-10-04 (sig `Tpm5oyQd…`);
+`verify-deployed.sh` now reports BOTH programs MATCH the committed build.
+The remaining devnet caveat is the Arcium callback outage (below).
 
 ## Verified on localnet (arcium localnet, cluster offset 0)
 
@@ -246,9 +245,9 @@ was upgraded to the current hardened build on 2026-10-03** (deploy sig
 `47YrrQWKmUBc71LzF3xCcVKR5rSHaKawugBgRHx49tg8Rskt4DHSeZZCDDQtZAM6ovjVMsTSpAS7zjs41KDiWMTw`;
 `scripts/verify-deployed.sh` dumps the on-chain ELF and confirms sha256
 `039639b7…` == `target/deploy/sealed.so` — byte-identical, not just "deployed").
-The market program redeploy is in flight through the same congestion; until it
-lands, `verify-deployed.sh` reports it STALE — the honest state, checkable
-by anyone. The one honest
+The market program followed 2026-10-04 (sig `Tpm5oyQd…`, sha256 `f0e42061…`
+== `target/deploy/market.so`) — `verify-deployed.sh` reports MATCH for both,
+checkable by anyone. The one honest
 caveat: at submission time the shared Arcium devnet cluster (offset 456)
 finalizes computations but is not submitting their callback transactions
 (`callbackTransactionsSubmittedBm=0` on computation accounts

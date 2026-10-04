@@ -5,7 +5,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export ARCIUM_CLUSTER_OFFSET=456 SEALED_CLUSTER_OFFSET=456
-export ANCHOR_PROVIDER_URL=https://api.devnet.solana.com
+export ANCHOR_PROVIDER_URL="${SEALED_RPC_URL:-https://api.devnet.solana.com}"
 export NODE_NO_WARNINGS=1
 BANK="${1:-$HOME/sealed-data/bank-7.json}"
 # The reset path needs the numeric id — read it from the bank file itself so a

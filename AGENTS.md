@@ -94,12 +94,12 @@ parimutuel markets resolved from `Run.correct`.
 - Accounts created under the pre-upgrade layout (e.g. bank 99004) are
   Borsh-EOF bricked — mint fresh banks on the new binaries; there is no
   migration ix.
-- Devnet binaries: sealed UPGRADED 2026-10-03 — `solana program dump` +
-  sha256 proves deployed ELF == `target/deploy/sealed.so`
-  (`039639b7…`, sig `47YrrQWK…`). Market still runs the pre-F1 build
-  (`271eYBWM…` 2026-09-25) — its redeploy grinds through write congestion.
-  `scripts/verify-deployed.sh` reports per-program MATCH/STALE and is the
-  source of truth. CONGESTION
+- Devnet binaries: BOTH upgraded and byte-verified — sealed 2026-10-03
+  (`039639b7…`, sig `47YrrQWK…`), market 2026-10-04 (`f0e42061…`, sig
+  `Tpm5oyQd…`, landed via dedicated RPC after hours of public-endpoint
+  congestion — `SEALED_RPC_URL` overrides the endpoint in the retry
+  scripts). `scripts/verify-deployed.sh` reports per-program MATCH/STALE
+  and is the source of truth. CONGESTION
   GOTCHA: every failed/aborted `program deploy` strands a funded buffer
   account (~5.3 SOL for sealed.so) — `solana program show --buffers`
   lists them and `solana program close <buf>` reclaims the rent
@@ -113,10 +113,10 @@ parimutuel markets resolved from `Run.correct`.
 - `scripts/verify-deployed.sh [cluster]` dumps each program's on-chain ELF
   (`solana program dump` returns raw ELF — compare it DIRECTLY, no 45-byte
   programdata header) and sha256-compares against `target/deploy/*.so`.
-  It is the source of truth for "is devnet running THIS build" — sealed
-  MATCHes (upgraded 2026-10-03); market reports STALE while its redeploy
-  grinds through congestion (`scripts/deploy-market-retry.sh` loops it —
-  run detached with setsid or the wsl -d teardown kills it).
+  It is the source of truth for "is devnet running THIS build" — BOTH
+  MATCH (sealed 2026-10-03, market 2026-10-04). If a rebuild ever needs
+  redeploy: `scripts/deploy-market-retry.sh` loops it — run detached with
+  setsid or the wsl -d teardown kills it.
 
 ## Gotchas
 

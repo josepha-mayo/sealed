@@ -7,7 +7,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export ARCIUM_CLUSTER_OFFSET=456 SEALED_CLUSTER_OFFSET=456
-export ANCHOR_PROVIDER_URL=https://api.devnet.solana.com
+export ANCHOR_PROVIDER_URL="${SEALED_RPC_URL:-https://api.devnet.solana.com}"
 export NODE_NO_WARNINGS=1
 ID="${1:-1007}"
 CHUNKS="${2:-1}"
