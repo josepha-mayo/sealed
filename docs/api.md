@@ -61,6 +61,13 @@ pass / 1 fail / 2 no evidence — with the Wilson lower bound so
 small-sample records can't flatter a gate. Same evaluation runs
 in-page in the hosted explorer.
 
+`chain market positions [--bettor kp.json] [--json]` — the bettor-side
+mirror: every position the wallet holds across bands/duels/ladders/darks,
+classified PAYS / REFUND / LIVE / SEALED / RENT / FORFEIT with est.
+pro-rata payouts (same fee math the claim ixes recompute on-chain).
+Claim commands prefilled — except darks, where `pos_salt` is a PDA seed
+only the bettor knows.
+
 `chain market sweep [--bettor kp.json]` runs the board then EXECUTES every
 permissionless action on it — bounty claims (the pot pays the winning
 run's operator, not the sweeper), `resolve`, `resolve_ladder`,

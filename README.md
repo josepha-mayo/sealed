@@ -240,6 +240,7 @@ sealed chain status --benchmark <pubkey>                             # leaderboa
 
 sealed chain market board   [--json]                                # keeper surface: claimable bounties, resolvable/tallyable/sweepable venues
 sealed chain market sweep                                           # executes every permissionless action the board lists
+sealed chain market positions [--bettor kp.json]                    # your book: payable/refundable/live positions + est. payouts
 sealed chain market open    --run <pubkey> --threshold 55            # binary: "score >= 55?"
 sealed chain market open    --run <pubkey> --edges 40,55 --salt 1    # 3-way score bands, 2nd market
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts

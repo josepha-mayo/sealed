@@ -167,6 +167,7 @@ async function main() {
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
   sealed chain market board   [--json]                                     keeper surface: claimable bounties, resolvable + sweepable venues
   sealed chain market sweep   [--bettor kp.json]                           execute every permissionless action the board lists
+  sealed chain market positions [--bettor kp.json] [--json]                your book: payable/refundable/live positions across all venues
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)
   sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]         head-to-head: does A outscore B? (A/B/tie)
