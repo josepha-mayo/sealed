@@ -13,13 +13,14 @@ deadline.
   would be, `items_root` commitment over the ciphertext.
 - 15s: `scripts/dark.sh` tail — a market that filled while positions AND
   the exam were both sealed, settled by MPC.
-- 20s: numbers — 473 MPC-scored runs, 325 venues posted (199 band/duel +
-  46 ladders + 45 dark + 35 bounties), 6 settlement primitives, 17/17 E2E
+- 20s: numbers — 503 MPC-scored runs, 340 venues posted (208 band/duel +
+  48 ladders + 47 dark + 37 bounties), 6 settlement primitives, 17/17 E2E
   on a real MPC localnet; a real qwen2.5-3b claimed a live SOL bounty via
   MPC proof; gpt-oss-20b scored 64/64 on a bank whose key never existed,
   and 32/32 on an exam it could only read through on-chain grants; the
   capability registry now keeps persistent per-model score records.
-- Close: "Repo goes public this week; demo video's already live."
+- Close: "Repo's public now — github.com/josepha-mayo/sealed — and the
+  live explorer audits the whole ledger in your browser."
 
 ## Update 2 — "why confidential AI needs this" (post after repo is public)
 

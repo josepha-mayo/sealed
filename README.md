@@ -73,7 +73,7 @@ flowchart LR
   RUN -->|record_score: permissionless enroll| REG[model capability records]
 ```
 
-The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Six primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal, capability bounty. A `record_score` instruction then folds any finalized run into a persistent `ModelRecord` — a per-model cumulative artifact keyed by `sha256(model_id)` — with a `ScoreLog` receipt PDA making each run countable exactly once. Anyone can enroll a finalized run; the aggregate is what a leaderboard was supposed to be, minus the operator.
+The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Six primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal, capability bounty. A `record_score` instruction then folds any finalized run into a persistent `ModelRecord` — a per-model cumulative artifact keyed by `sha256(model_id)` — with a `ScoreLog` receipt PDA making each run countable exactly once. Anyone can enroll a finalized run; the aggregate is what a leaderboard was supposed to be, minus the operator. [docs/integrate.md](docs/integrate.md) is the consumer guide — the owner+discriminator gate, the `post_reveal` tail-read, the honesty flags a resolver must respect, and the PDA seeds for `Run`/`ScoreLog`/`ModelRecord`, so a third-party venue composes on `Run.correct` with no CPI and no trust in us.
 
 Per-account detail:
 
@@ -276,7 +276,7 @@ Chain commands read `ANCHOR_PROVIDER_URL`, `ANCHOR_WALLET` and `SEALED_CLUSTER_O
 
 Model calls go through any OpenAI-compatible endpoint (`SEALED_API_BASE`, `SEALED_API_KEY`; defaults to OpenRouter).
 
-Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (instruction/circuit reference) · [circuits.md](docs/circuits.md) (line-by-line Arcis review guide) · [threat-model.md](docs/threat-model.md) (findings + residual assumptions) · [costs.md](docs/costs.md) (measured per-instruction CU table) · [evidence/](docs/evidence/README.md) (snapshot + proof files) · [mainnet.md](docs/mainnet.md) (deploy runbook)
+Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (instruction/circuit reference) · [circuits.md](docs/circuits.md) (line-by-line Arcis review guide) · [threat-model.md](docs/threat-model.md) (findings + residual assumptions) · [costs.md](docs/costs.md) (measured per-instruction CU table) · [integrate.md](docs/integrate.md) (compose on `Run.correct` + the capability registry — account layouts, PDAs, honesty flags) · [evidence/](docs/evidence/README.md) (snapshot + proof files) · [mainnet.md](docs/mainnet.md) (deploy runbook)
 
 ## Status
 

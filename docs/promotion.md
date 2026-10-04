@@ -1,7 +1,8 @@
 # Promotion drafts
 
-Copy-paste material for build-in-public + Arcium outreach. Replace the
-hosted-URL placeholder once Pages is live.
+Copy-paste material for build-in-public + Arcium outreach. The hosted
+explorer is live at https://josepha-mayo.github.io/sealed/ (GitHub Pages,
+auto-deployed on every push).
 
 ## X / Twitter thread (build in public)
 
@@ -37,15 +38,14 @@ Run.correct — no oracle multisig:
 Plus a non-parimutuel primitive — capability bounties: a sponsor escrows
 SOL on "first MPC-proven run ≥ threshold", pot pays the winning run's
 operator.
-- dark commit-reveal: your side is a sha256 commitment until reveal
 
 5/ The security story is adversarial-reviewed: JIT-commit attacks,
 landing-window expiry, committed-settle semantics, strict ordered leg
 accounts. Every edge has a regression test.
 
-Evidence: 153 MPC-scored runs, 118 market+bounty venues posted, 73
-resolutions re-verified by the offline audit — every artifact and Merkle
-proof in the repo, replayable bit-for-bit.
+Evidence: 503 MPC-scored runs, 340 market+bounty venues across six
+primitives, 200+ resolutions re-verified by the offline audit — every
+artifact and Merkle proof in the repo, replayable bit-for-bit.
 
 6/ Headline run: gpt-oss-20b scored 64/64 on a bank minted inside MPC —
 no answer key ever existed outside the enclave. A stale-artifact cheat
@@ -67,11 +67,11 @@ Built for @colosseum Crypto World's Fair on @arcium.
 > markets resolve directly from the Run accounts your nodes finalize —
 > no oracle. Also shipped a novel K-way "ladder race" market primitive on
 > top (argmax + dead-heat mask), which lines up with the novel-mechanisms
-> ask. 153 MPC-finalized runs on localnet; devnet deployment is live but
-> the shared cluster's callback outage is blocking flows — flagging in
-> case it helps: sealed `3a9Cgven…` (2026-09-22), market `271eYBWM…`
-(2026-09-25). Would love a pointer if there's a
-> recommended workaround or a mainnet-cluster path for the demo.
+> ask. 503 MPC-finalized runs on localnet; devnet deployment is live and
+> byte-verified (scripts/verify-deployed.sh sha256-compares the on-chain
+> ELF to the repo build) but the shared cluster's callback outage is
+> blocking flows — flagging in case it helps. Would love a pointer if
+> there's a recommended workaround or a mainnet-cluster path for the demo.
 
 ## Colosseum forum post (if a project channel exists)
 

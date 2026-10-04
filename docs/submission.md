@@ -9,15 +9,18 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 506451728, authority `4RUW4pDm…` |
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder + dark commit-reveal support; upgradeable under `4RUW4pDm…` |
 
-**Deploy state:** the deployed devnet binaries (sealed `3a9Cgven…`
-2026-09-22, market `271eYBWM…` 2026-09-25 — `solana -u devnet program show
-<id>` reports the deploy slots) predate this week's hardening: current source
-additionally carries `post_reveal` reveal-burn stamping, `unbrick_pda` grief
-reclaim, `DeadlineTooFar` labeling, `BountyExpired.refunded_lamports`, and the
+**Deploy state:** sealed was upgraded to the hardened build on 2026-10-03 —
+`scripts/verify-deployed.sh` dumps the on-chain ELF and shows it
+sha256-matches `target/deploy/sealed.so` (byte-identical, not just
+"deployed"). The market binary on devnet (`271eYBWM…` 2026-09-25) still
+predates this week's hardening: current source additionally carries
+`post_reveal` reveal-burn stamping, `unbrick_pda` grief reclaim,
+`DeadlineTooFar` labeling, `BountyExpired.refunded_lamports`, and the
 empty-pool `expire_dark` fast-path — all verified end-to-end on localnet.
-Both programs are upgradeable and the redeploy is queued behind devnet write
-congestion (retry loop armed, funded). The remaining devnet caveat is the
-Arcium callback outage (below).
+The market redeploy is grinding through devnet write congestion (retry
+loop armed, funded, `scripts/deploy-market-retry.sh`); until it lands
+`verify-deployed.sh` reports it STALE — the honest state. The remaining
+devnet caveat is the Arcium callback outage (below).
 
 ## Verified on localnet (arcium localnet, cluster offset 0)
 

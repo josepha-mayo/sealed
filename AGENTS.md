@@ -113,8 +113,10 @@ parimutuel markets resolved from `Run.correct`.
 - `scripts/verify-deployed.sh [cluster]` dumps each program's on-chain ELF
   (`solana program dump` returns raw ELF — compare it DIRECTLY, no 45-byte
   programdata header) and sha256-compares against `target/deploy/*.so`.
-  It is the source of truth for "is devnet running THIS build" — currently
-  reports both programs STALE while the redeploy grinds through congestion.
+  It is the source of truth for "is devnet running THIS build" — sealed
+  MATCHes (upgraded 2026-10-03); market reports STALE while its redeploy
+  grinds through congestion (`scripts/deploy-market-retry.sh` loops it —
+  run detached with setsid or the wsl -d teardown kills it).
 
 ## Gotchas
 

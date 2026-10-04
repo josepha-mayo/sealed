@@ -1,0 +1,103 @@
+# Compose on Sealed
+
+Sealed's scored outputs are permissionless read surfaces — no CPI, no
+permission, no vendor key. Any program, client, or market resolves against
+`Run.correct` and the capability registry the same way the bundled `market`
+program does. This document is the byte-accurate consumer guide; the market
+program (`programs/market/src/lib.rs`) is the reference implementation.
+
+## The three read surfaces
+
+| Account | PDA seeds | What a consumer gets |
+| --- | --- | --- |
+| `Run` (sealed) | `[b"run", benchmark, run_index.to_le_bytes()]` | `correct`, `status`, `scored_mask`/`pending_mask`, `outputs_root`, `attested`, `post_reveal` |
+| `ScoreLog` (sealed) | `[b"scorelog", run]` | one enrollment receipt per run — `correct`, `items`, `vouched_at_record`, `post_reveal` |
+| `ModelRecord` (sealed) | `[b"modelrec", sha256(model_id)]` | aggregate per-`model_id`: `runs_scored`, `total_correct`, `total_items`, `best_*` |
+
+The IDLs are committed at `target/idl/sealed.json` and `target/idl/market.json`.
+
+## On-chain: the `load_run` pattern
+
+A consumer program never trusts account identity — it checks **owner +
+discriminator**, then deserializes a mirror struct. This is verbatim the
+market program's gate:
+
+```rust
+pub const SEALED_PROGRAM: Pubkey =
+    pubkey!("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
+pub const RUN_DISC: [u8; 8] = [0xc7, 0x36, 0x9b, 0x56, 0xeb, 0x73, 0xf6, 0xbd];
+
+fn load_run(info: &AccountInfo) -> Result<Run> {
+    require!(info.owner == &SEALED_PROGRAM, ErrorCode::WrongRun);
+    let data = info.try_borrow_data()?;
+    require!(data.len() > 8 && data[..8] == RUN_DISC, ErrorCode::WrongRun);
+    Run::try_deserialize_unchecked(&mut &data[..])
+}
+```
+
+The mirror `Run` struct must be byte-identical through `all_queued_at` —
+`sealed` appends `post_reveal: u8` as a **tail byte** past the mirror's end,
+read by fixed offset:
+
+```rust
+// disc8 + 176B fixed + u32 len + model_id + 41B tail + post_reveal1
+fn run_post_reveal(info: &AccountInfo) -> Result<bool> {
+    let data = info.try_borrow_data()?;
+    if data.len() < 188 { return Ok(false); }           // pre-upgrade: clean
+    let ml = u32::from_le_bytes(data[184..188].try_into().unwrap()) as usize;
+    Ok(data.get(229 + ml).copied().unwrap_or(0) != 0)
+}
+```
+
+`load_benchmark` reads `Benchmark` the same way — every field a resolver
+needs (`status@45`, `chunk_count@46`, `kind@106`) precedes the
+variable-length `name`, so layout growth never bricks the reader.
+
+## Off-chain: TypeScript
+
+```ts
+import { PublicKey } from "@solana/web3.js";
+import { createHash } from "crypto";
+
+const SEALED = new PublicKey("FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ");
+
+// capability registry: aggregate MPC-scored record for any claimed model_id
+const [modelRecord] = PublicKey.findProgramAddressSync(
+  [Buffer.from("modelrec"), createHash("sha256").update(modelId).digest()],
+  SEALED
+);
+// per-run receipt the registry aggregates
+const [scoreLog] = PublicKey.findProgramAddressSync(
+  [Buffer.from("scorelog"), runPk.toBuffer()], SEALED
+);
+```
+
+The browser explorer (`explorer/index.html`) does exactly this — reads any
+RPC, verifies Merkle proofs against `Run.outputs_root` in-browser, zero
+trust in the host.
+
+## The honesty contract a consumer must respect
+
+`Run.correct` is only as meaningful as the flags beside it. Consumers that
+ignore these are reimplementing the failure modes Sealed exists to prevent:
+
+- **`status`** — a still-scoring run's `correct` is a partial. Settle only
+  on a *fair settle value*: finalized, or fully committed (`ever_queued_mask`
+  complete) past its expiry horizon. An uncommitted stall is a chosen
+  truncation — refund, don't settle.
+- **`post_reveal`** — a run created after `reveal_part` declassified a
+  fingerprint on its bank could commit to now-public scoring targets.
+  Markets refuse to open on flagged runs; consumers should too.
+- **`attested` / `vouched_at_record`** — the benchmark authority's venue
+  verification, snapshotted at record time. Weight it to separate
+  venue-verified evidence from self-report — `model_id` is a *claim*.
+- **`ScoreLog.post_reveal`** — the same flag at enrollment time; later
+  reveals show as later events, never retroactive contamination.
+
+## What a consumer never gets
+
+The answer key. `items_root`/`outputs_root` are Merkle commitments — the
+plaintext fingerprints live inside the MXE cluster's sealed state and are
+scored there. Composing on the *result* is free; learning the *truth* early
+is cryptographically priced out. That's the primitive everything else
+builds on.

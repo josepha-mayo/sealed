@@ -88,7 +88,12 @@ need to prove a score without publishing a benchmark that instantly
 contaminates — sealed-eval-as-a-service; (3) model providers and judges who
 receive the exam through selective disclosure — they can be scored on
 questions that were never public while the answer key remains cluster-sealed.
-Adjacent: insurers, auditors, and DAOs pricing AI capability risk.
+Adjacent: insurers, auditors, and DAOs pricing AI capability risk. The
+demand side is proven: prediction venues cleared ~$63.5B notional in 2025
+(4x YoY; Kalshi ~$11B and Polymarket ~$9B+ICE's $2B) — and AI-category
+markets already trade, all of them resolving on truth a human holds. The
+eval supply side is ~$1.2B (2024) growing toward ~$9.7B by 2033 — labs
+pay for scores they still cannot prove. Sealed is where both converge.
 
 ## businessModel
 
@@ -97,7 +102,9 @@ Per-run fees paid to the benchmark authority are live on-chain today
 (`fee_bps` at resolution, `claim_fee`). The durable business is
 sealed-evaluation infrastructure: fresh private banks minted on demand
 (no key custody to sell), delegated scoring runs for labs and judges,
-and the settlement layer every "AI capability" market resolves against.
+and the settlement layer every "AI capability" market resolves against —
+prediction venues cleared ~$63.5B notional in 2025, all of it settled on
+human-held truth.
 Six primitives ship: run duels, K-way ladder races (argmax, dead-heat
 pro-rata), unseen-exam markets (the priced event is itself confidential),
 dark commit-reveal markets (sha256-sealed sides, no-shows forfeit),
