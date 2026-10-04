@@ -100,6 +100,9 @@ count, and unshared-coverage reporting. Disjoint coverage exits 2 — an
 honest "the registry can't rank them" instead of an aggregate lie.
 `chain banks` indexes every benchmark (kind, items, runs, best score) —
 the pk list `status`/`compare` need without the explorer.
+`chain compare --all` tallies every model×model pair's shared-bank
+result into a W-L-T leaderboard — rankings grounded on shared evidence
+only, with disjoint pairs reported as unranked rather than assumed.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `status`, `banks`, `verify`,

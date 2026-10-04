@@ -458,3 +458,26 @@ test("chain compare joins receipts by benchmark — paired verdict, honest disjo
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("chain compare --all ranks on shared evidence only — disjoint pairs stay unranked", async () => {
+  const { compareAll } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  let ranked: any;
+  try { ranked = await compareAll(true, snapPath); } finally { console.log = origLog; }
+  assert.equal(ranked.length, 31);
+  // dark/model-a and ladder/model-a tie each other and beat all 8 rankable
+  // opponents — they top the table on shared evidence, not on aggregate.
+  const top = ranked.slice(0, 2).map((r: any) => r.modelId).sort();
+  assert.deepEqual(top, ["dark/model-a", "ladder/model-a"]);
+  assert.equal(ranked[0].wins, 8);
+  // The aggregate leader (test/sweep-run, 100%) drops — its runs share
+  // banks with few others, so paired evidence can't crown it.
+  const sweep = ranked.find((r: any) => r.modelId === "test/sweep-run");
+  assert.ok(sweep.wins < 8);
+  // qwen family ordering is recovered from shared banks alone.
+  const ix = (id: string) => ranked.findIndex((r: any) => r.modelId === id);
+  assert.ok(ix("qwen2.5-3b-instruct") < ix("qwen2.5-1.5b-instruct"));
+  assert.ok(ix("qwen2.5-1.5b-instruct") < ix("qwen2.5-0.5b-instruct"));
+});
+

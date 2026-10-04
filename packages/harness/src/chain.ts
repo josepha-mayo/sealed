@@ -1828,6 +1828,60 @@ export async function modelCompare(keyA: string, keyB: string, json = false, sna
   return out;
 }
 
+/** `chain compare --all [--json]` — the paired-evidence leaderboard: every
+ *  model×model pair's shared-bank result tallied into a win table. Aggregate
+ *  accuracy ranks models that never faced the same exam; this ranks them on
+ *  what they actually shared — and says how much of the ranking is grounded
+ *  (pairs with zero shared banks count as unranked, not assumed). */
+export async function compareAll(json = false, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [records, logs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all()]);
+  // per record: bank → {correct, items}
+  const byBank = new Map<string, Map<string, { correct: number; items: number }>>();
+  for (const l of logs) {
+    const rec = (l.account.modelRecord as PublicKey).toBase58();
+    const k = (l.account.benchmark as PublicKey).toBase58();
+    const m = byBank.get(rec) ?? new Map<string, { correct: number; items: number }>();
+    const e = m.get(k) ?? { correct: 0, items: 0 };
+    e.correct += Number(l.account.correct); e.items += Number(l.account.items);
+    m.set(k, e);
+    byBank.set(rec, m);
+  }
+  const recs = records.map((r) => ({
+    pk: r.publicKey.toBase58(), modelId: r.account.modelId as string,
+    banks: byBank.get(r.publicKey.toBase58())?.size ?? 0,
+    wins: 0, losses: 0, ties: 0, rankedPairs: 0, sharedBanks: 0, ppDelta: 0,
+  }));
+  let unranked = 0;
+  for (let i = 0; i < recs.length; i++) for (let j = i + 1; j < recs.length; j++) {
+    const a = byBank.get(recs[i].pk) ?? new Map(), b = byBank.get(recs[j].pk) ?? new Map();
+    const shared = [...a.keys()].filter((k) => b.has(k));
+    if (!shared.length) { unranked++; continue; }
+    const pa = shared.reduce((s, k) => s + a.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k)!.items, 0));
+    const pb = shared.reduce((s, k) => s + b.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k)!.items, 0));
+    recs[i].rankedPairs++; recs[j].rankedPairs++;
+    recs[i].sharedBanks += shared.length; recs[j].sharedBanks += shared.length;
+    const d = 100 * (pa - pb);
+    recs[i].ppDelta += d; recs[j].ppDelta -= d;
+    if (pa > pb) { recs[i].wins++; recs[j].losses++; }
+    else if (pa < pb) { recs[j].wins++; recs[i].losses++; }
+    else { recs[i].ties++; recs[j].ties++; }
+  }
+  const ranked = recs.sort((x, y) => y.wins - x.wins || x.losses - y.losses || y.ppDelta - x.ppDelta);
+  const total = (recs.length * (recs.length - 1)) / 2;
+  if (json) { console.log(JSON.stringify({ ranked, unrankedPairs: unranked, totalPairs: total })); return ranked; }
+  console.log(`paired-evidence leaderboard — ${recs.length} models, ${total} pairs ` +
+    `(${total - unranked} rankable, ${unranked} disjoint)`);
+  for (const r of ranked)
+    console.log(`  ${r.modelId.padEnd(28)} W${String(r.wins).padStart(2)}-L${String(r.losses).padStart(2)}-T${String(r.ties).padStart(2)}` +
+      `  ΣΔ${r.ppDelta >= 0 ? "+" : ""}${r.ppDelta.toFixed(0)}pp  over ${r.sharedBanks} shared-bank result(s)`);
+  console.log(`ranking grounded on shared benchmarks only — ${unranked} pair(s) had none and count as unranked`);
+  return ranked;
+}
+
 /** `chain gate --all <policy>` — the gate as a leaderboard filter: run the
  *  same admission policy over EVERY ModelRecord's receipts and report who
  *  clears it. "Which models provably clear ≥80% with ≥10 vouched runs?"
@@ -2368,8 +2422,12 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "compare") {
+    if (cmd[1] === "--all" || args.all) {
+      await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
     const a = cmd[1], b = cmd[2];
-    if (!a || !b) throw new Error("usage: chain compare <model_id|record-pk> <model_id|record-pk> [--json] [--snapshot f]");
+    if (!a || !b) throw new Error("usage: chain compare <model_id|record-pk> <model_id|record-pk> [--all] [--json] [--snapshot f]");
     await modelCompare(String(a), String(b), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }

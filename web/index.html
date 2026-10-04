@@ -808,6 +808,39 @@ function renderAll(sealedAccs, marketAccs) {
       <select id="cmpB">${recs.map((m, i) => `<option value="${m.pk}"${i === 1 ? " selected" : ""}>${esc(m.modelId)}</option>`).join("")}</select>
       <button onclick="runCompare()">compare</button>
       <div id="cmpOut" class="kv" style="margin-top:6px"></div></div>`;
+
+    // Paired-evidence leaderboard — `chain compare --all` in-page: every
+    // model×model pair scored on shared banks only. Disjoint pairs are
+    // unranked, not assumed — the honest answer to "who's actually best?"
+    const byBank = new Map();
+    for (const l of scoreLogs) {
+      const m = byBank.get(l.modelRecord) ?? new Map();
+      const e = m.get(l.benchmark) ?? { correct: 0, items: 0 };
+      e.correct += l.correct; e.items += l.items;
+      m.set(l.benchmark, e);
+      byBank.set(l.modelRecord, m);
+    }
+    const table = recs.map(m => ({ id: m.modelId, w: 0, l: 0, t: 0, pp: 0, shared: 0 }));
+    const ix = new Map(recs.map((m, i) => [m.pk, i]));
+    let unranked = 0;
+    for (let i = 0; i < recs.length; i++) for (let j = i + 1; j < recs.length; j++) {
+      const a = byBank.get(recs[i].pk) ?? new Map(), b = byBank.get(recs[j].pk) ?? new Map();
+      const shared = [...a.keys()].filter(k => b.has(k));
+      if (!shared.length) { unranked++; continue; }
+      const pa = shared.reduce((s, k) => s + a.get(k).correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k).items, 0));
+      const pb = shared.reduce((s, k) => s + b.get(k).correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k).items, 0));
+      const d = 100 * (pa - pb);
+      table[i].shared += shared.length; table[j].shared += shared.length;
+      table[i].pp += d; table[j].pp -= d;
+      if (pa > pb) { table[i].w++; table[j].l++; } else if (pa < pb) { table[j].w++; table[i].l++; } else { table[i].t++; table[j].t++; }
+    }
+    const ranked = [...table].sort((x, y) => y.w - x.w || x.l - y.l || y.pp - x.pp);
+    const totalPairs = recs.length * (recs.length - 1) / 2;
+    h += `<div class="card"><b>paired-evidence leaderboard</b> — <span class="kv">W-L-T over shared benchmarks only (<span class="mono">chain compare --all</span>): ${totalPairs - unranked}/${totalPairs} pairs rankable, <b>${unranked} disjoint — an aggregate table would still rank them</b></span>
+      <table style="margin-top:6px"><tr><th>#</th><th>model</th><th>W–L–T</th><th>ΣΔpp</th><th>shared-bank results</th></tr>` +
+      ranked.map((r, i) => `<tr><td>${i + 1}</td><td class="mono">${esc(r.id)}</td>` +
+        `<td class="score">${r.w}–${r.l}–${r.t}</td><td class="score">${r.pp >= 0 ? "+" : ""}${r.pp.toFixed(0)}</td><td>${r.shared}</td></tr>`).join("") +
+      `</table></div>`;
   }
 
   // ---- head-to-head: pairwise model records derived from resolved duels
