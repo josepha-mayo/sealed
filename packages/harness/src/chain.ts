@@ -50,6 +50,7 @@ import {
 import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
 import { evalGate, type GatePolicy, type GateVerdict, type ScoreReceipt } from "./gate.js";
+import { classifyBoard } from "./board.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -1667,6 +1668,83 @@ export async function gateModelRecord(
   return verdict;
 }
 
+/** `chain market board [--json]` — the keeper + discovery surface: scan the
+ *  ledger's venues and report what a permissionless actor can do RIGHT NOW:
+ *  claimable bounties (a qualifying run already finalized), resolvable
+ *  markets/ladders, and expired venues awaiting the sweeps. Read-only. */
+export async function marketBoard(json = false) {
+  const { market } = marketProgram();
+  const { program } = sealedProgram();
+  const mAcct = market.account as any;
+  const [bounties, markets, darks, ladders, runs] = await Promise.all([
+    mAcct.bounty.all(), mAcct.market.all(), mAcct.darkMarket.all(),
+    mAcct.ladder.all(), (program.account as any).run.all(),
+  ]);
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const now = Math.floor(Date.now() / 1000);
+  const board = classifyBoard({
+    bounties: bounties.map((x: any) => ({
+      pubkey: x.publicKey.toBase58(), sponsor: x.account.sponsor.toBase58(),
+      bank: x.account.bank.toBase58(), status: x.account.status,
+      threshold: num(x.account.threshold), amount: num(x.account.amount),
+      createdAt: num(x.account.createdAt), deadline: num(x.account.deadline),
+      winnerRun: x.account.winnerRun?.toBase58(), winningScore: num(x.account.winningScore),
+    })),
+    markets: [
+      ...markets.map((x: any) => ({
+        pubkey: x.publicKey.toBase58(), kind: isDuel(x.account) ? "duel" as const : "band" as const,
+        status: x.account.status, run: x.account.run.toBase58(), runB: x.account.runB?.toBase58(),
+        resolveBy: num(x.account.resolveBy),
+      })),
+      ...darks.map((x: any) => ({
+        pubkey: x.publicKey.toBase58(), kind: "dark" as const, status: x.account.status,
+        run: x.account.run.toBase58(), resolveBy: num(x.account.resolveBy),
+        revealUntil: num(x.account.revealUntil), tallied: !!x.account.tallied,
+      })),
+    ],
+    ladders: ladders.map((x: any) => ({
+      pubkey: x.publicKey.toBase58(), status: x.account.status,
+      legs: (x.account.legs as PublicKey[]).slice(0, x.account.legCount).map((p) => p.toBase58()),
+      resolveBy: num(x.account.resolveBy),
+    })),
+    runs: runs.map((x: any) => ({
+      pubkey: x.publicKey.toBase58(), benchmark: x.account.benchmark.toBase58(),
+      runner: x.account.runner.toBase58(), status: x.account.status,
+      correct: num(x.account.correct), createdAt: num(x.account.createdAt),
+      firstPendingAt: num(x.account.firstPendingAt),
+      allQueuedAt: num(x.account.allQueuedAt),
+      scoredMask: x.account.scoredMask.toString(),
+      postReveal: x.account.postReveal,
+    })),
+  }, now);
+
+  if (json) { console.log(JSON.stringify(board)); return board; }
+  const sol = (l: number) => (l / LAMPORTS_PER_SOL).toFixed(3);
+  console.log(`venue board — ${bounties.length} bounties, ${markets.length} markets, ${darks.length} dark, ${ladders.length} ladders over ${runs.length} runs`);
+  if (board.claimable.length) {
+    console.log(`\nCLAIMABLE NOW — qualifying run already finalized:`);
+    for (const b of board.claimable)
+      console.log(`  bounty ${b.pubkey} ≥${b.threshold} pot=${sol(b.amount)} SOL → ${b.qualifyingRun} scored ${b.qualifyingScore}\n` +
+        `    sealed chain market bounty claim --bounty ${b.pubkey} --run ${b.qualifyingRun}`);
+  }
+  if (board.resolvable.length || board.resolvableLadders.length) {
+    console.log(`\nRESOLVABLE — run finalized / no leg still moving:`);
+    for (const m of board.resolvable) console.log(`  ${m.kind} ${m.pubkey} → sealed chain market ${m.kind === "dark" ? "dark " : ""}resolve --market ${m.pubkey}`);
+    for (const l of board.resolvableLadders) console.log(`  ladder ${l.pubkey} → sealed chain market ladder resolve --market ${l.pubkey}`);
+  }
+  if (board.tallyable.length) {
+    console.log(`\nTALLYABLE — reveal window closed, tally open:`);
+    for (const m of board.tallyable) console.log(`  dark ${m.pubkey} → sealed chain market dark finalize --market ${m.pubkey}`);
+  }
+  if (board.expiredBounties.length || board.expirable.length) {
+    console.log(`\nSWEEPABLE — past deadline (permissionless):`);
+    for (const b of board.expiredBounties) console.log(`  bounty ${b.pubkey} pot=${sol(b.amount)} SOL → sealed chain market bounty expire --bounty ${b.pubkey}`);
+    for (const m of board.expirable) console.log(`  ${m.kind} ${m.pubkey} (${m.expireOutcome}) → sealed chain market ${m.kind === "dark" ? "dark " : ""}expire --market ${m.pubkey}`);
+  }
+  console.log(`\nstill live: ${board.liveBounties.length} bounties, ${board.filling} venues in play, ${board.revealing} darks revealing — settled: ${board.settled} venues, ${board.claimedBounties} claimed bounties`);
+  return board;
+}
+
 export async function chainMain(cmd: string[], args: Args) {
   const loadJson = (p: string) => JSON.parse(readFileSync(p, "utf8"));
   const [sub] = cmd;
@@ -1860,7 +1938,9 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "market") {
     const [m0] = cmd.slice(1);
     const bettor = args.bettor as string | undefined;
-    if (m0 === "open") {
+    if (m0 === "board") {
+      await marketBoard(Boolean(args.json));
+    } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.
       const edges = args.edges ? String(args.edges).split(",").map(Number) : [Number(args.threshold)];

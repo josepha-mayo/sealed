@@ -118,6 +118,16 @@ checks[]}` for scripted policy. The evaluation is pure
 the same verdict runs against a live RPC or the explorer's committed
 snapshot, no trust in the caller's box.
 
+`chain market board` is the sibling read surface for venues: a pure
+classifier (`board.ts`) that turns the account set into a keeper
+inventory — claimable bounties (same `bounty_qualifies` gates the program
+enforces: bank match, retroactivity wall, runner ≠ sponsor, threshold,
+finalized-or-proven, not post-reveal), resolvable markets and ladders
+(the ladder gate is `!still_moving` per leg, not `resolve_by`), resolved
+darks awaiting `finalize_dark`, and sweepable expiries annotated
+settle-vs-refund. Third-party keepers don't need our binary — the table
+above is the whole read contract.
+
 ## What a consumer never gets
 
 The answer key. `items_root`/`outputs_root` are Merkle commitments — the

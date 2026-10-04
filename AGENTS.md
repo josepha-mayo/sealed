@@ -13,12 +13,12 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 13/13 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 16/16 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
-- `scripts/verify-all.sh` → one-command audit: offline verify + headless
-  browser audit + grant-decrypt regression + calibration rescore +
-  submission preflight.
+- `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
+  headless browser audit + grant-decrypt regression + calibration rescore
+  + evidence/web manifests + doc-count freshness + submission preflight.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
   --benchmark <pk> [--run-pubkey <pk>] [--snapshot web/snapshot.json]` →
   independent MPC-arithmetic verification: recomputes answerHash from

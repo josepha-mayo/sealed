@@ -301,3 +301,102 @@ test("capability gate: post-reveal exclusion + Wilson bound", async () => {
   assert.equal(evalGate(receipts, { minWilsonPct: 60, vouchedOnly: true }).pass, false);
   assert.equal(wilsonLowerBoundPct(0, 0), 0);
 });
+
+test("venue board: keeper classification over bounties, markets, ladders", async () => {
+  const { classifyBoard, HARD_CAP_SECS } = await import("../src/board.js");
+  const now = 1_000_000;
+  const run = (pk: string, over: Partial<any> = {}) => ({
+    pubkey: pk, benchmark: "bank1", runner: "runnerA", status: 1,
+    correct: 40, createdAt: now - 1000, firstPendingAt: 0, allQueuedAt: 0,
+    scoredMask: "0", postReveal: 0, ...over,
+  });
+  const rows = {
+    runs: [
+      run("runWin"),                                    // finalized — qualifies
+      // proven partial: pending but fully committed a full landing window
+      // ago with landed chunks — bounty_qualifies accepts it on-chain.
+      run("runPart", { status: 0, correct: 45, scoredMask: "3",
+        allQueuedAt: now - HARD_CAP_SECS - 10 }),
+      run("runRetro", { createdAt: now - 5000 }),       // predates bounty — no retro claim
+      run("runSelf", { runner: "sponsor1", correct: 60 }),// sponsor can't self-deal
+      run("runPR", { postReveal: 1, correct: 63 }),     // post-reveal doesn't count
+      run("runBand"), run("runDuelA"), run("runDuelB"),
+      run("leg1"), run("leg2"), run("leg3"),
+      run("runPending", { status: 0 }),                 // never queued — not moving
+      run("runMoving", { status: 0, firstPendingAt: now - 100 }),  // inside 24h queue window
+      run("runCommitted", { status: 0, scoredMask: "7", allQueuedAt: now - 100 }), // inside landing window
+    ],
+    bounties: [
+      { pubkey: "bClaim", sponsor: "sponsor1", bank: "bank1", status: 0, threshold: 40,
+        amount: 1e9, createdAt: now - 2000, deadline: now + 1000 },
+      { pubkey: "bSelf", sponsor: "sponsor1", bank: "bankX", status: 0, threshold: 10,
+        amount: 1e9, createdAt: now - 2000, deadline: now + 1000 },   // no runs on bankX → live
+      { pubkey: "bDead", sponsor: "sponsor1", bank: "bank1", status: 0, threshold: 99,
+        amount: 2e9, createdAt: now - 5000, deadline: now - 1 },      // expired → sweepable
+      { pubkey: "bWon", sponsor: "sponsor1", bank: "bank1", status: 1, threshold: 30,
+        amount: 0, createdAt: now - 5000, deadline: now + 1000 },     // claimed → count
+    ],
+    markets: [
+      { pubkey: "mBand", kind: "band" as const, status: 0, run: "runBand", resolveBy: now + 100 },
+      { pubkey: "mDuel", kind: "duel" as const, status: 0, run: "runDuelA", runB: "runDuelB", resolveBy: now + 100 },
+      { pubkey: "mDark", kind: "dark" as const, status: 0, run: "runBand", resolveBy: now + 100, tallied: false },
+      { pubkey: "mHalf", kind: "duel" as const, status: 0, run: "runDuelA", runB: "runPending", resolveBy: now + 100 },
+      { pubkey: "mDead", kind: "band" as const, status: 0, run: "runPending", resolveBy: now - 10 },
+      // proven-partial run past deadline → expire SETTLES, doesn't refund.
+      { pubkey: "mDeadSettle", kind: "band" as const, status: 0, run: "runPart", resolveBy: now - 10 },
+      // past resolve_by but the run is still inside its queue window —
+      // expire_decision Blocks (MarketResolvable): no action, not expirable.
+      { pubkey: "mMoving", kind: "band" as const, status: 0, run: "runMoving", resolveBy: now - 10 },
+      { pubkey: "mDuelMoving", kind: "duel" as const, status: 0, run: "runDuelA", runB: "runMoving", resolveBy: now - 10 },
+      // finalized AND past deadline → still resolvable (expire Blocks on it).
+      { pubkey: "mLate", kind: "band" as const, status: 0, run: "runBand", resolveBy: now - 10 },
+      { pubkey: "mSettled", kind: "band" as const, status: 1, run: "runBand", resolveBy: now - 100 },
+      { pubkey: "mDarkRevealing", kind: "dark" as const, status: 1, run: "runBand",
+        resolveBy: now - 100, revealUntil: now + 100, tallied: false },
+      { pubkey: "mDarkTally", kind: "dark" as const, status: 1, run: "runBand",
+        resolveBy: now - 100, revealUntil: now - 10, tallied: false },
+      { pubkey: "mDarkDone", kind: "dark" as const, status: 1, run: "runBand",
+        resolveBy: now - 100, revealUntil: now - 10, tallied: true },
+    ],
+    ladders: [
+      { pubkey: "ladDone", status: 0, legs: ["leg1", "leg2", "leg3"], resolveBy: now + 100 },
+      { pubkey: "ladWait", status: 0, legs: ["leg1", "runMoving"], resolveBy: now + 100 },
+      // The resolution gate is `!still_moving` per leg, NOT resolve_by —
+      // a never-queued leg forfeits at 0, so this resolves BEFORE deadline.
+      { pubkey: "ladEarly", status: 0, legs: ["leg1", "runPending"], resolveBy: now + 100 },
+      { pubkey: "ladCommitted", status: 0, legs: ["leg1", "runCommitted"], resolveBy: now + 100 },
+    ],
+  };
+  const b = classifyBoard(rows, now);
+
+  // Claimable: runPart outranks runWin (45 > 40) — a proven partial claims
+  // the same way a finalized run does; retro/self-deal/post-reveal refused.
+  assert.equal(b.claimable.length, 1);
+  assert.equal(b.claimable[0].pubkey, "bClaim");
+  assert.equal(b.claimable[0].qualifyingRun, "runPart");
+  assert.equal(b.claimable[0].qualifyingScore, 45);
+  assert.equal(b.liveBounties.length, 1);
+  assert.equal(b.expiredBounties.length, 1);
+  assert.equal(b.expiredBounties[0].pubkey, "bDead");
+  assert.equal(b.claimedBounties, 1);
+
+  // Resolvable: band + duel (both legs) + dark + the past-deadline-but-
+  // finalized band (resolve always lands on a finalized run).
+  assert.deepEqual(b.resolvable.map((m) => m.pubkey).sort(),
+    ["mBand", "mDark", "mDuel", "mLate"]);
+  // Expirable: never-queued (refunds) and proven-partial (settles) — the
+  // still-moving markets are NOT expirable even past resolve_by.
+  assert.equal(b.expirable.length, 2);
+  assert.equal(b.expirable.find((m) => m.pubkey === "mDead")?.expireOutcome, "refunds");
+  assert.equal(b.expirable.find((m) => m.pubkey === "mDeadSettle")?.expireOutcome, "settles");
+  // Darks: resolved+untallied past reveal_until is a finalize_dark target;
+  // inside the window it's a reveal in play.
+  assert.deepEqual(b.tallyable.map((m) => m.pubkey), ["mDarkTally"]);
+  assert.equal(b.revealing, 1);
+  // Ladders: all-finalized AND the never-started race both resolve now;
+  // a leg inside either landing window keeps the race filling.
+  assert.deepEqual(b.resolvableLadders.map((l) => l.pubkey).sort(),
+    ["ladDone", "ladEarly"]);
+  assert.equal(b.settled, 2);          // mSettled + tallied mDarkDone
+  assert.equal(b.filling, 5);          // mHalf, mMoving, mDuelMoving, ladWait, ladCommitted
+});

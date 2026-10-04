@@ -61,6 +61,16 @@ pass / 1 fail / 2 no evidence — with the Wilson lower bound so
 small-sample records can't flatter a gate. Same evaluation runs
 in-page in the hosted explorer.
 
+`chain market board [--json]` scans every venue account + run and reports
+the keeper inventory: bounties claimable *right now* (a qualifying run is
+already finalized-or-proven — the claim command prefilled), live and
+expired bounties awaiting `expire_bounty`, resolvable markets/ladders,
+resolved darks past `reveal_until` awaiting `finalize_dark`, and venues
+past `resolve_by` awaiting `expire` (annotated settle-vs-refund — the
+same `expire_decision` split the program makes). Read-only; the
+classification is pure (`packages/harness/src/board.ts`) and mirrors the
+on-chain `still_moving`/`proven`/`bounty_qualifies` gates exactly.
+
 ## `market` — four parimutuel primitives + capability bounties on `Run.correct`
 
 Every creator rejects runs that have begun scoring (`ScoringStarted`), runs
