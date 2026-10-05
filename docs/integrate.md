@@ -136,9 +136,16 @@ settle-vs-refund. Every read command also takes `--snapshot
 web/snapshot.json` — `packages/harness/src/snapshot.ts` decodes the
 committed bundle through the same discriminator-keyed layouts the RPC
 path uses, so `board`, `gate`, `history`, `records`, `status`,
-`banks`, `bank`, `stats`, `runs`, `feed`, `verify`, `trail`, `grants`, `reveals`, `market bounties`, `market venue`, `wallet`, and `market positions --viewer <pk>` replay **keyless,
-connection-free** (and a unit test pins the replay against the bundle's
-published counts). `chain stats` is the integrator's health probe: counts,
+`banks`, `bank`, `stats`, `runs`, `feed`, `verify`, `trail`, `grants`,
+`reveals`, `market bounties`, `market venue`, `market position`,
+`wallet`, `search`, `tour`, and `market positions --viewer <pk>` replay
+**keyless, connection-free** (and a unit test pins the replay against
+the bundle's published counts). `chain export --snapshot <f>` emits the
+same verdicts as a portable `sealed-evidence-digest/v1` JSON — diffable
+across deployments, CI-gateable via exit code; `chain diff <a> <b>`
+compares two bundles account-by-account (added/removed/mutated per
+type) so a judge can re-dump devnet and prove the committed bundle is
+intact inside it. `chain stats` is the integrator's health probe: counts,
 escrow, fees, and two recomputed verdicts — every `ModelRecord` aggregate
 replayed bit-exact from receipts, every resolved venue score checked
 against `Run.correct` — with exit 1 on a violation, so a pipeline can gate
