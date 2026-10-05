@@ -2611,6 +2611,89 @@ export async function marketOdds(pkStr: string | undefined, json = false, snapPa
   return out;
 }
 
+/** `chain market sentiment` — the stakes' opinion, aggregated per model.
+ *  `odds` shows one book; this pools every open funded venue into a
+ *  stake-weighted belief per model: duels/ladders contribute win
+ *  probability, bands contribute an implied expected score (Σ share ×
+ *  band midpoint). The paired-evidence leaderboard (`compare --all`)
+ *  says what the data PROVES; this says what the money EXPECTS — the
+ *  two columns side by side are the project's thesis. */
+export async function marketSentiment(json = false, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [markets, ladders]: Acct[][] =
+    sm ? ["Market", "Ladder"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "ladder"].map((n) => (mAcct() as any)[n].all()));
+  const runs: Acct[] = ss ? snapOf(ss, "Run") : await (sealedProgram().program.account as any).run.all();
+  const model = new Map(runs.map((r) => [r.publicKey.toBase58(), String(r.account.modelId)]));
+
+  type Row = { winStake: bigint; winShare: number; venues: Set<string>; scoreStake: bigint; scoreNum: number };
+  const acc = new Map<string, Row>();
+  const row = (m: string) => { if (!acc.has(m)) acc.set(m, { winStake: 0n, winShare: 0, venues: new Set(), scoreStake: 0n, scoreNum: 0 }); return acc.get(m)!; };
+  const addWin = (m: string | undefined, share: number, stake: bigint, venue: string) => {
+    if (!m) return; const r = row(m); r.winStake += stake; r.winShare += share * Number(stake); r.venues.add(venue);
+  };
+  const addScore = (m: string | undefined, expected: number, pool: bigint, venue: string) => {
+    if (!m) return; const r = row(m); r.scoreStake += pool; r.scoreNum += expected * Number(pool); r.venues.add(venue);
+  };
+
+  for (const m of markets) {
+    const M = m.account as any;
+    if (Number(M.status) !== 0) continue;
+    const n = Number(M.nOutcomes);
+    const totals = (M.totals as any[]).map((t) => BigInt(t.toString())).slice(0, n);
+    const pot = totals.reduce((s, t) => s + t, 0n);
+    if (!pot) continue;
+    const venue = m.publicKey.toBase58();
+    const duel = M.runB && !(M.runB as PublicKey).equals(PublicKey.default);
+    if (duel) {
+      const a = model.get((M.run as PublicKey).toBase58()), b = model.get((M.runB as PublicKey).toBase58());
+      // a model's duel win-expectation counts its own side + half the tie book
+      addWin(a, (Number(totals[0]) + Number(totals[2]) / 2) / Number(pot), pot, venue);
+      addWin(b, (Number(totals[1]) + Number(totals[2]) / 2) / Number(pot), pot, venue);
+    } else {
+      // band → implied expected score: Σ implied-share × band midpoint
+      // (top open bucket uses its lower edge — conservative)
+      const edges = (M.edges as any[]).map(Number);
+      let expected = 0;
+      for (let i = 0; i < n; i++) {
+        const lo = i === 0 ? 0 : edges[i - 1];
+        const hi = i === n - 1 ? null : edges[i];
+        const mid = hi === null ? lo : lo === 0 ? hi / 2 : (lo + hi - 1) / 2;
+        expected += (Number(totals[i]) / Number(pot)) * mid;
+      }
+      addScore(model.get((M.run as PublicKey).toBase58()), expected, pot, venue);
+    }
+  }
+  for (const l of ladders) {
+    const L = l.account as any;
+    if (Number(L.status) !== 0) continue;
+    const n = Number(L.legCount);
+    const totals = (L.totals as any[]).map((t) => BigInt(t.toString())).slice(0, n);
+    const pot = totals.reduce((s, t) => s + t, 0n);
+    if (!pot) continue;
+    const venue = l.publicKey.toBase58();
+    for (let i = 0; i < n; i++)
+      addWin(model.get((L.legs as PublicKey[])[i].toBase58()), Number(totals[i]) / Number(pot), pot, venue);
+  }
+
+  const rows = [...acc.entries()].map(([m, r]) => ({
+    model: m,
+    impliedWinPct: r.winStake > 0n ? Math.round((r.winShare / Number(r.winStake)) * 10000) / 100 : null,
+    impliedScore: r.scoreStake > 0n ? Math.round((r.scoreNum / Number(r.scoreStake)) * 100) / 100 : null,
+    stakeWeighed: (Number(r.winStake + r.scoreStake) / 1e9).toFixed(4) + " ◎",
+    venues: r.venues.size,
+  })).sort((a, b) => parseFloat(b.stakeWeighed) - parseFloat(a.stakeWeighed));
+  if (json) { console.log(JSON.stringify(rows)); return rows; }
+  console.log(`market sentiment — stake-weighted belief per model (${rows.length} model(s) priced)`);
+  for (const r of rows)
+    console.log(`  ${r.model.padEnd(28)} ${r.impliedWinPct !== null ? `wins ${String(r.impliedWinPct).padStart(6)}%` : "—".padStart(10)}  ${r.impliedScore !== null ? `scores ~${r.impliedScore}` : ""}  (${r.stakeWeighed} across ${r.venues} venue(s))`);
+  return rows;
+}
+
 /** `chain wallet <pk> [--json]` — the actor dossier: everything one
  *  address did across both programs — banks it authors, runs it
  *  submitted, receipts it recorded, venues it created or sponsors,
@@ -4012,6 +4095,8 @@ export async function chainMain(cmd: string[], args: Args) {
     } else if (m0 === "odds") {
       await marketOdds(cmd[2] ? String(cmd[2]) : undefined,
         Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "sentiment") {
+      await marketSentiment(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

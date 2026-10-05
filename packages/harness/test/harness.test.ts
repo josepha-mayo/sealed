@@ -617,3 +617,27 @@ test("marketOdds derives the implied-probability board from pool weights", async
     assert.equal(duel.legs.length, 3);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("marketSentiment pools books into stake-weighted per-model belief", async () => {
+  const { marketSentiment } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const rows = (await marketSentiment(true, snapPath)) as any[];
+    assert.ok(rows.length >= 5, "models priced by the books");
+    const a = rows.find((r) => r.model === "ladder/model-a");
+    const b = rows.find((r) => r.model === "ladder/model-b");
+    const c = rows.find((r) => r.model === "ladder/model-c");
+    // two identical 0.6◎ ladders: 50/33.33/16.66 implied per leg
+    assert.equal(a.impliedWinPct, 50);
+    assert.equal(b.impliedWinPct, 33.33);
+    assert.equal(c.impliedWinPct, 16.67);
+    // the duel's tie book splits half to each side: 54.54 + 4.55 = 59.09
+    const da = rows.find((r) => r.model === "duel/model-a");
+    assert.equal(da.impliedWinPct, 59.09);
+    // a band book implies an expected score, not a win share
+    const band = rows.find((r) => r.impliedScore !== null);
+    assert.ok(band && band.impliedScore > 0, "band model carries implied score");
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

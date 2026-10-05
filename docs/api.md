@@ -121,7 +121,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -207,6 +207,11 @@ has an inline stake simulator, no wallet required. `chain market odds
 itself — what the pool weights say about each outcome (decimal odds =
 post-fee pot ÷ side), funded venues first, per-leg model labels —
 the market's opinion to set against the evidence leaderboards.
+`chain market sentiment` goes further — every open funded book pooled
+into a stake-weighted belief per model: duels and ladders contribute
+win probability (tie books split half to each side), bands contribute
+an implied expected score. `compare --all` says what the data PROVES;
+this says what the money EXPECTS.
 `chain watch [--interval s] [--type a,b]` is the live pulse —
 a `feed` tail that polls and prints new events oldest-first as they
 land, deduplicated by a bounded seen-set; with `--snapshot` it becomes

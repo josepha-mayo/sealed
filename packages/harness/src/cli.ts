@@ -189,6 +189,7 @@ async function main() {
   sealed chain market position <pk> [--json] [--snapshot file]              one position's dossier — stake, venue, payout class, claim cmd
   sealed chain market quote <venue> --outcome <i> --lamports <n> [--json]   bet simulator — payout if your side wins, no tx needed
   sealed chain market odds  [venue] [--json] [--snapshot file]              what the stakes believe — implied probabilities + decimal odds
+  sealed chain market sentiment [--json] [--snapshot file]                  the stakes' per-model ranking — stake-weighted win%/score vs evidence
   sealed chain search <pk> [--json] [--snapshot file]                       universal resolver — what IS this key? routes to the dossier
   sealed chain tour [--snapshot file]                                      the project demos itself — stats → trail → feed → book → P&L
   sealed chain watch [--interval s] [--type a,b] [--snapshot file]         the live pulse — feed events as they land (snapshot = replay ticker)

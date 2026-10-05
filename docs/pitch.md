@@ -99,7 +99,7 @@ not the commands.
   K-way ladder races with dead-heat pro-rata, unseen-exam markets, dark
   commit-reveal markets, capability bounties), a persistent permissionless
   capability registry (`ModelRecord`/`ScoreLog`), fingerprint reveal audits,
-  mocha suite 17/17 + 25/25 unit tests green. Authored banks work too (seal+score).
+  mocha suite 17/17 + 26/26 unit tests green. Authored banks work too (seal+score).
 - **Traction evidence:** 503 runs / 120 banks / 340 venues across six
   primitives on the merged evidence ledger (8 epochs) — 201 resolutions
   re-derived bit-exact by the offline audit, 31 capability records replayed
