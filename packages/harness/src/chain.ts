@@ -3155,7 +3155,29 @@ export async function chainTour(snapPath?: string) {
  *  when the key isn't an account but signs activity (an actor). */
 export async function chainSearch(pkStr: string, json = false, snapPath?: string) {
   let pk: PublicKey;
-  try { pk = new PublicKey(pkStr); } catch { console.log(`not a pubkey: ${pkStr}`); process.exitCode = 2; return null; }
+  try { pk = new PublicKey(pkStr); }
+  catch {
+    // not a pubkey — try the names the explorer's resolver accepts:
+    // a model id resolves through its deterministic record PDA.
+    const [rec] = PublicKey.findProgramAddressSync(
+      [Buffer.from("modelrec"), createHash("sha256").update(Buffer.from(pkStr, "utf8")).digest()], sealedProgramId());
+    const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+    const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+    const hits: { type: string; desc: string; cmd: string }[] = [];
+    const recHit = ss
+      ? snapOf(ss, "ModelRecord").some((x) => x.publicKey.equals(rec))
+      : await (sealedProgram().program.account as any).modelRecord.fetchNullable(rec).then((a: any) => !!a).catch(() => false);
+    if (recHit) hits.push({ type: "model-id", desc: `model id "${pkStr}" → its capability record ${rec.toBase58()}`, cmd: `sealed chain model ${pkStr}` });
+    const bnHits = ss
+      ? snapOf(ss, "Benchmark").filter((b) => b.account.name === pkStr)
+      : await (sealedProgram().program.account as any).benchmark.all().then((a: any[]) => a.filter((x) => x.account.name === pkStr)).catch(() => []);
+    for (const b of bnHits) hits.push({ type: "bank-name", desc: `bank "${pkStr}" → ${b.publicKey.toBase58()}`, cmd: `sealed chain bank ${b.publicKey.toBase58()}` });
+    if (hits.length) {
+      if (json) console.log(JSON.stringify(hits)); else for (const o of hits) console.log(`${o.type} — ${o.desc}\n  → ${o.cmd}`);
+      return hits;
+    }
+    console.log(`not a pubkey, model id, or bank name: ${pkStr}`); process.exitCode = 2; return null;
+  }
   let sealed: Map<string, SnapAccount[]> | null;
   let mkt: Map<string, SnapAccount[]> | null;
   if (snapPath) {
@@ -3354,6 +3376,23 @@ export async function chainStats(snapPath?: string, json = false) {
     },
     mpcLatency: { samples: lats.length, p50s: pct(50), p95s: pct(95) },
     keeper: (await loadBoard(snapPath)).board,
+    discrimination: (() => {
+      // which exams separate models — per-bank score spread (pct of
+      // capacity), on banks with enough finalized runs to mean anything.
+      const byBank = new Map<string, { name: string; pcts: number[] }>();
+      const bName = new Map(banks.map((b) => [b.publicKey.toBase58(), String(b.account.name)]));
+      for (const r of fin) {
+        const k = (r.account.benchmark as PublicKey).toBase58();
+        const e = byBank.get(k) ?? { name: bName.get(k) ?? k.slice(0, 8), pcts: [] };
+        e.pcts.push((100 * Number(r.account.correct)) / Math.max(1, Number(r.account.chunkCount) * 32));
+        byBank.set(k, e);
+      }
+      const rows = [...byBank.entries()].filter(([, v]) => v.pcts.length >= 4)
+        .map(([pk, v]) => { const s = v.pcts.slice().sort((a, b) => a - b);
+          return { pk, name: v.name, runs: s.length, spread: +(s[s.length - 1] - s[0]).toFixed(1), median: +s[Math.floor((s.length - 1) / 2)].toFixed(1) }; })
+        .sort((a, b) => b.spread - a.spread);
+      return { banksMeasured: rows.length, medianSpreadPp: rows.length ? rows[Math.floor(rows.length / 2)].spread : 0, top: rows.slice(0, 3), hardest: rows.length ? rows.reduce((a, b) => (b.median < a.median ? b : a)) : null };
+    })(),
   };
   if (json) {
     const { keeper, ...rest } = out;
@@ -3373,6 +3412,12 @@ export async function chainStats(snapPath?: string, json = false) {
   console.log(`integrity — registry ${out.integrity.registryReplay} · resolutions ${out.integrity.resolutionsVerified}`);
   console.log(`mpc — scoring latency p50 ${out.mpcLatency.p50s}s / p95 ${out.mpcLatency.p95s}s (${lats.length} timed runs)`);
   console.log(`keeper — ${actionable} actionable now · ${out.keeper.settled} settled · ${out.keeper.filling} in play`);
+  const D = out.discrimination;
+  if (D.banksMeasured) {
+    console.log(`exams — ${D.banksMeasured} bank(s) with ≥4 models run · median spread ${D.medianSpreadPp}pp` +
+      (D.hardest ? ` · hardest ${D.hardest.name} (median ${D.hardest.median}%)` : ""));
+    for (const t of D.top.slice(0, 1)) console.log(`  most discriminating — ${t.name}: ${t.spread}pp spread over ${t.runs} runs (chain bank ${t.pk.slice(0, 8)}…)`);
+  }
   if (recBad || resBad) process.exitCode = 1;
   return out;
 }
