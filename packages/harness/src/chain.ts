@@ -1800,6 +1800,7 @@ export async function gateModelRecord(
   policy: GatePolicy,
   json = false,
   snapPath?: string,
+  bank?: string,
 ): Promise<GateVerdict> {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
@@ -1813,9 +1814,18 @@ export async function gateModelRecord(
   const rec: any = ss
     ? snapOf(ss, "ModelRecord").find((x) => x.publicKey.equals(pda))?.account
     : await acct().modelRecord.fetchNullable(pda);
+  // --bank accepts a pk or a name; names aren't unique so a name matches
+  // every benchmark carrying it (same semantics as `chain runs`).
+  const bankPks = bank
+    ? new Set((ss ? snapOf(ss, "Benchmark") : await acct().benchmark.all())
+        .filter((b: any) => b.publicKey.toBase58() === bank || b.account.name === bank)
+        .map((b: any) => b.publicKey.toBase58()))
+    : null;
+  if (bank && !bankPks!.size) throw new Error(`no benchmark named/addressed ${bank}`);
   const logs: any[] = rec
     ? (ss ? snapOf(ss, "ScoreLog") : await acct().scoreLog.all())
-        .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda))
+        .filter((l: any) => (l.account.modelRecord as PublicKey).equals(pda)
+          && (!bankPks || bankPks.has((l.account.benchmark as PublicKey).toBase58())))
     : [];
   const receipts: ScoreReceipt[] = logs.map((l: any) => ({
     correct: l.account.correct as number,
@@ -1834,7 +1844,8 @@ export async function gateModelRecord(
     const tag = verdict.pass ? "PASS" : verdict.reason === "policy" ? "FAIL" : "NO EVIDENCE";
     console.log(`${tag} — ${verdict.modelId} ${verdict.runs} ${verdict.scope} run(s), ` +
       `${verdict.correct}/${verdict.items} (${verdict.pct.toFixed(1)}%)` +
-      `  [registry: ${verdict.totalRuns} total, ${verdict.postRevealRuns} post-reveal]`);
+      `  [registry: ${verdict.totalRuns} total, ${verdict.postRevealRuns} post-reveal]` +
+      (bank ? `  [bank: ${bank}]` : ""));
     for (const c of verdict.checks)
       console.log(`  ${c.pass ? "ok" : "MISS"} ${c.name}: ${c.actual} (needed ${c.needed})`);
   }
@@ -2977,7 +2988,8 @@ export async function chainMain(cmd: string[], args: Args) {
     if (policy.minPct === undefined && policy.minRuns === undefined &&
         policy.minItems === undefined && policy.minWilsonPct === undefined)
       throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
-    await gateModelRecord(target, policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    await gateModelRecord(target, policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
+      args.bank ? String(args.bank) : undefined);
     return;
   }
   if (sub === "history") {

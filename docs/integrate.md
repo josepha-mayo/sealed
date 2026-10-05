@@ -105,13 +105,16 @@ capability risk" surface as a one-line command:
 sealed chain gate qwen2.5-3b --min-pct 60 --min-runs 2 --vouched
 sealed chain gate <record-pda> --min-items 128 --json
 sealed chain gate llama-3.2-1b --wilson 50 --no-post-reveal
+sealed chain gate qwen2.5-3b --min-pct 60 --bank sealed-v77007   # policy scoped to one exam
 sealed chain gate --all --min-pct 70 --min-runs 2   # the leaderboard filtered by policy
 ```
 
 `--vouched` restricts evidence to venue-attested runs
 (`vouched_at_record`); `--no-post-reveal` drops receipts minted after the
 bank's fingerprints were revealed (they're always reported, never
-silently counted); `--wilson N` applies the 95% lower confidence bound so
+silently counted); `--bank <pk|name>` scopes the policy to one benchmark —
+a name resolves every same-named bank; `--wilson N` applies the 95% lower
+confidence bound so
 a 3/3 perfect sample can't flatter a strict accuracy floor. `--json`
 emits `{pass, scope, runs, items, correct, pct, postRevealRuns,
 checks[]}` for scripted policy. The evaluation is pure

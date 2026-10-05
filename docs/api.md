@@ -56,9 +56,11 @@ The harness exposes it as `chain record --run <pk>` / `chain modelrec
 <pubkey|model_id>`; `verify.mjs` and the explorer audit replay every
 record bit-exact from its receipts. `chain gate <model_id> --min-pct N
 [--min-items N] [--vouched] [--no-post-reveal] [--min-runs N]
-[--wilson P]` evaluates an admission policy over a record — exit 0
-pass / 1 fail / 2 no evidence — with the Wilson lower bound so
-small-sample records can't flatter a gate. Same evaluation runs
+[--wilson P] [--bank <pk|name>]` evaluates an admission policy over a
+record — exit 0 pass / 1 fail / 2 no evidence — with the Wilson lower
+bound so small-sample records can't flatter a gate. `--bank` scopes the
+policy to one exam (name resolves every same-named benchmark), so
+"does it clear 70% on *this* bank" is one command. Same evaluation runs
 in-page in the hosted explorer. `chain gate --all` applies the policy
 to *every* ModelRecord and prints the ranked pass/fail table — the
 capability registry as a filterable leaderboard, not a list.

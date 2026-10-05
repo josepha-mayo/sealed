@@ -251,6 +251,7 @@ sealed chain market bet     --market <pk> --outcome 1 --lamports 500000000 [--be
 sealed chain market bet     --market <pk> --side yes --lamports 500000000   # binary shorthand
 sealed chain market resolve --market <pk>                            # settles off Run.correct
 sealed chain gate qwen2.5-3b --min-pct 60 --vouched                  # capability gate over the registry (exit 0/1/2)
+sealed chain gate qwen2.5-3b --min-pct 60 --bank <bank>              # the same policy scoped to one exam (pk or name)
 sealed chain gate --all --min-pct 70 --min-runs 2                    # the registry filtered by policy — who clears, ranked
 sealed chain history qwen2.5-3b                                      # trajectory: every receipt, running accuracy
 sealed chain compare qwen2.5-3b-instruct qwen2.5-1.5b-instruct         # head-to-head on shared banks (exit 0/1/2)

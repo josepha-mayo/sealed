@@ -172,7 +172,7 @@ async function main() {
   sealed chain compare --all [--min-shared n]               paired-evidence leaderboard (W-L-T over shared banks)
   sealed chain trail <run-pk>                              custody chain: bank → receipt → venues, resolutions re-verified
   sealed chain market bounties                             the runner index: open capability bounties by pot
-  sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]
+  sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--bank b] [--json]
   sealed chain gate --all <same policy flags>                          the gate as a leaderboard: who clears the policy, ranked
   sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
