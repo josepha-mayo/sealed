@@ -593,3 +593,27 @@ test("marketQuote simulates parimutuel payout and validates venue state", async 
     assert.equal(none, null);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("marketOdds derives the implied-probability board from pool weights", async () => {
+  const { marketOdds } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const all = (await marketOdds(undefined, true, snapPath)) as any[];
+    assert.ok(all.length > 50, "every open venue boards");
+    const duel = all.find((v) => v.kind === "duel");
+    assert.ok(duel, "an open duel exists");
+    const sum = duel.legs.reduce((s: number, l: any) => s + l.impliedPct, 0);
+    assert.ok(Math.abs(sum - 100) < 0.02, `implied percentages total ~100 (got ${sum})`);
+    assert.equal(duel.legs[0].label.includes("duel/model-a"), true, "duel legs carry model labels");
+    assert.ok(duel.legs[0].decimal > 1, "decimal odds above 1x");
+    // single-venue mode + resolved rejection
+    const one = (await marketOdds("GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv", true, snapPath)) as any[];
+    assert.equal(one.length, 1);
+    const dead = (await marketOdds("Ftw6cvBE381ftyFtSGTb2CSAoDNsqBfLyf39iHLeK7B3", true, snapPath)) as any;
+    assert.equal(dead, null);
+    // the 8-slot totals array is bounded by nOutcomes — a 3-way duel has 3 legs, not 8
+    assert.equal(duel.legs.length, 3);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

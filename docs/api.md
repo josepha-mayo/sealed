@@ -121,7 +121,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -202,8 +202,12 @@ payout depends on who reveals, so it prints only-you-win / pool-stays
 / zero-reveals (gross refund) instead of a single number it can't
 know. The hosted explorer carries the same math as a per-venue
 widget — every open band/duel/ladder card and every open dark card
-has an inline stake simulator, no wallet required. `chain watch
-[--interval s] [--type a,b]` is the live pulse —
+has an inline stake simulator, no wallet required. `chain market odds
+[venue]` is the sibling view: the *implied-probability distribution*
+itself — what the pool weights say about each outcome (decimal odds =
+post-fee pot ÷ side), funded venues first, per-leg model labels —
+the market's opinion to set against the evidence leaderboards.
+`chain watch [--interval s] [--type a,b]` is the live pulse —
 a `feed` tail that polls and prints new events oldest-first as they
 land, deduplicated by a bounded seen-set; with `--snapshot` it becomes
 a replay ticker (the bundle's last events, then idle).

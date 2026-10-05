@@ -2505,8 +2505,9 @@ export async function marketQuote(pkStr: string, outcome: number, lamports: bigi
       note: `pool would be ${sol(pool)} ◎; winners split post-fee pro-rata — sealed losers forfeit into it` };
   } else {
     const totals = (a.totals as any[]).map((t) => BigInt(t.toString()));
-    // ladders allocate 8 slots but only legCount are live legs
-    const n = venue.k === "ladder" ? Number(a.legCount) : totals.length;
+    // totals is a fixed 8-slot array — live outcomes are nOutcomes for
+    // bands/duels and legCount for ladders (the program slices the same way)
+    const n = venue.k === "ladder" ? Number(a.legCount) : Number(a.nOutcomes);
     if (outcome < 0 || outcome >= n) { console.log(`outcome ${outcome} out of range — this venue has ${n} ${venue.k === "ladder" ? "leg(s)" : "bucket(s)"}`); process.exitCode = 2; return null; }
     const winTotal = totals[outcome] + lamports;
     const pot = totals.reduce((s, t) => s + t, 0n) + lamports;
@@ -2528,6 +2529,85 @@ export async function marketQuote(pkStr: string, outcome: number, lamports: bigi
     console.log(`  stake ${sol(lamports)} ◎ on ${out.kind} → ~${(out as any).estSol} ◎ back if it wins (${(out as any).roiPct >= 0 ? "+" : ""}${(out as any).roiPct}% ROI)`);
     console.log(`  book implies ${(out as any).impliedChancePct}% on that side — ${(out as any).note}`);
   }
+  return out;
+}
+
+/** `chain market odds [venue]` — what the stakes BELIEVE. A prediction
+ *  market's product is its implied-probability distribution; this renders
+ *  it: per-outcome implied share + decimal odds (post-fee pot ÷ side) for
+ *  one venue, or every open venue compactly when no key is given. Dark
+ *  markets list pool-only — a sealed book can't express a side. */
+export async function marketOdds(pkStr: string | undefined, json = false, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [markets, ladders, darks]: Acct[][] =
+    sm ? ["Market", "Ladder", "DarkMarket"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "ladder", "darkMarket"].map((n) => (mAcct() as any)[n].all()));
+  const runs: Acct[] = ss ? snapOf(ss, "Run") : await (sealedProgram().program.account as any).run.all();
+  const model = new Map(runs.map((r) => [r.publicKey.toBase58(), String(r.account.modelId)]));
+
+  const fee = (bps: number, pot: bigint) => pot - (pot * BigInt(bps)) / 10000n;
+  type Leg = { label: string; impliedPct: number; decimal: number };
+  const board = (pkB58: string, kind: string, totals: bigint[], labels: string[], feeBps: number) => {
+    const pot = totals.reduce((s, t) => s + t, 0n);
+    const legs: Leg[] = totals.map((t, i) => ({
+      label: labels[i],
+      impliedPct: pot > 0n ? Number(t * 10000n / pot) / 100 : 0,
+      decimal: t > 0n && pot > 0n ? Number((fee(feeBps, pot) * 100n) / t) / 100 : 0,
+    }));
+    return { venue: pkB58, kind, pool: (Number(pot) / 1e9).toFixed(4) + " ◎", legs };
+  };
+  const DUEL = ["A wins", "B wins", "tie"];
+
+  const out: any[] = [];
+  const only = pkStr ? new PublicKey(pkStr) : null;
+  for (const m of markets) {
+    const M = m.account as any;
+    if (only && !m.publicKey.equals(only)) continue;
+    if (Number(M.status) !== 0) continue;
+    const duel = M.runB && !(M.runB as PublicKey).equals(PublicKey.default);
+    const n = Number(M.nOutcomes);
+    const labels = Array.from({ length: n }, (_, i) => duel
+      ? `${DUEL[i]}${i < 2 ? ` · ${model.get((i === 0 ? M.run : M.runB).toBase58()) ?? "?"}` : ""}`
+      : `[${i}] ${outcomeLabel(n, (M.edges as any[]).map(Number), i)}`);
+    out.push(board(m.publicKey.toBase58(), duel ? "duel" : "band",
+      (M.totals as any[]).map((t) => BigInt(t.toString())).slice(0, n), labels, Number(M.feeBps)));
+  }
+  for (const l of ladders) {
+    const L = l.account as any;
+    if (only && !l.publicKey.equals(only)) continue;
+    if (Number(L.status) !== 0) continue;
+    const n = Number(L.legCount);
+    const labels = Array.from({ length: n }, (_, i) =>
+      `leg ${i} · ${model.get((L.legs as PublicKey[])[i].toBase58()) ?? "?"}`);
+    out.push(board(l.publicKey.toBase58(), "ladder", (L.totals as any[]).map((t) => BigInt(t.toString())).slice(0, n), labels, Number(L.feeBps)));
+  }
+  const darkRows: any[] = [];
+  for (const d of darks) {
+    const D = d.account as any;
+    if (only && !d.publicKey.equals(only)) continue;
+    if (Number(D.status) !== 0) continue;
+    darkRows.push({ venue: d.publicKey.toBase58(), kind: "dark",
+      pool: (Number(D.poolTotal) / 1e9).toFixed(4) + " ◎",
+      legs: [], note: "sealed book — sides don't express until reveal" });
+  }
+  out.push(...darkRows);
+  if (only && !out.length) { console.log(`no open venue at ${pkStr}`); process.exitCode = 2; return null; }
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`market odds — ${out.length} open venue(s), implied by the books themselves`);
+  const funded = out.filter((v) => v.legs.length ? v.legs.some((l: Leg) => l.impliedPct > 0) : parseFloat(v.pool) > 0);
+  const empty = out.length - funded.length;
+  for (const v of funded.sort((a, b) => parseFloat(b.pool) - parseFloat(a.pool))) {
+    if (!v.legs.length) { console.log(`  ${v.kind.padEnd(6)} ${v.venue.slice(0, 12)}… pool ${v.pool} — ${v.note}`); continue; }
+    const top = v.legs.reduce((a: Leg, b: Leg) => (b.impliedPct > a.impliedPct ? b : a));
+    console.log(`  ${v.kind.padEnd(6)} ${v.venue.slice(0, 12)}… pool ${v.pool} — book's pick: ${top.label} @ ${top.impliedPct}%`);
+    for (const leg of v.legs)
+      console.log(`      ${leg.label.padEnd(34)} ${String(leg.impliedPct).padStart(6)}%   ${leg.decimal.toFixed(2)}x`);
+  }
+  if (empty) console.log(`  … and ${empty} venue(s) with empty books — open but nothing staked yet`);
   return out;
 }
 
@@ -3928,6 +4008,9 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketPosition(String(cmd[2] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "quote") {
       await marketQuote(String(cmd[2] ?? ""), Number(args.outcome ?? -1), BigInt(String(args.lamports ?? "0")),
+        Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "odds") {
+      await marketOdds(cmd[2] ? String(cmd[2]) : undefined,
         Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));

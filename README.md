@@ -264,6 +264,7 @@ sealed chain market bounties                                         # runner in
 sealed chain market venue <pk>                                       # one venue — pools, positions, keeper state, resolution re-verified
 sealed chain market position <pk> --snapshot web/snapshot.json        # one position — stake, payout class (PAYS/REFUND/FORFEIT), exact claim cmd
 sealed chain market quote <venue> --outcome <i> --lamports <n>        # bet simulator — payout/ROI/implied-share before you transact
+sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain search <pk> --snapshot web/snapshot.json               # universal resolver — what IS this key? routes to the right dossier
 sealed chain tour --snapshot web/snapshot.json                      # the project demos itself — stats → trail → feed → book → P&L in one pass
 sealed chain market claim   --market <pk> [--bettor kp.json]
