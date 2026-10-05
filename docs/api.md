@@ -120,7 +120,7 @@ print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
-`runs`, `verify`, `grants`, `reveals`, `market board`, `market bounties`,
+`runs`, `feed`, `verify`, `grants`, `reveals`, `market board`, `market bounties`,
 `market positions`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
@@ -137,6 +137,14 @@ checked against `Run.correct` (exit 1 on any violation). When the
 snapshot rides `web/MANIFEST`, the loader sha256-checks the bundle
 first and warns loudly on a mismatch. `chain modelrec` prints the same
 per-record replay verdict inline.
+`chain feed [--limit N] [--type a,b] [--since t]` is the cross-type
+chronology — every timestamped event across both programs (bank
+created, run queued, MPC finalized, receipt minted, venue opened,
+resolved, fingerprint revealed, access granted) newest-first, so the
+causal chains are visible: a `reveal` event followed by runs stamped
+post-reveal, a `score` followed by its `receipt` and the venue that
+priced it. `--type` accepts the event classes
+`bank,run,score,receipt,venue,resolution,reveal,grant`.
 `market bounties` is the runner-facing index — open capability bounties
 sorted by pot, marking which are claimable NOW under the exact
 `bounty_qualifies` rules (retroactivity wall, no self-deal, proven runs,
