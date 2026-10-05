@@ -118,3 +118,20 @@ $ sealed chain market bounties --snapshot web/snapshot.json   (head)
   EJzXf3q4pRdd… claimed      sealed-gen-v91465 ≥4/32  pot=0.000◎  won 19 by 4yiXg1ryaA8n…
   6EqmVxLMEmkD… claimed      sealed-gen-v5633 ≥4/32  pot=0.000◎  won 17 by oJf5Zhi6sEcL…
   …
+
+$ sealed chain feed --limit 14 --snapshot web/snapshot.json
+feed — 14 event(s) newest first
+  2026-10-03 14:29  receipt    D7EWMfdFv4ZW…  receipt minted — qwen2.5-1.5b-instruct 2/32 [post-reveal]
+  2026-10-03 14:28  score      Hn21uoPQYi8x…  MPC finalized — qwen2.5-1.5b-instruct scored 2/32 on sealed-v77007 (authored) (post-reveal)
+  2026-10-03 14:28  run        Hn21uoPQYi8x…  run queued — qwen2.5-1.5b-instruct on sealed-v77007 (authored)
+  2026-10-03 11:40  score      7PotU4bHxkJi…  MPC finalized — test/post-reveal-35953 scored 8/64 on sealed-test (authored) (post-reveal)
+  2026-10-03 11:40  receipt    AKAoaZncSUD9…  receipt minted — test/post-reveal-35953 8/64 [post-reveal]
+  2026-10-03 11:40  run        2VGsVRPQSBs9…  run queued — test/post-reveal on sealed-test (authored)
+  2026-10-03 11:40  run        7PotU4bHxkJi…  run queued — test/post-reveal-35953 on sealed-test (authored)
+  2026-10-03 11:40  reveal     4QaJVwq5WN8A…  fingerprint reveal — sealed-test (authored) part 0
+  2026-10-03 11:40  score      BU4wACQF2XWa…  MPC finalized — test/registry-model-35953 scored 16/64 on sealed-test (authored)
+  2026-10-03 11:40  receipt    FB94cD5s8ApR…  receipt minted — test/registry-model-35953 16/64
+  2026-10-03 11:40  run        BU4wACQF2XWa…  run queued — test/registry-model-35953 on sealed-test (authored)
+  2026-10-03 11:40  receipt    CVuQoQqpgmh2…  receipt minted — test/registry-model-35953 48/64 [vouched]
+  2026-10-03 11:40  score      67PexoYKbp99…  MPC finalized — test/registry-model-35953 scored 48/64 on sealed-test (authored)
+  2026-10-03 11:40  run        67PexoYKbp99…  run queued — test/registry-model-35953 on sealed-test (authored)

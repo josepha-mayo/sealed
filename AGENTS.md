@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 20/20 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 21/21 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -41,8 +41,8 @@ parimutuel markets resolved from `Run.correct`.
   `{publicKey, account}` wrappers. Old-layout Runs decode with safe tail
   defaults (pre-`scored_mask`/`post_reveal` epochs).
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
-  `status`, `records`, `modelrec`, `gate` (+`--all`), `history`, `compare`
-  (+`--all`), `trail`, `stats`, `runs`, `verify`, `grants`, `reveals`, `market board`,
+  `status`, `records`, `modelrec`, `gate` (+`--all`, +`--bank`), `history`, `compare`
+  (+`--all`), `trail`, `stats`, `runs`, `feed`, `verify`, `grants`, `reveals`, `market board`,
   `market positions` (+`--viewer <pk>` keyless), `items` (regenerates a
   generated bank's specs from raw ItemChunk bytes, re-fold checked
   against the stored items_root). `sealedProgramId()`

@@ -502,3 +502,19 @@ test("chain trail re-verifies every venue's resolution against Run.correct — d
   assert.equal(duel.outcome, "A won");
 });
 
+
+test("chain feed emits cross-type chronology newest-first over the bundle", async () => {
+  const { chainFeed } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  let evs: any[];
+  try { evs = (await chainFeed(25, undefined, 0, false, snapPath)) as any[]; }
+  finally { console.log = origLog; }
+  assert.equal(evs.length, 25);
+  for (let i = 1; i < evs.length; i++) assert.ok(evs[i - 1].t >= evs[i].t, "sorted newest-first");
+  const types = new Set(evs.map((e: any) => e.type));
+  assert.ok(types.has("receipt") && types.has("run"), "mixed event classes present");
+  // every event references a real account pubkey
+  assert.ok(evs.every((e: any) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(e.pk)));
+});
