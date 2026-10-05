@@ -2554,7 +2554,7 @@ export async function chainDiff(pathA: string, pathB: string, json = false) {
   };
   const A = dec(pathA), B = dec(pathB);
   const rows: any[] = [];
-  let added = 0, removed = 0;
+  let added = 0, removed = 0, mutatedCount = 0;
   for (const [sec, types] of [["sealed", TYPES_S], ["market", TYPES_M]] as const) {
     for (const t of types) {
       const aM = new Map(snapOf(sec === "sealed" ? A.ss : A.sm, t).map((x) => [x.publicKey.toBase58(), x]));
@@ -2566,6 +2566,7 @@ export async function chainDiff(pathA: string, pathB: string, json = false) {
         .filter((k) => JSON.stringify(aM.get(k)!.account) !== JSON.stringify(bM.get(k)!.account));
       if (!aM.size && !bM.size) continue;
       added += addedPks.length; removed += removedPks.length;
+      mutatedCount += mutated.length;
       rows.push({ type: `${sec}.${t}`, a: aM.size, b: bM.size, added: addedPks.length, removed: removedPks.length,
         mutated: mutated.length, addedPks: addedPks.slice(0, 25), removedPks: removedPks.slice(0, 25) });
       if (mutated.length) for (const k of mutated.slice(0, 10))
@@ -2587,9 +2588,9 @@ export async function chainDiff(pathA: string, pathB: string, json = false) {
   const out = {
     a: { path: pathA, sha256: A.sha256, takenAt: A.snap.meta?.takenAt, integrity: { recordsOk: iA.recOk, recordsBad: iA.recBad, resolutionsOk: iA.resOk, resolutionsBad: iA.resBad } },
     b: { path: pathB, sha256: B.sha256, takenAt: B.snap.meta?.takenAt, integrity: { recordsOk: iB.recOk, recordsBad: iB.recBad, resolutionsOk: iB.resOk, resolutionsBad: iB.resBad } },
-    totalAdded: added, totalRemoved: removed, rows,
+    totalAdded: added, totalRemoved: removed, totalMutated: mutatedCount, rows,
   };
-  if (json) { console.log(JSON.stringify(out)); return out; }
+  if (json) { console.log(JSON.stringify(out)); if (mutatedCount || iA.recBad || iA.resBad || iB.recBad || iB.resBad) process.exitCode = 1; return out; }
   console.log(`diff ${pathA} → ${pathB}`);
   console.log(`  A — sha256 ${A.sha256.slice(0, 16)}… · taken ${A.snap.meta?.takenAt ?? "?"} · integrity ${iA.recOk}/${iA.recOk + iA.recBad} records, ${iA.resOk}/${iA.resOk + iA.resBad} resolutions`);
   console.log(`  B — sha256 ${B.sha256.slice(0, 16)}… · taken ${B.snap.meta?.takenAt ?? "?"} · integrity ${iB.recOk}/${iB.recOk + iB.recBad} records, ${iB.resOk}/${iB.resOk + iB.resBad} resolutions`);
@@ -2598,6 +2599,7 @@ export async function chainDiff(pathA: string, pathB: string, json = false) {
     if (!r.added && !r.removed && !r.mutated) continue;
     console.log(`    ${r.type.padEnd(20)} ${r.a} → ${r.b}  (+${r.added} -${r.removed}${r.mutated ? ` !!${r.mutated} MUTATED` : ""})`);
   }
+  if (mutatedCount || iA.recBad || iA.resBad || iB.recBad || iB.resBad) process.exitCode = 1;
   return out;
 }
 
