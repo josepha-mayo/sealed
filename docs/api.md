@@ -121,7 +121,12 @@ Every read command also takes `--snapshot <file>` — `records`,
 `runs`, `verify`, `grants`, `reveals`, `market board`, `market bounties`,
 `market positions`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
-regenerated from chain state alone, offline).
+regenerated from chain state alone, offline). `chain export --snapshot
+web/snapshot.json [--out digest.json]` emits the portable integrity
+digest (`sealed-evidence-digest/v1`): the bundle's sha256, counts, the
+keeper classification, and per-row verdicts for every `ModelRecord`
+replay and every resolved venue's `Run.correct` check — the audit as
+one diffable JSON document, exit 1 on any violation.
 `chain stats` is the executive dashboard — ledger counts, escrow, fees,
 MPC latency p50/p95, the keeper surface, and two verdicts recomputed
 on the spot: every `ModelRecord`'s stored aggregate replayed bit-exact

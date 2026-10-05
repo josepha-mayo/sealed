@@ -60,7 +60,10 @@ parimutuel markets resolved from `Run.correct`.
   every resolved venue's stored score vs `Run.correct` (ladder field is
   `resultMask`, not `winnerMask` — misnaming reads as 45 phantom
   mismatches). Exit 1 on any violation. `chain modelrec` prints the same
-  per-record replay line.
+  per-record replay line. `chain export --snapshot <f> [--out]` emits
+  `sealed-evidence-digest/v1` — the same verdicts (via shared
+  `ledgerIntegrity`) as one diffable JSON doc; snapshot-only, exit 1 on
+  violation.
 - Pure logic lives in `board.ts` (keeper classification mirroring the
   on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
   (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and
