@@ -1400,6 +1400,10 @@ function resolvePk(pk) {
   if (A.runs.some(r => r.pk === pk)) return go(`run-${pk}`, "run");
   if (A.benches.some(b => b.pk === pk)) return go(`bank-${pk}`, "bank");
   if (A.modelRecords.some(m => m.pk === pk)) return go(`rec-${pk}`, "model record");
+  const mrec = A.modelRecords.find(m => m.modelId === pk);
+  if (mrec) return go(`rec-${mrec.pk}`, "model id → its record");
+  const bn = A.benches.find(b => b.name === pk);
+  if (bn) return go(`bank-${bn.pk}`, "bank name → its section");
   if (A.markets.some(m => m.pk === pk)) return go(`mkt-${pk}`, hit(`mkt-${pk}`) ? "market" : "market (scrolled to section)");
   if (A.ladders.some(l => l.pk === pk)) return go(`lad-${pk}`, "ladder");
   if (A.darkMarkets.some(d => d.pk === pk)) return go(`dark-${pk}`, "dark market");

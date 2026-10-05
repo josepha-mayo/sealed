@@ -2873,6 +2873,15 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
     else if (r.state === "sealed") pnl.sealed += r.staked;
     else pnl.live += r.staked;
   }
+  // runner-side income: claimed bounties whose winning run this key operated.
+  // (claim zeroes Bounty.amount — the paid pot lives in the BountyClaimed
+  // event, not account state — so we report wins, not lamports.)
+  const runByPk = new Map(runs.map((r) => [r.publicKey.toBase58(), r]));
+  const myWins = bounties.filter((b) => {
+    if (Number(b.account.status) !== 1) return false;
+    const wr = runByPk.get(pkOf(b.account.winnerRun));
+    return wr ? isMe(wr.account.runner) : false;
+  });
 
   const out = {
     wallet: me,
@@ -2884,6 +2893,9 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
     receiptsRecorded: myReceipts.length,
     venuesCreated: myMarkets.length + myDarks.length + myLadders.length,
     bountiesSponsored: { total: myBounties.length, openLamports: escrowed },
+    bountiesWon: { total: myWins.length,
+      wins: myWins.map((b) => ({ pk: b.publicKey.toBase58(), threshold: Number(b.account.threshold),
+        winningScore: Number(b.account.winningScore), bank: bankName.get((b.account.bank as PublicKey).toBase58()) ?? "?" })) },
     positions: { count: myPositions.length + myDarkPositions.length, wageredLamports: wagered,
       pnl: { payable: pnl.payable.toString(), payableEst: pnlEst.toString(), refund: pnl.refund.toString(),
         lost: pnl.lost.toString(), forfeit: pnl.forfeit.toString(), live: pnl.live.toString(), sealed: pnl.sealed.toString() } },
@@ -2900,6 +2912,10 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   if (out.receiptsRecorded) console.log(`  receipts — ${out.receiptsRecorded} recorded by this key`);
   if (out.venuesCreated) console.log(`  venues — ${myMarkets.length} band/duel · ${myDarks.length} dark · ${myLadders.length} ladder created`);
   if (out.bountiesSponsored.total) console.log(`  bounties — ${out.bountiesSponsored.total} sponsored · ${sol(out.bountiesSponsored.openLamports)}◎ still escrowed`);
+  if (out.bountiesWon.total) {
+    console.log(`  bounties won — ${out.bountiesWon.total} claimed by this key's runs (pot paid to runner at claim)`);
+    for (const w of out.bountiesWon.wins) console.log(`    ${w.pk.slice(0, 12)}… score ${w.winningScore} ≥ ${w.threshold} on ${w.bank}`);
+  }
   if (out.positions.count) {
     console.log(`  positions — ${out.positions.count} held · ${sol(out.positions.wageredLamports)}◎ wagered`);
     const P = out.positions.pnl, f = (x: string) => sol(Number(x));
@@ -2916,7 +2932,7 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   if (out.grantsHeld.length) for (const g of out.grantsHeld)
     console.log(`  grant — ${g.pk.slice(0, 12)}… ${g.bank} part ${g.part} shared ${new Date(g.sharedAt * 1000).toISOString().slice(0, 16).replace("T", " ")}`);
   if (!myBanks.length && !myRuns.length && !myReceipts.length && !out.venuesCreated &&
-      !out.bountiesSponsored.total && !out.positions.count && !out.grantsHeld.length)
+      !out.bountiesSponsored.total && !out.bountiesWon.total && !out.positions.count && !out.grantsHeld.length)
     console.log(`  no footprint — this key authored no banks, runs, venues, positions, or grants`);
   return out;
 }
