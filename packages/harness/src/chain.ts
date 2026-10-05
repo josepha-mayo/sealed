@@ -2772,7 +2772,7 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
  *  chronological list, newest first. The per-type indexes answer "what
  *  exists"; this answers "is it alive". `--type` filters by event class
  *  (bank,run,score,receipt,venue,resolution,reveal,grant). */
-export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string) {
+export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string, pkFilter?: string) {
   const snap = snapPath ? loadSnapshotJson(snapPath) : null;
   const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
   const sm = snap ? decodeSnapshotSection(snap, "market") : null;
@@ -2792,44 +2792,47 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
   const runModel = new Map(runs.map((r) => [r.publicKey.toBase58(), r.account.modelId as string]));
   const items = (r: any) => Number(r.chunkCount) * 32;
 
-  type Ev = { t: number; type: string; pk: string; msg: string };
+  type Ev = { t: number; type: string; pk: string; msg: string; refs: string[] };
   const evs: Ev[] = [];
-  const push = (t: any, type: string, pk: PublicKey, msg: string) => {
+  const push = (t: any, type: string, pk: PublicKey, msg: string, refs: any[] = []) => {
     const n = Number(t ?? 0);
-    if (n > 0) evs.push({ t: n, type, pk: pk.toBase58(), msg });
+    if (n > 0) evs.push({ t: n, type, pk: pk.toBase58(), msg, refs: refs.map((r) => (r?.toBase58 ? r.toBase58() : String(r ?? ""))).filter(Boolean) });
   };
   for (const b of banks) push(b.account.createdAt, "bank", b.publicKey, `bank created — ${b.account.name} [${BANK_KIND[b.account.kind as number] ?? "?"}]`);
   for (const r of runs) {
     const bank = bankName.get((r.account.benchmark as PublicKey).toBase58()) ?? r.account.benchmark.toBase58().slice(0, 10);
-    push(r.account.createdAt, "run", r.publicKey, `run queued — ${r.account.modelId} on ${bank}`);
-    push(r.account.finalizedAt, "score", r.publicKey, `MPC finalized — ${r.account.modelId} scored ${r.account.correct}/${items(r.account)} on ${bank}${r.account.postReveal ? " (post-reveal)" : ""}`);
+    push(r.account.createdAt, "run", r.publicKey, `run queued — ${r.account.modelId} on ${bank}`, [r.account.benchmark, r.account.runner]);
+    push(r.account.finalizedAt, "score", r.publicKey, `MPC finalized — ${r.account.modelId} scored ${r.account.correct}/${items(r.account)} on ${bank}${r.account.postReveal ? " (post-reveal)" : ""}`, [r.account.benchmark, r.account.runner]);
   }
   for (const l of logs) {
     const runPk = (l.account.run as PublicKey).toBase58();
-    push(l.account.recordedAt, "receipt", l.publicKey, `receipt minted — ${runModel.get(runPk) ?? "?"} ${l.account.correct}/${l.account.items}${l.account.vouchedAtRecord ? " [vouched]" : ""}${l.account.postReveal ? " [post-reveal]" : ""}`);
+    push(l.account.recordedAt, "receipt", l.publicKey, `receipt minted — ${runModel.get(runPk) ?? "?"} ${l.account.correct}/${l.account.items}${l.account.vouchedAtRecord ? " [vouched]" : ""}${l.account.postReveal ? " [post-reveal]" : ""}`,
+      [l.account.run, l.account.benchmark, l.account.modelRecord, l.account.recordedBy]);
   }
-  for (const rv of reveals) push(rv.account.revealedAt, "reveal", rv.publicKey, `fingerprint reveal — ${bankName.get((rv.account.benchmark as PublicKey).toBase58()) ?? "?"} part ${rv.account.part}`);
-  for (const g of grants) push(g.account.sharedAt, "grant", g.publicKey, `access grant — ${bankName.get((g.account.benchmark as PublicKey).toBase58()) ?? "?"} part ${g.account.part} shared to ${String(g.account.viewer?.toBase58 ? g.account.viewer.toBase58() : g.account.viewer).slice(0, 12)}…`);
+  for (const rv of reveals) push(rv.account.revealedAt, "reveal", rv.publicKey, `fingerprint reveal — ${bankName.get((rv.account.benchmark as PublicKey).toBase58()) ?? "?"} part ${rv.account.part}`, [rv.account.benchmark]);
+  for (const g of grants) push(g.account.sharedAt, "grant", g.publicKey, `access grant — ${bankName.get((g.account.benchmark as PublicKey).toBase58()) ?? "?"} part ${g.account.part} shared to ${String(g.account.viewer?.toBase58 ? g.account.viewer.toBase58() : g.account.viewer).slice(0, 12)}…`, [g.account.benchmark, g.account.viewer]);
   for (const m of markets) {
     const duel = m.account.runB && !(m.account.runB as PublicKey).equals(PublicKey.default);
-    push(m.account.createdAt, "venue", m.publicKey, `venue opened — ${duel ? "duel" : "band"} on ${runModel.get((m.account.run as PublicKey).toBase58()) ?? "?"}`);
+    push(m.account.createdAt, "venue", m.publicKey, `venue opened — ${duel ? "duel" : "band"} on ${runModel.get((m.account.run as PublicKey).toBase58()) ?? "?"}`, [m.account.run, m.account.runB, m.account.authority]);
     const rs = Number(m.account.resolvedScore);
-    push(m.account.resolvedAt, "resolution", m.publicKey, `venue resolved — ${duel ? `duel ${rs >> 16}-${rs & 0xffff}` : `band outcome ${m.account.outcome} (score ${rs})`}`);
+    push(m.account.resolvedAt, "resolution", m.publicKey, `venue resolved — ${duel ? `duel ${rs >> 16}-${rs & 0xffff}` : `band outcome ${m.account.outcome} (score ${rs})`}`, [m.account.run, m.account.runB, m.account.authority]);
   }
   for (const d of darks) {
-    push(d.account.createdAt, "venue", d.publicKey, `dark venue opened — ${runModel.get((d.account.run as PublicKey).toBase58()) ?? "?"}`);
-    push(d.account.resolvedAt, "resolution", d.publicKey, `dark venue resolved${d.account.tallied ? " + tallied" : ""}`);
+    push(d.account.createdAt, "venue", d.publicKey, `dark venue opened — ${runModel.get((d.account.run as PublicKey).toBase58()) ?? "?"}`, [d.account.run, d.account.authority]);
+    push(d.account.resolvedAt, "resolution", d.publicKey, `dark venue resolved${d.account.tallied ? " + tallied" : ""}`, [d.account.run, d.account.authority]);
   }
   for (const l of ladders) {
-    push(l.account.createdAt, "venue", l.publicKey, `ladder opened — ${l.account.legCount} legs`);
-    push(l.account.resolvedAt, "resolution", l.publicKey, `ladder resolved — mask ${l.account.resultMask}`);
+    push(l.account.createdAt, "venue", l.publicKey, `ladder opened — ${l.account.legCount} legs`, (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).concat([l.account.authority]));
+    push(l.account.resolvedAt, "resolution", l.publicKey, `ladder resolved — mask ${l.account.resultMask}`, (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).concat([l.account.authority]));
   }
   for (const b of bounties) {
     const claimed = !(b.account.winnerRun as PublicKey).equals(PublicKey.default);
-    push(b.account.createdAt, "venue", b.publicKey, `bounty posted — ≥${b.account.threshold} pays ${(Number(b.account.amount) / 1e9).toFixed(3)}◎${claimed ? ` (claimed @${b.account.winningScore})` : ""}`);
+    push(b.account.createdAt, "venue", b.publicKey, `bounty posted — ≥${b.account.threshold} pays ${(Number(b.account.amount) / 1e9).toFixed(3)}◎${claimed ? ` (claimed @${b.account.winningScore})` : ""}`, [b.account.bank, b.account.sponsor, b.account.winnerRun]);
   }
   const keep = typeFilter ? new Set(typeFilter.split(",").map((s) => s.trim())) : null;
-  const filtered = evs.filter((e) => e.t >= since && (!keep || keep.has(e.type))).sort((a, b) => b.t - a.t).slice(0, limit);
+  const filtered = evs.filter((e) => e.t >= since && (!keep || keep.has(e.type))
+    && (!pkFilter || e.pk === pkFilter || e.refs.includes(pkFilter)))
+    .sort((a, b) => b.t - a.t).slice(0, limit);
   if (json) { console.log(JSON.stringify(filtered)); return filtered; }
   const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
   console.log(`feed — ${filtered.length} event(s)${typeFilter ? ` [${typeFilter}]` : ""} newest first`);
@@ -3426,7 +3429,8 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "feed") {
     await chainFeed(Number(args.limit ?? 40), args.type ? String(args.type) : undefined,
-      Number(args.since ?? 0), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      Number(args.since ?? 0), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
+      args.pk ? String(args.pk) : undefined);
     return;
   }
   if (sub === "export") {

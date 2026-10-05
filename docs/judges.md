@@ -89,6 +89,11 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #       and qwen-1.5b both scored 6/32) + dark market BrFdXAxY… on leg 0
 #     - "verify an output": click load example → VERIFIED against the
 #       snapshot's committed outputs_root
+#     - the nav search box resolves ANY pubkey to its card — paste a run,
+#       bank, venue, receipt, position, or grant and it scrolls there
+#       (positions → their venue, receipts → their run); ?pk=<key> makes
+#       the deep link shareable, e.g.
+#       https://josepha-mayo.github.io/sealed/?pk=GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
 python3 -m http.server -d . 8788
 #   → http://localhost:8788/web/?rpc=http://127.0.0.1:8899
 #   offline (no localnet): http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json

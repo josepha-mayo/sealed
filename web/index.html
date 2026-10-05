@@ -58,6 +58,8 @@
   .nav { position:sticky; top:0; z-index:5; background:var(--bg); padding:8px 0; border-bottom:1px solid var(--line); margin-bottom:8px; }
   .nav a { font-size:12px; color:var(--dim); margin-right:14px; white-space:nowrap; }
   .nav a:hover { color:var(--acc); text-decoration:none; }
+  .nav input { background:var(--card); border:1px solid var(--line); color:var(--fg); padding:4px 8px; border-radius:6px; font:11px monospace; width:420px; margin-left:auto; }
+  .nav input:focus { outline:none; border-color:var(--acc); }
 </style>
 </head>
 <body>
@@ -74,6 +76,8 @@
 <div id="err"></div>
 <div class="nav">
   <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+  <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
+  <span id="pkmsg" class="kv"></span>
 </div>
 <div id="out"></div>
 
@@ -1257,6 +1261,7 @@ function renderAll(sealedAccs, marketAccs) {
     }
   }
   document.getElementById("out").innerHTML = h;
+  window.__renderDone = true;
   maybeAudit();
   loadCalibrationSpecimen();
   // deep links: #bank-/<pk>id pattern survives innerHTML rewrites; scroll once.
@@ -1264,6 +1269,50 @@ function renderAll(sealedAccs, marketAccs) {
     const t = document.getElementById(location.hash.slice(1));
     if (t) { window.__scrolled = true; setTimeout(() => t.scrollIntoView({ block: "start" }), 50); }
   }
+}
+
+// ---- pubkey resolver — paste any address (run, bank, venue, receipt,
+// position, grant, reveal, record) and land on its card. ?pk=<pk> makes
+// the same deep link shareable. Positions resolve to their venue,
+// receipts/grants/reveals to their run or bank.
+function resolvePk(pk) {
+  const A = window.__audit;
+  if (!A) return "loading…";
+  const hit = (id) => document.getElementById(id) ? id : null;
+  const go = (id, label) => { window.__scrolled = true; location.hash = "#" + id;
+    document.getElementById(id).scrollIntoView({ block: "start" }); return label; };
+  if (A.runs.some(r => r.pk === pk)) return go(`run-${pk}`, "run");
+  if (A.benches.some(b => b.pk === pk)) return go(`bank-${pk}`, "bank");
+  if (A.modelRecords.some(m => m.pk === pk)) return go(`rec-${pk}`, "model record");
+  if (A.markets.some(m => m.pk === pk)) return go(`mkt-${pk}`, hit(`mkt-${pk}`) ? "market" : "market (scrolled to section)");
+  if (A.ladders.some(l => l.pk === pk)) return go(`lad-${pk}`, "ladder");
+  if (A.darkMarkets.some(d => d.pk === pk)) return go(`dark-${pk}`, "dark market");
+  if (A.bounties.some(b => b.pk === pk)) return go(`bounty-${pk}`, "bounty");
+  const log = A.scoreLogs.find(l => l.pk === pk);
+  if (log) return go(`run-${log.run}`, "score receipt → its run");
+  const pos = A.positions.find(p => p.pk === pk);
+  if (pos) return go(`mkt-${pos.market}`, "position → its venue");
+  const dpos = A.darkPositions.find(p => p.pk === pk);
+  if (dpos) return go(`dark-${dpos.market}`, "dark position → its venue");
+  const g = A.grants.find(g => g.pk === pk);
+  if (g) return go(`bank-${g.bench}`, "share grant → its bank");
+  const rv = A.reveals.find(r => r.pk === pk);
+  if (rv) return go(`bank-${rv.bench}`, "reveal → its bank");
+  return null;
+}
+
+{
+  const inp = document.getElementById("pksearch"), msg = document.getElementById("pkmsg");
+  const search = () => {
+    const v = inp.value.trim();
+    if (!v) { msg.textContent = ""; return; }
+    const r = resolvePk(v);
+    msg.textContent = r === "loading…" ? "still loading…" : r === null ? "not in this ledger" : `→ ${r}`;
+  };
+  inp.addEventListener?.("input", search);
+  inp.addEventListener?.("keydown", (e) => { if (e.key === "Enter") search(); });
+  const qp = new URLSearchParams(location.search).get("pk");
+  if (qp) { inp.value = qp; const iv = setInterval(() => { if (window.__renderDone) { clearInterval(iv); search(); } }, 400); }
 }
 function popcount(b) { let n = 0, x = BigInt(b); while (x) { n += Number(x & 1n); x >>= 1n; } return n; }
 

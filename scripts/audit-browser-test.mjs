@@ -16,7 +16,7 @@ const src = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1])
 // --- minimal DOM ---
 const els = new Map();
 const mkEl = (id) => {
-  if (!els.has(id)) els.set(id, { id, innerHTML: "", textContent: "", value: "", scrollIntoView() {}, click() {}, files: [] });
+  if (!els.has(id)) els.set(id, { id, innerHTML: "", textContent: "", value: "", scrollIntoView() {}, click() {}, addEventListener() {}, files: [] });
   return els.get(id);
 };
 const documentStub = { getElementById: mkEl };
