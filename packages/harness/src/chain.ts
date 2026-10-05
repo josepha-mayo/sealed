@@ -2508,6 +2508,19 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   const wagered = myPositions.reduce((s, p) => s + (p.account.amounts as any[]).reduce((a: number, b: any) => a + Number(b), 0), 0)
     + myDarkPositions.reduce((s, p) => s + Number(p.account.amount ?? 0), 0);
   const escrowed = myBounties.filter((b) => b.account.status === 0).reduce((s, b) => s + Number(b.account.amount), 0);
+  // actor P&L — the same payout classification positions/position use,
+  // summed by state: what this wallet is owed, lost, forfeited, refunded.
+  const { rows: pnlRows } = classifyPositions(myPositions, myDarkPositions, venueMapsOf(markets, ladders, darks), me);
+  const pnl = { payable: 0n, refund: 0n, lost: 0n, forfeit: 0n, live: 0n, sealed: 0n };
+  let pnlEst = 0n;
+  for (const r of pnlRows) {
+    if (r.state === "payable") { pnl.payable += r.staked; pnlEst += r.est; }
+    else if (r.state === "refund") { pnl.refund += r.staked; pnlEst += r.est; }
+    else if (r.state === "lost") pnl.lost += r.staked;
+    else if (r.state === "forfeit") pnl.forfeit += r.staked;
+    else if (r.state === "sealed") pnl.sealed += r.staked;
+    else pnl.live += r.staked;
+  }
 
   const out = {
     wallet: me,
@@ -2519,7 +2532,9 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
     receiptsRecorded: myReceipts.length,
     venuesCreated: myMarkets.length + myDarks.length + myLadders.length,
     bountiesSponsored: { total: myBounties.length, openLamports: escrowed },
-    positions: { count: myPositions.length + myDarkPositions.length, wageredLamports: wagered },
+    positions: { count: myPositions.length + myDarkPositions.length, wageredLamports: wagered,
+      pnl: { payable: pnl.payable.toString(), payableEst: pnlEst.toString(), refund: pnl.refund.toString(),
+        lost: pnl.lost.toString(), forfeit: pnl.forfeit.toString(), live: pnl.live.toString(), sealed: pnl.sealed.toString() } },
     grantsHeld: myGrants.map((g) => ({ pk: g.publicKey.toBase58(), bank: bankName.get((g.account.benchmark as PublicKey).toBase58()) ?? "?", part: g.account.part, sharedAt: Number(g.account.sharedAt) })),
   };
   if (json) { console.log(JSON.stringify(out)); return out; }
@@ -2533,7 +2548,19 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   if (out.receiptsRecorded) console.log(`  receipts — ${out.receiptsRecorded} recorded by this key`);
   if (out.venuesCreated) console.log(`  venues — ${myMarkets.length} band/duel · ${myDarks.length} dark · ${myLadders.length} ladder created`);
   if (out.bountiesSponsored.total) console.log(`  bounties — ${out.bountiesSponsored.total} sponsored · ${sol(out.bountiesSponsored.openLamports)}◎ still escrowed`);
-  if (out.positions.count) console.log(`  positions — ${out.positions.count} held · ${sol(out.positions.wageredLamports)}◎ wagered`);
+  if (out.positions.count) {
+    console.log(`  positions — ${out.positions.count} held · ${sol(out.positions.wageredLamports)}◎ wagered`);
+    const P = out.positions.pnl, f = (x: string) => sol(Number(x));
+    const parts = [
+      BigInt(P.payable) > 0n || BigInt(P.payableEst) > 0n ? `${f(P.payableEst)}◎ payable` : "",
+      BigInt(P.refund) > 0n ? `${f(P.refund)}◎ refundable` : "",
+      BigInt(P.lost) > 0n ? `${f(P.lost)}◎ lost` : "",
+      BigInt(P.forfeit) > 0n ? `${f(P.forfeit)}◎ forfeited` : "",
+      BigInt(P.sealed) > 0n ? `${f(P.sealed)}◎ sealed` : "",
+      BigInt(P.live) > 0n ? `${f(P.live)}◎ live` : "",
+    ].filter(Boolean).join(" · ");
+    if (parts) console.log(`    P&L — ${parts}`);
+  }
   if (out.grantsHeld.length) for (const g of out.grantsHeld)
     console.log(`  grant — ${g.pk.slice(0, 12)}… ${g.bank} part ${g.part} shared ${new Date(g.sharedAt * 1000).toISOString().slice(0, 16).replace("T", " ")}`);
   if (!myBanks.length && !myRuns.length && !myReceipts.length && !out.venuesCreated &&
