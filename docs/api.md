@@ -156,7 +156,9 @@ priced it. `--type` accepts the event classes
 `bank,run,score,receipt,venue,resolution,reveal,grant`; `--pk <key>`
 filters to events that touch an account — its own pubkey OR a
 referenced one (a venue's runs, a receipt's record/bank, a grant's
-delegate) — so one account's custody narrative is a one-line query.
+delegate) — so one account's custody narrative is a one-line query,
+and each matched row annotates `· via <class> <key>` (the role the
+filtered key played in that event: its run, its bank, its record).
 `chain bank <pk|name>` is the per-benchmark dossier — spec (kind,
 authority, chunks sealed, items_root, fee), run totals (finalized,
 pending, post-reveal-stamped, best score), receipt summary (vouched /

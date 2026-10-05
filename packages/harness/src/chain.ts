@@ -2854,9 +2854,9 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
   const sAcct = () => (sealedProgram().program.account as any);
   const mAcct = () => (marketProgram().market.account as any);
   type Acct = { publicKey: PublicKey; account: any };
-  const [banks, runs, logs, reveals, grants]: Acct[][] =
-    ss ? ["Benchmark", "Run", "ScoreLog", "Reveal", "ShareGrant"].map((n) => snapOf(ss, n))
-       : await Promise.all(["benchmark", "run", "scoreLog", "reveal", "shareGrant"]
+  const [banks, runs, logs, reveals, grants, records]: Acct[][] =
+    ss ? ["Benchmark", "Run", "ScoreLog", "Reveal", "ShareGrant", "ModelRecord"].map((n) => snapOf(ss, n))
+       : await Promise.all(["benchmark", "run", "scoreLog", "reveal", "shareGrant", "modelRecord"]
         .map((n) => (sAcct() as any)[n].all()));
   const [markets, darks, ladders, bounties]: Acct[][] =
     sm ? ["Market", "DarkMarket", "Ladder", "Bounty"].map((n) => snapOf(sm, n))
@@ -2910,9 +2910,22 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
     .sort((a, b) => b.t - a.t).slice(0, limit);
   if (json) { console.log(JSON.stringify(filtered)); return filtered; }
   const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
-  console.log(`feed — ${filtered.length} event(s)${typeFilter ? ` [${typeFilter}]` : ""} newest first`);
-  for (const e of filtered)
-    console.log(`  ${fmt(e.t)}  ${e.type.padEnd(10)} ${e.pk.slice(0, 12)}…  ${e.msg}`);
+  // ref → account-class index, so --pk can say WHY an event matched:
+  // "receipt … via its run" reads as custody, not just a key filter.
+  const refType = new Map<string, string>();
+  const tagAll = (arr: Acct[], t: string) => { for (const x of arr) refType.set(x.publicKey.toBase58(), t); };
+  tagAll(banks, "bank"); tagAll(runs, "run"); tagAll(logs, "receipt");
+  tagAll(records, "record"); tagAll(reveals, "reveal"); tagAll(grants, "grant");
+  tagAll(markets, "venue"); tagAll(darks, "venue"); tagAll(ladders, "venue"); tagAll(bounties, "venue");
+  console.log(`feed — ${filtered.length} event(s)${typeFilter ? ` [${typeFilter}]` : ""}${pkFilter ? ` touching ${pkFilter.slice(0, 12)}…` : ""} newest first`);
+  for (const e of filtered) {
+    let via = "";
+    if (pkFilter && e.pk !== pkFilter) {
+      const hit = e.refs.find((r) => r === pkFilter);
+      if (hit) via = `  · via ${refType.get(hit) ?? "key"} ${hit.slice(0, 8)}…`;
+    }
+    console.log(`  ${fmt(e.t)}  ${e.type.padEnd(10)} ${e.pk.slice(0, 12)}…  ${e.msg}${via}`);
+  }
   return filtered;
 }
 
