@@ -2536,6 +2536,71 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   return out;
 }
 
+/** `chain diff <snapshot-a> <snapshot-b> [--json]` — two bundles, one
+ *  verdict: per-type account deltas, which pubkeys are new in B, which
+ *  vanished, and both sides' integrity verdicts (registry replay +
+ *  resolution checks) recomputed. The reproducibility claim made
+ *  executable: `snapshot.mjs` a live cluster, diff against the
+ *  committed bundle — every committed account must appear intact. */
+export async function chainDiff(pathA: string, pathB: string, json = false) {
+  const TYPES_S = ["Benchmark", "Run", "ScoreLog", "ModelRecord", "Reveal", "ShareGrant", "ItemChunk", "PrivItemChunk"];
+  const TYPES_M = ["Market", "DarkMarket", "Ladder", "Bounty", "Position", "DarkPosition"];
+  const dec = (p: string) => {
+    const snap = loadSnapshotJson(p);
+    return {
+      snap, sha256: createHash("sha256").update(readFileSync(p)).digest("hex"),
+      ss: decodeSnapshotSection(snap, "sealed"), sm: decodeSnapshotSection(snap, "market"),
+    };
+  };
+  const A = dec(pathA), B = dec(pathB);
+  const rows: any[] = [];
+  let added = 0, removed = 0;
+  for (const [sec, types] of [["sealed", TYPES_S], ["market", TYPES_M]] as const) {
+    for (const t of types) {
+      const aM = new Map(snapOf(sec === "sealed" ? A.ss : A.sm, t).map((x) => [x.publicKey.toBase58(), x]));
+      const bM = new Map(snapOf(sec === "sealed" ? B.ss : B.sm, t).map((x) => [x.publicKey.toBase58(), x]));
+      const addedPks = [...bM.keys()].filter((k) => !aM.has(k));
+      const removedPks = [...aM.keys()].filter((k) => !bM.has(k));
+      // same pubkey, different bytes = a mutated account — the worst kind of diff
+      const mutated = [...aM.keys()].filter((k) => bM.has(k))
+        .filter((k) => JSON.stringify(aM.get(k)!.account) !== JSON.stringify(bM.get(k)!.account));
+      if (!aM.size && !bM.size) continue;
+      added += addedPks.length; removed += removedPks.length;
+      rows.push({ type: `${sec}.${t}`, a: aM.size, b: bM.size, added: addedPks.length, removed: removedPks.length,
+        mutated: mutated.length, addedPks: addedPks.slice(0, 25), removedPks: removedPks.slice(0, 25) });
+      if (mutated.length) for (const k of mutated.slice(0, 10))
+        console.error(`!! MUTATED account ${t} ${k} — same PDA, different bytes between bundles`);
+    }
+  }
+  const integ = (d: typeof A) => {
+    const logs = snapOf(d.ss, "ScoreLog"), records = snapOf(d.ss, "ModelRecord"), runs = snapOf(d.ss, "Run");
+    const logsByRec = new Map<string, any[]>();
+    for (const l of logs) {
+      const k = (l.account.modelRecord as PublicKey).toBase58();
+      (logsByRec.get(k) ?? logsByRec.set(k, []).get(k)!).push(l.account);
+    }
+    return ledgerIntegrity({ records, logsByRec, runs,
+      markets: snapOf(d.sm, "Market"), darks: snapOf(d.sm, "DarkMarket"),
+      ladders: snapOf(d.sm, "Ladder"), bounties: snapOf(d.sm, "Bounty") });
+  };
+  const iA = integ(A), iB = integ(B);
+  const out = {
+    a: { path: pathA, sha256: A.sha256, takenAt: A.snap.meta?.takenAt, integrity: { recordsOk: iA.recOk, recordsBad: iA.recBad, resolutionsOk: iA.resOk, resolutionsBad: iA.resBad } },
+    b: { path: pathB, sha256: B.sha256, takenAt: B.snap.meta?.takenAt, integrity: { recordsOk: iB.recOk, recordsBad: iB.recBad, resolutionsOk: iB.resOk, resolutionsBad: iB.resBad } },
+    totalAdded: added, totalRemoved: removed, rows,
+  };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`diff ${pathA} → ${pathB}`);
+  console.log(`  A — sha256 ${A.sha256.slice(0, 16)}… · taken ${A.snap.meta?.takenAt ?? "?"} · integrity ${iA.recOk}/${iA.recOk + iA.recBad} records, ${iA.resOk}/${iA.resOk + iA.resBad} resolutions`);
+  console.log(`  B — sha256 ${B.sha256.slice(0, 16)}… · taken ${B.snap.meta?.takenAt ?? "?"} · integrity ${iB.recOk}/${iB.recOk + iB.recBad} records, ${iB.resOk}/${iB.resOk + iB.resBad} resolutions`);
+  console.log(`  delta — +${added} accounts · -${removed} removed`);
+  for (const r of rows) {
+    if (!r.added && !r.removed && !r.mutated) continue;
+    console.log(`    ${r.type.padEnd(20)} ${r.a} → ${r.b}  (+${r.added} -${r.removed}${r.mutated ? ` !!${r.mutated} MUTATED` : ""})`);
+  }
+  return out;
+}
+
 /** `chain stats [--snapshot f] [--json]` — the executive dashboard: ledger
  *  counts, escrow, fees, and the two integrity verdicts recomputed inline —
  *  every ModelRecord's aggregate replayed from its ScoreLogs bit-exact, and
@@ -3365,6 +3430,10 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "export") {
     // No --snapshot → digest the live cluster (source: "live").
     await chainExport(args.snapshot ? String(args.snapshot) : undefined, args.out ? String(args.out) : undefined);
+    return;
+  }
+  if (sub === "diff") {
+    await chainDiff(String(cmd[1] ?? ""), String(cmd[2] ?? ""), Boolean(args.json));
     return;
   }
   if (sub === "runs") {

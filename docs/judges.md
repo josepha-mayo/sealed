@@ -142,6 +142,18 @@ yarn --cwd packages/harness cli chain items --benchmark 2cwT4xY7e6UDFePX7tB5Poii
 #     ↑ regenerates an entire MPC-minted exam offline — item specs decoded
 #       from raw ItemChunk bytes, items_root fold re-verified
 
+# 3f. the bundle is REPRODUCIBLE — don't take the committed snapshot on
+#     faith: re-dump the live devnet ledger yourself (no wallet needed,
+#     getProgramAccounts is permissionless) and digest both. Counts,
+#     per-record replay verdicts, and per-venue Run.correct checks
+#     should match (the devnet ledger has grown since the bundle was
+#     cut, so a fresh dump may be a superset — every committed account
+#     still re-derives inside it).
+node scripts/snapshot.mjs --rpc https://api.devnet.solana.com --out /tmp/fresh.json
+yarn --cwd packages/harness cli chain diff ../../web/snapshot.json /tmp/fresh.json
+#     ↑ one command: per-type account deltas (added/removed/mutated),
+#       both bundles' sha256 + integrity verdicts side by side
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).

@@ -133,6 +133,11 @@ and the same digest runs over the live cluster (`source: "live"`) —
 the verdicts applied to YOUR deployment, with a discriminator-filtered
 fallback that tolerates old-layout accounts the same way snapshot
 decoding does.
+`chain diff <a.json> <b.json>` compares two bundles — per-type account
+deltas (added/removed, and MUTATED: same PDA, different bytes), both
+sides' sha256 and integrity verdicts recomputed. Pair it with
+`snapshot.mjs --rpc <url>` to prove the committed bundle reproduces
+from live chain state instead of trusting the committed file.
 `chain stats` is the executive dashboard — ledger counts, escrow, fees,
 MPC latency p50/p95, the keeper surface, and two verdicts recomputed
 on the spot: every `ModelRecord`'s stored aggregate replayed bit-exact
