@@ -121,7 +121,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `model`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `model`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -224,6 +224,12 @@ divergence` then diffs two of the rankings directly: evidence rank
 means the money prices a model above its receipts (the paired evidence
 ranks it worse than the books do), a negative gap the reverse, and a
 model present on only one side is reported as exactly that finding.
+`chain market calibration` is the report card: across every resolved
+venue with a book, the implied share the actual winner carried at
+close, per-venue Brier scores, and the favorite hit-rate — all against
+a uniform-betting baseline, all re-derivable because every resolution
+checks against `Run.correct` (on the committed ledger: favorites hit
+87%, winners carried ~55% implied at close vs a ~40% uniform baseline).
 `chain model
 <pk|model_id>` fuses all four lenses into one dossier: the registry
 aggregate (receipt-replayable), the paired-evidence rank, the

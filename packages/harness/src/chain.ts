@@ -2759,6 +2759,76 @@ export async function marketSentiment(json = false, snapPath?: string) {
   return rows;
 }
 
+/** `chain market calibration` — did the books see it coming? For every
+ *  RESOLVED venue with a non-empty book: the implied share the actual
+ *  winner carried at close, a per-venue Brier score, and whether the
+ *  favorite hit. The closing-line record is the only honest report card
+ *  a prediction market has — and here it's computable because every
+ *  resolution re-derives from Run.correct. Dark books stay excluded:
+ *  sealed commitments carry no ex-ante price. */
+export async function marketCalibration(json = false, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [markets, ladders]: Acct[][] =
+    sm ? ["Market", "Ladder"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "ladder"].map((n) => (mAcct() as any)[n].all()));
+
+  type Row = { venue: string; kind: string; n: number; pot: string;
+    winners: number[]; impliedWinnerPct: number; brier: number; favoriteHit: boolean };
+  const rows: Row[] = [];
+  const evalBook = (pk: string, kind: string, totals: bigint[], winners: number[]) => {
+    const pot = totals.reduce((s, t) => s + t, 0n);
+    if (!pot || !winners.length) return;
+    const n = totals.length;
+    const p = totals.map((t) => Number(t) / Number(pot));
+    const wset = new Set(winners);
+    const brier = p.reduce((s, pi, i) => s + (pi - (wset.has(i) ? 1 : 0)) ** 2, 0);
+    const fav = p.indexOf(Math.max(...p));
+    rows.push({ venue: pk, kind, n, pot: (Number(pot) / 1e9).toFixed(4) + " ◎",
+      winners, impliedWinnerPct: Math.round(winners.reduce((s, w) => s + p[w], 0) * 10000) / 100,
+      brier: Math.round(brier * 10000) / 10000, favoriteHit: wset.has(fav) });
+  };
+  for (const m of markets) {
+    const M = m.account as any;
+    if (Number(M.status) !== 1) continue;
+    const n = Number(M.nOutcomes);
+    evalBook(m.publicKey.toBase58(),
+      M.runB && !(M.runB as PublicKey).equals(PublicKey.default) ? "duel" : "band",
+      (M.totals as any[]).map((t) => BigInt(t.toString())).slice(0, n), [Number(M.outcome)]);
+  }
+  for (const l of ladders) {
+    const L = l.account as any;
+    if (Number(L.status) !== 1) continue;
+    const n = Number(L.legCount), mask = Number(L.resultMask);
+    const winners: number[] = [];
+    for (let i = 0; i < n; i++) if ((mask >> i) & 1) winners.push(i);
+    evalBook(l.publicKey.toBase58(), "ladder",
+      (L.totals as any[]).map((t) => BigInt(t.toString())).slice(0, n), winners);
+  }
+  const mean = (xs: number[]) => xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
+  const summary = {
+    venuesScored: rows.length,
+    favoriteHitRatePct: Math.round(100 * mean(rows.map((r) => (r.favoriteHit ? 1 : 0)))) ,
+    meanImpliedWinnerPct: Math.round(mean(rows.map((r) => r.impliedWinnerPct)) * 100) / 100,
+    meanBrier: Math.round(mean(rows.map((r) => r.brier)) * 10000) / 10000,
+    uniformBaselinePct: Math.round(mean(rows.map((r) => 100 / r.n)) * 100) / 100,
+    uniformBrier: Math.round(mean(rows.map((r) => (1 - 1 / r.n) ** 2 + (r.n - 1) * (1 / r.n) ** 2)) * 10000) / 10000,
+  };
+  const out = { summary, venues: rows };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`market calibration — ${rows.length} resolved venues with books, vs what Run.correct landed`);
+  console.log(`  favorites hit ${summary.favoriteHitRatePct}% · winners carried ${summary.meanImpliedWinnerPct}% implied at close (uniform baseline ${summary.uniformBaselinePct}%)`);
+  console.log(`  Brier ${summary.meanBrier} vs uniform ${summary.uniformBrier} — lower is sharper`);
+  const miss = rows.filter((r) => !r.favoriteHit).sort((a, b) => b.impliedWinnerPct - a.impliedWinnerPct).slice(0, 8);
+  if (miss.length) {
+    console.log(`  favorite misses (winner's closing share):`);
+    for (const r of miss) console.log(`    ${r.kind.padEnd(6)} ${r.venue.slice(0, 12)}… winner carried ${r.impliedWinnerPct}% across ${r.n} outcome(s)`);
+  }
+  return out;
+}
+
 /** `chain market divergence` — where the money disagrees with the
  *  receipts. Two honest rankings exist: paired evidence (compare --all)
  *  and conviction (stake weighed, market sentiment). Sort both, diff the
@@ -4304,6 +4374,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketChampions(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "divergence") {
       await marketDivergence(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "calibration") {
+      await marketCalibration(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

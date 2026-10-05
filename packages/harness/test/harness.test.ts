@@ -717,3 +717,20 @@ test("marketDivergence diffs evidence rank vs conviction rank", async () => {
     assert.ok(Math.abs(rows[0].gap ?? 0) >= Math.abs(rows[rows.length - 1].gap ?? 0) || rows[rows.length - 1].gap === null);
   } finally { console.log = origLog; }
 });
+
+test("marketCalibration scores closing books against landed outcomes", async () => {
+  const { marketCalibration } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const { summary, venues } = (await marketCalibration(true, snapPath)) as any;
+    assert.equal(summary.venuesScored, 143);
+    assert.equal(summary.favoriteHitRatePct, 87);
+    assert.equal(summary.meanImpliedWinnerPct, 55.18);
+    assert.ok(summary.meanBrier < summary.uniformBrier, "books beat the uniform baseline");
+    // dead-heat ladders count every co-winner in the implied share
+    const dh = venues.find((v) => v.winners.length > 1);
+    assert.ok(dh && dh.impliedWinnerPct > 0);
+  } finally { console.log = origLog; }
+});

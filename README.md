@@ -268,6 +268,7 @@ sealed chain market odds [venue]                                     # what the 
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
 sealed chain market champions                                        # the settlement record — duel W-D-L · ladder leg wins · bounty claims
 sealed chain market divergence                                       # evidence rank vs conviction rank — where money disagrees with receipts
+sealed chain market calibration                                      # closing-book report card — favorite hit-rate + Brier vs uniform
 sealed chain model <pk|model_id>                                     # the fused dossier — registry · evidence · settlement · belief · runs
 sealed chain search <pk> --snapshot web/snapshot.json               # universal resolver — what IS this key? routes to the right dossier
 sealed chain tour --snapshot web/snapshot.json                      # the project demos itself — stats → trail → feed → book → P&L → sentiment in one pass
