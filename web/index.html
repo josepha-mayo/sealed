@@ -777,7 +777,8 @@ function renderAll(sealedAccs, marketAccs) {
     // sink below a divider so the table reads as a leaderboard, not a log.
     const suite = /^(test|mock|ladder|duel|dark|delegate|e2e|probe|fixture)\//;
     const real = recs.filter(m => !suite.test(m.modelId)), fixtures = recs.filter(m => suite.test(m.modelId));
-    h += `<h2 id="sec-records">model capability records — persistent per-model aggregates</h2><div class="card"><table>` +
+    h += `<h2 id="sec-records">model capability records — persistent per-model aggregates</h2>` +
+      `<div class="kv" style="margin-bottom:8px">lens 1 of 4 — the registry. The other three are on this page: <a href="#sec-h2h">paired evidence</a> · <a href="#sec-champions">settlement</a> · <a href="#sec-sentiment">market belief</a>. <span class="mono">chain model &lt;id&gt;</span> fuses all four.</div><div class="card"><table>` +
       `<tr><th>model</th><th>runs</th><th>cumulative</th><th>best run</th><th>last run</th><th>attested</th><th>updated</th></tr>`;
     // Wilson 95% lower confidence bound — a leaderboard that ranks raw
     // point estimates lies: 9/32 and 45/64 don't mean what they look like.
@@ -904,7 +905,8 @@ function renderAll(sealedAccs, marketAccs) {
   }
   if (pairs.size) {
     const rows = [...pairs.values()].sort((a, b) => b.n - a.n);
-    h += `<h2 id="sec-h2h">head-to-head — pairwise results from resolved duels + same-bank ladder legs</h2><div class="card"><table>` +
+    h += `<h2 id="sec-h2h">head-to-head — pairwise results from resolved duels + same-bank ladder legs</h2>` +
+      `<div class="kv" style="margin-bottom:8px">lens 2 of 4 — paired evidence (<span class="mono">chain compare --all</span>). Also: <a href="#sec-records">registry</a> · <a href="#sec-champions">settlement</a> · <a href="#sec-sentiment">market belief</a>.</div><div class="card"><table>` +
       `<tr><th>model A</th><th>record</th><th>model B</th><th>comparisons</th></tr>`;
     rows.forEach(p => {
       const cell = `${p.w}–${p.l}–${p.t}`;
@@ -1187,7 +1189,7 @@ function renderAll(sealedAccs, marketAccs) {
       .sort((a, b) => b.stake - a.stake);
     if (sRows.length) {
       h += `<h2 id="sec-sentiment">market sentiment</h2><div class="card">
-        <div class="kv">stake-weighted belief pooled across every funded open book — the market's opinion, to set against the evidence tables (<span class="mono">chain market sentiment</span> prints the same rows).</div>
+        <div class="kv">lens 3 of 4 — stake-weighted belief pooled across every funded open book (<span class="mono">chain market sentiment</span> prints the same rows). Also: <a href="#sec-records">registry</a> · <a href="#sec-h2h">paired evidence</a> · <a href="#sec-champions">settlement</a>.</div>
         <table><tr><th>model</th><th>implied win%</th><th>implied score</th><th>stake weighed</th><th>venues</th></tr>`;
       for (const r of sRows)
         h += `<tr><td class="mono">${esc(r.m)}</td><td>${r.win !== null ? r.win.toFixed(2) + "%" : "—"}</td><td>${r.score !== null ? "~" + r.score.toFixed(1) : "—"}</td><td>${r.stake.toFixed(3)} SOL</td><td>${r.venues}</td></tr>`;
@@ -1223,7 +1225,7 @@ function renderAll(sealedAccs, marketAccs) {
       decided: r.W + r.L, score: r.W * 3 + r.legs + r.bounties * 2 })).sort((a, b) => b.score - a.score);
     if (cRows.length) {
       h += `<h2 id="sec-champions">settlement record</h2><div class="card">
-        <div class="kv">what the money actually resolved on — duel W-D-L, ladder leg wins (dead-heat masks count every co-winner), bounty claims. The opinion a model can't argue with (<span class="mono">chain market champions</span>).</div>
+        <div class="kv">lens 4 of 4 — what the money actually resolved on: duel W-D-L, ladder leg wins (dead-heat masks count every co-winner), bounty claims (<span class="mono">chain market champions</span>). Also: <a href="#sec-records">registry</a> · <a href="#sec-h2h">paired evidence</a> · <a href="#sec-sentiment">market belief</a>.</div>
         <table><tr><th>model</th><th>duels</th><th>ladder legs</th><th>bounties</th></tr>`;
       for (const r of cRows)
         h += `<tr><td class="mono">${esc(r.m)}</td><td>${r.W}W-${r.D}D-${r.L}L${r.decided ? ` (${(100 * r.W / r.decided).toFixed(0)}%)` : ""}</td><td>${r.legs}/${r.entries}${r.entries ? ` (${(100 * r.legs / r.entries).toFixed(0)}%)` : ""}</td><td>${r.bounties}</td></tr>`;
