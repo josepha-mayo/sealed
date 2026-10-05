@@ -1780,7 +1780,7 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
  *  bank Y" — as a grep-able table. */
 export async function runList(opts: {
   snapPath?: string; json?: boolean; bank?: string; model?: string;
-  minPct?: number; status?: string;
+  minPct?: number; status?: string; attested?: boolean;
 }) {
   const ss = opts.snapPath ? decodeSnapshotSection(loadSnapshotJson(opts.snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
@@ -1809,18 +1809,20 @@ export async function runList(opts: {
       bank: (r.benchmark as PublicKey).toBase58(), bankName: bankName.get((r.benchmark as PublicKey).toBase58()) ?? "?",
       status: Number(r.status), correct: Number(r.correct), items, pct,
       postReveal: !!r.postReveal, runner: (r.runner as PublicKey).toBase58(),
+      attested: !!r.attested, attestedAt: Number(r.attestedAt ?? 0),
       createdAt: Number(r.createdAt), finalizedAt: Number(r.finalizedAt),
     };
   }).filter((r) =>
     (!bankPks || bankPks.has(r.bank)) &&
     (!opts.model || r.model === opts.model) &&
+    (opts.attested === undefined || r.attested === opts.attested) &&
     (opts.minPct === undefined || r.pct >= opts.minPct) &&
     (want === undefined || r.status === want))
     .sort((a, b) => b.pct - a.pct || b.finalizedAt - a.finalizedAt);
   if (opts.json) { console.log(JSON.stringify(rows)); return rows; }
   console.log(`${rows.length} run(s)${bankPks ? ` on ${opts.bank}` : ""}${opts.model ? ` by ${opts.model}` : ""} — score first:`);
   for (const r of rows.slice(0, 100))
-    console.log(`  ${r.pk}  ${r.model.padEnd(24)} ${r.bankName.padEnd(18)} ${r.status === 1 ? `${String(r.correct).padStart(3)}/${r.items} (${r.pct.toFixed(1)}%)` : (["PENDING", "?", "CANCELLED"][r.status] ?? r.status)}${r.postReveal ? " post-reveal" : ""}`);
+    console.log(`  ${r.pk}  ${r.model.padEnd(24)} ${r.bankName.padEnd(18)} ${r.status === 1 ? `${String(r.correct).padStart(3)}/${r.items} (${r.pct.toFixed(1)}%)` : (["PENDING", "?", "CANCELLED"][r.status] ?? r.status)}${r.postReveal ? " post-reveal" : ""}${r.attested ? " attested" : ""}`);
   if (rows.length > 100) console.log(`  … ${rows.length - 100} more (narrow with --bank/--model/--min-pct)`);
   return rows;
 }
@@ -4423,6 +4425,7 @@ export async function chainMain(cmd: string[], args: Args) {
       bank: args.bank ? String(args.bank) : undefined, model: args.model ? String(args.model) : undefined,
       minPct: args["min-pct"] !== undefined ? Number(args["min-pct"]) : undefined,
       status: args.status ? String(args.status) : undefined,
+      attested: args.attested === undefined ? undefined : Boolean(args.attested),
     });
     return;
   }

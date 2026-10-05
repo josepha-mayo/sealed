@@ -131,7 +131,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `model`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -143,6 +143,10 @@ and the same digest runs over the live cluster (`source: "live"`) —
 the verdicts applied to YOUR deployment, with a discriminator-filtered
 fallback that tolerates old-layout accounts the same way snapshot
 decoding does.
+`chain runs` filters the substrate — `--bank`, `--model`, `--min-pct`,
+`--status`, and `--attested` isolates authority-countersigned runs (the
+flag markets and the `vouched` gate trust; an unattested run is a claim,
+an attested one is a co-signed measurement).
 `chain diff <a.json> <b.json>` compares two bundles — per-type account
 deltas (added/removed, and MUTATED: same PDA, different bytes), both
 sides' sha256 and integrity verdicts recomputed. Pair it with
