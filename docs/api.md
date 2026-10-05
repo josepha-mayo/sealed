@@ -115,7 +115,10 @@ print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
-`runs`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market positions`.
+`runs`, `verify`, `grants`, `reveals`, `market board`, `market bounties`,
+`market positions`, `items` (rebuilds a generated bank's item specs from
+raw ItemChunk bytes and re-verifies the items_root fold — an exam
+regenerated from chain state alone, offline).
 `chain stats` is the executive dashboard — ledger counts, escrow, fees,
 MPC latency p50/p95, the keeper surface, and two verdicts recomputed
 on the spot: every `ModelRecord`'s stored aggregate replayed bit-exact

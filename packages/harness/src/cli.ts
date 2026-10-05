@@ -147,7 +147,7 @@ async function main() {
                                      (re-derives the address from canonical seeds, drains dust to you — bare "unbrick" prints kinds)
   sealed chain seal  --bank <file> [--fee-lamports n]
   sealed chain gen   --id <n> [--chunks 2] [--fee-lamports n] [--out file]   MPC-minted bank: no answer key exists
-  sealed chain items --benchmark <pubkey> [--out file]                      render a generated bank from on-chain specs
+  sealed chain items --benchmark <pubkey> [--out file] [--snapshot f]       render a generated bank from on-chain specs (snapshot = offline)
   sealed chain gen-private --id <n> [--chunks 2] [--fee-lamports n] [--out f] MPC-minted bank: items encrypted to YOU
   sealed chain pitems --benchmark <pubkey> [--out file]                     decrypt a private bank (authority only)
   sealed chain reshare --benchmark <pk> --chunk <i> --part <0..3> --to <viewer-pubkey>   grant a delegate the questions

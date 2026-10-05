@@ -2628,10 +2628,36 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "items") {
-    const ctx = setup();
-    const acct = ctx.program.account as any;
-    const b: any = await acct.benchmark.fetch(new PublicKey(String(args.benchmark)));
-    const bank = await fetchGenBank(new PublicKey(String(args.benchmark)), b.chunkCount, ctx);
+    const bpk = new PublicKey(String(args.benchmark));
+    let bank: Bank, b: any;
+    if (args.snapshot) {
+      // Offline replay: pull the raw ItemChunk bytes out of the committed
+      // bundle, re-derive their PDAs, and re-fold items_root — keyless.
+      const snap = loadSnapshotJson(String(args.snapshot));
+      const ss = decodeSnapshotSection(snap, "sealed");
+      const bx = snapOf(ss, "Benchmark").find((x) => x.publicKey.equals(bpk));
+      if (!bx) throw new Error(`benchmark ${bpk.toBase58()} not in snapshot`);
+      b = bx.account;
+      if (b.kind !== 1) throw new Error(`benchmark ${bpk.toBase58()} is not a generated bank`);
+      const rawByPk = new Map<string, Buffer>(
+        (snap.sealed ?? []).map((e: any) => [e.pubkey, Buffer.from(e.data, "base64")]));
+      const pd = pdas({ program: { programId: sealedProgramId() } } as Ctx, b.authority, b.id);
+      const chunks: ItemChunkState[] = [];
+      for (let i = 0; i < Number(b.chunkCount); i++) {
+        const data = rawByPk.get(pd.items(i).toBase58());
+        if (!data) throw new Error(`ItemChunk ${i} missing from snapshot — bank not fully minted`);
+        chunks.push(decodeItemChunk(data));
+      }
+      bank = bankFromChunks(Number(b.id), chunks);
+      const onchain = Buffer.from(b.itemsRoot).toString("hex");
+      if (Number(b.status) === 1 && bank.itemsRoot !== onchain)
+        throw new Error(`items_root mismatch: local fold ${bank.itemsRoot} != on-chain ${onchain}`);
+    } else {
+      const ctx = setup();
+      const acct = ctx.program.account as any;
+      b = await acct.benchmark.fetch(bpk);
+      bank = await fetchGenBank(bpk, b.chunkCount, ctx);
+    }
     const out = String(args.out ?? join("bank", `gen-${b.id}.json`));
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(bank, null, 2) + "\n");

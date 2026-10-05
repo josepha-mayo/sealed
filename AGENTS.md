@@ -43,7 +43,9 @@ parimutuel markets resolved from `Run.correct`.
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
   `status`, `records`, `modelrec`, `gate` (+`--all`), `history`, `compare`
   (+`--all`), `trail`, `stats`, `runs`, `verify`, `grants`, `reveals`, `market board`,
-  `market positions` (+`--viewer <pk>` keyless). `sealedProgramId()`
+  `market positions` (+`--viewer <pk>` keyless), `items` (regenerates a
+  generated bank's specs from raw ItemChunk bytes, re-fold checked
+  against the stored items_root). `sealedProgramId()`
   derives the program id WITHOUT loading a wallet — snapshot mode is
   keyless end-to-end. `loadSnapshotJson` sha256-checks the file against a
   sibling `MANIFEST` (the committed web/MANIFEST pins `snapshot.json`) and

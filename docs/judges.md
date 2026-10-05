@@ -136,6 +136,10 @@ yarn --cwd packages/harness cli chain banks --snapshot ../../web/snapshot.json  
 yarn --cwd packages/harness cli chain market board --snapshot ../../web/snapshot.json
 yarn --cwd packages/harness cli chain gate dark/model-a --min-pct 80 --min-runs 5 --snapshot ../../web/snapshot.json
 yarn --cwd packages/harness cli chain records --snapshot ../../web/snapshot.json
+yarn --cwd packages/harness cli chain items --benchmark 2cwT4xY7e6UDFePX7tB5PoiihJDfFT2kEqefayVtMVxZ \
+  --snapshot ../../web/snapshot.json --out /tmp/gen-bank.json
+#     ↑ regenerates an entire MPC-minted exam offline — item specs decoded
+#       from raw ItemChunk bytes, items_root fold re-verified
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
