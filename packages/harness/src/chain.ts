@@ -1640,6 +1640,102 @@ export async function bankList(snapPath?: string, json = false, kind?: string) {
   return rows;
 }
 
+/** `chain bank <pk|name> [--json]` — one benchmark's dossier: spec,
+ *  every run/receipt/reveal/grant/chunk on it, and every market-program
+ *  venue priced against it — the explorer's per-bank section as a
+ *  portable report. Names aren't unique; when a name matches several
+ *  banks the command lists them and asks for a pk. */
+export async function bankShow(keyOrName: string, json = false, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sAcct = () => (sealedProgram().program.account as any);
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [banks, runs, logs, reveals, grants, itemChunks, privChunks]: Acct[][] =
+    ss ? ["Benchmark", "Run", "ScoreLog", "Reveal", "ShareGrant", "ItemChunk", "PrivItemChunk"].map((n) => snapOf(ss, n))
+       : await Promise.all(["benchmark", "run", "scoreLog", "reveal", "shareGrant", "itemChunk", "privItemChunk"]
+        .map((n) => (sAcct() as any)[n].all()));
+  const [markets, darks, ladders, bounties]: Acct[][] =
+    sm ? ["Market", "DarkMarket", "Ladder", "Bounty"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "darkMarket", "ladder", "bounty"].map((n) => (mAcct() as any)[n].all()));
+  const matches = banks.filter((x) => x.publicKey.toBase58() === keyOrName || x.account.name === keyOrName);
+  if (!matches.length) throw new Error(`no benchmark named/addressed ${keyOrName}`);
+  if (matches.length > 1) {
+    console.log(`${matches.length} benchmarks named ${keyOrName} — re-run with a public key:`);
+    for (const m of matches) console.log(`  ${m.publicKey.toBase58()}`);
+    process.exitCode = 2;
+    return;
+  }
+  const bank = matches[0];
+  const B = bank.account as any;
+  const pk = bank.publicKey.toBase58();
+  const bRuns = runs.filter((r) => (r.account.benchmark as PublicKey).toBase58() === pk);
+  const bLogs = logs.filter((l) => (l.account.benchmark as PublicKey).toBase58() === pk);
+  const bReveals = reveals.filter((r) => (r.account.benchmark as PublicKey).toBase58() === pk);
+  const bGrants = grants.filter((g) => (g.account.benchmark as PublicKey).toBase58() === pk);
+  const bItem = itemChunks.filter((c) => (c.account.benchmark as PublicKey).toBase58() === pk);
+  const bPriv = privChunks.filter((c) => (c.account.benchmark as PublicKey).toBase58() === pk);
+  const items = Number(B.chunkCount) * 32;
+  const fin = bRuns.filter((r) => r.account.status === 1);
+  const postRev = bRuns.filter((r) => r.account.postReveal);
+  const best = fin.reduce((m, r) => Math.max(m, Number(r.account.correct)), -1);
+  const STATUS = ["open", "resolved", "expired"];
+  const venueRow = (xs: Acct[], kind: string, key: "benchmark" | "bank", statusName?: (a: any) => string) => {
+    const list = xs.filter((v) => (v.account[key] as PublicKey)?.toBase58?.() === pk);
+    if (!list.length) return null;
+    const byStatus: Record<string, number> = {};
+    for (const v of list) {
+      const s = statusName ? statusName(v.account) : (STATUS[v.account.status as number] ?? String(v.account.status));
+      byStatus[s] = (byStatus[s] ?? 0) + 1;
+    }
+    return { kind, total: list.length, byStatus };
+  };
+  const venues = [
+    venueRow(markets, "band/duel", "benchmark"), venueRow(darks, "dark", "benchmark"),
+    venueRow(ladders, "ladder", "benchmark"),
+    venueRow(bounties, "bounty", "bank", (a) => (a.status === 0 ? "open" : "claimed")),
+  ].filter((v): v is NonNullable<typeof v> => Boolean(v));
+  const out = {
+    pk, name: B.name, kind: BANK_KIND[B.kind as number] ?? String(B.kind),
+    authority: (B.authority as PublicKey).toBase58(), status: B.status,
+    items, chunksSealed: Number(B.chunksSealed), chunksTotal: Number(B.chunkCount),
+    itemsRoot: Buffer.from(B.itemsRoot).toString("hex"),
+    feeLamports: Number(B.feeLamports), createdAt: Number(B.createdAt),
+    runs: { total: bRuns.length, finalized: fin.length, pending: bRuns.length - fin.length,
+      postReveal: postRev.length, bestCorrect: best < 0 ? null : best, bestPct: best < 0 ? null : +(100 * best / Math.max(1, items)).toFixed(1) },
+    receipts: { total: bLogs.length, vouched: bLogs.filter((l) => l.account.vouchedAtRecord).length,
+      postReveal: bLogs.filter((l) => l.account.postReveal).length },
+    reveals: bReveals.map((r) => ({ pk: r.publicKey.toBase58(), chunk: r.account.chunkIndex, part: r.account.part, revealedAt: Number(r.account.revealedAt) }))
+      .sort((a, b) => a.revealedAt - b.revealedAt),
+    grants: bGrants.length,
+    chunks: { public: bItem.length, private: bPriv.length },
+    venues,
+  };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
+  console.log(`bank ${pk}`);
+  console.log(`  spec — "${out.name}" ${out.kind} · authority ${out.authority.slice(0, 12)}… · status=${out.status} · ${out.chunksSealed}/${out.chunksTotal} chunks sealed (${out.items} items) · fee ${(out.feeLamports / 1e9).toFixed(4)}◎ · created ${fmt(out.createdAt)}`);
+  console.log(`  items_root — ${out.itemsRoot.slice(0, 24)}…  (chain items --benchmark ${pk.slice(0, 8)}… regenerates the exam offline)`);
+  console.log(`  runs — ${out.runs.total} total · ${out.runs.finalized} finalized · ${out.runs.pending} pending · ${out.runs.postReveal} post-reveal${out.runs.bestCorrect !== null ? ` · best ${out.runs.bestCorrect}/${out.items} (${out.runs.bestPct}%)` : ""}`);
+  console.log(`  receipts — ${out.receipts.total} minted · ${out.receipts.vouched} vouched · ${out.receipts.postReveal} post-reveal`);
+  if (out.reveals.length)
+    for (const r of out.reveals) console.log(`  reveal — ${r.pk.slice(0, 12)}… chunk ${r.chunk} part ${r.part} @ ${fmt(r.revealedAt)}`);
+  else console.log(`  reveals — none (answer fingerprints still sealed)`);
+  console.log(`  grants — ${out.grants} reshare grant(s) · chunks stored: ${out.chunks.public} public + ${out.chunks.private} private`);
+  if (!venues.length) console.log(`  venues — none priced runs on this bank`);
+  for (const v of venues)
+    console.log(`  venues — ${v.kind}: ${v.total} (${Object.entries(v.byStatus).map(([k, n]) => `${n} ${k}`).join(", ")})`);
+  return out;
+}
+
+/** `chain runs [--bank <pk|name>] [--model <id>] [--min-pct n] [--status s]`
+  for (const r of rows)
+    console.log(`  ${r.pk}  ${r.name.padEnd(20)} ${r.kind.padEnd(9)} items=${String(r.items).padStart(3)} runs=${String(r.runs).padStart(3)}` +
+      ` finalized=${String(r.finalized).padStart(3)} best=${r.best.toFixed(1)}%${r.reveals ? ` reveals=${r.reveals}` : ""}`);
+  return rows;
+}
+
 /** `chain runs [--bank <pk|name>] [--model <id>] [--min-pct n] [--status s]`
  *  — the run substrate index: who ran what, scored what, on which bank.
  *  The question behind every bounty and market — "which runs cleared X on
@@ -2995,6 +3091,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "records") {
     await modelRecordList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    return;
+  }
+  if (sub === "bank") {
+    await bankShow(String(cmd[1] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "banks") {

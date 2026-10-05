@@ -120,7 +120,7 @@ print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
-`runs`, `feed`, `verify`, `grants`, `reveals`, `market board`, `market bounties`,
+`runs`, `feed`, `bank`, `verify`, `grants`, `reveals`, `market board`, `market bounties`,
 `market positions`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
@@ -145,6 +145,13 @@ causal chains are visible: a `reveal` event followed by runs stamped
 post-reveal, a `score` followed by its `receipt` and the venue that
 priced it. `--type` accepts the event classes
 `bank,run,score,receipt,venue,resolution,reveal,grant`.
+`chain bank <pk|name>` is the per-benchmark dossier — spec (kind,
+authority, chunks sealed, items_root, fee), run totals (finalized,
+pending, post-reveal-stamped, best score), receipt summary (vouched /
+post-reveal), every fingerprint reveal with timestamps, reshare-grant
+count, stored item-chunk counts, and every venue type priced against
+the bank with open/resolved breakdown. Ambiguous names list the
+matching public keys and exit 2 — disambiguation is never guessed.
 `market bounties` is the runner-facing index — open capability bounties
 sorted by pot, marking which are claimable NOW under the exact
 `bounty_qualifies` rules (retroactivity wall, no self-deal, proven runs,
