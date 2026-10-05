@@ -3575,20 +3575,28 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "grants") {
-    const bankPk = new PublicKey(String(args.benchmark));
+    const viewerStr = args.viewer ? String(args.viewer) : undefined;
+    if (!args.benchmark && !viewerStr) { console.log("usage: chain grants --benchmark <pk> | --viewer <pk> [--viewer x]"); process.exitCode = 2; return; }
+    const bankPk = args.benchmark ? new PublicKey(String(args.benchmark)) : null;
+    const b58 = (v: any) => v?.toBase58 ? v.toBase58() : typeof v === "string" ? v : new PublicKey(Buffer.from(v ?? [])).toBase58();
     if (args.snapshot) {
       const ss = decodeSnapshotSection(loadSnapshotJson(String(args.snapshot)), "sealed");
-      const gs = snapOf(ss, "ShareGrant").filter((g) => (g.account.benchmark as PublicKey).equals(bankPk));
+      let gs = snapOf(ss, "ShareGrant");
+      if (bankPk) gs = gs.filter((g) => (g.account.benchmark as PublicKey).equals(bankPk));
+      if (viewerStr) gs = gs.filter((g) => b58(g.account.viewer) === viewerStr);
+      const bname = new Map(snapOf(ss, "Benchmark").map((b) => [b.publicKey.toBase58(), b.account.name as string]));
       if (!gs.length) console.log("no grants");
       for (const g of gs) {
         const a = g.account as any;
-        console.log(`chunk ${a.chunkIndex} part ${a.part} → viewer ${Buffer.from(a.viewer).toString("hex").slice(0, 16)}… at ${a.sharedAt} (${g.publicKey.toBase58()})`);
+        console.log(`${bname.get(b58(a.benchmark)) ?? b58(a.benchmark).slice(0, 10)} chunk ${a.chunkIndex} part ${a.part} → viewer ${b58(a.viewer).slice(0, 16)}… at ${a.sharedAt} (${g.publicKey.toBase58()})`);
       }
       return;
     }
+    if (!bankPk) { console.log("live mode needs --benchmark (use --snapshot for the cross-bank --viewer index)"); process.exitCode = 2; return; }
     const list = await listGrants(bankPk);
-    if (!list.length) console.log("no grants");
-    for (const g of list) console.log(`chunk ${g.chunkIndex} part ${g.part} → viewer ${g.viewer.slice(0, 16)}… at ${g.sharedAt} (${g.address.toBase58()})`);
+    const filtered = viewerStr ? list.filter((g) => new PublicKey(Buffer.from(g.viewer, "hex")).toBase58() === viewerStr) : list;
+    if (!filtered.length) console.log("no grants");
+    for (const g of filtered) console.log(`chunk ${g.chunkIndex} part ${g.part} → viewer ${g.viewer.slice(0, 16)}… at ${g.sharedAt} (${g.address.toBase58()})`);
     return;
   }
   if (sub === "reveals") {

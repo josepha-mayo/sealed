@@ -232,7 +232,7 @@ sealed chain gen-private --id 8 --chunks 2 --fee-lamports 1000000    # private b
 sealed chain pitems --benchmark <pubkey>                             # decrypt + render a private bank (authority only)
 sealed chain reshare --benchmark <pk> --chunk <i> --part <p> --to <solana-pubkey>  # delegate the questions to a second key
 sealed chain grant   --benchmark <pk> --chunk <i> --part <p>           # delegate-side: fetch + decrypt your grant
-sealed chain grants  --benchmark <pk>                                  # list who can see which parts
+sealed chain grants  --benchmark <pk> | --viewer <pk>                  # who can see which parts — or "what can I see" per delegate
 sealed chain delegate-bank --benchmark <pk> [--out bank.json]          # rebuild the whole bank from your grants
 sealed chain score --bank bank/1.json --run runs/….json              # create_run + score every chunk in MPC
 sealed chain score --bank bank/1.json --run runs/….json --create-only  # park the run pending (for a market)
