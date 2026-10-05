@@ -2754,6 +2754,43 @@ export async function marketSentiment(json = false, snapPath?: string) {
   return rows;
 }
 
+/** `chain market divergence` — where the money disagrees with the
+ *  receipts. Two honest rankings exist: paired evidence (compare --all)
+ *  and conviction (stake weighed, market sentiment). Sort both, diff the
+ *  positions: a positive gap means the market prices a model BELOW its
+ *  evidence (undervalued), negative means above (overvalued). Models
+ *  appearing on only one side are shown — a model the evidence can't
+ *  rank but money priced is itself a finding. */
+export async function marketDivergence(json = false, snapPath?: string) {
+  const origLog = console.log; console.log = () => {};
+  let ranked: any, senti: any;
+  try {
+    [ranked, senti] = await Promise.all([compareAll(true, snapPath), marketSentiment(true, snapPath)]);
+  } finally { console.log = origLog; }
+  const evRank = new Map<string, { rank: number; wins: number; losses: number; ties: number; shared: number }>();
+  (ranked ?? []).forEach((r: any, i: number) => evRank.set(r.modelId, { rank: i + 1, wins: r.wins, losses: r.losses, ties: r.ties, shared: r.sharedBanks }));
+  const blRank = new Map<string, { rank: number; win: number | null; score: number | null; stake: string; venues: number }>();
+  (senti ?? []).forEach((r: any, i: number) => blRank.set(r.model, { rank: i + 1, win: r.impliedWinPct, score: r.impliedScore, stake: r.stakeWeighed, venues: r.venues }));
+  const models = [...new Set([...evRank.keys(), ...blRank.keys()])];
+  const rows = models.map((m) => {
+    const e = evRank.get(m), b = blRank.get(m);
+    return { model: m,
+      evidence: e ? { rank: e.rank, wins: e.wins, losses: e.losses, ties: e.ties, sharedBanks: e.shared } : null,
+      belief: b ? { rank: b.rank, impliedWinPct: b.win, impliedScore: b.score, stakeWeighed: b.stake, venues: b.venues } : null,
+      gap: e && b ? e.rank - b.rank : null };
+  }).sort((x, y) => Math.abs(y.gap ?? -1) - Math.abs(x.gap ?? -1));
+  if (json) { console.log(JSON.stringify(rows)); return rows; }
+  console.log(`market divergence — evidence rank vs conviction rank (+gap = money prices it BELOW the evidence)`);
+  for (const r of rows) {
+    const e = r.evidence ? `#${r.evidence.rank} (${r.evidence.wins}W-${r.evidence.losses}L-${r.evidence.ties}T)` : "unranked";
+    const b = r.belief ? `#${r.belief.rank} (${r.belief.stakeWeighed})` : "unpriced";
+    const g = r.gap === null ? "  — " : (r.gap > 0 ? `+${r.gap}` : `${r.gap}`).padStart(4);
+    console.log(`  ${r.model.padEnd(28)} evidence ${e.padEnd(22)} conviction ${b.padEnd(22)} gap ${g}`);
+  }
+  console.log(`a model with no shared-bank evidence is unranked; a model with no funded book is unpriced — both absences are signal`);
+  return rows;
+}
+
 /** `chain market champions` — the SETTLEMENT record, per model.
  *  Registry ranks by score receipts, sentiment by belief, compare by
  *  paired evidence — this ranks by what money actually resolved on:
@@ -4247,6 +4284,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketSentiment(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "champions") {
       await marketChampions(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "divergence") {
+      await marketDivergence(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

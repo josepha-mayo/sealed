@@ -695,3 +695,25 @@ test("chainModel fuses registry + evidence + settlement + belief per model", asy
     assert.equal(none, null);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("marketDivergence diffs evidence rank vs conviction rank", async () => {
+  const { marketDivergence } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const rows = (await marketDivergence(true, snapPath)) as any[];
+    // ladder/model-c loses every paired comparison (0W-8L) yet carries
+    // the third-heaviest funded book — the flagship disagreement.
+    const mc = rows.find((r) => r.model === "ladder/model-c");
+    assert.equal(mc.evidence.rank, 31);
+    assert.equal(mc.belief.rank, 3);
+    assert.equal(mc.gap, 28, "evidence rank 31 − conviction rank 3");
+    // a model with no funded book reports unpriced, not zero
+    const q = rows.find((r) => r.model === "qwen2.5-3b-instruct");
+    assert.equal(q.belief, null);
+    assert.equal(q.gap, null);
+    // rows sort by |gap|, one-sided last
+    assert.ok(Math.abs(rows[0].gap ?? 0) >= Math.abs(rows[rows.length - 1].gap ?? 0) || rows[rows.length - 1].gap === null);
+  } finally { console.log = origLog; }
+});
