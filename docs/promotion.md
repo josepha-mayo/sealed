@@ -121,12 +121,21 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > W-L-T table where disjoint coverage counts as unranked, not assumed
 > (on this ledger: 392/465 pairs share nothing — the paired ranking
 > tells a different story than aggregate accuracy, which is the point).
+> `chain stats` compresses the honesty story into one screen: ledger
+> counts, escrow, MPC latency p50/p95 — and two verdicts recomputed
+> inline, all 31 registry aggregates bit-exact from receipts and all 201
+> resolutions matching `Run.correct`, exit 1 on a violation. `chain runs`
+> is the substrate index underneath it, and `chain items` regenerates an
+> entire MPC-minted exam from raw on-chain chunks — items_root fold
+> re-verified, keyless.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201
 > market resolutions re-derived from `Run.correct`, the 31-record
 > registry replayed bit-exact from 292 receipts — plus a public
 > calibration exam where the page recomputes the MPC score per item.
+> Or don't run anything: `docs/evidence/replay.txt` is a captured
+> transcript of the same commands.
 > No install, no trust in us.
 >
 > Honest status: both programs live on devnet and byte-verified against

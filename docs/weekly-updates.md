@@ -53,6 +53,12 @@ deadline.
   applies a policy to every record — "which models provably clear
   pct≥70 + min-runs 2" is a ranked table, not a claim (8/31 on the
   bundled ledger).
+- 15s: `chain stats` — one command recomputes the honesty story: all 31
+  registry aggregates bit-exact from receipts, all 201 resolved-venue
+  scores matching `Run.correct` (exit 1 on violation); `chain runs` is
+  the 503-run substrate index; `chain items` regenerates a whole
+  MPC-minted exam from raw chunks offline; and `docs/evidence/replay.txt`
+  commits the captured transcript for judges who won't run anything.
 - 15s: devnet status — **both** programs byte-verified MATCH against the
   committed build; the Arcium devnet callback outage is upstream and
   disclosed — the reproducible surface is the bundled localnet snapshot.
