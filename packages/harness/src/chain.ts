@@ -2306,6 +2306,139 @@ function ledgerIntegrity(p: {
   };
 }
 
+/** `chain market venue <pk> [--json]` — one venue's dossier: which type,
+ *  status, pools per outcome, positions held, fee skim, the run(s) it
+ *  prices, its keeper classification (the same verdict `market board`
+ *  assigns), and — when resolved — its stored score re-verified against
+ *  `Run.correct` (duel packing and ladder masks handled). */
+export async function marketVenue(pkStr: string, json = false, snapPath?: string) {
+  const pk = new PublicKey(pkStr);
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sAcct = () => (sealedProgram().program.account as any);
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [markets, darks, ladders, bounties, positions, darkPositions]: Acct[][] =
+    sm ? ["Market", "DarkMarket", "Ladder", "Bounty", "Position", "DarkPosition"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "darkMarket", "ladder", "bounty", "position", "darkPosition"]
+        .map((n) => (mAcct() as any)[n].all()));
+  const runs: Acct[] = ss ? snapOf(ss, "Run") : await sAcct().run.all();
+  const runByPk = new Map(runs.map((r) => [r.publicKey.toBase58(), r.account as any]));
+  const runInfo = (rpk: PublicKey) => {
+    const r = runByPk.get(rpk.toBase58());
+    return r ? { pk: rpk.toBase58(), modelId: r.modelId, correct: Number(r.correct), status: r.status, postReveal: !!r.postReveal } : { pk: rpk.toBase58() };
+  };
+  const { board } = await loadBoard(snapPath);
+  const keeperState = (p: string) =>
+    board.claimable.some((x: any) => x.pubkey === p) ? "claimable" :
+    board.resolvable.some((x: any) => x.pubkey === p) ? "resolvable" :
+    board.resolvableLadders.some((x: any) => x.pubkey === p) ? "resolvable" :
+    board.tallyable.some((x: any) => x.pubkey === p) ? "tallyable" :
+    board.expirable.some((x: any) => x.pubkey === p) ? "expirable" :
+    board.expiredBounties.some((x: any) => x.pubkey === p) ? "expired-bounty" :
+    board.liveBounties.some((x: any) => x.pubkey === p) ? "live-bounty" : null;
+
+  const pos = positions.filter((p) => (p.account.market as PublicKey).equals(pk));
+  const dpos = darkPositions.filter((p) => (p.account.market as PublicKey).equals(pk));
+  const STATUS = ["open", "resolved", "expired"];
+  let out: any = null;
+
+  const m = markets.find((x) => x.publicKey.equals(pk));
+  if (m) {
+    const M = m.account as any;
+    const duel = M.runB && !(M.runB as PublicKey).equals(PublicKey.default);
+    const rs = Number(M.resolvedScore);
+    const expA = duel ? rs >> 16 : rs, expB = duel ? rs & 0xffff : null;
+    const rA = runByPk.get((M.run as PublicKey).toBase58());
+    const rB = duel ? runByPk.get((M.runB as PublicKey).toBase58()) : null;
+    const verified = M.status === 1
+      ? expA === Number(rA?.correct ?? -1) && (duel ? expB === Number(rB?.correct ?? -1) : true) : null;
+    out = { pk: pkStr, kind: duel ? "duel" : "band", status: STATUS[M.status] ?? M.status,
+      authority: (M.authority as PublicKey).toBase58(),
+      outcomes: Number(M.nOutcomes), edges: (M.edges as any[]).slice(0, Math.max(0, Number(M.nOutcomes) - 1)).map(Number),
+      totals: (M.totals as any[]).map(Number), feesLamports: Number(M.feesAccrued), feeBps: Number(M.feeBps),
+      createdAt: Number(M.createdAt), resolvedAt: Number(M.resolvedAt), closesAt: Number(M.closesAt), resolveBy: Number(M.resolveBy),
+      runs: { a: runInfo(M.run), b: duel ? runInfo(M.runB) : null },
+      resolution: M.status === 1 ? { outcome: M.outcome, storedScore: duel ? `${expA}-${expB}` : expA, verified } : null,
+      positions: pos.length, keeper: keeperState(pkStr) };
+  }
+  const d = darks.find((x) => x.publicKey.equals(pk));
+  if (!out && d) {
+    const D = d.account as any;
+    const r = runByPk.get((D.run as PublicKey).toBase58());
+    out = { pk: pkStr, kind: "dark", status: STATUS[D.status] ?? D.status,
+      authority: (D.authority as PublicKey).toBase58(),
+      outcomes: Number(D.n ?? D.nOutcomes), edges: (D.edges as any[]).map(Number),
+      poolLamports: Number(D.poolTotal), winTotal: Number(D.winTotal), revealedCount: Number(D.revealedCount),
+      tallied: !!D.tallied, revealUntil: Number(D.revealUntil),
+      createdAt: Number(D.createdAt), resolvedAt: Number(D.resolvedAt), resolveBy: Number(D.resolveBy),
+      feesLamports: Number(D.feesAccrued),
+      runs: { a: runInfo(D.run) },
+      resolution: D.status === 1 ? { storedScore: Number(D.resolvedScore), verified: Number(D.resolvedScore) === Number(r?.correct ?? -1) } : null,
+      positions: dpos.length, keeper: keeperState(pkStr) };
+  }
+  const l = ladders.find((x) => x.publicKey.equals(pk));
+  if (!out && l) {
+    const L = l.account as any;
+    const legs = (L.legs as PublicKey[]).slice(0, Number(L.legCount));
+    const legRuns = legs.map(runInfo);
+    const winners = L.status === 1 ? legs.filter((_, i) => (Number(L.resultMask) >> i) & 1).map((p) => p.toBase58()) : [];
+    const verified = L.status === 1
+      ? legs.every((lp, i) => {
+          const r = runByPk.get(lp.toBase58());
+          const won = ((Number(L.resultMask) >> i) & 1) === 1;
+          const top = Math.max(...legs.map((x) => Number(runByPk.get(x.toBase58())?.correct ?? 0)));
+          return won === (Number(r?.correct ?? 0) === top);
+        }) : null;
+    out = { pk: pkStr, kind: "ladder", status: STATUS[L.status] ?? L.status,
+      authority: (L.authority as PublicKey).toBase58(),
+      legs: legRuns, winners, resultMask: Number(L.resultMask),
+      totals: (L.totals as any[]).map(Number), feesLamports: Number(L.feesAccrued),
+      createdAt: Number(L.createdAt), resolvedAt: Number(L.resolvedAt), closesAt: Number(L.closesAt), resolveBy: Number(L.resolveBy),
+      resolution: L.status === 1 ? { storedScore: Number(L.resolvedScore), verified } : null,
+      positions: pos.length, keeper: keeperState(pkStr) };
+  }
+  const b = bounties.find((x) => x.publicKey.equals(pk));
+  if (!out && b) {
+    const B = b.account as any;
+    const claimed = B.status !== 0;
+    const r = runByPk.get((B.winnerRun as PublicKey).toBase58());
+    out = { pk: pkStr, kind: "bounty", status: claimed ? "claimed" : "open",
+      sponsor: (B.sponsor as PublicKey).toBase58(), bank: (B.bank as PublicKey).toBase58(),
+      threshold: Number(B.threshold), amountLamports: Number(B.amount),
+      createdAt: Number(B.createdAt), deadline: Number(B.deadline),
+      winnerRun: claimed ? runInfo(B.winnerRun) : null,
+      resolution: claimed ? { storedScore: Number(B.winningScore), verified: Number(B.winningScore) === Number(r?.correct ?? -1) } : null,
+      keeper: keeperState(pkStr) };
+  }
+  if (!out) { console.log(`no venue at ${pkStr}`); process.exitCode = 2; return; }
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  const fmt = (t: number) => (t ? new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ") : "-");
+  const sol = (x: number) => (x / 1e9).toFixed(4);
+  console.log(`venue ${pkStr}`);
+  console.log(`  kind — ${out.kind} · status ${out.status}${out.keeper ? ` · keeper: ${out.keeper}` : ""}`);
+  if (out.kind === "bounty")
+    console.log(`  bounty — ≥${out.threshold} pays ${sol(out.amountLamports)}◎ · sponsor ${out.sponsor.slice(0, 12)}… · bank ${out.bank.slice(0, 12)}… · created ${fmt(out.createdAt)} deadline ${fmt(out.deadline)}`);
+  else {
+    console.log(`  pool — ${out.totals ? out.totals.map((t: number) => sol(t)).join(" / ") + " ◎" : sol(out.poolLamports) + " ◎"}${out.feesLamports ? ` · fees accrued ${sol(out.feesLamports)}◎` : ""}`);
+    console.log(`  times — created ${fmt(out.createdAt)} · closes ${fmt(out.closesAt)} · resolve_by ${fmt(out.resolveBy)}${out.revealUntil ? ` · reveal_until ${fmt(out.revealUntil)}` : ""}${out.resolvedAt ? ` · resolved ${fmt(out.resolvedAt)}` : ""}`);
+  }
+  if (out.runs?.a) {
+    const a = out.runs.a, bb = out.runs.b;
+    console.log(`  run A — ${a.modelId ?? a.pk} ${a.correct !== undefined ? `scored ${a.correct}` : "(missing)"}${a.postReveal ? " post-reveal" : ""}`);
+    if (bb) console.log(`  run B — ${bb.modelId ?? bb.pk} ${bb.correct !== undefined ? `scored ${bb.correct}` : "(missing)"}${bb.postReveal ? " post-reveal" : ""}`);
+  }
+  if (out.legs) for (const [i, lg] of out.legs.entries())
+    console.log(`  leg ${i + 1}/${out.legs.length} — ${lg.modelId ?? lg.pk} ${lg.correct !== undefined ? `scored ${lg.correct}` : "(pending)"}${out.winners.includes(lg.pk) ? "  ★ winner" : ""}`);
+  if (out.resolution) {
+    const chk = out.resolution.verified === null ? "" : out.resolution.verified ? "  ✓ matches Run.correct" : "  ✗ MISMATCH vs Run.correct";
+    console.log(`  resolution — ${out.resolution.storedScore}${out.resolution.outcome !== undefined ? ` outcome ${out.resolution.outcome}` : ""}${chk}`);
+  }
+  if (out.positions !== undefined) console.log(`  positions — ${out.positions} held`);
+  return out;
+}
+
 /** `chain stats [--snapshot f] [--json]` — the executive dashboard: ledger
  *  counts, escrow, fees, and the two integrity verdicts recomputed inline —
  *  every ModelRecord's aggregate replayed from its ScoreLogs bit-exact, and
@@ -3201,6 +3334,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketSweep(bettor, Number(args.watch ?? 0) || 0);
     } else if (m0 === "bounties") {
       await bountyList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    } else if (m0 === "venue") {
+      await marketVenue(String(cmd[2] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "positions") {
       await marketPositions(bettor, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
         args.viewer ? String(args.viewer) : undefined);

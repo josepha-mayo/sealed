@@ -120,7 +120,7 @@ print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
-`runs`, `feed`, `bank`, `verify`, `grants`, `reveals`, `market board`, `market bounties`,
+`runs`, `feed`, `bank`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
 `market positions`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
@@ -157,6 +157,13 @@ sorted by pot, marking which are claimable NOW under the exact
 `bounty_qualifies` rules (retroactivity wall, no self-deal, proven runs,
 no post-reveal) and which expired ones just need `expire_bounty` to
 refund their sponsor.
+`chain market venue <pk>` is the single-venue dossier — kind and status,
+per-outcome pools, positions held, fees accrued, the run(s) it prices,
+its live keeper classification (the same verdict `market board`
+assigns), and — when resolved — its stored score re-verified against
+`Run.correct`, with duel `(a << 16) | b` packing and ladder `resultMask`
+handled. `chain trail` traces one run across venues; `market venue` is
+the mirror image — one venue across its runs and bettors.
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed
 borsh layouts the RPC path uses, so the surfaces replay **keyless and

@@ -135,7 +135,7 @@ settle-vs-refund. Every read command also takes `--snapshot
 web/snapshot.json` — `packages/harness/src/snapshot.ts` decodes the
 committed bundle through the same discriminator-keyed layouts the RPC
 path uses, so `board`, `gate`, `history`, `records`, `status`,
-`banks`, `bank`, `stats`, `runs`, `feed`, `verify`, `trail`, `grants`, `reveals`, `market bounties`, and `market positions --viewer <pk>` replay **keyless,
+`banks`, `bank`, `stats`, `runs`, `feed`, `verify`, `trail`, `grants`, `reveals`, `market bounties`, `market venue`, and `market positions --viewer <pk>` replay **keyless,
 connection-free** (and a unit test pins the replay against the bundle's
 published counts). `chain stats` is the integrator's health probe: counts,
 escrow, fees, and two recomputed verdicts — every `ModelRecord` aggregate
