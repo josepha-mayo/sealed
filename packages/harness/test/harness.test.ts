@@ -641,3 +641,33 @@ test("marketSentiment pools books into stake-weighted per-model belief", async (
     assert.ok(band && band.impliedScore > 0, "band model carries implied score");
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("marketChampions reconstructs the settlement record per model", async () => {
+  const { marketChampions } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const rows = (await marketChampions(true, snapPath)) as any[];
+    assert.ok(rows.length >= 10, "models with resolved venues");
+    const a = rows.find((r) => r.model === "duel/model-a");
+    const b = rows.find((r) => r.model === "duel/model-b");
+    assert.equal(a.duelW + b.duelL, 42, "a-side wins == b-side losses across 21 duels…");
+    assert.equal(a.duelW, 21);
+    assert.equal(a.duelWinPct, 100);
+    // dead-heat masks count every co-winner — tie-a and tie-b both 22/22
+    const ta = rows.find((r) => r.model === "ladder/tie-a");
+    const tb = rows.find((r) => r.model === "ladder/tie-b");
+    assert.equal(ta.ladderWins, 22);
+    assert.equal(tb.ladderWins, 22);
+    assert.equal(ta.ladderEntries, 22);
+    // real models carry their honest record — qwen ordering preserved
+    const q3 = rows.find((r) => r.model === "qwen2.5-3b-instruct");
+    const q05 = rows.find((r) => r.model === "qwen2.5-0.5b-instruct");
+    assert.equal(q3.ladderWins, 1);
+    assert.equal(q05.ladderWins, 0);
+    // bounty claims count too
+    const claimant = rows.find((r) => r.model === "test/bounty-claimant");
+    assert.ok(claimant.bounties > 10);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

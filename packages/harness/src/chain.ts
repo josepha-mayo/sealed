@@ -2694,6 +2694,72 @@ export async function marketSentiment(json = false, snapPath?: string) {
   return rows;
 }
 
+/** `chain market champions` — the SETTLEMENT record, per model.
+ *  Registry ranks by score receipts, sentiment by belief, compare by
+ *  paired evidence — this ranks by what money actually resolved on:
+ *  duel W-D-L, ladder leg wins (dead-heat masks count each co-winner),
+ *  bounty claims. A model's champion record is the one opinion it
+ *  can't argue with — someone paid to be wrong about it. */
+export async function marketChampions(json = false, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [markets, ladders, bounties]: Acct[][] =
+    sm ? ["Market", "Ladder", "Bounty"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "ladder", "bounty"].map((n) => (mAcct() as any)[n].all()));
+  const runs: Acct[] = ss ? snapOf(ss, "Run") : await (sealedProgram().program.account as any).run.all();
+  const model = new Map(runs.map((r) => [r.publicKey.toBase58(), String(r.account.modelId)]));
+
+  type Row = { duels: [number, number, number]; ladderWins: number; ladderEntries: number; bounties: number };
+  const acc = new Map<string, Row>();
+  const row = (m?: string) => { if (!m) return null; if (!acc.has(m)) acc.set(m, { duels: [0, 0, 0], ladderWins: 0, ladderEntries: 0, bounties: 0 }); return acc.get(m)!; };
+
+  for (const m of markets) {
+    const M = m.account as any;
+    if (Number(M.status) !== 1) continue;
+    const duel = M.runB && !(M.runB as PublicKey).equals(PublicKey.default);
+    if (!duel) continue;
+    const a = model.get((M.run as PublicKey).toBase58()), b = model.get((M.runB as PublicKey).toBase58());
+    const o = Number(M.outcome);
+    if (o === 0) { if (row(a)) row(a)!.duels[0]++; if (row(b)) row(b)!.duels[2]++; }
+    else if (o === 1) { if (row(b)) row(b)!.duels[0]++; if (row(a)) row(a)!.duels[2]++; }
+    else { if (row(a)) row(a)!.duels[1]++; if (row(b)) row(b)!.duels[1]++; }
+  }
+  for (const l of ladders) {
+    const L = l.account as any;
+    if (Number(L.status) !== 1) continue;
+    const n = Number(L.legCount), mask = Number(L.resultMask);
+    for (let i = 0; i < n; i++) {
+      const r = row(model.get((L.legs as PublicKey[])[i].toBase58()));
+      if (!r) continue;
+      r.ladderEntries++;
+      if ((mask >> i) & 1) r.ladderWins++;
+    }
+  }
+  for (const b of bounties) {
+    const B = b.account as any;
+    if (Number(B.status) !== 1) continue;
+    const r = row(model.get((B.winnerRun as PublicKey).toBase58()));
+    if (r) r.bounties++;
+  }
+  const rows = [...acc.entries()].map(([m, r]) => {
+    const decided = r.duels[0] + r.duels[2];
+    return { model: m, duelW: r.duels[0], duelD: r.duels[1], duelL: r.duels[2],
+      duelWinPct: decided ? Math.round((r.duels[0] / decided) * 10000) / 100 : null,
+      ladderWins: r.ladderWins, ladderEntries: r.ladderEntries,
+      ladderWinPct: r.ladderEntries ? Math.round((r.ladderWins / r.ladderEntries) * 10000) / 100 : null,
+      bounties: r.bounties,
+      venues: decided + r.duels[1] + r.ladderEntries + r.bounties };
+  }).sort((a, b) => (b.duelW * 3 + b.ladderWins + b.bounties * 2) - (a.duelW * 3 + a.ladderWins + a.bounties * 2));
+  if (json) { console.log(JSON.stringify(rows)); return rows; }
+  console.log(`market champions — the settlement record (${rows.length} model(s) with resolved venues)`);
+  for (const r of rows)
+    console.log(`  ${r.model.padEnd(28)} duels ${r.duelW}W-${r.duelD}D-${r.duelL}L${r.duelWinPct !== null ? ` (${r.duelWinPct}%)` : ""} · legs ${r.ladderWins}/${r.ladderEntries}${r.ladderWinPct !== null ? ` (${r.ladderWinPct}%)` : ""} · bounties ${r.bounties}`);
+  return rows;
+}
+
 /** `chain wallet <pk> [--json]` — the actor dossier: everything one
  *  address did across both programs — banks it authors, runs it
  *  submitted, receipts it recorded, venues it created or sponsors,
@@ -4099,6 +4165,8 @@ export async function chainMain(cmd: string[], args: Args) {
         Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "sentiment") {
       await marketSentiment(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "champions") {
+      await marketChampions(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.
