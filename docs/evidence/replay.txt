@@ -257,3 +257,58 @@ model ladder/model-a — the four lenses on one page
     9e48s2fqf9gu… 30/32 on sealed-gen (status 1)
     3bRwwPMc6RMU… 30/32 on sealed-gen (status 1)
     7grBtdWPnb9Z… 30/32 on sealed-gen (status 1)
+$ yarn --cwd packages/harness cli chain market divergence --snapshot web/snapshot.json   (head -12)
+market divergence — evidence rank vs conviction rank (+gap = money prices it ABOVE the receipts; − = below)
+  ladder/model-c               evidence #31 (0W-8L-1T)         conviction #3 (1.2000 ◎)          gap  +28
+  test/market-run              evidence #29 (0W-5L-0T)         conviction #6 (0.3000 ◎)          gap  +23
+  ladder/tie-c                 evidence #30 (0W-8L-1T)         conviction #9 (0.3000 ◎)          gap  +21
+  ladder/model-b               evidence #8 (4W-5L-0T)          conviction #2 (1.2000 ◎)          gap   +6
+  duel/model-b                 evidence #10 (3W-6L-0T)         conviction #5 (0.5500 ◎)          gap   +5
+  ladder/tie-a                 evidence #4 (5W-2L-2T)          conviction #7 (0.3000 ◎)          gap   -3
+  ladder/tie-b                 evidence #5 (5W-2L-2T)          conviction #8 (0.3000 ◎)          gap   -3
+  duel/model-a                 evidence #6 (5W-2L-2T)          conviction #4 (0.5500 ◎)          gap   +2
+  dark/model-a                 evidence #1 (8W-0L-1T)          conviction unpriced               gap   — 
+  ladder/model-a               evidence #2 (8W-0L-1T)          conviction #1 (1.2000 ◎)          gap   +1
+  test/sweep-run               evidence #3 (5W-0L-0T)          conviction unpriced               gap   — 
+  test/oracle                  evidence #7 (4W-1L-0T)          conviction unpriced               gap   — 
+
+$ yarn --cwd packages/harness cli chain market calibration --snapshot web/snapshot.json   (head -8)
+market calibration — 143 resolved venues with books, vs what Run.correct landed
+  favorites hit 87% · winners carried 55.18% implied at close (uniform baseline 39.57%)
+  Brier 0.502 vs uniform 0.6043 — lower is sharper
+  favorite misses (winner's closing share):
+    band   7Lt4RooJSmDg… winner carried 33.33% across 3 outcome(s)
+    band   GhR2M3B3ohTP… winner carried 33.33% across 3 outcome(s)
+    band   DxS9aQBfaQs5… winner carried 33.33% across 3 outcome(s)
+    band   3GmkRhRQ7Fua… winner carried 33.33% across 3 outcome(s)
+
+$ yarn --cwd packages/harness cli chain feed --model qwen2.5-3b-instruct --limit 6 --snapshot web/snapshot.json
+feed — 6 event(s) [model qwen2.5-3b-instruct] newest first
+  2026-10-03 11:17  receipt    2YncpZ3Fib8p…  receipt minted — qwen2.5-3b-instruct 7/32
+  2026-10-03 11:14  score      GnrRt5GUu6pU…  MPC finalized — qwen2.5-3b-instruct scored 7/32 on sealed-v77007 (authored)
+  2026-10-03 11:14  run        GnrRt5GUu6pU…  run queued — qwen2.5-3b-instruct on sealed-v77007 (authored)
+  2026-10-02 20:52  receipt    FAqvtSdYQpzj…  receipt minted — qwen2.5-3b-instruct 7/32
+  2026-10-02 17:28  receipt    2WjFpDxcd6ak…  receipt minted — qwen2.5-3b-instruct 9/32
+  2026-10-02 17:28  score      4biuMVncBjFZ…  MPC finalized — qwen2.5-3b-instruct scored 9/32 on sealed-gen-v97970 (generated)
+
+$ yarn --cwd packages/harness cli chain bank sealed-gen-v88123 --snapshot web/snapshot.json   (difficulty line)
+bank BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw
+  spec — "sealed-gen-v88123" generated · authority 4RUW4pDm38PE… · status=1 · 1/1 chunks sealed (32 items) · fee 0.0000◎ · created 2026-10-01 20:29
+  items_root — 111a7ccd003e8b6854c95e31…  (chain items --benchmark BqC4fmNq… regenerates the exam offline)
+  runs — 4 total · 4 finalized · 0 pending · 0 post-reveal · best 7/32 (21.9%)
+  difficulty — scores across models: min 0% · p25 0% · median 0% · p75 6.3% · max 21.9% (spread 21.9pp — moderate exam)
+  receipts — 4 minted · 0 vouched · 0 post-reveal
+
+$ yarn --cwd packages/harness cli chain stats --snapshot web/snapshot.json   (exams line)
+keeper — 36 actionable now · 246 settled · 24 in play
+exams — 39 bank(s) with ≥4 models run · median spread 62.5pp · hardest sealed-gen-v88123 (median 0%)
+  most discriminating — sealed-test: 87.5pp spread over 8 runs (chain bank A6UkXHYN…)
+
+$ yarn --cwd packages/harness cli chain model ladder/model-c --snapshot web/snapshot.json   (the divergence row)
+model ladder/model-c — the four lenses on one page
+  registry    — 17 receipts · 170/544 items (31.25%) · best 10/32
+  evidence    — paired rank #31 · 0W-8L-1T · ΣΔ-346.87pp over 142 shared-bank result(s)
+  settlement  — 0W-0D-0L (—%) · legs 0/21 · bounties 0
+  belief      — wins 16.67% (1.2000 ◎ staked · conviction #3)
+  divergence  — evidence #31 vs conviction #3 → gap +28 (priced above the receipts)
+  runs        — 23 submitted · 23 finalized
