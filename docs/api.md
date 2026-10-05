@@ -179,7 +179,7 @@ no post-reveal) and which expired ones just need `expire_bounty` to
 refund their sponsor.
 `chain market venue <pk>` is the single-venue dossier — kind and status,
 per-outcome pools, positions held, fees accrued, the run(s) it prices,
-its live keeper classification (the same verdict `market board`
+the book — every stake classified bettor-by-bettor like `market positions` does — its live keeper classification (the same verdict `market board`
 assigns), and — when resolved — its stored score re-verified against
 `Run.correct`, with duel `(a << 16) | b` packing and ladder `resultMask`
 handled. `chain trail` traces one run across venues; `market venue` is
