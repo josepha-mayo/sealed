@@ -74,6 +74,7 @@ not the commands.
 | 9b. Ladder (optional beat) | `sealed chain market ladder open --legs <pk,pk,pk> --closes-at +86400 --resolve-by +86400` | "Or a K-way race: three models, one pot, argmax takes it — dead-heat splits ties, and a leg that never shows up forfeits at 0 instead of refunding its backers out." |
 | 9c. Unseen exam (optional) | `scripts/unseen.sh` | "And the strangest market here: bettors just filled positions on an exam that was never published — not before the market, not during, not after. The event being priced is itself confidential." |
 | 10. The honest leaderboard | `sealed chain compare --all` | "And because aggregates lie — the registry receipts join by shared benchmark into a paired W-L-T table. Models that never took the same exam count as unranked, not assumed. Most leaderboard pairs share nothing; this one says so." |
+| 11. The submission audits itself | `sealed chain tour --snapshot web/snapshot.json` | "No trust required: one command replays the whole ledger offline — a run's custody trail, its feed, a venue's book, a bettor's P&L. Paste any pubkey into the explorer or `chain search` and it tells you what that key IS and where its dossier lives." |
 
 ## One-pager for the submission form
 
@@ -98,7 +99,7 @@ not the commands.
   K-way ladder races with dead-heat pro-rata, unseen-exam markets, dark
   commit-reveal markets, capability bounties), a persistent permissionless
   capability registry (`ModelRecord`/`ScoreLog`), fingerprint reveal audits,
-  mocha suite 17/17 + 20/20 unit tests green. Authored banks work too (seal+score).
+  mocha suite 17/17 + 23/23 unit tests green. Authored banks work too (seal+score).
 - **Traction evidence:** 503 runs / 120 banks / 340 venues across six
   primitives on the merged evidence ledger (8 epochs) — 201 resolutions
   re-derived bit-exact by the offline audit, 31 capability records replayed
