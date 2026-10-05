@@ -881,7 +881,7 @@ export async function resetPending(runPk: PublicKey, chunkIndex: number, ctx = s
 
 // ------------------------------------------------------------------ status
 
-export async function status(benchmark: PublicKey, ctx?: Ctx, snapPath?: string) {
+export async function status(benchmark: PublicKey, ctx?: Ctx, snapPath?: string, json = false) {
   let b: any, runs: SnapAccount[];
   if (snapPath) {
     const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
@@ -895,15 +895,27 @@ export async function status(benchmark: PublicKey, ctx?: Ctx, snapPath?: string)
     runs = await acct.run.all([{ memcmp: { offset: 8, bytes: benchmark.toBase58() } }]);
   }
   const items = b.chunkCount * CHUNK;
-  console.log(`benchmark ${benchmark.toBase58()} "${b.name}" status=${b.status} items=${items} runs=${b.runCount} root=${Buffer.from(b.itemsRoot).toString("hex")}`);
   const rows = runs
-    .map((x: any) => x.account)
-    .filter((r: any) => r.status === 1)
-    .sort((p: any, q: any) => Number(q.correct) - Number(p.correct));
+    .filter((x: any) => x.account.status === 1)
+    .sort((p: any, q: any) => Number(q.account.correct) - Number(p.account.correct));
+  if (json) {
+    console.log(JSON.stringify({
+      benchmark: benchmark.toBase58(), name: b.name, status: b.status,
+      items, runCount: Number(b.runCount), itemsRoot: Buffer.from(b.itemsRoot).toString("hex"),
+      leaderboard: rows.map((x: any) => ({
+        run: x.publicKey.toBase58(), index: Number(x.account.index), model: x.account.modelId,
+        correct: Number(x.account.correct), items, pct: 100 * Number(x.account.correct) / items,
+        attested: !!x.account.attested, postReveal: !!x.account.postReveal,
+      })),
+    }));
+    return;
+  }
+  console.log(`benchmark ${benchmark.toBase58()} "${b.name}" status=${b.status} items=${items} runs=${b.runCount} root=${Buffer.from(b.itemsRoot).toString("hex")}`);
   console.log("rank  score      model                                   run");
-  rows.forEach((r: any, i: number) => {
+  rows.forEach((x: any, i: number) => {
+    const r = x.account;
     const pct = ((100 * Number(r.correct)) / items).toFixed(1).padStart(5);
-    console.log(`${String(i + 1).padStart(4)}  ${pct}%  ${String(Number(r.correct)).padStart(4)}/${items}  ${(r.modelId + (r.attested ? " ✓" : "")).padEnd(38)} #${r.index}`);
+    console.log(`${String(i + 1).padStart(4)}  ${pct}%  ${String(Number(r.correct)).padStart(4)}/${items}  ${(r.modelId + (r.attested ? " ✓" : "")).padEnd(38)} #${r.index} ${x.publicKey.toBase58()}`);
   });
 }
 
@@ -1591,7 +1603,7 @@ const BANK_KIND = ["authored", "generated", "private"] as const;
 
 /** `chain banks [--snapshot f] [--json]` — every benchmark, run-count first:
  *  the index `chain status --benchmark <pk>` needs without an explorer. */
-export async function bankList(snapPath?: string, json = false) {
+export async function bankList(snapPath?: string, json = false, kind?: string) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
   const [banks, runs]: [SnapAccount[], SnapAccount[]] = ss
@@ -1607,7 +1619,9 @@ export async function bankList(snapPath?: string, json = false) {
     best.set(k, Math.max(best.get(k) ?? 0, pct));
     finalized.set(k, (finalized.get(k) ?? 0) + 1);
   }
-  const rows = banks.map((x) => {
+  const want = kind ? BANK_KIND.indexOf(kind as any) : -1;
+  if (kind && want < 0) throw new Error(`--kind one of ${BANK_KIND.join("|")}`);
+  const rows = banks.filter((x) => want < 0 || x.account.kind === want).map((x) => {
     const b = x.account;
     const pk = x.publicKey.toBase58();
     return {
@@ -1914,7 +1928,7 @@ export async function modelCompare(keyA: string, keyB: string, json = false, sna
  *  accuracy ranks models that never faced the same exam; this ranks them on
  *  what they actually shared — and says how much of the ranking is grounded
  *  (pairs with zero shared banks count as unranked, not assumed). */
-export async function compareAll(json = false, snapPath?: string) {
+export async function compareAll(json = false, snapPath?: string, minShared = 1) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
   const [records, logs]: [SnapAccount[], SnapAccount[]] = ss
@@ -1940,7 +1954,7 @@ export async function compareAll(json = false, snapPath?: string) {
   for (let i = 0; i < recs.length; i++) for (let j = i + 1; j < recs.length; j++) {
     const a = byBank.get(recs[i].pk) ?? new Map(), b = byBank.get(recs[j].pk) ?? new Map();
     const shared = [...a.keys()].filter((k) => b.has(k));
-    if (!shared.length) { unranked++; continue; }
+    if (shared.length < minShared) { unranked++; continue; }
     const pa = shared.reduce((s, k) => s + a.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k)!.items, 0));
     const pb = shared.reduce((s, k) => s + b.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k)!.items, 0));
     recs[i].rankedPairs++; recs[j].rankedPairs++;
@@ -1955,7 +1969,7 @@ export async function compareAll(json = false, snapPath?: string) {
   const total = (recs.length * (recs.length - 1)) / 2;
   if (json) { console.log(JSON.stringify({ ranked, unrankedPairs: unranked, totalPairs: total })); return ranked; }
   console.log(`paired-evidence leaderboard — ${recs.length} models, ${total} pairs ` +
-    `(${total - unranked} rankable, ${unranked} disjoint)`);
+    `(${total - unranked} rankable, ${unranked} disjoint${minShared > 1 ? ` or <${minShared} shared banks` : ""})`);
   for (const r of ranked)
     console.log(`  ${r.modelId.padEnd(28)} W${String(r.wins).padStart(2)}-L${String(r.losses).padStart(2)}-T${String(r.ties).padStart(2)}` +
       `  ΣΔ${r.ppDelta >= 0 ? "+" : ""}${r.ppDelta.toFixed(0)}pp  over ${r.sharedBanks} shared-bank result(s)`);
@@ -2790,7 +2804,7 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "status") {
     await status(new PublicKey(String(args.benchmark)), undefined,
-      args.snapshot ? String(args.snapshot) : undefined);
+      args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
     return;
   }
   if (sub === "attest") {
@@ -2819,7 +2833,8 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "banks") {
-    await bankList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    await bankList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json),
+      args.kind ? String(args.kind) : undefined);
     return;
   }
   if (sub === "stats") {
@@ -2892,7 +2907,7 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "compare") {
     if (cmd[1] === "--all" || args.all) {
-      await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined, Number(args["min-shared"] ?? 1) || 1);
       return;
     }
     const a = cmd[1], b = cmd[2];

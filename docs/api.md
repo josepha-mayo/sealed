@@ -103,10 +103,13 @@ SAME evidence?"). Per-bank deltas, pooled shared-item score, bank-win
 count, and unshared-coverage reporting. Disjoint coverage exits 2 — an
 honest "the registry can't rank them" instead of an aggregate lie.
 `chain banks` indexes every benchmark (kind, items, runs, best score) —
-the pk list `status`/`compare` need without the explorer.
-`chain compare --all` tallies every model×model pair's shared-bank
+the pk list `status`/`compare` need without the explorer; `--kind
+private` isolates the ciphertext-only banks. `chain compare --all`
+tallies every model×model pair's shared-bank
 result into a W-L-T leaderboard — rankings grounded on shared evidence
-only, with disjoint pairs reported as unranked rather than assumed.
+only, with disjoint pairs reported as unranked rather than assumed;
+`--min-shared n` requires n shared banks before a pair counts
+(`--min-shared 5` tightens the bundle's rankable pairs to 52).
 `chain trail <run-pk>` prints one run's custody chain — bank, registry
 receipt, and every venue that priced it — and **re-verifies each resolved
 venue's score against `Run.correct`** (duel `resolved_score` unpacked

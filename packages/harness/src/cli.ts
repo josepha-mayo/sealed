@@ -164,11 +164,11 @@ async function main() {
   sealed chain record --all [--watch s]                        enroll EVERY finalized-but-unrecorded run — the permissionless librarian (--watch = daemon)
   sealed chain modelrec <pubkey|model_id>                  show a model's aggregated score record
   sealed chain records                                     list every model record, accuracy-first
-  sealed chain banks                                       list every benchmark, run-count first
+  sealed chain banks [--kind authored|generated|private]          list every benchmark, run-count first
   sealed chain stats                                       the dashboard — counts, escrow, bit-exact integrity verdicts
   sealed chain runs [--bank b] [--model m] [--min-pct n]   # the run substrate — who scored what where
   sealed chain compare <A> <B>                             head-to-head on shared benchmarks, paired deltas
-  sealed chain compare --all                               paired-evidence leaderboard (W-L-T over shared banks)
+  sealed chain compare --all [--min-shared n]               paired-evidence leaderboard (W-L-T over shared banks)
   sealed chain trail <run-pk>                              custody chain: bank → receipt → venues, resolutions re-verified
   sealed chain market bounties                             the runner index: open capability bounties by pot
   sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]
