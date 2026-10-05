@@ -177,3 +177,11 @@ diff ../../web/snapshot.json → ../../web/snapshot.json
   A — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
   B — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
   delta — +0 accounts · -0 removed
+
+$ yarn --cwd packages/harness cli chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV --outcome 0 --lamports 50000000 --snapshot web/snapshot.json
+quote — 4gx1VhwgTK9b… (ladder)
+  stake 0.0500 ◎ on ladder leg 0 → ~0.0929 ◎ back if it wins (+85.71% ROI)
+  book implies 53.84% on that side — pool 0.6500 ◎ → winning side splits 0.6500 ◎ post-fee; your share 0.0500/0.3500 of that side
+
+$ yarn --cwd packages/harness cli chain market quote Ftw6cvBE381ftyFtSGTb2CSAoDNsqBfLyf39iHLeK7B3 --outcome 0 --lamports 50000000 --snapshot web/snapshot.json
+venue is resolved — quotes only apply while open

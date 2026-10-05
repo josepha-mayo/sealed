@@ -200,7 +200,10 @@ on that outcome. Ladders bound outcomes by `legCount` (not the
 markets quote honestly as a scenario range — a sealed position's
 payout depends on who reveals, so it prints only-you-win / pool-stays
 / zero-reveals (gross refund) instead of a single number it can't
-know. `chain watch [--interval s] [--type a,b]` is the live pulse —
+know. The hosted explorer carries the same math as a per-venue
+widget — every open band/duel/ladder card and every open dark card
+has an inline stake simulator, no wallet required. `chain watch
+[--interval s] [--type a,b]` is the live pulse —
 a `feed` tail that polls and prints new events oldest-first as they
 land, deduplicated by a bounded seen-set; with `--snapshot` it becomes
 a replay ticker (the bundle's last events, then idle).

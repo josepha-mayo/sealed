@@ -426,6 +426,30 @@ function outcomeLabel(n, edges, i) {
   const hi = i === n - 1 ? null : Number(edges[i]);
   return hi === null ? `≥ ${lo}` : lo === 0 ? `< ${hi}` : `${lo}–${hi - 1}`;
 }
+// the program's own parimutuel math, in-page — mirrors `chain market quote`:
+// winners split the post-fee pot pro-rata over their side's total.
+function quote(pk) {
+  const A = window.__audit; if (!A) return;
+  const m = A.markets.find(x => x.pk === pk) || A.ladders.find(x => x.pk === pk) || A.darkMarkets.find(x => x.pk === pk);
+  const out = document.getElementById("qout-" + pk);
+  const amt = document.getElementById("qamt-" + pk);
+  if (!m || !out || !amt) return;
+  const lam = BigInt(Math.max(0, Math.round(parseFloat(amt.value || "0") * 1e9)));
+  if (!lam) { out.textContent = ""; return; }
+  const fee = (pot) => pot - (pot * BigInt(m.feeBps || 0)) / 10000n;
+  if (m.n !== undefined) {   // dark — sealed book can only quote scenarios
+    const pool = BigInt(m.poolTotal) + lam, win = BigInt(m.winTotal || 0n);
+    out.textContent = `sealed — only-you-win ~${sol(lam * fee(pool) / (win + lam))} SOL · win-pool-stays ~${sol(win > 0n ? lam * fee(pool) / (win + lam) : lam * fee(pool) / lam)} SOL · zero-reveal → gross refund`;
+    return;
+  }
+  const totals = m.totals.map(x => BigInt(x));
+  const i = Number(document.getElementById("qsel-" + pk)?.value || 0);
+  const winTotal = totals[i] + lam, pot = totals.reduce((s, t) => s + t, 0n) + lam;
+  const est = lam * fee(pot) / winTotal;
+  const implied = Number(winTotal * 10000n / pot) / 100;
+  const roi = est > 0n ? Number((est - lam) * 10000n / lam) / 100 : -100;
+  out.textContent = `→ ~${sol(est)} SOL back if it wins (${roi >= 0 ? "+" : ""}${roi}% ROI · pool implies ${implied}%)`;
+}
 // AnswerChunk: disc8 + benchmark32 + index u16 + bump + parts_staged + parts_sealed
 // + sealing_part + author_pubkey32 + nonces[4][16] + ciphertexts[32][32]
 // + sealing_offset u64 (tail)
@@ -1173,6 +1197,9 @@ function renderAll(sealedAccs, marketAccs) {
         }
         h += `</table>`;
       }
+      if (m.status === 0) {
+        h += `<div class="kv" style="margin-top:6px">simulate <select id="qsel-${m.pk}" onchange="quote('${m.pk}')">${Array.from({length: n}, (_, i) => `<option value="${i}">${esc(lbl(i))}</option>`).join("")}</select> stake <input id="qamt-${m.pk}" value="0.05" size="5" oninput="quote('${m.pk}')"> SOL <span id="qout-${m.pk}" class="mono"></span> <span class="verlink" onclick="quote('${m.pk}')">quote</span></div>`;
+      }
       h += `</div>`;
     }
   }
@@ -1211,6 +1238,9 @@ function renderAll(sealedAccs, marketAccs) {
         }
         h += `</table>`;
       }
+      if (l.status === 0) {
+        h += `<div class="kv" style="margin-top:6px">simulate <select id="qsel-${l.pk}" onchange="quote('${l.pk}')">${Array.from({length: n}, (_, i) => { const lr = runs.find(r => r.pk === l.legs[i]); return `<option value="${i}">leg ${i}${lr ? ` · ${esc(lr.modelId)}` : ""}</option>`; }).join("")}</select> stake <input id="qamt-${l.pk}" value="0.05" size="5" oninput="quote('${l.pk}')"> SOL <span id="qout-${l.pk}" class="mono"></span> <span class="verlink" onclick="quote('${l.pk}')">quote</span></div>`;
+      }
       h += `</div>`;
     }
   }
@@ -1243,6 +1273,9 @@ function renderAll(sealedAccs, marketAccs) {
           h += `<tr><td class="mono">${short(p.bettor)}</td><td>${sol(p.amount)}</td><td class="mono">${p.commitment.slice(0, 16)}…</td><td>${side}</td></tr>`;
         }
         h += `</table>`;
+      }
+      if (m.status === 0) {
+        h += `<div class="kv" style="margin-top:6px">simulate stake <input id="qamt-${m.pk}" value="0.05" size="5" oninput="quote('${m.pk}')"> SOL <span id="qout-${m.pk}" class="mono"></span> <span class="verlink" onclick="quote('${m.pk}')">quote</span> — sealed book: payout is a scenario range, not a number</div>`;
       }
       h += `</div>`;
     }
