@@ -2107,6 +2107,66 @@ export async function compareAll(json = false, snapPath?: string, minShared = 1)
   return ranked;
 }
 
+/** `chain model <pk|model_id>` — the fused per-model dossier. Four lenses
+ *  exist and none fuse: the registry record (receipts), the paired-
+ *  evidence rank, the settlement record, and the market's belief. This
+ *  composes all of them plus the run history into one page — the whole
+ *  answer to "what does the system know about this model?". */
+export async function chainModel(keyOrName: string, json = false, snapPath?: string) {
+  // resolve the record the same way modelRecordShow does — pk or the
+  // [modelrec, sha256(model_id)] PDA — then fuse every lens on top of it.
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  let pda: PublicKey;
+  try { pda = new PublicKey(keyOrName); }
+  catch { [pda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest()], sealedProgramId()); }
+  const recAcc = ss ? snapOf(ss, "ModelRecord").find((x) => x.publicKey.equals(pda)) : null;
+  const rec: any = ss ? recAcc?.account : await acct().modelRecord.fetchNullable(pda);
+  if (!rec) { console.log(`no model record at ${keyOrName}`); process.exitCode = 2; return null; }
+  const modelId: string = String(rec.modelId);
+  // the lenses print their own headers — silence them as a batch (one
+  // save/restore around the whole Promise.all; per-call save/restore
+  // races and can leave the console muted)
+  const origLog = console.log; console.log = () => {};
+  let ranked: any, champs: any, senti: any, runsRows: any;
+  try {
+    [ranked, champs, senti, runsRows] = await Promise.all([
+      compareAll(true, snapPath), marketChampions(true, snapPath),
+      marketSentiment(true, snapPath), runList({ snapPath, json: true, model: modelId }),
+    ]);
+  } finally { console.log = origLog; }
+  const rank = (ranked as any[])?.findIndex?.((r: any) => r.modelId === modelId) ?? -1;
+  const rankRow = rank >= 0 ? (ranked as any[])[rank] : null;
+  const champ = (champs as any[])?.find?.((r: any) => r.model === modelId) ?? null;
+  const bel = (senti as any[])?.find?.((r: any) => r.model === modelId) ?? null;
+  const runs = (runsRows as any[]) ?? [];
+  const fin = runs.filter((r: any) => Number(r.status) === 1);
+  const totalItems = Number(rec.totalItems), totalCorrect = Number(rec.totalCorrect);
+  const out = {
+    model: modelId, record: pda.toBase58(),
+    registry: { runs: Number(rec.runsScored), correct: totalCorrect, items: totalItems,
+      accuracyPct: totalItems ? Math.round((totalCorrect / totalItems) * 10000) / 100 : 0,
+      bestScore: `${rec.bestCorrect}/${rec.bestItems}` },
+    pairedEvidence: rankRow ? { rank: rank + 1, wins: rankRow.wins, losses: rankRow.losses, ties: rankRow.ties,
+      ppDelta: Math.round(rankRow.ppDelta * 100) / 100, sharedBankResults: rankRow.sharedBanks } : { rank: null, note: "no shared-bank pairs — evidence-disjoint" },
+    settlement: champ ? { duels: `${champ.duelW}W-${champ.duelD}D-${champ.duelL}L`, duelWinPct: champ.duelWinPct,
+      ladderLegs: `${champ.ladderWins}/${champ.ladderEntries}`, bounties: champ.bounties } : null,
+    marketBelief: bel ? { impliedWinPct: bel.impliedWinPct, impliedScore: bel.impliedScore, stakeWeighed: bel.stakeWeighed } : null,
+    runs: { total: runs.length, finalized: fin.length,
+      recent: runs.slice(0, 10).map((r: any) => ({ pk: r.pk, score: `${r.correct}/${r.items}`, bank: r.bankName, status: r.status })) },
+  };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`model ${modelId} — the four lenses on one page`);
+  console.log(`  registry    — ${out.registry.runs} receipts · ${out.registry.correct}/${out.registry.items} items (${out.registry.accuracyPct}%)${out.registry.bestScore ? ` · best ${out.registry.bestScore}` : ""}`);
+  console.log(`  evidence    — ${out.pairedEvidence.rank ? `paired rank #${out.pairedEvidence.rank} · ${out.pairedEvidence.wins}W-${out.pairedEvidence.losses}L-${out.pairedEvidence.ties}T · ΣΔ${out.pairedEvidence.ppDelta >= 0 ? "+" : ""}${out.pairedEvidence.ppDelta}pp over ${out.pairedEvidence.sharedBankResults} shared-bank result(s)` : out.pairedEvidence.note}`);
+  console.log(`  settlement  — ${champ ? `${out.settlement!.duels} (${champ.duelWinPct ?? "—"}%) · legs ${out.settlement!.ladderLegs} · bounties ${out.settlement!.bounties}` : "no resolved venues"}`);
+  console.log(`  belief      — ${bel ? `${bel.impliedWinPct !== null ? `wins ${bel.impliedWinPct}%` : ""}${bel.impliedScore !== null ? ` scores ~${bel.impliedScore}` : ""} (${bel.stakeWeighed} staked)` : "no open book prices it"}`);
+  console.log(`  runs        — ${out.runs.total} submitted · ${out.runs.finalized} finalized`);
+  for (const r of out.runs.recent.slice(0, 8))
+    console.log(`    ${String(r.pk).slice(0, 12)}… ${r.score} on ${r.bank} (status ${r.status})`);
+  return out;
+}
+
 /** `chain trail <run-pk> [--json]` — one run's custody chain: bank → receipt
  *  → every venue that priced it → resolution re-verified. The explorer's
  *  custody row as a portable report: each resolved venue's `resolvedScore`
@@ -4010,6 +4070,10 @@ export async function chainMain(cmd: string[], args: Args) {
     }
     if (!args.run) throw new Error("usage: chain record --run <pubkey> | --all");
     await recordScore(new PublicKey(String(args.run)));
+    return;
+  }
+  if (sub === "model") {
+    await chainModel(String(cmd[1] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "modelrec") {

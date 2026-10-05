@@ -138,7 +138,7 @@ committed bundle through the same discriminator-keyed layouts the RPC
 path uses, so `board`, `gate`, `history`, `records`, `status`,
 `banks`, `bank`, `stats`, `runs`, `feed`, `watch`, `verify`, `trail`, `grants`,
 `reveals`, `market bounties`, `market venue`, `market position`, `market quote`,
-`market odds`, `market sentiment`, `market champions`, `wallet`, `search`, `tour`, and `market positions --viewer <pk>` replay
+`market odds`, `market sentiment`, `market champions`, `model`, `wallet`, `search`, `tour`, and `market positions --viewer <pk>` replay
 **keyless, connection-free** (and a unit test pins the replay against
 the bundle's published counts). `chain export --snapshot <f>` emits the
 same verdicts as a portable `sealed-evidence-digest/v1` JSON — diffable

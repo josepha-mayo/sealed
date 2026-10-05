@@ -671,3 +671,27 @@ test("marketChampions reconstructs the settlement record per model", async () =>
     assert.ok(claimant.bounties > 10);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("chainModel fuses registry + evidence + settlement + belief per model", async () => {
+  const { chainModel } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const m = (await chainModel("ladder/model-a", true, snapPath)) as any;
+    assert.equal(m.model, "ladder/model-a");
+    assert.equal(m.registry.accuracyPct, 93.75);
+    assert.equal(m.pairedEvidence.rank, 2);
+    assert.equal(m.settlement.ladderLegs, "21/21");
+    assert.equal(m.marketBelief.impliedWinPct, 50);
+    assert.ok(m.runs.total > 20 && m.runs.finalized === m.runs.total);
+    // a real model carries its honest record across every lens
+    const q = (await chainModel("qwen2.5-3b-instruct", true, snapPath)) as any;
+    assert.equal(q.registry.accuracyPct, 23.96);
+    assert.equal(q.settlement.bounties, 1);
+    assert.equal(q.marketBelief, null, "no open book prices it");
+    // unknown model exits without a dossier
+    const none = (await chainModel("no/such-model", true, snapPath)) as any;
+    assert.equal(none, null);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

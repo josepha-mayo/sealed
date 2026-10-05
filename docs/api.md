@@ -121,7 +121,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `model`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -215,7 +215,11 @@ this says what the money EXPECTS. `chain market champions` completes
 the lens set — the settlement record per model: duel W-D-L, ladder
 leg wins (dead-heat masks count each co-winner), bounty claims. Where
 `records` ranks by score receipts, `champions` ranks by what money
-resolved on — the opinion a model can't argue with.
+resolved on — the opinion a model can't argue with. `chain model
+<pk|model_id>` fuses all four lenses into one dossier: the registry
+aggregate (receipt-replayable), the paired-evidence rank, the
+settlement record, the market's current belief, and the run history —
+the whole answer to "what does the system know about this model?"
 `chain watch [--interval s] [--type a,b]` is the live pulse —
 a `feed` tail that polls and prints new events oldest-first as they
 land, deduplicated by a bounded seen-set; with `--snapshot` it becomes
