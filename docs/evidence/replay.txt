@@ -135,3 +135,45 @@ feed — 14 event(s) newest first
   2026-10-03 11:40  receipt    CVuQoQqpgmh2…  receipt minted — test/registry-model-35953 48/64 [vouched]
   2026-10-03 11:40  score      67PexoYKbp99…  MPC finalized — test/registry-model-35953 scored 48/64 on sealed-test (authored)
   2026-10-03 11:40  run        67PexoYKbp99…  run queued — test/registry-model-35953 on sealed-test (authored)
+
+$ sealed chain search 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm --snapshot web/snapshot.json
+search 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
+  venue          band/duel market — status 1
+                 → sealed chain market venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
+
+$ sealed chain search B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg --snapshot web/snapshot.json
+search B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg
+  actor          wallet — signs 1 account(s)
+                 → sealed chain wallet B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg
+
+$ sealed chain feed --pk Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7 --snapshot web/snapshot.json
+feed — 3 event(s) touching Hn21uoPQYi8x… newest first
+  2026-10-03 14:29  receipt    D7EWMfdFv4ZW…  receipt minted — qwen2.5-1.5b-instruct 2/32 [post-reveal]  · via run Hn21uoPQ…
+  2026-10-03 14:28  score      Hn21uoPQYi8x…  MPC finalized — qwen2.5-1.5b-instruct scored 2/32 on sealed-v77007 (authored) (post-reveal)
+  2026-10-03 14:28  run        Hn21uoPQYi8x…  run queued — qwen2.5-1.5b-instruct on sealed-v77007 (authored)
+
+$ sealed chain market position 14AQTPw2KjckgvkTWbyVVpKp2mcfZgQuNaRFpdt6gnd6 --snapshot web/snapshot.json
+position 14AQTPw2KjckgvkTWbyVVpKp2mcfZgQuNaRFpdt6gnd6
+  kind    band
+  bettor  B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg
+  venue   7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm (band, status 1, outcome 1)
+  amounts [0] 0.0100  [1] 0.0100  [2] 0.0100  [3] 0.0000  [4] 0.0000  [5] 0.0000  [6] 0.0000  [7] 0.0000
+  state   PAYS — outcome 1 — pro-rata
+  payout  ~0.0300 SOL (staked 0.0100)
+
+claim: sealed chain market claim --market 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
+
+$ sealed chain market venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm --snapshot web/snapshot.json   (head)
+venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
+  kind — band · status resolved
+  pool — 0.0100 / 0.0100 / 0.0100 / 0.0000 / 0.0000 / 0.0000 / 0.0000 / 0.0000 ◎
+  times — created 2026-09-30 04:04 · closes - · resolve_by 2026-10-30 04:03 · resolved 2026-09-30 04:05
+  run A — test/market-run scored 10
+  resolution — 10 outcome 1  ✓ matches Run.correct
+  positions — 1 held
+
+$ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
+diff ../../web/snapshot.json → ../../web/snapshot.json
+  A — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
+  B — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
+  delta — +0 accounts · -0 removed
