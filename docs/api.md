@@ -121,7 +121,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -182,6 +182,13 @@ assigns), and — when resolved — its stored score re-verified against
 `Run.correct`, with duel `(a << 16) | b` packing and ladder `resultMask`
 handled. `chain trail` traces one run across venues; `market venue` is
 the mirror image — one venue across its runs and bettors.
+`chain market position <pk>` is the bettor-side dossier for a single
+position — the commitment (per-bucket amounts or the sealed dark
+commitment), the venue it rides on, and the same PAYS/REFUND/RENT/
+FORFEIT classification `positions` computes, plus the exact claim
+command when money is due. The audit triangle is complete: `bank`
+(subject), `market venue` (instrument), `wallet` (actor), `trail` (run),
+`market position` (stake).
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed
 borsh layouts the RPC path uses, so the surfaces replay **keyless and

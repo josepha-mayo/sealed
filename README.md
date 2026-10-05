@@ -259,6 +259,7 @@ sealed chain compare --all                                           # paired-ev
 sealed chain trail <run-pk>                                          # custody chain — every venue that priced it, resolutions re-verified
 sealed chain market bounties                                         # runner index — open bounties by pot, claimable marked honestly
 sealed chain market venue <pk>                                       # one venue — pools, positions, keeper state, resolution re-verified
+sealed chain market position <pk> --snapshot web/snapshot.json        # one position — stake, payout class (PAYS/REFUND/FORFEIT), exact claim cmd
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market void    --market <pk>                            # authority cancels, pre-scoring only
 sealed chain market expire  --market <pk>                            # anyone, once resolve_by passes (not if finalized)

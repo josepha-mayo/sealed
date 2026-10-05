@@ -518,3 +518,29 @@ test("chain feed emits cross-type chronology newest-first over the bundle", asyn
   // every event references a real account pubkey
   assert.ok(evs.every((e: any) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(e.pk)));
 });
+
+test("marketPosition dossier classifies a payable band position over the bundle", async () => {
+  const { marketPosition, marketPositions } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    // find any payable row, then look the position up by pk
+    const rows = (await marketPositions(undefined, true, snapPath, "B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg")) as any[];
+    const pay = rows.find((r: any) => r.state === "payable");
+    assert.ok(pay, "a payable position exists in the bundle");
+    const doc = (await marketPosition("14AQTPw2KjckgvkTWbyVVpKp2mcfZgQuNaRFpdt6gnd6", true, snapPath)) as any;
+    assert.equal(doc.state, "payable");
+    assert.equal(doc.venue, pay.pk);
+    assert.equal(BigInt(doc.estPayout), BigInt(pay.est));
+    assert.equal(doc.kind, "band");
+    assert.equal(doc.venueStatus.outcome, 1);
+    // dark position forfeits render too
+    const d = (await marketPosition("14fQMWDHF3nRERFm53rc5xSW2pxKGb8WY5gGAF4QU8NB", true, snapPath)) as any;
+    assert.equal(d.kind, "dark");
+    assert.equal(d.state, "forfeit");
+    // unknown pk exits 2 with no row
+    const missing = (await marketPosition("11111111111111111111111111111111", true, snapPath)) as any;
+    assert.equal(missing, null);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

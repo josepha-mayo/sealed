@@ -3033,36 +3033,26 @@ async function sweepOnce(kpPath?: string) {
       () => bountyExpire(new PublicKey(b.pubkey), kpPath));
 }
 
-/** `chain market positions` — the bettor-side mirror of the keeper board:
- *  every position the signing wallet holds, across bands/duels/ladders/
- *  darks, classified as payable / refundable / lost-rent / live. A bettor
- *  shouldn't need to track market PDAs to find their money. */
-export async function marketPositions(kpPath?: string, json = false, snapPath?: string, viewerStr?: string) {
-  let me: string;
-  if (viewerStr) me = new PublicKey(viewerStr).toBase58();
-  else me = marketProgram(kpPath).kp.publicKey.toBase58();
-  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
-      positions: SnapAccount[], darkPositions: SnapAccount[];
-  if (snapPath) {
-    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
-    [markets, ladders, darks, positions, darkPositions] =
-      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
-  } else {
-    const { market } = marketProgram(kpPath);
-    const mAcct = market.account as any;
-    [markets, ladders, darks, positions, darkPositions] = await Promise.all([
-      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
-      mAcct.position.all(), mAcct.darkPosition.all(),
-    ]);
-  }
-  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
-  const mk: Map<string, any> = new Map(markets.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: isDuel(x.account) ? "duel" : "band", status: x.account.status as number, outcome: x.account.outcome as number, totals: (x.account.totals as any[]).map((t) => BigInt(t.toString())), feeBps: num(x.account.feeBps) }]));
-  const lk: Map<string, any> = new Map(ladders.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: "ladder", status: x.account.status as number, mask: x.account.resultMask as number, totals: (x.account.totals as any[]).map((t) => BigInt(t.toString())), feeBps: num(x.account.feeBps) }]));
-  const dk: Map<string, any> = new Map(darks.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: "dark", status: x.account.status as number, outcome: x.account.outcome as number, poolTotal: BigInt(x.account.poolTotal.toString()), winTotal: BigInt(x.account.winTotal.toString()), feeBps: num(x.account.feeBps), tallied: !!x.account.tallied }]));
+const numField = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+const solAmt = (l: bigint | number) => (Number(l) / LAMPORTS_PER_SOL).toFixed(4);
+type VenueMaps = { mk: Map<string, any>; lk: Map<string, any>; dk: Map<string, any> };
+export type PosRow = { pk: string; kind: string; state: "payable" | "refund" | "lost" | "live" | "sealed" | "forfeit"; staked: bigint; est: bigint; note: string };
 
-  type Row = { pk: string; kind: string; state: "payable" | "refund" | "lost" | "live" | "sealed" | "forfeit"; staked: bigint; est: bigint; note: string };
-  const rows: Row[] = [];
-  const sol = (l: bigint | number) => (Number(l) / LAMPORTS_PER_SOL).toFixed(4);
+function venueMapsOf(markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[]): VenueMaps {
+  const num = numField;
+  return {
+    mk: new Map(markets.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: isDuel(x.account) ? "duel" : "band", status: x.account.status as number, outcome: x.account.outcome as number, totals: (x.account.totals as any[]).map((t) => BigInt(t.toString())), feeBps: num(x.account.feeBps) }])),
+    lk: new Map(ladders.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: "ladder", status: x.account.status as number, mask: x.account.resultMask as number, totals: (x.account.totals as any[]).map((t) => BigInt(t.toString())), feeBps: num(x.account.feeBps) }])),
+    dk: new Map(darks.map((x: any) => [x.publicKey.toBase58(), { pk: x.publicKey.toBase58(), kind: "dark", status: x.account.status as number, outcome: x.account.outcome as number, poolTotal: BigInt(x.account.poolTotal.toString()), winTotal: BigInt(x.account.winTotal.toString()), feeBps: num(x.account.feeBps), tallied: !!x.account.tallied }])),
+  };
+}
+
+/** Payout classification for a set of positions against venue maps. `me`
+ *  is the bettor base58 filter (position pk filtering happens upstream by
+ *  passing a single-element positions array). */
+function classifyPositions(positions: SnapAccount[], darkPositions: SnapAccount[], maps: VenueMaps, me: string): { rows: PosRow[] } {
+  const { mk, lk, dk } = maps;
+  const rows: PosRow[] = [];
   const netOf = (totals: bigint[], feeBps: number) => {
     const pot = totals.reduce((s, t) => s + t, 0n);
     return pot - (pot * BigInt(feeBps)) / 10000n;
@@ -3102,15 +3092,42 @@ export async function marketPositions(kpPath?: string, json = false, snapPath?: 
     if (revealed === 255) { rows.push({ pk: venuePk, kind: "dark", state: "forfeit", staked: amount, est: 0n, note: "never revealed — forfeited into the pot" }); continue; }
     if (revealed !== v.outcome || v.winTotal === 0n) { rows.push({ pk: venuePk, kind: "dark", state: "lost", staked: amount, est: 0n, note: `revealed ${revealed}, outcome ${v.outcome} — claim returns rent` }); continue; }
     const est = (amount * (v.poolTotal - (v.poolTotal * BigInt(v.feeBps)) / 10000n)) / v.winTotal;
-    rows.push({ pk: venuePk, kind: "dark", state: "payable", staked: amount, est, note: `revealed winner — pro-rata of ${sol(v.poolTotal)} SOL pool` });
+    rows.push({ pk: venuePk, kind: "dark", state: "payable", staked: amount, est, note: `revealed winner — pro-rata of ${solAmt(v.poolTotal)} SOL pool` });
   }
+  return { rows };
+}
+
+/** `chain market positions` — the bettor-side mirror of the keeper board:
+ *  every position the signing wallet holds, across bands/duels/ladders/
+ *  darks, classified as payable / refundable / lost-rent / live. A bettor
+ *  shouldn't need to track market PDAs to find their money. */
+export async function marketPositions(kpPath?: string, json = false, snapPath?: string, viewerStr?: string) {
+  let me: string;
+  if (viewerStr) me = new PublicKey(viewerStr).toBase58();
+  else me = marketProgram(kpPath).kp.publicKey.toBase58();
+  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
+      positions: SnapAccount[], darkPositions: SnapAccount[];
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
+  } else {
+    const { market } = marketProgram(kpPath);
+    const mAcct = market.account as any;
+    [markets, ladders, darks, positions, darkPositions] = await Promise.all([
+      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
+      mAcct.position.all(), mAcct.darkPosition.all(),
+    ]);
+  }
+  const maps = venueMapsOf(markets, ladders, darks);
+  const { rows } = classifyPositions(positions, darkPositions, maps, me);
   if (json) { console.log(JSON.stringify(rows, (k, x) => typeof x === "bigint" ? x.toString() : x)); return rows; }
   const order = { payable: 0, refund: 1, live: 2, sealed: 3, lost: 4, forfeit: 5 } as const;
   rows.sort((a, b) => order[a.state] - order[b.state]);
-  console.log(`positions — ${rows.length} held by ${me.slice(0, 8)}… across ${mk.size + lk.size + dk.size} venues`);
+  console.log(`positions — ${rows.length} held by ${me.slice(0, 8)}… across ${maps.mk.size + maps.lk.size + maps.dk.size} venues`);
   for (const r of rows) {
     const tag = { payable: "PAYS", refund: "REFUND", live: "LIVE", sealed: "SEALED", lost: "RENT", forfeit: "FORFEIT" }[r.state];
-    console.log(`  ${tag.padEnd(7)} ${r.kind.padEnd(6)} ${r.pk}  staked ${sol(r.staked)}${r.est > 0n ? ` → ~${sol(r.est)}` : ""} SOL  ${r.note}`);
+    console.log(`  ${tag.padEnd(7)} ${r.kind.padEnd(6)} ${r.pk}  staked ${solAmt(r.staked)}${r.est > 0n ? ` → ~${solAmt(r.est)}` : ""} SOL  ${r.note}`);
   }
   const due = rows.filter((r) => r.state === "payable" || r.state === "refund");
   if (due.length) {
@@ -3118,6 +3135,70 @@ export async function marketPositions(kpPath?: string, json = false, snapPath?: 
     for (const r of due) console.log(`  sealed chain market ${r.kind === "ladder" ? "ladder claim" : r.kind === "dark" ? "dark claim --pos-salt <your-salt>" : "claim"} --market ${r.pk}${r.kind === "dark" ? "  # pos_salt is a seed — use the value from your bet" : ""}`);
   }
   return rows;
+}
+
+/** `chain market position <pk>` — the bettor's dossier for ONE position:
+ *  the commitment itself (amounts per bucket / sealed dark commitment),
+ *  the venue it rides on, and the same payable/lost/forfeit classification
+ *  `positions` computes — plus the exact claim command when money is due. */
+export async function marketPosition(pkStr: string, json = false, snapPath?: string) {
+  const pk = new PublicKey(pkStr);
+  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
+      positions: SnapAccount[], darkPositions: SnapAccount[];
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
+  } else {
+    const { market } = marketProgram();
+    const mAcct = market.account as any;
+    [markets, ladders, darks, positions, darkPositions] = await Promise.all([
+      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
+      mAcct.position.all(), mAcct.darkPosition.all(),
+    ]);
+  }
+  const pos = positions.find((x) => x.publicKey.equals(pk));
+  const dpos = darkPositions.find((x) => x.publicKey.equals(pk));
+  if (!pos && !dpos) {
+    console.log(`position ${pkStr} not found (checked Position + DarkPosition)`);
+    process.exitCode = 2;
+    return null;
+  }
+  const bettor = (pos ?? dpos)!.account.bettor.toBase58();
+  const maps = venueMapsOf(markets, ladders, darks);
+  const { rows } = classifyPositions(pos ? [pos] : [], dpos ? [dpos] : [], maps, bettor);
+  const row = rows[0];
+  const venuePk = (pos ?? dpos)!.account.market.toBase58();
+  const venue = maps.mk.get(venuePk) ?? maps.lk.get(venuePk) ?? maps.dk.get(venuePk);
+  const doc = {
+    position: pkStr, kind: row?.kind ?? (pos ? "band/duel" : "dark"), bettor, venue: venuePk,
+    state: row?.state ?? "unknown", staked: row ? row.staked.toString() : "0",
+    estPayout: row ? row.est.toString() : "0", note: row?.note ?? "venue account missing",
+    amounts: pos ? (pos.account.amounts as any[]).map((a) => a.toString()) : undefined,
+    commitment: dpos ? Buffer.from(dpos.account.commitment as number[]).toString("hex") : undefined,
+    revealed: dpos ? (dpos.account.revealed as number) : undefined,
+    venueStatus: venue ? { status: venue.status, outcome: (venue as any).outcome, mask: (venue as any).mask, feeBps: venue.feeBps } : undefined,
+  };
+  if (json) { console.log(JSON.stringify(doc)); return doc; }
+  const tag = { payable: "PAYS", refund: "REFUND", live: "LIVE", sealed: "SEALED", lost: "RENT", forfeit: "FORFEIT", unknown: "?" }[row?.state ?? "unknown" as const];
+  console.log(`position ${pkStr}`);
+  console.log(`  kind    ${doc.kind}`);
+  console.log(`  bettor  ${bettor}`);
+  console.log(`  venue   ${venuePk}${venue ? ` (${(venue as any).kind ?? doc.kind}, status ${venue.status}${(venue as any).outcome !== undefined && venue.status === 1 ? `, outcome ${(venue as any).outcome}` : ""}${(venue as any).mask !== undefined && venue.status === 1 ? `, mask 0b${((venue as any).mask as number).toString(2)}` : ""})` : " — MISSING"}`);
+  if (pos) {
+    const amounts = (pos.account.amounts as any[]).map((a) => BigInt(a.toString()));
+    console.log(`  amounts ${amounts.map((a, i) => `[${i}] ${solAmt(a)}`).join("  ")}`);
+  } else if (dpos) {
+    console.log(`  stake   ${solAmt(BigInt(dpos.account.amount.toString()))} SOL   commitment ${Buffer.from(dpos.account.commitment as number[]).toString("hex").slice(0, 16)}…`);
+    console.log(`  reveal  ${dpos.account.revealed === 255 ? "still sealed" : `outcome ${dpos.account.revealed}`}`);
+  }
+  console.log(`  state   ${tag} — ${doc.note}`);
+  if (row && row.est > 0n) console.log(`  payout  ~${solAmt(row.est)} SOL (staked ${solAmt(row.staked)})`);
+  else if (row) console.log(`  staked  ${solAmt(row.staked)} SOL`);
+  if (row && (row.state === "payable" || row.state === "refund")) {
+    console.log(`\nclaim: sealed chain market ${row.kind === "ladder" ? "ladder claim" : row.kind === "dark" ? "dark claim --pos-salt <your-salt>" : "claim"} --market ${row.pk}`);
+  }
+  return doc;
 }
 
 /** `chain history <model_id|record-pk>` — the capability trajectory: every
@@ -3532,6 +3613,8 @@ export async function chainMain(cmd: string[], args: Args) {
     } else if (m0 === "positions") {
       await marketPositions(bettor, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
         args.viewer ? String(args.viewer) : undefined);
+    } else if (m0 === "position") {
+      await marketPosition(String(cmd[2] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.
