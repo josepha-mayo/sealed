@@ -55,6 +55,9 @@
   .verlink { cursor:pointer; color:var(--acc); text-decoration:underline; font-size:12px; }
   table { display:block; overflow-x:auto; }
   .cfg input { max-width:100%; }
+  .nav { position:sticky; top:0; z-index:5; background:var(--bg); padding:8px 0; border-bottom:1px solid var(--line); margin-bottom:8px; }
+  .nav a { font-size:12px; color:var(--dim); margin-right:14px; white-space:nowrap; }
+  .nav a:hover { color:var(--acc); text-decoration:none; }
 </style>
 </head>
 <body>
@@ -69,15 +72,18 @@
   <span id="net" class="kv"></span>
 </div>
 <div id="err"></div>
+<div class="nav">
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+</div>
 <div id="out"></div>
 
-<h2>cryptographic audit</h2>
+<h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span></div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
-<h2>verify an output</h2>
+<h2 id="sec-verify">verify an output</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">proof that a model's output was committed <i>before</i> scoring — paste <code>sealed prove --run … --item …</code> output</div>
   <input id="vrun" size="44" placeholder="run account pubkey"> <button onclick="verify()">verify</button>
@@ -714,7 +720,7 @@ function renderAll(sealedAccs, marketAccs) {
       const items = (b ? b.chunkCount : r.chunkCount) * 32;
       return { r, b, items, pct: items ? (100 * r.correct) / items : 0 };
     }).sort((a, b2) => b2.pct - a.pct || Number(a.r.finalizedAt) - Number(b2.r.finalizedAt));
-    h += `<h2>leaderboard — every score finalized by the MPC cluster</h2><div class="card"><table>` +
+    h += `<h2 id="sec-leaderboard">leaderboard — every score finalized by the MPC cluster</h2><div class="card"><table>` +
       `<tr><th>rank</th><th>model</th><th>benchmark</th><th>score</th><th>runner</th><th>run</th><th>finalized</th></tr>`;
     board.forEach((e, i) => {
       h += `<tr${i < 3 ? ` class="top${i + 1}"` : ""}><td>#${i + 1}</td>
@@ -743,7 +749,7 @@ function renderAll(sealedAccs, marketAccs) {
     // sink below a divider so the table reads as a leaderboard, not a log.
     const suite = /^(test|mock|ladder|duel|dark|delegate|e2e|probe|fixture)\//;
     const real = recs.filter(m => !suite.test(m.modelId)), fixtures = recs.filter(m => suite.test(m.modelId));
-    h += `<h2>model capability records — persistent per-model aggregates</h2><div class="card"><table>` +
+    h += `<h2 id="sec-records">model capability records — persistent per-model aggregates</h2><div class="card"><table>` +
       `<tr><th>model</th><th>runs</th><th>cumulative</th><th>best run</th><th>last run</th><th>attested</th><th>updated</th></tr>`;
     // Wilson 95% lower confidence bound — a leaderboard that ranks raw
     // point estimates lies: 9/32 and 45/64 don't mean what they look like.
@@ -870,7 +876,7 @@ function renderAll(sealedAccs, marketAccs) {
   }
   if (pairs.size) {
     const rows = [...pairs.values()].sort((a, b) => b.n - a.n);
-    h += `<h2>head-to-head — pairwise results from resolved duels + same-bank ladder legs</h2><div class="card"><table>` +
+    h += `<h2 id="sec-h2h">head-to-head — pairwise results from resolved duels + same-bank ladder legs</h2><div class="card"><table>` +
       `<tr><th>model A</th><th>record</th><th>model B</th><th>comparisons</th></tr>`;
     rows.forEach(p => {
       const cell = `${p.w}–${p.l}–${p.t}`;
@@ -887,11 +893,11 @@ function renderAll(sealedAccs, marketAccs) {
   // public on purpose — every item, the canonical answer, the model's
   // canonical reply, and the match bit, next to the MPC-written total. ----
   if (benches.some(b => b.id === 77007)) {
-    h += `<h2>calibration specimen — the exam in the open</h2>
+    h += `<h2 id="sec-cal">calibration specimen — the exam in the open</h2>
       <div class="card" id="calspec"><div class="kv">loading the public calibration bundle…</div></div>`;
   }
 
-  if (benches.length) h += `<h2>benchmark banks</h2>`;
+  if (benches.length) h += `<h2 id="sec-banks">benchmark banks</h2>`;
   for (const b of benches.sort((a, b2) => a.id - b2.id)) {
     const items = b.chunkCount * 32;
     const brs = runs.filter(r => r.benchmark === b.pk).sort((a, b2) => b2.correct - a.correct);
@@ -1056,7 +1062,7 @@ function renderAll(sealedAccs, marketAccs) {
       if (legs.some(r => !r || mov(r))) fill++; else lad.push(l);
     }
     const acts = claim.length + res.length + exp.length + tal.length + lad.length + expB.length;
-    h += `<h2>keeper board — what a permissionless operator can do right now</h2><div class="card">
+    h += `<h2 id="sec-board">keeper board — what a permissionless operator can do right now</h2><div class="card">
       <div class="kv">the same classification <span class="mono">chain market board</span> prints (<span class="mono">board.ts</span> — mirroring the on-chain still_moving / proven / bounty_qualifies gates), evaluated over ${venues.length + ladders.length + bounties.length} venue accounts on this ledger. ${acts ? `<b>${acts} actionable:</b>` : `<b>nothing stranded:</b> every venue reached a terminal state through permissionless paths.`}</div>`;
     const line = (t, pk, note) => `<div class="proof">→ ${t} ${link(pk)}${note ? ` — ${note}` : ""}</div>`;
     for (const [b, q] of claim) h += line(`<span class="pill live">claimable</span> bounty`, b.pk, `run ${link(q.pk)} scored ${q.correct} — pays its operator ${sol(b.amount)} SOL`);
@@ -1068,7 +1074,7 @@ function renderAll(sealedAccs, marketAccs) {
     h += `<div class="kv" style="margin-top:4px">still in play: ${liveB.length} live bounties · ${fill} venues filling · ${rev} darks revealing — settled: ${set} venues · ${claimed} claimed bounties. <span class="mono">chain market sweep</span> executes every row above permissionlessly.</div></div>`;
   }
   if (markets.length) {
-    h += `<h2>markets</h2>`;
+    h += `<h2 id="sec-markets">markets</h2>`;
     for (const m of markets.sort((a, b) => b.createdAt - a.createdAt)) {
       const run = runs.find(r => r.pk === m.run);
       const runB = m.duel ? runs.find(r => r.pk === m.runB) : null;
@@ -1120,7 +1126,7 @@ function renderAll(sealedAccs, marketAccs) {
   }
 
   if (ladders.length) {
-    h += `<h2>ladder races</h2>`;
+    h += `<h2 id="sec-ladders">ladder races</h2>`;
     for (const l of ladders.sort((a, b) => b.createdAt - a.createdAt)) {
       const pot = l.totals.reduce((s, t) => s + Number(t), 0) / 1e9;
       const lpos = positions.filter(p => p.market === l.pk);
@@ -1158,7 +1164,7 @@ function renderAll(sealedAccs, marketAccs) {
   }
 
   if (darkMarkets.length) {
-    h += `<h2>dark markets</h2>`;
+    h += `<h2 id="sec-dark">dark markets</h2>`;
     for (const m of darkMarkets.sort((a, b) => b.createdAt - a.createdAt)) {
       const dpos = darkPositions.filter(p => p.market === m.pk);
       const n = m.n;
@@ -1191,7 +1197,7 @@ function renderAll(sealedAccs, marketAccs) {
   }
 
   if (bounties.length) {
-    h += `<h2>score bounties</h2>`;
+    h += `<h2 id="sec-bounties">score bounties</h2>`;
     for (const b of bounties.sort((a, x) => x.createdAt - a.createdAt)) {
       const claimed = b.status === 1;
       h += `<div class="card" id="bounty-${b.pk}"><div class="row">

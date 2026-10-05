@@ -2772,7 +2772,14 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "record") {
-    if (args.all) { await recordAllScores(); return; }
+    if (args.all) {
+      const watch = Number(args.watch ?? 0) || 0;
+      for (;;) {
+        await recordAllScores();
+        if (!watch) return;
+        await new Promise((r) => setTimeout(r, watch * 1000));
+      }
+    }
     if (!args.run) throw new Error("usage: chain record --run <pubkey> | --all");
     await recordScore(new PublicKey(String(args.run)));
     return;

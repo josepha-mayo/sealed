@@ -131,6 +131,7 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
 #     against an RPC answer from the snapshot alone (snapshot.ts decodes
 #     through the same discriminator-keyed layouts). 36 actionable
 #     venues, 31 model records, a gate verdict — all offline.
+yarn --cwd packages/harness cli chain stats --snapshot ../../web/snapshot.json   # dashboard: 31/31 records + 201/201 resolutions re-verified
 yarn --cwd packages/harness cli chain banks --snapshot ../../web/snapshot.json   # index → pick a benchmark pk
 yarn --cwd packages/harness cli chain market board --snapshot ../../web/snapshot.json
 yarn --cwd packages/harness cli chain gate dark/model-a --min-pct 80 --min-runs 5 --snapshot ../../web/snapshot.json
