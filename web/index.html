@@ -75,7 +75,7 @@
 </div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -1191,6 +1191,42 @@ function renderAll(sealedAccs, marketAccs) {
         <table><tr><th>model</th><th>implied win%</th><th>implied score</th><th>stake weighed</th><th>venues</th></tr>`;
       for (const r of sRows)
         h += `<tr><td class="mono">${esc(r.m)}</td><td>${r.win !== null ? r.win.toFixed(2) + "%" : "—"}</td><td>${r.score !== null ? "~" + r.score.toFixed(1) : "—"}</td><td>${r.stake.toFixed(3)} SOL</td><td>${r.venues}</td></tr>`;
+      h += `</table></div>`;
+    }
+  }
+  { // the settlement record — what money actually resolved on
+    // (`chain market champions` prints the same rows)
+    const cAcc = new Map();
+    const cRow = (m) => { if (!cAcc.has(m)) cAcc.set(m, { W: 0, D: 0, L: 0, legs: 0, entries: 0, bounties: 0 }); return cAcc.get(m); };
+    for (const m of markets) {
+      if (m.status !== 1 || !m.duel) continue;
+      const a = runs.find(r => r.pk === m.run), b = runs.find(r => r.pk === m.runB);
+      if (m.outcome === 0) { if (a) cRow(a.modelId).W++; if (b) cRow(b.modelId).L++; }
+      else if (m.outcome === 1) { if (b) cRow(b.modelId).W++; if (a) cRow(a.modelId).L++; }
+      else { if (a) cRow(a.modelId).D++; if (b) cRow(b.modelId).D++; }
+    }
+    for (const l of ladders) {
+      if (l.status !== 1) continue;
+      for (let i = 0; i < l.legCount; i++) {
+        const leg = runs.find(r => r.pk === l.legs[i]);
+        if (!leg) continue;
+        cRow(leg.modelId).entries++;
+        if ((Number(l.resultMask) >> i) & 1) cRow(leg.modelId).legs++;
+      }
+    }
+    for (const b of bounties) {
+      if (b.status !== 1) continue;
+      const w = runs.find(r => r.pk === b.winnerRun);
+      if (w) cRow(w.modelId).bounties++;
+    }
+    const cRows = [...cAcc.entries()].map(([m, r]) => ({ m, ...r,
+      decided: r.W + r.L, score: r.W * 3 + r.legs + r.bounties * 2 })).sort((a, b) => b.score - a.score);
+    if (cRows.length) {
+      h += `<h2 id="sec-champions">settlement record</h2><div class="card">
+        <div class="kv">what the money actually resolved on — duel W-D-L, ladder leg wins (dead-heat masks count every co-winner), bounty claims. The opinion a model can't argue with (<span class="mono">chain market champions</span>).</div>
+        <table><tr><th>model</th><th>duels</th><th>ladder legs</th><th>bounties</th></tr>`;
+      for (const r of cRows)
+        h += `<tr><td class="mono">${esc(r.m)}</td><td>${r.W}W-${r.D}D-${r.L}L${r.decided ? ` (${(100 * r.W / r.decided).toFixed(0)}%)` : ""}</td><td>${r.legs}/${r.entries}${r.entries ? ` (${(100 * r.legs / r.entries).toFixed(0)}%)` : ""}</td><td>${r.bounties}</td></tr>`;
       h += `</table></div>`;
     }
   }

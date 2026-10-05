@@ -127,7 +127,14 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > resolutions matching `Run.correct`, exit 1 on a violation. `chain runs`
 > is the substrate index underneath it, and `chain items` regenerates an
 > entire MPC-minted exam from raw on-chain chunks — items_root fold
-> re-verified, keyless.
+> re-verified, keyless. `chain tour` narrates all of it in one command —
+> seven stops through live-picked exhibits, ending on what the stakes
+> believe: `chain market odds`/`sentiment`/`champions` pool the books
+> into per-model implied probabilities, expected scores, and settlement
+> records, `chain market quote` simulates a stake before it exists
+> (the program's own parimutuel math), `chain search` resolves any
+> pasted pubkey to its dossier, `chain model` fuses all four model
+> lenses into one page, and `chain watch` ticks the ledger live.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201

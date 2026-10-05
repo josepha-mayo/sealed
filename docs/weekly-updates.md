@@ -65,3 +65,25 @@ deadline.
 - Close: "Every feature this week is executable — a judge can run the
   audit, the gate, the board, and the rescore without installing
   anything."
+
+## Update 4 — "the market has opinions" (post this week)
+
+- 15s: `chain tour` — the project demos itself: seven stops through the
+  live ledger (stats → a key resolved → a run's custody trail → its
+  filtered feed → a venue's book → a bettor's P&L → what the money
+  learned), exhibits picked live — nothing hardcoded.
+- 15s: `chain market quote` + the in-page simulator — type a stake next
+  to any open venue and get the program's own parimutuel math back:
+  est payout, ROI, implied share. `chain market odds` is the sibling —
+  the implied-probability board itself, what the books believe.
+- 15s: `chain market sentiment` + `chain market champions` — two more
+  lenses on the same models: stake-weighted belief pooled per model
+  (duel tie books split half, bands imply expected score), and the
+  settlement record (duel W-D-L, ladder leg wins counting dead-heat
+  co-winners, bounty claims). `chain model <id>` fuses all four lenses
+  — registry, evidence, settlement, belief, runs — into one dossier.
+- 15s: `chain watch` — the live pulse: feed events as they land,
+  dedup'd, oldest-first; snapshot mode makes it a replay ticker so the
+  demo works without an RPC at all.
+- Close: "Four ways to rank a model — receipts, paired evidence,
+  settlement, belief — and none of them are a leaderboard's word."

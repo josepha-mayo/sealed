@@ -185,3 +185,75 @@ quote — 4gx1VhwgTK9b… (ladder)
 
 $ yarn --cwd packages/harness cli chain market quote Ftw6cvBE381ftyFtSGTb2CSAoDNsqBfLyf39iHLeK7B3 --outcome 0 --lamports 50000000 --snapshot web/snapshot.json
 venue is resolved — quotes only apply while open
+
+$ yarn --cwd packages/harness cli chain market odds --snapshot web/snapshot.json
+market odds — 56 open venue(s), implied by the books themselves
+  ladder 4gx1VhwgTK9b… pool 0.6000 ◎ — book's pick: leg 0 · ladder/model-a @ 50%
+      leg 0 · ladder/model-a                 50%   2.00x
+      leg 1 · ladder/model-b              33.33%   3.00x
+      leg 2 · ladder/model-c              16.66%   6.00x
+  ladder 7rMpsk7jGDPr… pool 0.6000 ◎ — book's pick: leg 0 · ladder/model-a @ 50%
+      leg 0 · ladder/model-a                 50%   2.00x
+      leg 1 · ladder/model-b              33.33%   3.00x
+      leg 2 · ladder/model-c              16.66%   6.00x
+  duel   GL4yEgmZPa5k… pool 0.5500 ◎ — book's pick: A wins · duel/model-a @ 54.54%
+      A wins · duel/model-a               54.54%   1.83x
+      B wins · duel/model-b               36.36%   2.75x
+      tie                                  9.09%   11.00x
+  band   6oE2pRN1w2Mf… pool 0.3000 ◎ — book's pick: [1] >= 30 @ 100%
+      [0] < 30                                0%   0.00x
+      [1] >= 30                             100%   1.00x
+  ladder EhMWpTjSC2f8… pool 0.3000 ◎ — book's pick: leg 0 · ladder/tie-a @ 50%
+      leg 0 · ladder/tie-a                   50%   2.00x
+      leg 1 · ladder/tie-b                16.66%   6.00x
+      leg 2 · ladder/tie-c                33.33%   3.00x
+  … and 51 venue(s) with empty books — open but nothing staked yet
+
+$ yarn --cwd packages/harness cli chain market sentiment --snapshot web/snapshot.json
+market sentiment — stake-weighted belief per model (9 model(s) priced)
+  ladder/model-a               wins     50%    (1.2000 ◎ across 2 venue(s))
+  ladder/model-b               wins  33.33%    (1.2000 ◎ across 2 venue(s))
+  ladder/model-c               wins  16.67%    (1.2000 ◎ across 2 venue(s))
+  duel/model-a                 wins  59.09%    (0.5500 ◎ across 1 venue(s))
+  duel/model-b                 wins  40.91%    (0.5500 ◎ across 1 venue(s))
+  test/market-run                       —  scores ~30  (0.3000 ◎ across 1 venue(s))
+  ladder/tie-a                 wins     50%    (0.3000 ◎ across 1 venue(s))
+  ladder/tie-b                 wins  16.67%    (0.3000 ◎ across 1 venue(s))
+  ladder/tie-c                 wins  33.33%    (0.3000 ◎ across 1 venue(s))
+
+$ yarn --cwd packages/harness cli chain market champions --snapshot web/snapshot.json
+market champions — the settlement record (18 model(s) with resolved venues)
+  duel/model-a                 duels 21W-0D-0L (100%) · legs 0/0 · bounties 0
+  test/bounty-claimant         duels 0W-0D-0L · legs 0/0 · bounties 21
+  ladder/tie-a                 duels 0W-0D-0L · legs 22/22 (100%) · bounties 0
+  ladder/tie-b                 duels 0W-0D-0L · legs 22/22 (100%) · bounties 0
+  ladder/model-a               duels 0W-0D-0L · legs 21/21 (100%) · bounties 0
+  test/bounty-wrong-payee      duels 0W-0D-0L · legs 0/0 · bounties 7
+  mock/oracle-0.5              duels 0W-0D-0L · legs 0/0 · bounties 4
+  qwen2.5-3b-instruct          duels 1W-0D-0L (100%) · legs 1/1 (100%) · bounties 1
+  qwen2.5-1.5b-instruct        duels 1W-0D-1L (50%) · legs 1/1 (100%) · bounties 0
+  mock/oracle-0.75             duels 1W-0D-0L (100%) · legs 1/1 (100%) · bounties 0
+  qwen2.5-0.5b-instruct        duels 0W-0D-1L (0%) · legs 0/1 (0%) · bounties 0
+  duel/model-b                 duels 0W-0D-21L (0%) · legs 0/0 · bounties 0
+  mock/oracle-0.50             duels 0W-0D-1L (0%) · legs 0/1 (0%) · bounties 0
+  ladder/tie-c                 duels 0W-0D-0L · legs 0/22 (0%) · bounties 0
+  ladder/model-b               duels 0W-0D-0L · legs 0/21 (0%) · bounties 0
+  ladder/model-c               duels 0W-0D-0L · legs 0/21 (0%) · bounties 0
+  llama-3.2-1b-instruct        duels 0W-0D-0L · legs 0/1 (0%) · bounties 0
+  mock/oracle-0.25             duels 0W-0D-0L · legs 0/1 (0%) · bounties 0
+
+$ yarn --cwd packages/harness cli chain model ladder/model-a --snapshot web/snapshot.json
+model ladder/model-a — the four lenses on one page
+  registry    — 17 receipts · 510/544 items (93.75%) · best 30/32
+  evidence    — paired rank #2 · 8W-0L-1T · ΣΔ+278.13pp over 142 shared-bank result(s)
+  settlement  — 0W-0D-0L (—%) · legs 21/21 · bounties 0
+  belief      — wins 50% (1.2000 ◎ staked)
+  runs        — 23 submitted · 23 finalized
+    43FqbiRwr6qX… 30/32 on sealed-gen (status 1)
+    GchNYVeQuqNu… 30/32 on sealed-gen (status 1)
+    Cng6K5jyPE3k… 30/32 on sealed-gen (status 1)
+    28Sf43UKH6ka… 30/32 on sealed-gen (status 1)
+    GE3drjQnrGns… 30/32 on sealed-gen (status 1)
+    9e48s2fqf9gu… 30/32 on sealed-gen (status 1)
+    3bRwwPMc6RMU… 30/32 on sealed-gen (status 1)
+    7grBtdWPnb9Z… 30/32 on sealed-gen (status 1)
