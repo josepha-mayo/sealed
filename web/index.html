@@ -75,7 +75,7 @@
 </div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -1303,6 +1303,44 @@ function renderAll(sealedAccs, marketAccs) {
       const uImp = mean(cal.map(r => 100 / r.n)).toFixed(2);
       const uBr = mean(cal.map(r => (1 - 1 / r.n) ** 2 + (r.n - 1) * (1 / r.n) ** 2)).toFixed(4);
       h += `<div class="card"><div class="kv">the books' report card — <b>${cal.length}</b> resolved venues with books: favorites hit <b>${hit}%</b>, winners carried <b>${imp}%</b> implied at close (uniform baseline ${uImp}%), Brier <b>${br}</b> vs uniform ${uBr}. Recomputed from the same rows (<span class="mono">chain market calibration</span>).</div></div>`;
+    }
+  }
+  { // capability matrix — models × most-run banks, best finalized score per
+    // cell (same math as `chain matrix`). "—" is unproven, not zero.
+    const byBank = new Map(benches.map(b => [b.pk, b]));
+    const cnt = new Map();
+    for (const r of finalized) cnt.set(r.benchmark, (cnt.get(r.benchmark) ?? 0) + 1);
+    const cols = [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([pk, n]) => {
+      const b = byBank.get(pk);
+      const base = b ? String(b.name) : pk.slice(0, 8);
+      return { pk, n, base, id: b ? String(b.id) : "", name: base };
+    });
+    const nc = new Map();
+    for (const c of cols) nc.set(c.base, (nc.get(c.base) ?? 0) + 1);
+    for (const c of cols) if ((nc.get(c.base) ?? 0) > 1 || c.base.length > 16) c.name = `${c.base.slice(0, 12)}·${c.id || c.pk.slice(0, 4)}`;
+    const colSet = new Set(cols.map(c => c.pk));
+    const cellMap = new Map();
+    for (const r of finalized) {
+      if (!colSet.has(r.benchmark)) continue;
+      const pct = (100 * Number(r.correct)) / Math.max(1, Number(r.chunkCount) * 32);
+      const row = cellMap.get(r.modelId) ?? new Map();
+      const cur = row.get(r.benchmark);
+      if (!cur || (cur.post && !r.postReveal) || (cur.post === r.postReveal && pct > cur.pct)) row.set(r.benchmark, { pct, post: r.postReveal });
+      cellMap.set(r.modelId, row);
+    }
+    const mRows = [...cellMap.entries()].map(([model, m]) => {
+      const cells = cols.map(c => m.get(c.pk) ?? null);
+      const covered = cells.filter(Boolean).length;
+      return { model, cells, covered, mean: covered ? cells.reduce((s, c) => s + c.pct, 0) / covered : 0 };
+    }).sort((a, b) => b.covered - a.covered || b.mean - a.mean);
+    if (mRows.length) {
+      h += `<h2 id="sec-matrix">capability matrix</h2><div class="card">` +
+        `<div class="kv">models × the ${cols.length} most-run banks — each cell the model's BEST finalized score there (<span class="mono">chain matrix</span>). <b>*</b> = post-reveal-only (unprovable); <b>—</b> = absent on that bank — unproven, not zero.</div>` +
+        `<div style="overflow-x:auto"><table><tr><th>model</th>${cols.map(c => `<th title="${esc(c.pk)} — ${c.n} runs">${esc(c.name)}</th>`).join("")}</tr>`;
+      for (const r of mRows.slice(0, 20))
+        h += `<tr><td class="mono">${esc(r.model.slice(0, 24))}</td>${r.cells.map(c =>
+          c === null ? `<td class="kv">—</td>` : `<td class="${c.post ? "" : "score"}">${c.pct.toFixed(0)}%${c.post ? `<span class="kv" title="post-reveal only — the answers were public">*</span>` : ""}</td>`).join("")}</tr>`;
+      h += `</table></div></div>`;
     }
   }
   if (markets.length) {
