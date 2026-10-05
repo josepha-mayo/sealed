@@ -2462,6 +2462,80 @@ export async function marketVenue(pkStr: string, json = false, snapPath?: string
   return out;
 }
 
+/** `chain wallet <pk> [--json]` — the actor dossier: everything one
+ *  address did across both programs — banks it authors, runs it
+ *  submitted, receipts it recorded, venues it created or sponsors,
+ *  positions it holds, and reshare grants addressed to it. `bank` is
+ *  the subject view, `market venue` the instrument view, `wallet` the
+ *  actor view — the audit triangle closes. */
+export async function walletShow(pkStr: string, json = false, snapPath?: string) {
+  const pk = new PublicKey(pkStr);
+  const me = pk.toBase58();
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sAcct = () => sealedProgram().program;
+  const mAcct = () => marketProgram().market;
+  type Acct = { publicKey: PublicKey; account: any };
+  const [banks, runs, logs, grants]: Acct[][] =
+    ss ? ["Benchmark", "Run", "ScoreLog", "ShareGrant"].map((n) => snapOf(ss, n))
+       : await Promise.all(["benchmark", "run", "scoreLog", "shareGrant"].map((n) => tolerantAll(sAcct(), n)));
+  const [markets, darks, ladders, bounties, positions, darkPositions]: Acct[][] =
+    sm ? ["Market", "DarkMarket", "Ladder", "Bounty", "Position", "DarkPosition"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "darkMarket", "ladder", "bounty", "position", "darkPosition"].map((n) => tolerantAll(mAcct(), n)));
+  const pkOf = (v: any): string => (v?.toBase58 ? v.toBase58() : typeof v === "string" ? v : Buffer.from(v ?? []).toString("hex"));
+  const isMe = (v: any) => pkOf(v) === me;
+  const bankName = new Map(banks.map((b) => [b.publicKey.toBase58(), b.account.name as string]));
+
+  const myBanks = banks.filter((b) => isMe(b.account.authority));
+  const myRuns = runs.filter((r) => isMe(r.account.runner));
+  const myReceipts = logs.filter((l) => isMe(l.account.recordedBy));
+  const myGrants = grants.filter((g) => isMe(g.account.viewer));
+  const myMarkets = markets.filter((m) => isMe(m.account.authority));
+  const myDarks = darks.filter((d) => isMe(d.account.authority));
+  const myLadders = ladders.filter((l) => isMe(l.account.authority));
+  const myBounties = bounties.filter((b) => isMe(b.account.sponsor));
+  const myPositions = positions.filter((p) => isMe(p.account.bettor));
+  const myDarkPositions = darkPositions.filter((p) => isMe(p.account.bettor));
+
+  const fin = myRuns.filter((r) => r.account.status === 1);
+  const wagered = myPositions.reduce((s, p) => s + (p.account.amounts as any[]).reduce((a: number, b: any) => a + Number(b), 0), 0)
+    + myDarkPositions.reduce((s, p) => s + Number(p.account.amount ?? 0), 0);
+  const escrowed = myBounties.filter((b) => b.account.status === 0).reduce((s, b) => s + Number(b.account.amount), 0);
+
+  const out = {
+    wallet: me,
+    banksAuthored: myBanks.map((b) => ({ pk: b.publicKey.toBase58(), name: b.account.name, kind: BANK_KIND[b.account.kind as number] })),
+    runs: { total: myRuns.length, finalized: fin.length, postReveal: myRuns.filter((r) => r.account.postReveal).length,
+      recent: myRuns.slice().sort((a, b) => Number(b.account.createdAt) - Number(a.account.createdAt)).slice(0, 10)
+        .map((r) => ({ pk: r.publicKey.toBase58(), modelId: r.account.modelId, score: `${r.account.correct}/${Number(r.account.chunkCount) * 32}`,
+          bank: bankName.get((r.account.benchmark as PublicKey).toBase58()) ?? "?", status: r.account.status })) },
+    receiptsRecorded: myReceipts.length,
+    venuesCreated: myMarkets.length + myDarks.length + myLadders.length,
+    bountiesSponsored: { total: myBounties.length, openLamports: escrowed },
+    positions: { count: myPositions.length + myDarkPositions.length, wageredLamports: wagered },
+    grantsHeld: myGrants.map((g) => ({ pk: g.publicKey.toBase58(), bank: bankName.get((g.account.benchmark as PublicKey).toBase58()) ?? "?", part: g.account.part, sharedAt: Number(g.account.sharedAt) })),
+  };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  const sol = (x: number) => (x / 1e9).toFixed(4);
+  console.log(`wallet ${me}`);
+  if (myBanks.length) for (const b of out.banksAuthored) console.log(`  bank — ${b.pk} "${b.name}" (${b.kind})`);
+  if (myRuns.length) {
+    console.log(`  runs — ${out.runs.total} submitted · ${out.runs.finalized} finalized · ${out.runs.postReveal} post-reveal`);
+    for (const r of out.runs.recent) console.log(`    ${r.pk.slice(0, 12)}… ${r.modelId} → ${r.score} on ${r.bank} (status ${r.status})`);
+  }
+  if (out.receiptsRecorded) console.log(`  receipts — ${out.receiptsRecorded} recorded by this key`);
+  if (out.venuesCreated) console.log(`  venues — ${myMarkets.length} band/duel · ${myDarks.length} dark · ${myLadders.length} ladder created`);
+  if (out.bountiesSponsored.total) console.log(`  bounties — ${out.bountiesSponsored.total} sponsored · ${sol(out.bountiesSponsored.openLamports)}◎ still escrowed`);
+  if (out.positions.count) console.log(`  positions — ${out.positions.count} held · ${sol(out.positions.wageredLamports)}◎ wagered`);
+  if (out.grantsHeld.length) for (const g of out.grantsHeld)
+    console.log(`  grant — ${g.pk.slice(0, 12)}… ${g.bank} part ${g.part} shared ${new Date(g.sharedAt * 1000).toISOString().slice(0, 16).replace("T", " ")}`);
+  if (!myBanks.length && !myRuns.length && !myReceipts.length && !out.venuesCreated &&
+      !out.bountiesSponsored.total && !out.positions.count && !out.grantsHeld.length)
+    console.log(`  no footprint — this key authored no banks, runs, venues, positions, or grants`);
+  return out;
+}
+
 /** `chain stats [--snapshot f] [--json]` — the executive dashboard: ledger
  *  counts, escrow, fees, and the two integrity verdicts recomputed inline —
  *  every ModelRecord's aggregate replayed from its ScoreLogs bit-exact, and
@@ -3268,6 +3342,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "bank") {
     await bankShow(String(cmd[1] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "wallet") {
+    await walletShow(String(cmd[1] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "banks") {

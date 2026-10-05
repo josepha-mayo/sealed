@@ -278,6 +278,7 @@ sealed chain record --all [--watch s]                                # enroll EV
 sealed chain records                                                  # the whole registry, accuracy-first
 sealed chain banks                                                    # every benchmark — kind, items, runs, best score
 sealed chain bank <pk|name>                                           # one bank's dossier — spec, runs, venues, reveals
+sealed chain wallet <pk>                                              # one address's footprint — banks, runs, venues, positions, grants
 sealed chain stats                                                    # the dashboard — counts, escrow, and two bit-exact verdicts
 sealed chain feed [--limit N] [--type a,b]                            # the activity stream — the ledger's chronology in one list
 sealed chain runs [--bank b] [--model m] [--min-pct n] [--status s]   # the run substrate — who scored what where

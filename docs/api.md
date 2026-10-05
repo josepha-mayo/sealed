@@ -120,7 +120,7 @@ print ✗ MISMATCH, not get trusted.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
-`runs`, `feed`, `bank`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
+`runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
 `market positions`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
@@ -156,6 +156,12 @@ post-reveal), every fingerprint reveal with timestamps, reshare-grant
 count, stored item-chunk counts, and every venue type priced against
 the bank with open/resolved breakdown. Ambiguous names list the
 matching public keys and exit 2 — disambiguation is never guessed.
+`chain wallet <pk>` is the actor dossier — every role one address plays
+across both programs: banks authored, runs submitted (with recent
+scores), receipts recorded, venues created, bounties sponsored
+(escrow still locked), positions held with wagered totals, and reshare
+grants addressed to it. `bank` is the subject view, `market venue` the
+instrument view, `wallet` the actor view — the audit triangle closes.
 `market bounties` is the runner-facing index — open capability bounties
 sorted by pot, marking which are claimable NOW under the exact
 `bounty_qualifies` rules (retroactivity wall, no self-deal, proven runs,

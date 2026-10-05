@@ -42,7 +42,7 @@ parimutuel markets resolved from `Run.correct`.
   defaults (pre-`scored_mask`/`post_reveal` epochs).
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
   `status`, `records`, `modelrec`, `gate` (+`--all`, +`--bank`), `history`, `compare`
-  (+`--all`), `trail`, `stats`, `runs`, `feed`, `bank`, `verify`, `grants`, `reveals`, `market board`, `market venue`,
+  (+`--all`), `trail`, `stats`, `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market venue`,
   `market positions` (+`--viewer <pk>` keyless), `items` (regenerates a
   generated bank's specs from raw ItemChunk bytes, re-fold checked
   against the stored items_root). `sealedProgramId()`

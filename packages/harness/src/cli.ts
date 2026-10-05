@@ -169,6 +169,7 @@ async function main() {
   sealed chain export [--snapshot <f>] [--out file]        the portable integrity digest — bundle or live cluster
   sealed chain feed [--limit N] [--type a,b] [--since t]   the activity stream — runs, venues, resolutions in time order
   sealed chain bank <pk|name>                              one benchmark's dossier — spec, runs, venues, reveals
+  sealed chain wallet <pk>                                 one address's footprint — banks, runs, venues, positions, grants
   sealed chain runs [--bank b] [--model m] [--min-pct n]   # the run substrate — who scored what where
   sealed chain compare <A> <B>                             head-to-head on shared benchmarks, paired deltas
   sealed chain compare --all [--min-shared n]               paired-evidence leaderboard (W-L-T over shared banks)
