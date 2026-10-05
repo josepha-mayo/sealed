@@ -2839,27 +2839,29 @@ export async function chainTour(snapPath?: string) {
   const H = (s: string) => console.log(`\n════ ${s} ${"═".repeat(Math.max(0, 72 - s.length))}`);
   console.log(`sealed tour — the ledger narrates itself (${snapPath ? "offline replay" : "live"})`);
 
-  H("1/6 · the whole system in one table — chain stats");
+  H("1/7 · the whole system in one table — chain stats");
   await chainStats(snapPath);
 
   if (tourBank) {
-    H(`2/6 · what is this key? — chain search ${tourBank.slice(0, 8)}…`);
+    H(`2/7 · what is this key? — chain search ${tourBank.slice(0, 8)}…`);
     await chainSearch(tourBank, false, snapPath);
   }
   if (tourRun) {
-    H(`3/6 · one run's custody chain — chain trail ${tourRun.slice(0, 8)}… (${venueRuns.get(tourRun) ?? 0} venue(s) priced it)`);
+    H(`3/7 · one run's custody chain — chain trail ${tourRun.slice(0, 8)}… (${venueRuns.get(tourRun) ?? 0} venue(s) priced it)`);
     await chainTrail(tourRun, false, snapPath);
-    H(`4/6 · its chronology — chain feed --pk ${tourRun.slice(0, 8)}…`);
+    H(`4/7 · its chronology — chain feed --pk ${tourRun.slice(0, 8)}…`);
     await chainFeed(10, undefined, 0, false, snapPath, tourRun);
   }
   if (tourVenue) {
-    H(`5/6 · the instrument's book — chain market venue ${tourVenue.slice(0, 8)}… (${bookSize.get(tourVenue) ?? 0} position(s))`);
+    H(`5/7 · the instrument's book — chain market venue ${tourVenue.slice(0, 8)}… (${bookSize.get(tourVenue) ?? 0} position(s))`);
     await marketVenue(tourVenue, false, snapPath);
   }
   if (tourWallet) {
-    H(`6/6 · an actor's P&L — chain wallet ${tourWallet.slice(0, 8)}…`);
+    H(`6/7 · an actor's P&L — chain wallet ${tourWallet.slice(0, 8)}…`);
     await walletShow(tourWallet, false, snapPath);
   }
+  H(`7/7 · what the money learned — chain market sentiment`);
+  await marketSentiment(false, snapPath);
   console.log(`\nnext: sealed chain export --snapshot <file>  → the portable digest`);
   console.log(`      sealed chain diff <a> <b>              → bundle-vs-live reproducibility`);
   console.log(`      https://josepha-mayo.github.io/sealed/?pk=<key>  → the same resolver in the browser`);

@@ -75,7 +75,7 @@
 </div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -1148,6 +1148,51 @@ function renderAll(sealedAccs, marketAccs) {
     for (const e of shown)
       h += `<div class="proof">${fmtTs(e.t)} <span class="pill ${e.type === "resolution" ? "resolved" : e.type === "reveal" ? "cancelled" : e.type === "score" ? "live" : "open"}" style="font-size:10px">${e.type}</span> <a href="#${e.anchor}">${short(e.pk)}</a> — ${e.msg}</div>`;
     h += `</div>`;
+  }
+  { // what the stakes believe — pooled implied probabilities per model
+    // (the same aggregation `chain market sentiment` prints)
+    const sAcc = new Map();
+    const sRow = (m) => { if (!sAcc.has(m)) sAcc.set(m, { winStake: 0, winShare: 0, scoreStake: 0, scoreNum: 0, venues: new Set() }); return sAcc.get(m); };
+    for (const m of markets) {
+      if (m.status !== 0) continue;
+      const n = m.nOutcomes, totals = m.totals.slice(0, n).map(Number), pot = totals.reduce((s, t) => s + t, 0);
+      if (!pot) continue;
+      if (m.duel) {
+        const a = runs.find(r => r.pk === m.run), b = runs.find(r => r.pk === m.runB);
+        if (a) { const r = sRow(a.modelId); r.winStake += pot; r.winShare += (totals[0] + totals[2] / 2) / pot * pot; r.venues.add(m.pk); }
+        if (b) { const r = sRow(b.modelId); r.winStake += pot; r.winShare += (totals[1] + totals[2] / 2) / pot * pot; r.venues.add(m.pk); }
+      } else {
+        const run = runs.find(r => r.pk === m.run);
+        let expected = 0;
+        for (let i = 0; i < n; i++) {
+          const lo = i === 0 ? 0 : Number(m.edges[i - 1]), hi = i === n - 1 ? null : Number(m.edges[i]);
+          expected += (totals[i] / pot) * (hi === null ? lo : lo === 0 ? hi / 2 : (lo + hi - 1) / 2);
+        }
+        if (run) { const r = sRow(run.modelId); r.scoreStake += pot; r.scoreNum += expected * pot; r.venues.add(m.pk); }
+      }
+    }
+    for (const l of ladders) {
+      if (l.status !== 0) continue;
+      const n = l.legCount, totals = l.totals.slice(0, n).map(Number), pot = totals.reduce((s, t) => s + t, 0);
+      if (!pot) continue;
+      for (let i = 0; i < n; i++) {
+        const leg = runs.find(r => r.pk === l.legs[i]);
+        if (leg) { const r = sRow(leg.modelId); r.winStake += pot; r.winShare += (totals[i] / pot) * pot; r.venues.add(l.pk); }
+      }
+    }
+    const sRows = [...sAcc.entries()].map(([m, r]) => ({ m,
+      win: r.winStake ? r.winShare / r.winStake * 100 : null,
+      score: r.scoreStake ? r.scoreNum / r.scoreStake : null,
+      stake: (r.winStake + r.scoreStake) / 1e9, venues: r.venues.size }))
+      .sort((a, b) => b.stake - a.stake);
+    if (sRows.length) {
+      h += `<h2 id="sec-sentiment">market sentiment</h2><div class="card">
+        <div class="kv">stake-weighted belief pooled across every funded open book — the market's opinion, to set against the evidence tables (<span class="mono">chain market sentiment</span> prints the same rows).</div>
+        <table><tr><th>model</th><th>implied win%</th><th>implied score</th><th>stake weighed</th><th>venues</th></tr>`;
+      for (const r of sRows)
+        h += `<tr><td class="mono">${esc(r.m)}</td><td>${r.win !== null ? r.win.toFixed(2) + "%" : "—"}</td><td>${r.score !== null ? "~" + r.score.toFixed(1) : "—"}</td><td>${r.stake.toFixed(3)} SOL</td><td>${r.venues}</td></tr>`;
+      h += `</table></div>`;
+    }
   }
   if (markets.length) {
     h += `<h2 id="sec-markets">markets</h2>`;

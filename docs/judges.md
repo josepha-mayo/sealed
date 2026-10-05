@@ -138,10 +138,11 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
 #     venues, 31 model records, a gate verdict — all offline.
 #     docs/evidence/replay.txt is a captured transcript of exactly this.
 yarn --cwd packages/harness cli chain tour --snapshot ../../web/snapshot.json
-#     ↑ ONE command, six stops: stats → search → a run's custody trail →
-#       its filtered feed → a venue's book → an actor's P&L — the objects
-#       are picked live (the most-venue'd run, the biggest book), nothing
-#       is hardcoded. If you read nothing else, read this output.
+#     ↑ ONE command, seven stops: stats → search → a run's custody trail →
+#       its filtered feed → a venue's book → an actor's P&L → what the
+#       stakes believe — the objects are picked live (the most-venue'd
+#       run, the biggest book), nothing is hardcoded. If you read nothing
+#       else, read this output.
 yarn --cwd packages/harness cli chain stats --snapshot ../../web/snapshot.json   # dashboard: 31/31 records + 201/201 resolutions re-verified
 yarn --cwd packages/harness cli chain banks --snapshot ../../web/snapshot.json   # index → pick a benchmark pk
 yarn --cwd packages/harness cli chain market board --snapshot ../../web/snapshot.json

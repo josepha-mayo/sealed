@@ -267,7 +267,7 @@ sealed chain market quote <venue> --outcome <i> --lamports <n>        # bet simu
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
 sealed chain search <pk> --snapshot web/snapshot.json               # universal resolver — what IS this key? routes to the right dossier
-sealed chain tour --snapshot web/snapshot.json                      # the project demos itself — stats → trail → feed → book → P&L in one pass
+sealed chain tour --snapshot web/snapshot.json                      # the project demos itself — stats → trail → feed → book → P&L → sentiment in one pass
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market void    --market <pk>                            # authority cancels, pre-scoring only
 sealed chain market expire  --market <pk>                            # anyone, once resolve_by passes (not if finalized)
