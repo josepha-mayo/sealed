@@ -2468,6 +2468,69 @@ export async function marketVenue(pkStr: string, json = false, snapPath?: string
   return out;
 }
 
+/** `chain market quote <venue> --outcome <i> --lamports <n>` — the
+ *  bettor's pre-trade simulator: "if I stake N on outcome i and it
+ *  wins, what pays back?" Runs the venue's own pro-rata math locally
+ *  (parimutuel: your winnings = your share of the winning pool × the
+ *  post-fee pot) so nobody has to eyeball a payout or send a tx to
+ *  find out. Covers bands/duels (per-outcome), ladders (per-leg win),
+ *  and darks (commit-and-pray — the quote shows best/worst reveal cases). */
+export async function marketQuote(pkStr: string, outcome: number, lamports: bigint, json = false, snapPath?: string) {
+  const pk = new PublicKey(pkStr);
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const mAcct = () => (marketProgram().market.account as any);
+  type Acct = { publicKey: PublicKey; account: any };
+  const [markets, ladders, darks]: Acct[][] =
+    sm ? ["Market", "Ladder", "DarkMarket"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "ladder", "darkMarket"].map((n) => (mAcct() as any)[n].all()));
+  const venue =
+    markets.find((x) => x.publicKey.equals(pk)) ? { k: "band", a: markets.find((x) => x.publicKey.equals(pk))!.account as any } :
+    ladders.find((x) => x.publicKey.equals(pk)) ? { k: "ladder", a: ladders.find((x) => x.publicKey.equals(pk))!.account as any } :
+    darks.find((x) => x.publicKey.equals(pk)) ? { k: "dark", a: darks.find((x) => x.publicKey.equals(pk))!.account as any } : null;
+  if (!venue) { console.log(`no venue at ${pkStr}`); process.exitCode = 2; return null; }
+  const a = venue.a;
+  if (Number(a.status) !== 0) { console.log(`venue is ${["open","resolved","expired"][Number(a.status)] ?? a.status} — quotes only apply while open`); process.exitCode = 1; return null; }
+  const fee = (pot: bigint) => pot - (pot * BigInt(Number(a.feeBps ?? 0))) / 10000n;
+  const sol = (x: bigint | number) => (Number(x) / 1e9).toFixed(4);
+  let out: any;
+  if (venue.k === "dark") {
+    // commit is sealed: the quote is a range over reveal scenarios.
+    const pool = BigInt(a.poolTotal.toString()) + lamports;
+    const win = BigInt(a.winTotal.toString());
+    const best = lamports * fee(pool) / (win + lamports);       // you alone on the winning side
+    const worst = win > 0n ? lamports * fee(pool) / (win + lamports) : best;
+    out = { venue: pkStr, kind: "dark", stake: lamports.toString(), outcome: "(sealed — commitment binds to the encrypted side)",
+      scenarios: { if_only_you_win: sol(best) + " ◎", if_winTotal_stays: sol(worst) + " ◎", if_no_reveal: "gross refund" },
+      note: `pool would be ${sol(pool)} ◎; winners split post-fee pro-rata — sealed losers forfeit into it` };
+  } else {
+    const totals = (a.totals as any[]).map((t) => BigInt(t.toString()));
+    // ladders allocate 8 slots but only legCount are live legs
+    const n = venue.k === "ladder" ? Number(a.legCount) : totals.length;
+    if (outcome < 0 || outcome >= n) { console.log(`outcome ${outcome} out of range — this venue has ${n} ${venue.k === "ladder" ? "leg(s)" : "bucket(s)"}`); process.exitCode = 2; return null; }
+    const winTotal = totals[outcome] + lamports;
+    const pot = totals.reduce((s, t) => s + t, 0n) + lamports;
+    const est = lamports * fee(pot) / winTotal;
+    const impliedPct = Number(winTotal * 10000n / pot) / 100;
+    out = { venue: pkStr, kind: venue.k === "ladder" ? `ladder leg ${outcome}` : `outcome ${outcome}`,
+      stake: lamports.toString(), estPayoutIfWins: est.toString(), estSol: sol(est),
+      impliedChancePct: impliedPct, roiPct: est > 0n ? Number((est - lamports) * 10000n / lamports) / 100 : -100,
+      note: `pool ${sol(pot)} ◎ → winning side splits ${sol(fee(pot))} ◎ post-fee; your share ${sol(lamports)}/${sol(winTotal)} of that side` };
+  }
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`quote — ${pkStr.slice(0, 12)}… (${venue.k})`);
+  if (venue.k === "dark") {
+    console.log(`  stake ${sol(lamports)} ◎ sealed — payout depends on who reveals:`);
+    console.log(`    only you win   → ~${(out as any).scenarios.if_only_you_win}`);
+    console.log(`    win pool stays → ~${(out as any).scenarios.if_winTotal_stays}`);
+    console.log(`    zero reveals   → ${(out as any).scenarios.if_no_reveal}`);
+  } else {
+    console.log(`  stake ${sol(lamports)} ◎ on ${out.kind} → ~${(out as any).estSol} ◎ back if it wins (${(out as any).roiPct >= 0 ? "+" : ""}${(out as any).roiPct}% ROI)`);
+    console.log(`  book implies ${(out as any).impliedChancePct}% on that side — ${(out as any).note}`);
+  }
+  return out;
+}
+
 /** `chain wallet <pk> [--json]` — the actor dossier: everything one
  *  address did across both programs — banks it authors, runs it
  *  submitted, receipts it recorded, venues it created or sponsors,
@@ -2950,21 +3013,21 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
  *  chronological list, newest first. The per-type indexes answer "what
  *  exists"; this answers "is it alive". `--type` filters by event class
  *  (bank,run,score,receipt,venue,resolution,reveal,grant). */
-export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string, pkFilter?: string) {
+export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string, pkFilter?: string, quiet = false) {
   const snap = snapPath ? loadSnapshotJson(snapPath) : null;
   const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
   const sm = snap ? decodeSnapshotSection(snap, "market") : null;
-  const sAcct = () => (sealedProgram().program.account as any);
-  const mAcct = () => (marketProgram().market.account as any);
+  const sAcct = () => sealedProgram().program;
+  const mAcct = () => marketProgram().market;
   type Acct = { publicKey: PublicKey; account: any };
   const [banks, runs, logs, reveals, grants, records]: Acct[][] =
     ss ? ["Benchmark", "Run", "ScoreLog", "Reveal", "ShareGrant", "ModelRecord"].map((n) => snapOf(ss, n))
        : await Promise.all(["benchmark", "run", "scoreLog", "reveal", "shareGrant", "modelRecord"]
-        .map((n) => (sAcct() as any)[n].all()));
+        .map((n) => tolerantAll(sAcct(), n)));
   const [markets, darks, ladders, bounties]: Acct[][] =
     sm ? ["Market", "DarkMarket", "Ladder", "Bounty"].map((n) => snapOf(sm, n))
        : await Promise.all(["market", "darkMarket", "ladder", "bounty"]
-        .map((n) => (mAcct() as any)[n].all()));
+        .map((n) => tolerantAll(mAcct(), n)));
 
   const bankName = new Map(banks.map((b) => [b.publicKey.toBase58(), `${b.account.name} (${BANK_KIND[b.account.kind as number] ?? "?"})`]));
   const runModel = new Map(runs.map((r) => [r.publicKey.toBase58(), r.account.modelId as string]));
@@ -3012,6 +3075,7 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
     && (!pkFilter || e.pk === pkFilter || e.refs.includes(pkFilter)))
     .sort((a, b) => b.t - a.t).slice(0, limit);
   if (json) { console.log(JSON.stringify(filtered)); return filtered; }
+  if (quiet) return filtered;
   const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
   // ref → account-class index, so --pk can say WHY an event matched:
   // "receipt … via its run" reads as custody, not just a key filter.
@@ -3030,6 +3094,40 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
     console.log(`  ${fmt(e.t)}  ${e.type.padEnd(10)} ${e.pk.slice(0, 12)}…  ${e.msg}${via}`);
   }
   return filtered;
+}
+
+/** `chain watch [--interval s] [--type a,b]` — the ledger's pulse: a live
+ *  tail of `chain feed`. Prints new events oldest-first as they land —
+ *  "run queued → MPC finalized → receipt minted → venue resolved" in
+ *  real time. RPC mode only (a snapshot can't tick); Ctrl-C exits. */
+export async function chainWatch(intervalSecs = 15, typeFilter?: string, since = 0, snapPath?: string) {
+  const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const key = (e: any) => `${e.t}|${e.type}|${e.pk}|${e.msg}`;
+  let lastT = since > 0 ? since : snapPath ? 0 : Math.floor(Date.now() / 1000) - 60;
+  const tail = new Set<string>();
+  console.log(`watch — ${snapPath ? "snapshot" : "live"} feed every ${intervalSecs}s (Ctrl-C to stop)${typeFilter ? ` [${typeFilter}]` : ""}`);
+  const first = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true)) as any[];
+  if (first.length) {
+    for (const e of first.slice(-15)) {
+      console.log(`  ${fmt(e.t)}  ${e.type.padEnd(10)} ${e.pk.slice(0, 12)}…  ${e.msg}`);
+      tail.add(key(e));
+    }
+    lastT = Math.max(...first.map((e) => e.t));
+  }
+  for (;;) {
+    await new Promise((r) => setTimeout(r, intervalSecs * 1000));
+    let fresh: any[] = [];
+    try { fresh = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true)) as any[]; }
+    catch (e: any) { console.log(`  ${fmt(Math.floor(Date.now() / 1000))}  …poll error: ${String(e?.message ?? e).slice(0, 80)}`); continue; }
+    if (!fresh.length) continue;
+    for (const e of fresh.slice().sort((a, b) => a.t - b.t)) {
+      if (tail.has(key(e))) continue;      // timestamp collisions can't double-print
+      tail.add(key(e));
+      console.log(`  ${fmt(e.t)}  ${e.type.padEnd(10)} ${e.pk.slice(0, 12)}…  ${e.msg}`);
+    }
+    lastT = Math.max(lastT, ...fresh.map((e) => e.t));
+    if (tail.size > 5000) tail.clear();    // bounded memory on a long watch
+  }
 }
 
 /** `chain gate --all <policy>` — the gate as a leaderboard filter: run the
@@ -3727,6 +3825,11 @@ export async function chainMain(cmd: string[], args: Args) {
     await chainTour(args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
+  if (sub === "watch") {
+    await chainWatch(Number(args.interval ?? 15) || 15, args.type ? String(args.type) : undefined,
+      Number(args.since ?? 0), args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
   if (sub === "diff") {
     await chainDiff(String(cmd[1] ?? ""), String(cmd[2] ?? ""), Boolean(args.json));
     return;
@@ -3823,6 +3926,9 @@ export async function chainMain(cmd: string[], args: Args) {
         args.viewer ? String(args.viewer) : undefined);
     } else if (m0 === "position") {
       await marketPosition(String(cmd[2] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "quote") {
+      await marketQuote(String(cmd[2] ?? ""), Number(args.outcome ?? -1), BigInt(String(args.lamports ?? "0")),
+        Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

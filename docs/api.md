@@ -121,7 +121,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `search`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -191,6 +191,19 @@ FORFEIT classification `positions` computes, plus the exact claim
 command when money is due. The audit triangle is complete: `bank`
 (subject), `market venue` (instrument), `wallet` (actor), `trail` (run),
 `market position` (stake).
+`chain market quote <venue> --outcome <i> --lamports <n>` is the
+pre-transaction simulator — the same parimutuel math the program
+settles with, run locally over the venue's current book: estimated
+payout if your side wins, ROI, and the share the pool already implies
+on that outcome. Ladders bound outcomes by `legCount` (not the
+8-slot totals array), resolved/cancelled venues refuse, and dark
+markets quote honestly as a scenario range — a sealed position's
+payout depends on who reveals, so it prints only-you-win / pool-stays
+/ zero-reveals (gross refund) instead of a single number it can't
+know. `chain watch [--interval s] [--type a,b]` is the live pulse —
+a `feed` tail that polls and prints new events oldest-first as they
+land, deduplicated by a bounded seen-set; with `--snapshot` it becomes
+a replay ticker (the bundle's last events, then idle).
 `chain search <pk>` is the front door to all of them — the same
 universal resolver as the explorer's `?pk=` box: it identifies what a
 pubkey IS (benchmark, run, ScoreLog receipt, ModelRecord, reveal,

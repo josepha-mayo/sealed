@@ -565,3 +565,31 @@ test("chain search resolves every account class to its dossier route", async () 
       assert.match(h.cmd, /^sealed chain /);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("marketQuote simulates parimutuel payout and validates venue state", async () => {
+  const { marketQuote } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    // open 3-leg ladder: 0.05 stake on leg 0 → est + ROI + implied share
+    const q = (await marketQuote("4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV", 0, 50000000n, true, snapPath)) as any;
+    assert.equal(q.kind, "ladder leg 0");
+    assert.equal(q.stake, "50000000");
+    assert.ok(BigInt(q.estPayoutIfWins) > 50000000n, "winning pays above stake");
+    assert.equal(q.impliedChancePct, 53.84);
+    assert.ok(q.roiPct > 80 && q.roiPct < 90);
+    // legCount bounds the ladder — the 8-slot totals array has 3 live legs
+    const bad = (await marketQuote("4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV", 5, 50000000n, true, snapPath)) as any;
+    assert.equal(bad, null);
+    // resolved venue rejects
+    const res = (await marketQuote("Ftw6cvBE381ftyFtSGTb2CSAoDNsqBfLyf39iHLeK7B3", 0, 50000000n, true, snapPath)) as any;
+    assert.equal(res, null);
+    // open band: one-sided pool → stake returns stake (+0% ROI, 100% implied)
+    const band = (await marketQuote("4kVnqJDrVBRXSyyf4Z3JfyfWgeK6yo6JmtB9MCpm7qRy", 0, 50000000n, true, snapPath)) as any;
+    assert.equal(band.impliedChancePct, 100);
+    // unknown venue pk exits without a row
+    const none = (await marketQuote("11111111111111111111111111111111", 0, 50000000n, true, snapPath)) as any;
+    assert.equal(none, null);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

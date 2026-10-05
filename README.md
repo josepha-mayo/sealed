@@ -263,6 +263,7 @@ sealed chain trail <run-pk>                                          # custody c
 sealed chain market bounties                                         # runner index — open bounties by pot, claimable marked honestly
 sealed chain market venue <pk>                                       # one venue — pools, positions, keeper state, resolution re-verified
 sealed chain market position <pk> --snapshot web/snapshot.json        # one position — stake, payout class (PAYS/REFUND/FORFEIT), exact claim cmd
+sealed chain market quote <venue> --outcome <i> --lamports <n>        # bet simulator — payout/ROI/implied-share before you transact
 sealed chain search <pk> --snapshot web/snapshot.json               # universal resolver — what IS this key? routes to the right dossier
 sealed chain tour --snapshot web/snapshot.json                      # the project demos itself — stats → trail → feed → book → P&L in one pass
 sealed chain market claim   --market <pk> [--bettor kp.json]
@@ -287,6 +288,7 @@ sealed chain bank <pk|name>                                           # one bank
 sealed chain wallet <pk>                                              # one address's footprint — banks, runs, venues, positions, grants
 sealed chain stats                                                    # the dashboard — counts, escrow, and two bit-exact verdicts
 sealed chain feed [--limit N] [--type a,b] [--pk k]                                    # the activity stream — the ledger's chronology in one list
+sealed chain watch [--interval s] [--type a,b]                        # the live pulse — feed events as they land (snapshot = replay ticker)
 sealed chain runs [--bank b] [--model m] [--min-pct n] [--status s]   # the run substrate — who scored what where
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
