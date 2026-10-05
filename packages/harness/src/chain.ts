@@ -1703,6 +1703,16 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
   const fin = bRuns.filter((r) => r.account.status === 1);
   const postRev = bRuns.filter((r) => r.account.postReveal);
   const best = fin.reduce((m, r) => Math.max(m, Number(r.account.correct)), -1);
+  // the exam's difficulty curve — the score distribution across models,
+  // percent-normalized (chunks are all 32 items on generated banks, but
+  // authored banks vary, so compare percentages not raw counts).
+  const pcts = fin.map((r) => (100 * Number(r.account.correct)) / Math.max(1, Number(r.account.chunkCount) * 32)).sort((a, b) => a - b);
+  const q = (p: number) => (pcts.length ? pcts[Math.min(pcts.length - 1, Math.floor((pcts.length - 1) * p))] : 0);
+  const scoreDist = pcts.length ? {
+    min: +q(0).toFixed(1), p25: +q(0.25).toFixed(1), median: +q(0.5).toFixed(1),
+    p75: +q(0.75).toFixed(1), max: +q(1).toFixed(1),
+    spread: +(q(1) - q(0)).toFixed(1),
+  } : null;
   const STATUS = ["open", "resolved", "expired"];
   const venueRow = (xs: Acct[], kind: string, key: "benchmark" | "bank", statusName?: (a: any) => string) => {
     const list = xs.filter((v) => (v.account[key] as PublicKey)?.toBase58?.() === pk);
@@ -1726,7 +1736,8 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
     itemsRoot: Buffer.from(B.itemsRoot).toString("hex"),
     feeLamports: Number(B.feeLamports), createdAt: Number(B.createdAt),
     runs: { total: bRuns.length, finalized: fin.length, pending: bRuns.length - fin.length,
-      postReveal: postRev.length, bestCorrect: best < 0 ? null : best, bestPct: best < 0 ? null : +(100 * best / Math.max(1, items)).toFixed(1) },
+      postReveal: postRev.length, bestCorrect: best < 0 ? null : best, bestPct: best < 0 ? null : +(100 * best / Math.max(1, items)).toFixed(1),
+      scoreDistPct: scoreDist },
     receipts: { total: bLogs.length, vouched: bLogs.filter((l) => l.account.vouchedAtRecord).length,
       postReveal: bLogs.filter((l) => l.account.postReveal).length },
     reveals: bReveals.map((r) => ({ pk: r.publicKey.toBase58(), chunk: r.account.chunkIndex, part: r.account.part, revealedAt: Number(r.account.revealedAt) }))
@@ -1741,6 +1752,10 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
   console.log(`  spec — "${out.name}" ${out.kind} · authority ${out.authority.slice(0, 12)}… · status=${out.status} · ${out.chunksSealed}/${out.chunksTotal} chunks sealed (${out.items} items) · fee ${(out.feeLamports / 1e9).toFixed(4)}◎ · created ${fmt(out.createdAt)}`);
   console.log(`  items_root — ${out.itemsRoot.slice(0, 24)}…  (chain items --benchmark ${pk.slice(0, 8)}… regenerates the exam offline)`);
   console.log(`  runs — ${out.runs.total} total · ${out.runs.finalized} finalized · ${out.runs.pending} pending · ${out.runs.postReveal} post-reveal${out.runs.bestCorrect !== null ? ` · best ${out.runs.bestCorrect}/${out.items} (${out.runs.bestPct}%)` : ""}`);
+  if (out.runs.scoreDistPct) {
+    const d = out.runs.scoreDistPct;
+    console.log(`  difficulty — scores across models: min ${d.min}% · p25 ${d.p25}% · median ${d.median}% · p75 ${d.p75}% · max ${d.max}% (spread ${d.spread}pp — ${d.spread >= 30 ? "discriminating" : d.spread >= 10 ? "moderate" : "tight"} exam)`);
+  }
   console.log(`  receipts — ${out.receipts.total} minted · ${out.receipts.vouched} vouched · ${out.receipts.postReveal} post-reveal`);
   if (out.reveals.length)
     for (const r of out.reveals) console.log(`  reveal — ${r.pk.slice(0, 12)}… chunk ${r.chunk} part ${r.part} @ ${fmt(r.revealedAt)}`);

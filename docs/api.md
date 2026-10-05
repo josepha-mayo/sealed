@@ -164,7 +164,10 @@ receipts, and every venue event whose refs touch its runs — the
 dossier's chronological counterpart.
 `chain bank <pk|name>` is the per-benchmark dossier — spec (kind,
 authority, chunks sealed, items_root, fee), run totals (finalized,
-pending, post-reveal-stamped, best score), receipt summary (vouched /
+pending, post-reveal-stamped, best score), the exam's difficulty
+curve (score distribution across models — min/p25/median/p75/max with a
+spread verdict: discriminating exams separate models, tight ones
+don't), receipt summary (vouched /
 post-reveal), every fingerprint reveal with timestamps, reshare-grant
 count, stored item-chunk counts, and every venue type priced against
 the bank with open/resolved breakdown. Ambiguous names list the

@@ -1273,6 +1273,32 @@ function renderAll(sealedAccs, marketAccs) {
       h += `</table></div>`;
     }
   }
+  { // market calibration — did the books see it coming? The same math
+    // `chain market calibration` prints: every resolved venue's closing
+    // book scored against the outcome that actually landed.
+    const cal = [];
+    const evalBook = (pk, kind, totals, winners) => {
+      const pot = totals.reduce((s, t) => s + Number(t), 0);
+      if (!pot || !winners.length) return;
+      const p = totals.map(t => Number(t) / pot), wset = new Set(winners);
+      const brier = p.reduce((s, pi, i) => s + (pi - (wset.has(i) ? 1 : 0)) ** 2, 0);
+      const fav = p.indexOf(Math.max(...p));
+      cal.push({ n: totals.length, imp: winners.reduce((s, w) => s + p[w], 0) * 100, brier, hit: wset.has(fav) });
+    };
+    for (const m of markets)
+      if (m.status === 1) evalBook(m.pk, m.duel ? "duel" : "band", m.totals.slice(0, m.nOutcomes), [m.outcome]);
+    for (const l of ladders)
+      if (l.status === 1) { const w = []; for (let i = 0; i < l.legCount; i++) if ((Number(l.resultMask) >> i) & 1) w.push(i); evalBook(l.pk, "ladder", l.totals.slice(0, l.legCount), w); }
+    if (cal.length) {
+      const mean = xs => xs.reduce((s, x) => s + x, 0) / xs.length;
+      const hit = Math.round(100 * mean(cal.map(r => r.hit ? 1 : 0)));
+      const imp = mean(cal.map(r => r.imp)).toFixed(2);
+      const br = mean(cal.map(r => r.brier)).toFixed(4);
+      const uImp = mean(cal.map(r => 100 / r.n)).toFixed(2);
+      const uBr = mean(cal.map(r => (1 - 1 / r.n) ** 2 + (r.n - 1) * (1 / r.n) ** 2)).toFixed(4);
+      h += `<div class="card"><div class="kv">the books' report card — <b>${cal.length}</b> resolved venues with books: favorites hit <b>${hit}%</b>, winners carried <b>${imp}%</b> implied at close (uniform baseline ${uImp}%), Brier <b>${br}</b> vs uniform ${uBr}. Recomputed from the same rows (<span class="mono">chain market calibration</span>).</div></div>`;
+    }
+  }
   if (markets.length) {
     h += `<h2 id="sec-markets">markets</h2>`;
     for (const m of markets.sort((a, b) => b.createdAt - a.createdAt)) {

@@ -730,7 +730,7 @@ test("marketCalibration scores closing books against landed outcomes", async () 
     assert.equal(summary.meanImpliedWinnerPct, 55.18);
     assert.ok(summary.meanBrier < summary.uniformBrier, "books beat the uniform baseline");
     // dead-heat ladders count every co-winner in the implied share
-    const dh = venues.find((v) => v.winners.length > 1);
+    const dh = venues.find((v: any) => v.winners.length > 1);
     assert.ok(dh && dh.impliedWinnerPct > 0);
   } finally { console.log = origLog; }
 });
