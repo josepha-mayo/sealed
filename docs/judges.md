@@ -140,9 +140,9 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
 yarn --cwd packages/harness cli chain tour --snapshot ../../web/snapshot.json
 #     ↑ ONE command, seven stops: stats → search → a run's custody trail →
 #       its filtered feed → a venue's book → an actor's P&L → what the
-#       stakes believe — the objects are picked live (the most-venue'd
-#       run, the biggest book), nothing is hardcoded. If you read nothing
-#       else, read this output.
+#       stakes believe — and the top divergences where money disagrees
+#       with receipts. Objects picked live (the most-venue'd run, the
+#       biggest book), nothing hardcoded. Read nothing else, read this.
 yarn --cwd packages/harness cli chain stats --snapshot ../../web/snapshot.json   # dashboard: 31/31 records + 201/201 resolutions re-verified
 yarn --cwd packages/harness cli chain banks --snapshot ../../web/snapshot.json   # index → pick a benchmark pk
 yarn --cwd packages/harness cli chain market board --snapshot ../../web/snapshot.json

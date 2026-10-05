@@ -239,7 +239,8 @@ but signs activity resolves to the actor dossier (`chain wallet`).
 `chain tour` strings the whole set into a narrative — seven stops
 (stats → search → the most-venue'd run's trail → its filtered feed →
 the biggest venue's book → a bettor's P&L → the pooled market
-sentiment) with exhibits picked live
+sentiment plus the top evidence-vs-conviction divergences) with
+exhibits picked live
 from the data, so a first-time reader gets the system's story in one
 command instead of assembling it.
 `packages/harness/src/snapshot.ts` decodes the committed evidence

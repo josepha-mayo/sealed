@@ -3045,8 +3045,19 @@ export async function chainTour(snapPath?: string) {
     H(`6/7 · an actor's P&L — chain wallet ${tourWallet.slice(0, 8)}…`);
     await walletShow(tourWallet, false, snapPath);
   }
-  H(`7/7 · what the money learned — chain market sentiment`);
+  H(`7/7 · what the money learned — and where it disagrees`);
   await marketSentiment(false, snapPath);
+  {
+    const origLog = console.log; console.log = () => {};
+    let dRows: any;
+    try { dRows = await marketDivergence(true, snapPath); } finally { console.log = origLog; }
+    const top = (dRows ?? []).filter((r: any) => r.gap !== null && r.gap !== 0).slice(0, 3);
+    if (top.length) {
+      console.log(`\n  the disagreements (chain market divergence):`);
+      for (const r of top)
+        console.log(`    ${r.model.padEnd(28)} evidence #${r.evidence.rank} vs conviction #${r.belief.rank} — priced ${r.gap > 0 ? "ABOVE" : "below"} its receipts by ${Math.abs(r.gap)} place(s)`);
+    }
+  }
   console.log(`\nnext: sealed chain export --snapshot <file>  → the portable digest`);
   console.log(`      sealed chain diff <a> <b>              → bundle-vs-live reproducibility`);
   console.log(`      https://josepha-mayo.github.io/sealed/?pk=<key>  → the same resolver in the browser`);
