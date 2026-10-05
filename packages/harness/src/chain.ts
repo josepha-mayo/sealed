@@ -3592,13 +3592,13 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
  *  tail of `chain feed`. Prints new events oldest-first as they land —
  *  "run queued → MPC finalized → receipt minted → venue resolved" in
  *  real time. RPC mode only (a snapshot can't tick); Ctrl-C exits. */
-export async function chainWatch(intervalSecs = 15, typeFilter?: string, since = 0, snapPath?: string) {
+export async function chainWatch(intervalSecs = 15, typeFilter?: string, since = 0, snapPath?: string, modelFilter?: string) {
   const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
   const key = (e: any) => `${e.t}|${e.type}|${e.pk}|${e.msg}`;
   let lastT = since > 0 ? since : snapPath ? 0 : Math.floor(Date.now() / 1000) - 60;
   const tail = new Set<string>();
-  console.log(`watch — ${snapPath ? "snapshot" : "live"} feed every ${intervalSecs}s (Ctrl-C to stop)${typeFilter ? ` [${typeFilter}]` : ""}`);
-  const first = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true)) as any[];
+  console.log(`watch — ${snapPath ? "snapshot" : "live"} feed every ${intervalSecs}s (Ctrl-C to stop)${typeFilter ? ` [${typeFilter}]` : ""}${modelFilter ? ` [model ${modelFilter}]` : ""}`);
+  const first = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true, modelFilter)) as any[];
   if (first.length) {
     for (const e of first.slice(-15)) {
       console.log(`  ${fmt(e.t)}  ${e.type.padEnd(10)} ${e.pk.slice(0, 12)}…  ${e.msg}`);
@@ -3609,7 +3609,7 @@ export async function chainWatch(intervalSecs = 15, typeFilter?: string, since =
   for (;;) {
     await new Promise((r) => setTimeout(r, intervalSecs * 1000));
     let fresh: any[] = [];
-    try { fresh = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true)) as any[]; }
+    try { fresh = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true, modelFilter)) as any[]; }
     catch (e: any) { console.log(`  ${fmt(Math.floor(Date.now() / 1000))}  …poll error: ${String(e?.message ?? e).slice(0, 80)}`); continue; }
     if (!fresh.length) continue;
     for (const e of fresh.slice().sort((a, b) => a.t - b.t)) {
@@ -4323,7 +4323,8 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "watch") {
     await chainWatch(Number(args.interval ?? 15) || 15, args.type ? String(args.type) : undefined,
-      Number(args.since ?? 0), args.snapshot ? String(args.snapshot) : undefined);
+      Number(args.since ?? 0), args.snapshot ? String(args.snapshot) : undefined,
+      args.model ? String(args.model) : undefined);
     return;
   }
   if (sub === "diff") {

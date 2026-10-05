@@ -734,3 +734,21 @@ test("marketCalibration scores closing books against landed outcomes", async () 
     assert.ok(dh && dh.impliedWinnerPct > 0);
   } finally { console.log = origLog; }
 });
+
+test("chainFeed --model filters to one model's timeline", async () => {
+  const { chainFeed } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const rows = (await chainFeed(500, undefined, 0, true, snapPath, undefined, true, "qwen2.5-3b-instruct")) as any[];
+    assert.ok(rows.length > 10);
+    // every event carries the model in its message or refs a run of it
+    assert.ok(rows.every((e) => e.msg.includes("qwen2.5-3b") || e.refs.length));
+    // the bounty its run claimed shows up through winner_run refs
+    assert.ok(rows.some((e) => e.msg.includes("bounty posted")));
+    // another model's events are absent
+    const other = (await chainFeed(500, undefined, 0, true, snapPath, undefined, true, "ladder/model-c")) as any[];
+    assert.ok(other.every((e) => !e.msg.includes("qwen2.5-3b")));
+  } finally { console.log = origLog; }
+});

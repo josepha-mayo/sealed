@@ -294,7 +294,7 @@ sealed chain bank <pk|name>                                           # one bank
 sealed chain wallet <pk>                                              # one address's footprint — banks, runs, venues, positions, grants
 sealed chain stats                                                    # the dashboard — counts, escrow, and two bit-exact verdicts
 sealed chain feed [--limit N] [--type a,b] [--pk k] [--model id]                       # the activity stream — the ledger's chronology in one list
-sealed chain watch [--interval s] [--type a,b]                        # the live pulse — feed events as they land (snapshot = replay ticker)
+sealed chain watch [--interval s] [--type a,b] [--model id]           # the live pulse — feed events as they land (snapshot = replay ticker)
 sealed chain runs [--bank b] [--model m] [--min-pct n] [--status s]   # the run substrate — who scored what where
 sealed chain reveal  --benchmark <pk> --chunk <i> --part <0..3>      # authority declassifies 8 answer fingerprints
 sealed chain verify  --benchmark <pk> --run <file> [--run-index n]   # audit revealed hashes vs committed outputs
