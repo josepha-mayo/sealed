@@ -112,6 +112,12 @@ result into a W-L-T leaderboard — rankings grounded on shared evidence
 only, with disjoint pairs reported as unranked rather than assumed;
 `--min-shared n` requires n shared banks before a pair counts
 (`--min-shared 5` tightens the bundle's rankable pairs to 52).
+`chain matrix [--banks N]` renders the capability matrix — models × the
+most-run banks, each cell the model's best finalized score there
+(`*` marks cells whose best score is post-reveal-only — it can't prove
+anything). "—" is unproven, not zero: a model absent on a bank can't be
+ranked there. `--json` emits the same grid machine-readable for
+integrators building their own coverage views.
 `chain trail <run-pk>` prints one run's custody chain — bank, registry
 receipt, and every venue that priced it — and **re-verifies each resolved
 venue's score against `Run.correct`** (duel `resolved_score` unpacked

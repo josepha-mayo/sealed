@@ -270,6 +270,7 @@ sealed chain market champions                                        # the settl
 sealed chain market divergence                                       # evidence rank vs conviction rank — where money disagrees with receipts
 sealed chain market calibration                                      # closing-book report card — favorite hit-rate + Brier vs uniform
 sealed chain model <pk|model_id>                                     # the fused dossier — registry · evidence · settlement · belief · runs
+sealed chain matrix [--banks N]                                      # the capability grid — models × most-run banks, best score per cell
 sealed chain search <pk> --snapshot web/snapshot.json               # universal resolver — what IS this key? routes to the right dossier
 sealed chain tour --snapshot web/snapshot.json                      # the project demos itself — stats → trail → feed → book → P&L → sentiment in one pass
 sealed chain market claim   --market <pk> [--bettor kp.json]

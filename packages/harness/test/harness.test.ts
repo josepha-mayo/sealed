@@ -752,3 +752,24 @@ test("chainFeed --model filters to one model's timeline", async () => {
     assert.ok(other.every((e) => !e.msg.includes("qwen2.5-3b")));
   } finally { console.log = origLog; }
 });
+
+test("chainMatrix ranks coverage over the most-run banks", async () => {
+  const { chainMatrix } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const out = (await chainMatrix(8, true, snapPath)) as any;
+    assert.equal(out.banks.length, 8);
+    assert.ok(out.matrix.length > 0);
+    // every row covers all 8 fixture banks (the seeded market suite) and
+    // scores are in [0,100] — no phantom cells, no >100 arithmetic bugs
+    for (const r of out.matrix) {
+      assert.ok(r.banksCovered > 0);
+      for (const s of r.scores) if (s) assert.ok(s.pct >= 0 && s.pct <= 100);
+    }
+    // sorted coverage-first: the top row never has fewer banks than the last
+    const covs = out.matrix.map((r: any) => r.banksCovered);
+    assert.deepEqual(covs, [...covs].sort((a, b) => b - a));
+  } finally { console.log = origLog; }
+});

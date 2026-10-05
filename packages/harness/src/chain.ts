@@ -2122,6 +2122,76 @@ export async function compareAll(json = false, snapPath?: string, minShared = 1)
   return ranked;
 }
 
+/** `chain matrix [--banks N]` — the capability matrix: models × the
+ *  most-run banks, each cell the model's BEST finalized score there.
+ *  Leaderboards aggregate over different exams; this shows the exam-by-
+ *  exam coverage — a model strong on one bank and absent on nine others
+ *  looks exactly like that. Post-reveal runs can't prove anything (the
+ *  answers were public) so they mark the cell with *. */
+export async function chainMatrix(nBanks = 10, json = false, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [banks, runs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
+    : await Promise.all([acct().benchmark.all(), acct().run.all()]);
+  const bankBy = new Map(banks.map((b) => [b.publicKey.toBase58(), b]));
+  const fin = runs.filter((r) => Number(r.account.status) === 1);
+  // the most-run banks — coverage is what makes a column meaningful
+  const runCount = new Map<string, number>();
+  for (const r of fin) {
+    const k = (r.account.benchmark as PublicKey).toBase58();
+    runCount.set(k, (runCount.get(k) ?? 0) + 1);
+  }
+  const cols = [...runCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, nBanks)
+    .map(([pk, n]) => {
+      const b = bankBy.get(pk)?.account;
+      const base = b ? String(b.name) : pk.slice(0, 8);
+      const id = b?.id !== undefined ? String(b.id) : "";
+      return { pk, n, base, id, name: base };
+    });
+  // names aren't unique — generated banks all share "sealed-gen"; disambiguate
+  // colliding column labels with the bank's on-chain id
+  const nameCount = new Map<string, number>();
+  for (const c of cols) nameCount.set(c.base, (nameCount.get(c.base) ?? 0) + 1);
+  for (const c of cols) if ((nameCount.get(c.base) ?? 0) > 1 || c.base.length > 16) c.name = c.id ? `${c.base.slice(0, 12)}·${c.id}` : `${c.base.slice(0, 12)}·${c.pk.slice(0, 4)}`;
+  const colSet = new Set(cols.map((c) => c.pk));
+  // cell[model][bank] = {bestPct, anyPostReveal}
+  const cell = new Map<string, Map<string, { pct: number; post: boolean }>>();
+  for (const r of fin) {
+    const k = (r.account.benchmark as PublicKey).toBase58();
+    if (!colSet.has(k)) continue;
+    const m = String(r.account.modelId);
+    const pct = (100 * Number(r.account.correct)) / Math.max(1, Number(r.account.chunkCount) * 32);
+    const row = cell.get(m) ?? new Map<string, { pct: number; post: boolean }>();
+    const cur = row.get(k);
+    const post = Boolean(r.account.postReveal);
+    // a post-reveal score never displaces a clean one at the same level —
+    // display the best CLEAN score; mark * only if that's the best there is
+    if (!cur || (cur.post && !post) || (cur.post === post && pct > cur.pct)) row.set(k, { pct, post });
+    cell.set(m, row);
+  }
+  const rows = [...cell.entries()].map(([model, m]) => {
+    const cells = cols.map((c) => m.get(c.pk) ?? null);
+    const covered = cells.filter(Boolean).length;
+    const mean = covered ? cells.reduce((s, c) => s + (c?.pct ?? 0), 0) / covered : 0;
+    return { model, cells, covered, mean };
+  }).sort((a, b) => b.covered - a.covered || b.mean - a.mean);
+  const out = { banks: cols.map((c) => ({ pk: c.pk, name: c.name, runs: c.n })),
+    matrix: rows.map((r) => ({ model: r.model, banksCovered: r.covered, meanPct: Math.round(r.mean * 10) / 10,
+      scores: r.cells.map((c) => (c ? { pct: Math.round(c.pct * 10) / 10, postReveal: c.post } : null)) })) };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  const w = Math.min(22, Math.max(12, ...cols.map((c) => c.name.length)) + 2);
+  console.log(`capability matrix — ${rows.length} models × top ${cols.length} banks (best finalized score%, * = post-reveal)`);
+  console.log(`${" ".padEnd(26)}${cols.map((c) => c.name.slice(0, w - 2).padStart(w)).join("")}`);
+  for (const r of rows.slice(0, 20)) {
+    const cells = r.cells.map((c) => (c === null ? "—" : `${c.pct.toFixed(0)}%${c.post ? "*" : ""}`).padStart(w)).join("");
+    console.log(`  ${r.model.slice(0, 24).padEnd(24)}${cells}`);
+  }
+  console.log(`coverage matters: a model absent on a bank can't be compared there — "—" is unproven, not zero`);
+  return out;
+}
+
 /** `chain model <pk|model_id>` — the fused per-model dossier. Four lenses
  *  exist and none fuse: the registry record (receipts), the paired-
  *  evidence rank, the settlement record, and the market's belief. This
@@ -4296,6 +4366,10 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "banks") {
     await bankList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json),
       args.kind ? String(args.kind) : undefined);
+    return;
+  }
+  if (sub === "matrix") {
+    await chainMatrix(Number(args.banks ?? 10), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "stats") {
