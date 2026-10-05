@@ -218,7 +218,8 @@ leg wins (dead-heat masks count each co-winner), bounty claims. Where
 resolved on — the opinion a model can't argue with. `chain market
 divergence` then diffs two of the rankings directly: evidence rank
 (shared-bank W-L) vs conviction rank (stake weighed) — a positive gap
-means the money prices a model below its receipts (undervalued), and a
+means the money prices a model above its receipts (the paired evidence
+ranks it worse than the books do), a negative gap the reverse, and a
 model present on only one side is reported as exactly that finding.
 `chain model
 <pk|model_id>` fuses all four lenses into one dossier: the registry

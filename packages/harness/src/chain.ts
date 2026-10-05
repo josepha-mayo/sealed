@@ -2138,7 +2138,8 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
   const rank = (ranked as any[])?.findIndex?.((r: any) => r.modelId === modelId) ?? -1;
   const rankRow = rank >= 0 ? (ranked as any[])[rank] : null;
   const champ = (champs as any[])?.find?.((r: any) => r.model === modelId) ?? null;
-  const bel = (senti as any[])?.find?.((r: any) => r.model === modelId) ?? null;
+  const belIdx = (senti as any[])?.findIndex?.((r: any) => r.model === modelId) ?? -1;
+  const bel = belIdx >= 0 ? (senti as any[])[belIdx] : null;
   const runs = (runsRows as any[]) ?? [];
   const fin = runs.filter((r: any) => Number(r.status) === 1);
   const totalItems = Number(rec.totalItems), totalCorrect = Number(rec.totalCorrect);
@@ -2151,7 +2152,9 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
       ppDelta: Math.round(rankRow.ppDelta * 100) / 100, sharedBankResults: rankRow.sharedBanks } : { rank: null, note: "no shared-bank pairs — evidence-disjoint" },
     settlement: champ ? { duels: `${champ.duelW}W-${champ.duelD}D-${champ.duelL}L`, duelWinPct: champ.duelWinPct,
       ladderLegs: `${champ.ladderWins}/${champ.ladderEntries}`, bounties: champ.bounties } : null,
-    marketBelief: bel ? { impliedWinPct: bel.impliedWinPct, impliedScore: bel.impliedScore, stakeWeighed: bel.stakeWeighed } : null,
+    marketBelief: bel ? { impliedWinPct: bel.impliedWinPct, impliedScore: bel.impliedScore, stakeWeighed: bel.stakeWeighed, convictionRank: belIdx + 1 } : null,
+    divergence: rankRow || bel ? { evidenceRank: rankRow ? rank + 1 : null, convictionRank: bel ? belIdx + 1 : null,
+      gap: rankRow && bel ? rank + 1 - (belIdx + 1) : null } : null,
     runs: { total: runs.length, finalized: fin.length,
       recent: runs.slice(0, 10).map((r: any) => ({ pk: r.pk, score: `${r.correct}/${r.items}`, bank: r.bankName, status: r.status })) },
   };
@@ -2160,7 +2163,9 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
   console.log(`  registry    — ${out.registry.runs} receipts · ${out.registry.correct}/${out.registry.items} items (${out.registry.accuracyPct}%)${out.registry.bestScore ? ` · best ${out.registry.bestScore}` : ""}`);
   console.log(`  evidence    — ${out.pairedEvidence.rank ? `paired rank #${out.pairedEvidence.rank} · ${out.pairedEvidence.wins}W-${out.pairedEvidence.losses}L-${out.pairedEvidence.ties}T · ΣΔ${out.pairedEvidence.ppDelta >= 0 ? "+" : ""}${out.pairedEvidence.ppDelta}pp over ${out.pairedEvidence.sharedBankResults} shared-bank result(s)` : out.pairedEvidence.note}`);
   console.log(`  settlement  — ${champ ? `${out.settlement!.duels} (${champ.duelWinPct ?? "—"}%) · legs ${out.settlement!.ladderLegs} · bounties ${out.settlement!.bounties}` : "no resolved venues"}`);
-  console.log(`  belief      — ${bel ? `${bel.impliedWinPct !== null ? `wins ${bel.impliedWinPct}%` : ""}${bel.impliedScore !== null ? ` scores ~${bel.impliedScore}` : ""} (${bel.stakeWeighed} staked)` : "no open book prices it"}`);
+  console.log(`  belief      — ${bel ? `${bel.impliedWinPct !== null ? `wins ${bel.impliedWinPct}%` : ""}${bel.impliedScore !== null ? ` scores ~${bel.impliedScore}` : ""} (${bel.stakeWeighed} staked · conviction #${belIdx + 1})` : "no open book prices it"}`);
+  if (out.divergence?.gap !== null && out.divergence?.gap !== undefined && out.divergence.gap !== 0)
+    console.log(`  divergence  — evidence #${out.divergence.evidenceRank} vs conviction #${out.divergence.convictionRank} → gap ${out.divergence.gap > 0 ? "+" : ""}${out.divergence.gap} (${out.divergence.gap > 0 ? "priced above" : "priced below"} the receipts)`);
   console.log(`  runs        — ${out.runs.total} submitted · ${out.runs.finalized} finalized`);
   for (const r of out.runs.recent.slice(0, 8))
     console.log(`    ${String(r.pk).slice(0, 12)}… ${r.score} on ${r.bank} (status ${r.status})`);
@@ -2757,8 +2762,9 @@ export async function marketSentiment(json = false, snapPath?: string) {
 /** `chain market divergence` — where the money disagrees with the
  *  receipts. Two honest rankings exist: paired evidence (compare --all)
  *  and conviction (stake weighed, market sentiment). Sort both, diff the
- *  positions: a positive gap means the market prices a model BELOW its
- *  evidence (undervalued), negative means above (overvalued). Models
+ *  positions: a positive gap means the market prices a model ABOVE its
+ *  evidence (evidence ranks it worse — overvalued), negative means below
+ *  (money underweights the receipts). Models
  *  appearing on only one side are shown — a model the evidence can't
  *  rank but money priced is itself a finding. */
 export async function marketDivergence(json = false, snapPath?: string) {
@@ -2780,7 +2786,7 @@ export async function marketDivergence(json = false, snapPath?: string) {
       gap: e && b ? e.rank - b.rank : null };
   }).sort((x, y) => Math.abs(y.gap ?? -1) - Math.abs(x.gap ?? -1));
   if (json) { console.log(JSON.stringify(rows)); return rows; }
-  console.log(`market divergence — evidence rank vs conviction rank (+gap = money prices it BELOW the evidence)`);
+  console.log(`market divergence — evidence rank vs conviction rank (+gap = money prices it ABOVE the receipts; − = below)`);
   for (const r of rows) {
     const e = r.evidence ? `#${r.evidence.rank} (${r.evidence.wins}W-${r.evidence.losses}L-${r.evidence.ties}T)` : "unranked";
     const b = r.belief ? `#${r.belief.rank} (${r.belief.stakeWeighed})` : "unpriced";

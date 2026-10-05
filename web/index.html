@@ -75,7 +75,7 @@
 </div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -1151,6 +1151,7 @@ function renderAll(sealedAccs, marketAccs) {
       h += `<div class="proof">${fmtTs(e.t)} <span class="pill ${e.type === "resolution" ? "resolved" : e.type === "reveal" ? "cancelled" : e.type === "score" ? "live" : "open"}" style="font-size:10px">${e.type}</span> <a href="#${e.anchor}">${short(e.pk)}</a> — ${e.msg}</div>`;
     h += `</div>`;
   }
+  let sRows = [];
   { // what the stakes believe — pooled implied probabilities per model
     // (the same aggregation `chain market sentiment` prints)
     const sAcc = new Map();
@@ -1182,7 +1183,7 @@ function renderAll(sealedAccs, marketAccs) {
         if (leg) { const r = sRow(leg.modelId); r.winStake += pot; r.winShare += (totals[i] / pot) * pot; r.venues.add(l.pk); }
       }
     }
-    const sRows = [...sAcc.entries()].map(([m, r]) => ({ m,
+    sRows = [...sAcc.entries()].map(([m, r]) => ({ m,
       win: r.winStake ? r.winShare / r.winStake * 100 : null,
       score: r.scoreStake ? r.scoreNum / r.scoreStake : null,
       stake: (r.winStake + r.scoreStake) / 1e9, venues: r.venues.size }))
@@ -1229,6 +1230,46 @@ function renderAll(sealedAccs, marketAccs) {
         <table><tr><th>model</th><th>duels</th><th>ladder legs</th><th>bounties</th></tr>`;
       for (const r of cRows)
         h += `<tr><td class="mono">${esc(r.m)}</td><td>${r.W}W-${r.D}D-${r.L}L${r.decided ? ` (${(100 * r.W / r.decided).toFixed(0)}%)` : ""}</td><td>${r.legs}/${r.entries}${r.entries ? ` (${(100 * r.legs / r.entries).toFixed(0)}%)` : ""}</td><td>${r.bounties}</td></tr>`;
+      h += `</table></div>`;
+    }
+  }
+  { // market divergence — where the money disagrees with the receipts.
+    // evidence rank = the compare --all pairwise order replayed in-page;
+    // conviction rank = the sentiment stake order computed above.
+    // gap = evidenceRank − convictionRank: + = priced ABOVE the receipts.
+    const byBank = new Map();
+    for (const l of scoreLogs) {
+      const m = byBank.get(l.modelRecord) ?? new Map();
+      const e = m.get(l.benchmark) ?? { correct: 0, items: 0 };
+      e.correct += l.correct; e.items += l.items;
+      m.set(l.benchmark, e); byBank.set(l.modelRecord, m);
+    }
+    const ev = modelRecords.map((r, i) => ({ i, m: r.modelId, wins: 0, losses: 0, ties: 0, ppDelta: 0 }));
+    for (let i = 0; i < ev.length; i++) for (let j = i + 1; j < ev.length; j++) {
+      const a = byBank.get(modelRecords[i].pk) ?? new Map(), b = byBank.get(modelRecords[j].pk) ?? new Map();
+      const shared = [...a.keys()].filter(k => b.has(k));
+      if (!shared.length) continue;
+      const sum = (m2) => shared.reduce((s, k) => s + m2.get(k).correct, 0) / Math.max(1, shared.reduce((s, k) => s + m2.get(k).items, 0));
+      const pa = sum(a), pb = sum(b), d = 100 * (pa - pb);
+      ev[i].ppDelta += d; ev[j].ppDelta -= d;
+      if (pa > pb) { ev[i].wins++; ev[j].losses++; } else if (pa < pb) { ev[j].wins++; ev[i].losses++; } else { ev[i].ties++; ev[j].ties++; }
+    }
+    ev.sort((x, y) => y.wins - x.wins || x.losses - y.losses || y.ppDelta - x.ppDelta);
+    const evRank = new Map(ev.map((r, i) => [r.m, { rank: i + 1, wins: r.wins, losses: r.losses, ties: r.ties }]));
+    const blRank = new Map(sRows.map((r, i) => [r.m, { rank: i + 1, stake: r.stake, venues: r.venues }]));
+    const dRows = [...new Set([...evRank.keys(), ...blRank.keys()])].map(m => {
+      const e = evRank.get(m), b = blRank.get(m);
+      return { m, e, b, gap: e && b ? e.rank - b.rank : null };
+    }).sort((x, y) => Math.abs(y.gap ?? -1) - Math.abs(x.gap ?? -1));
+    if (dRows.length && sRows.length) {
+      h += `<h2 id="sec-divergence">market divergence — where the money disagrees with the receipts</h2><div class="card">
+        <div class="kv">evidence rank (paired shared-bank W-L, same math as <span class="mono">chain compare --all</span>) vs conviction rank (stake weighed). +gap = the books price it ABOVE its receipts; − = below. Models on one side only are that finding by themselves (<span class="mono">chain market divergence</span>).</div>
+        <table><tr><th>model</th><th>evidence</th><th>conviction</th><th>gap</th></tr>`;
+      for (const r of dRows.slice(0, 15))
+        h += `<tr><td class="mono">${esc(r.m)}</td>` +
+          `<td>${r.e ? `#${r.e.rank} (${r.e.wins}W-${r.e.losses}L-${r.e.ties}T)` : '<span class="kv">unranked</span>'}</td>` +
+          `<td>${r.b ? `#${r.b.rank} (${r.b.stake.toFixed(3)} SOL, ${r.b.venues} venue${r.b.venues === 1 ? "" : "s"})` : '<span class="kv">unpriced</span>'}</td>` +
+          `<td class="${r.gap === null ? "" : r.gap > 0 ? "score" : "kv"}">${r.gap === null ? "—" : (r.gap > 0 ? "+" : "") + r.gap}</td></tr>`;
       h += `</table></div>`;
     }
   }

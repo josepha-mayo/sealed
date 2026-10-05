@@ -708,7 +708,7 @@ test("marketDivergence diffs evidence rank vs conviction rank", async () => {
     const mc = rows.find((r) => r.model === "ladder/model-c");
     assert.equal(mc.evidence.rank, 31);
     assert.equal(mc.belief.rank, 3);
-    assert.equal(mc.gap, 28, "evidence rank 31 − conviction rank 3");
+    assert.equal(mc.gap, 28, "evidence rank 31 − conviction rank 3 → priced above receipts");
     // a model with no funded book reports unpriced, not zero
     const q = rows.find((r) => r.model === "qwen2.5-3b-instruct");
     assert.equal(q.belief, null);
