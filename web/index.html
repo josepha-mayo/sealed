@@ -1300,6 +1300,22 @@ function resolvePk(pk) {
   if (g) return go(`bank-${g.bench}`, "share grant → its bank");
   const rv = A.reveals.find(r => r.pk === pk);
   if (rv) return go(`bank-${rv.bench}`, "reveal → its bank");
+  const ic = A.itemChunks.find(c => c.pk === pk) || A.privChunks.find(c => c.pk === pk);
+  if (ic) return go(`bank-${ic.bench}`, "item chunk → its bank");
+  // actor fallback — the key isn't an account but signs activity: an
+  // authority, runner, bettor, sponsor, or grant viewer. Land on the
+  // bank or venue where it acts.
+  const runB = A.benches.find(b => b.authority === pk);
+  if (runB) return go(`bank-${runB.pk}`, "bank authority → a bank it authored");
+  const runR = A.runs.find(r => r.runner === pk);
+  if (runR) return go(`run-${runR.pk}`, "runner → a run it submitted");
+  const posB = A.positions.find(p => p.bettor === pk) || A.darkPositions.find(p => p.bettor === pk);
+  if (posB) { const v = A.markets.find(m => m.pk === posB.market) || A.ladders.find(l => l.pk === posB.market) || A.darkMarkets.find(d => d.pk === posB.market);
+    if (v) return go(`${A.markets.includes(v) ? "mkt" : A.ladders.includes(v) ? "lad" : "dark"}-${v.pk}`, "bettor → a venue it wagered on"); }
+  const sp = A.bounties.find(b => b.sponsor === pk);
+  if (sp) return go(`bounty-${sp.pk}`, "sponsor → a bounty it posted");
+  const gv = A.grants.find(g => g.viewer === pk);
+  if (gv) return go(`bank-${gv.bench}`, "grant viewer → the bank it can inspect");
   return null;
 }
 
