@@ -260,6 +260,7 @@ sealed chain trail <run-pk>                                          # custody c
 sealed chain market bounties                                         # runner index — open bounties by pot, claimable marked honestly
 sealed chain market venue <pk>                                       # one venue — pools, positions, keeper state, resolution re-verified
 sealed chain market position <pk> --snapshot web/snapshot.json        # one position — stake, payout class (PAYS/REFUND/FORFEIT), exact claim cmd
+sealed chain search <pk> --snapshot web/snapshot.json               # universal resolver — what IS this key? routes to the right dossier
 sealed chain market claim   --market <pk> [--bettor kp.json]
 sealed chain market void    --market <pk>                            # authority cancels, pre-scoring only
 sealed chain market expire  --market <pk>                            # anyone, once resolve_by passes (not if finalized)

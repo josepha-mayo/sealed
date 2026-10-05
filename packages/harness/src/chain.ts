@@ -2536,6 +2536,81 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   return out;
 }
 
+/** `chain search <pk>` — the universal resolver (CLI mirror of the
+ *  explorer's `?pk=` box): identify WHAT a pubkey is across every
+ *  account type in both programs, then route to the dossier command
+ *  that answers questions about it. Falls back to the wallet dossier
+ *  when the key isn't an account but signs activity (an actor). */
+export async function chainSearch(pkStr: string, json = false, snapPath?: string) {
+  let pk: PublicKey;
+  try { pk = new PublicKey(pkStr); } catch { console.log(`not a pubkey: ${pkStr}`); process.exitCode = 2; return null; }
+  let sealed: Map<string, SnapAccount[]> | null;
+  let mkt: Map<string, SnapAccount[]> | null;
+  if (snapPath) {
+    const snap = loadSnapshotJson(snapPath);
+    sealed = decodeSnapshotSection(snap, "sealed");
+    mkt = decodeSnapshotSection(snap, "market");
+  } else {
+    sealed = new Map(); mkt = new Map();
+    const sAcct = () => (sealedProgram().program as any);
+    const mAcct = () => marketProgram().market;
+    for (const [camel, name] of [["benchmark", "Benchmark"], ["run", "Run"], ["scoreLog", "ScoreLog"], ["modelRecord", "ModelRecord"], ["reveal", "Reveal"], ["shareGrant", "ShareGrant"], ["itemChunk", "ItemChunk"], ["privItemChunk", "PrivItemChunk"]] as const)
+      sealed.set(name, await tolerantAll(sAcct(), camel));
+    for (const [camel, name] of [["market", "Market"], ["darkMarket", "DarkMarket"], ["ladder", "Ladder"], ["bounty", "Bounty"], ["position", "Position"], ["darkPosition", "DarkPosition"]] as const)
+      mkt.set(name, await tolerantAll(mAcct(), camel));
+  }
+  const find = (name: string) =>
+    (sealed?.get(name) ?? mkt?.get(name) ?? []).find((x: SnapAccount) => x.publicKey.equals(pk));
+  const b58of = (v: any) => v?.toBase58 ? v.toBase58() : typeof v === "string" ? v : new PublicKey(Buffer.from(v ?? [])).toBase58();
+  type Hit = { type: string; desc: string; cmd: string };
+  const hits: Hit[] = [];
+  const b = find("Benchmark");
+  if (b) hits.push({ type: "benchmark", desc: `bank "${b.account.name}" — ${b.account.chunkCount} chunk(s), ${b.account.runCount} run(s), ${b.account.status === 0 ? "open" : "sealed"}`, cmd: `sealed chain bank ${pkStr}` });
+  const r = find("Run");
+  if (r) hits.push({ type: "run", desc: `run — model ${r.account.modelId ?? r.account.model_id ?? "?"}`, cmd: `sealed chain trail ${pkStr}` });
+  const sl = find("ScoreLog");
+  if (sl) hits.push({ type: "score-receipt", desc: `ScoreLog receipt — ${sl.account.correct}/${sl.account.items}`, cmd: `sealed chain trail ${b58of(sl.account.run)}` });
+  const mr = find("ModelRecord");
+  if (mr) hits.push({ type: "model-record", desc: `capability record — ${mr.account.totalCorrect}/${mr.account.totalItems} aggregate`, cmd: `sealed chain modelrec ${pkStr}` });
+  const rv = find("Reveal");
+  if (rv) hits.push({ type: "reveal", desc: `fingerprint reveal on bank ${b58of(rv.account.benchmark).slice(0, 8)}…`, cmd: `sealed chain reveals --benchmark ${b58of(rv.account.benchmark)}` });
+  const sg = find("ShareGrant");
+  if (sg) hits.push({ type: "share-grant", desc: `reshare grant → ${b58of(sg.account.viewer).slice(0, 8)}…`, cmd: `sealed chain grants --benchmark ${b58of(sg.account.benchmark)}` });
+  const ic = find("ItemChunk") ?? find("PrivItemChunk");
+  if (ic) hits.push({ type: "item-chunk", desc: `chunk ${ic.account.index ?? "?"} of bank ${b58of(ic.account.benchmark).slice(0, 8)}…`, cmd: `sealed chain bank ${b58of(ic.account.benchmark)}` });
+  const m = find("Market") ?? find("Ladder") ?? find("DarkMarket") ?? find("Bounty");
+  if (m) hits.push({ type: "venue", desc: `${find("Market") ? "band/duel market" : find("Ladder") ? "ladder race" : find("DarkMarket") ? "dark market" : "capability bounty"} — status ${m.account.status}`, cmd: `sealed chain market venue ${pkStr}` });
+  const p = find("Position") ?? find("DarkPosition");
+  if (p) hits.push({ type: "position", desc: `stake by ${b58of(p.account.bettor).slice(0, 8)}… on venue ${b58of(p.account.market).slice(0, 8)}…`, cmd: `sealed chain market position ${pkStr}` });
+  // actor fallback — the key signs activity even if it isn't an account
+  let actor = 0;
+  if (hits.length === 0 && (sealed || mkt)) {
+    const seen = (x: any) => x?.toBase58?.() === pkStr;
+    const scan = (map: Map<string, SnapAccount[]> | null, name: string, fields: string[]) => {
+      for (const x of map?.get(name) ?? [])
+        for (const f of fields) if (seen((x.account as any)[f])) actor++;
+    };
+    scan(sealed, "Benchmark", ["authority"]);
+    scan(sealed, "Run", ["runner", "authority"]);
+    scan(mkt, "Position", ["bettor"]);
+    scan(mkt, "DarkPosition", ["bettor"]);
+    scan(mkt, "Bounty", ["sponsor", "winnerRunner"]);
+    scan(mkt, "Market", ["authority"]);
+    scan(mkt, "Ladder", ["authority"]);
+    scan(mkt, "DarkMarket", ["authority"]);
+    scan(sealed, "ShareGrant", ["viewer"]);
+    if (actor) hits.push({ type: "actor", desc: `wallet — signs ${actor} account(s)`, cmd: `sealed chain wallet ${pkStr}` });
+  }
+  if (json) { console.log(JSON.stringify({ pk: pkStr, hits })); return hits; }
+  if (!hits.length) { console.log(`search ${pkStr} — no account or actor match`); process.exitCode = 2; return hits; }
+  console.log(`search ${pkStr}`);
+  for (const h of hits) {
+    console.log(`  ${h.type.padEnd(14)} ${h.desc}`);
+    console.log(`  ${"".padEnd(14)} → ${h.cmd}`);
+  }
+  return hits;
+}
+
 /** `chain diff <snapshot-a> <snapshot-b> [--json]` — two bundles, one
  *  verdict: per-type account deltas, which pubkeys are new in B, which
  *  vanished, and both sides' integrity verdicts (registry replay +
@@ -3517,6 +3592,10 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "export") {
     // No --snapshot → digest the live cluster (source: "live").
     await chainExport(args.snapshot ? String(args.snapshot) : undefined, args.out ? String(args.out) : undefined);
+    return;
+  }
+  if (sub === "search") {
+    await chainSearch(String(cmd[1] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "diff") {

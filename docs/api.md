@@ -121,7 +121,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `search`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
@@ -189,6 +189,12 @@ FORFEIT classification `positions` computes, plus the exact claim
 command when money is due. The audit triangle is complete: `bank`
 (subject), `market venue` (instrument), `wallet` (actor), `trail` (run),
 `market position` (stake).
+`chain search <pk>` is the front door to all of them — the same
+universal resolver as the explorer's `?pk=` box: it identifies what a
+pubkey IS (benchmark, run, ScoreLog receipt, ModelRecord, reveal,
+grant, item chunk, any venue kind, position) and prints the dossier
+command that answers questions about it. A key that isn't an account
+but signs activity resolves to the actor dossier (`chain wallet`).
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed
 borsh layouts the RPC path uses, so the surfaces replay **keyless and

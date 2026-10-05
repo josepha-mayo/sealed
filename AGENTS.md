@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 22/22 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 23/23 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -43,7 +43,7 @@ parimutuel markets resolved from `Run.correct`.
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
   `status`, `records`, `modelrec`, `gate` (+`--all`, +`--bank`), `history`, `compare`
   (+`--all`), `trail`, `stats`, `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market venue`,
-  `market positions` (+`--viewer <pk>` keyless), `market position` (single-position dossier: stake, venue, payout class + claim cmd), `items` (regenerates a
+  `market positions` (+`--viewer <pk>` keyless), `market position` (single-position dossier: stake, venue, payout class + claim cmd), `search` (universal pubkey resolver → dossier route),  (universal pubkey resolver → dossier route), `items` (regenerates a
   generated bank's specs from raw ItemChunk bytes, re-fold checked
   against the stored items_root). `sealedProgramId()`
   derives the program id WITHOUT loading a wallet — snapshot mode is

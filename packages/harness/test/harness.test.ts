@@ -544,3 +544,24 @@ test("marketPosition dossier classifies a payable band position over the bundle"
     assert.equal(missing, null);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("chain search resolves every account class to its dossier route", async () => {
+  const { chainSearch } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const one = async (pk: string) => ((await chainSearch(pk, true, snapPath)) as any[])[0];
+    assert.equal((await one("2cwT4xY7e6UDFePX7tB5PoiihJDfFT2kEqefayVtMVxZ")).type, "benchmark");
+    assert.equal((await one("XbsHhxrufPXsaiPZWr8BxYeJt8EGzi1EKNqAL5XXtHp")).type, "run");
+    assert.equal((await one("5sSQxH3QP9MEBbptGzu16PovJkBsVpggNjtqUtdLtFGH")).type, "score-receipt");
+    assert.equal((await one("BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK")).type, "model-record");
+    assert.equal((await one("7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm")).type, "venue");
+    assert.equal((await one("14AQTPw2KjckgvkTWbyVVpKp2mcfZgQuNaRFpdt6gnd6")).type, "position");
+    // a wallet that signs but isn't an account → actor fallback
+    assert.equal((await one("B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg")).type, "actor");
+    // every hit routes to a dossier command
+    for (const h of (await chainSearch("2cwT4xY7e6UDFePX7tB5PoiihJDfFT2kEqefayVtMVxZ", true, snapPath)) as any[])
+      assert.match(h.cmd, /^sealed chain /);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

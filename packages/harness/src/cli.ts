@@ -187,6 +187,7 @@ async function main() {
   sealed chain market positions [--bettor kp.json|--viewer <pk>] [--json] [--snapshot file]
                                                                           your book: payable/refundable/live positions across all venues
   sealed chain market position <pk> [--json] [--snapshot file]              one position's dossier — stake, venue, payout class, claim cmd
+  sealed chain search <pk> [--json] [--snapshot file]                       universal resolver — what IS this key? routes to the dossier
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)
   sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]         head-to-head: does A outscore B? (A/B/tie)
