@@ -3374,7 +3374,7 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
  *  chronological list, newest first. The per-type indexes answer "what
  *  exists"; this answers "is it alive". `--type` filters by event class
  *  (bank,run,score,receipt,venue,resolution,reveal,grant). */
-export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string, pkFilter?: string, quiet = false) {
+export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string, pkFilter?: string, quiet = false, modelFilter?: string) {
   const snap = snapPath ? loadSnapshotJson(snapPath) : null;
   const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
   const sm = snap ? decodeSnapshotSection(snap, "market") : null;
@@ -3433,7 +3433,8 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
   }
   const keep = typeFilter ? new Set(typeFilter.split(",").map((s) => s.trim())) : null;
   const filtered = evs.filter((e) => e.t >= since && (!keep || keep.has(e.type))
-    && (!pkFilter || e.pk === pkFilter || e.refs.includes(pkFilter)))
+    && (!pkFilter || e.pk === pkFilter || e.refs.includes(pkFilter))
+    && (!modelFilter || runModel.get(e.pk) === modelFilter || e.refs.some((r) => runModel.get(r) === modelFilter)))
     .sort((a, b) => b.t - a.t).slice(0, limit);
   if (json) { console.log(JSON.stringify(filtered)); return filtered; }
   if (quiet) return filtered;
@@ -3445,7 +3446,7 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
   tagAll(banks, "bank"); tagAll(runs, "run"); tagAll(logs, "receipt");
   tagAll(records, "record"); tagAll(reveals, "reveal"); tagAll(grants, "grant");
   tagAll(markets, "venue"); tagAll(darks, "venue"); tagAll(ladders, "venue"); tagAll(bounties, "venue");
-  console.log(`feed — ${filtered.length} event(s)${typeFilter ? ` [${typeFilter}]` : ""}${pkFilter ? ` touching ${pkFilter.slice(0, 12)}…` : ""} newest first`);
+  console.log(`feed — ${filtered.length} event(s)${typeFilter ? ` [${typeFilter}]` : ""}${pkFilter ? ` touching ${pkFilter.slice(0, 12)}…` : ""}${modelFilter ? ` [model ${modelFilter}]` : ""} newest first`);
   for (const e of filtered) {
     let via = "";
     if (pkFilter && e.pk !== pkFilter) {
@@ -4174,7 +4175,7 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "feed") {
     await chainFeed(Number(args.limit ?? 40), args.type ? String(args.type) : undefined,
       Number(args.since ?? 0), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
-      args.pk ? String(args.pk) : undefined);
+      args.pk ? String(args.pk) : undefined, false, args.model ? String(args.model) : undefined);
     return;
   }
   if (sub === "export") {

@@ -146,7 +146,7 @@ checked against `Run.correct` (exit 1 on any violation). When the
 snapshot rides `web/MANIFEST`, the loader sha256-checks the bundle
 first and warns loudly on a mismatch. `chain modelrec` prints the same
 per-record replay verdict inline.
-`chain feed [--limit N] [--type a,b] [--since t]` is the cross-type
+`chain feed [--limit N] [--type a,b] [--since t] [--pk k] [--model id]` is the cross-type
 chronology — every timestamped event across both programs (bank
 created, run queued, MPC finalized, receipt minted, venue opened,
 resolved, fingerprint revealed, access granted) newest-first, so the
@@ -159,6 +159,9 @@ referenced one (a venue's runs, a receipt's record/bank, a grant's
 delegate) — so one account's custody narrative is a one-line query,
 and each matched row annotates `· via <class> <key>` (the role the
 filtered key played in that event: its run, its bank, its record).
+`--model <id>` filters to one model's timeline — its runs, scores,
+receipts, and every venue event whose refs touch its runs — the
+dossier's chronological counterpart.
 `chain bank <pk|name>` is the per-benchmark dossier — spec (kind,
 authority, chunks sealed, items_root, fee), run totals (finalized,
 pending, post-reveal-stamped, best score), receipt summary (vouched /
