@@ -1085,42 +1085,44 @@ function renderAll(sealedAccs, marketAccs) {
     const bname = new Map(benches.map(b => [b.pk, b]));
     const runBy = new Map(runs.map(r => [r.pk, r]));
     const ev = [];
-    const push = (t, type, pk, msg) => { if (t > 0) ev.push({ t, type, pk, msg }); };
-    for (const b of benches) push(b.createdAt, "bank", b.pk, `bank created — ${esc(b.name)}`);
+    // anchor = the in-page dossier card this event belongs to — the feed
+    // links into the dossiers, not just out to Solana explorer.
+    const push = (t, type, pk, msg, anchor) => { if (t > 0) ev.push({ t, type, pk, msg, anchor }); };
+    for (const b of benches) push(b.createdAt, "bank", b.pk, `bank created — ${esc(b.name)}`, `bank-${b.pk}`);
     for (const r of runs) {
       const bn = bname.get(r.benchmark);
       const bl = bn ? esc(bn.name) : short(r.benchmark);
-      push(r.createdAt, "run", r.pk, `run queued — ${esc(r.modelId)} on ${bl}`);
-      push(r.finalizedAt, "score", r.pk, `MPC finalized — ${esc(r.modelId)} scored ${r.correct}/${r.chunkCount * 32}${r.postReveal ? " (post-reveal)" : ""}`);
+      push(r.createdAt, "run", r.pk, `run queued — ${esc(r.modelId)} on ${bl}`, `run-${r.pk}`);
+      push(r.finalizedAt, "score", r.pk, `MPC finalized — ${esc(r.modelId)} scored ${r.correct}/${r.chunkCount * 32}${r.postReveal ? " (post-reveal)" : ""}`, `run-${r.pk}`);
     }
     for (const l of scoreLogs) {
       const ru = runBy.get(l.run);
-      push(l.recordedAt, "receipt", l.pk, `receipt minted — ${ru ? esc(ru.modelId) : short(l.run)} ${l.correct}/${l.items}${l.vouched ? " [vouched]" : ""}${l.postReveal ? " [post-reveal]" : ""}`);
+      push(l.recordedAt, "receipt", l.pk, `receipt minted — ${ru ? esc(ru.modelId) : short(l.run)} ${l.correct}/${l.items}${l.vouched ? " [vouched]" : ""}${l.postReveal ? " [post-reveal]" : ""}`, `run-${l.run}`);
     }
-    for (const rv of reveals) push(rv.revealedAt, "reveal", rv.pk, `fingerprint reveal — ${bname.get(rv.bench)?.name ? esc(bname.get(rv.bench).name) : short(rv.bench)} part ${rv.part}`);
-    for (const g of grants) push(g.sharedAt, "grant", g.pk, `access grant — ${bname.get(g.bench)?.name ? esc(bname.get(g.bench).name) : short(g.bench)} part ${g.part} → ${short(g.viewer)}`);
+    for (const rv of reveals) push(rv.revealedAt, "reveal", rv.pk, `fingerprint reveal — ${bname.get(rv.bench)?.name ? esc(bname.get(rv.bench).name) : short(rv.bench)} part ${rv.part}`, `bank-${rv.bench}`);
+    for (const g of grants) push(g.sharedAt, "grant", g.pk, `access grant — ${bname.get(g.bench)?.name ? esc(bname.get(g.bench).name) : short(g.bench)} part ${g.part} → ${short(g.viewer)}`, `bank-${g.bench}`);
     for (const m of markets) {
       const ru = runBy.get(m.run);
-      push(m.createdAt, "venue", m.pk, `venue opened — ${m.duel ? "duel" : "band"} on ${ru ? esc(ru.modelId) : short(m.run)}`);
-      push(m.resolvedAt, "resolution", m.pk, `venue resolved — ${m.duel ? `duel ${m.resolvedScore >> 16}–${m.resolvedScore & 0xffff}` : `band outcome ${m.outcome} (score ${m.resolvedScore})`}`);
+      push(m.createdAt, "venue", m.pk, `venue opened — ${m.duel ? "duel" : "band"} on ${ru ? esc(ru.modelId) : short(m.run)}`, `mkt-${m.pk}`);
+      push(m.resolvedAt, "resolution", m.pk, `venue resolved — ${m.duel ? `duel ${m.resolvedScore >> 16}–${m.resolvedScore & 0xffff}` : `band outcome ${m.outcome} (score ${m.resolvedScore})`}`, `mkt-${m.pk}`);
     }
     for (const d of darkMarkets) {
       const ru = runBy.get(d.run);
-      push(d.createdAt, "venue", d.pk, `dark venue opened — ${ru ? esc(ru.modelId) : short(d.run)}`);
-      push(d.resolvedAt, "resolution", d.pk, `dark venue resolved${d.tallied ? " + tallied" : ""}`);
+      push(d.createdAt, "venue", d.pk, `dark venue opened — ${ru ? esc(ru.modelId) : short(d.run)}`, `dark-${d.pk}`);
+      push(d.resolvedAt, "resolution", d.pk, `dark venue resolved${d.tallied ? " + tallied" : ""}`, `dark-${d.pk}`);
     }
     for (const l of ladders) {
-      push(l.createdAt, "venue", l.pk, `ladder opened — ${l.legCount} legs`);
-      push(l.resolvedAt, "resolution", l.pk, `ladder resolved — mask ${l.resultMask}`);
+      push(l.createdAt, "venue", l.pk, `ladder opened — ${l.legCount} legs`, `lad-${l.pk}`);
+      push(l.resolvedAt, "resolution", l.pk, `ladder resolved — mask ${l.resultMask}`, `lad-${l.pk}`);
     }
     for (const b of bounties)
-      push(b.createdAt, "venue", b.pk, `bounty posted — ≥${b.threshold} pays ${sol(b.amount)} SOL${b.status !== 0 ? ` (claimed @${b.winningScore})` : ""}`);
+      push(b.createdAt, "venue", b.pk, `bounty posted — ≥${b.threshold} pays ${sol(b.amount)} SOL${b.status !== 0 ? ` (claimed @${b.winningScore})` : ""}`, `bounty-${b.pk}`);
     ev.sort((a, b) => b.t - a.t);
     const shown = ev.slice(0, 18);
     h += `<h2 id="sec-feed">activity — the ledger's chronology in one stream</h2><div class="card">
       <div class="kv">every timestamped event across both programs, newest first — the same stream <span class="mono">chain feed</span> prints. ${ev.length} events on this ledger; showing latest ${shown.length}.</div>`;
     for (const e of shown)
-      h += `<div class="proof">${fmtTs(e.t)} <span class="pill ${e.type === "resolution" ? "resolved" : e.type === "reveal" ? "cancelled" : e.type === "score" ? "live" : "open"}" style="font-size:10px">${e.type}</span> ${link(e.pk)} — ${e.msg}</div>`;
+      h += `<div class="proof">${fmtTs(e.t)} <span class="pill ${e.type === "resolution" ? "resolved" : e.type === "reveal" ? "cancelled" : e.type === "score" ? "live" : "open"}" style="font-size:10px">${e.type}</span> <a href="#${e.anchor}">${short(e.pk)}</a> — ${e.msg}</div>`;
     h += `</div>`;
   }
   if (markets.length) {
