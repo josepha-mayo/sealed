@@ -112,6 +112,10 @@ result into a W-L-T leaderboard — rankings grounded on shared evidence
 only, with disjoint pairs reported as unranked rather than assumed;
 `--min-shared n` requires n shared banks before a pair counts
 (`--min-shared 5` tightens the bundle's rankable pairs to 52).
+`--wilson` re-ranks by the Wilson 95% lower confidence bound of the win
+rate (ties count half, n = ranked pairs) — the same interval math the
+capability gate applies to accuracy, here disciplining the *ranking*: a
+2–0 record can't sit above a proven 15–2 on thin evidence.
 `chain matrix [--banks N]` renders the capability matrix — models × the
 most-run banks, each cell the model's best finalized score there
 (`*` marks cells whose best score is post-reveal-only — it can't prove

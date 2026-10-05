@@ -49,7 +49,7 @@ import {
 } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
-import { evalGate, type GatePolicy, type GateVerdict, type ScoreReceipt } from "./gate.js";
+import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type ScoreReceipt } from "./gate.js";
 import { classifyBoard, proven, type BoardRun } from "./board.js";
 import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount } from "./snapshot.js";
 import { ed25519 } from "@noble/curves/ed25519";
@@ -2073,7 +2073,7 @@ export async function modelCompare(keyA: string, keyB: string, json = false, sna
  *  accuracy ranks models that never faced the same exam; this ranks them on
  *  what they actually shared — and says how much of the ranking is grounded
  *  (pairs with zero shared banks count as unranked, not assumed). */
-export async function compareAll(json = false, snapPath?: string, minShared = 1) {
+export async function compareAll(json = false, snapPath?: string, minShared = 1, wilson = false) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
   const [records, logs]: [SnapAccount[], SnapAccount[]] = ss
@@ -2110,15 +2110,27 @@ export async function compareAll(json = false, snapPath?: string, minShared = 1)
     else if (pa < pb) { recs[j].wins++; recs[i].losses++; }
     else { recs[i].ties++; recs[j].ties++; }
   }
-  const ranked = recs.sort((x, y) => y.wins - x.wins || x.losses - y.losses || y.ppDelta - x.ppDelta);
+  // --wilson: rank by the 95% Wilson lower confidence bound of the win
+  // rate (ties count half, n = ranked pairs) — a 2–0 record can't sit above
+  // a 15–2 one on thin evidence. Same math the capability gate applies to
+  // accuracy; here it disciplines the *ranking*.
+  for (const r of recs)
+    (r as any).lcb = r.rankedPairs ? wilsonLowerBoundPct(r.wins + r.ties / 2, r.rankedPairs) : 0;
+  const ranked = wilson
+    ? recs.sort((x, y) => (y as any).lcb - (x as any).lcb || y.wins - x.wins || y.ppDelta - x.ppDelta)
+    : recs.sort((x, y) => y.wins - x.wins || x.losses - y.losses || y.ppDelta - x.ppDelta);
   const total = (recs.length * (recs.length - 1)) / 2;
-  if (json) { console.log(JSON.stringify({ ranked, unrankedPairs: unranked, totalPairs: total })); return ranked; }
+  if (json) { console.log(JSON.stringify({ ranked, unrankedPairs: unranked, totalPairs: total, ranking: wilson ? "wilson-lcb" : "wins" })); return ranked; }
   console.log(`paired-evidence leaderboard — ${recs.length} models, ${total} pairs ` +
-    `(${total - unranked} rankable, ${unranked} disjoint${minShared > 1 ? ` or <${minShared} shared banks` : ""})`);
+    `(${total - unranked} rankable, ${unranked} disjoint${minShared > 1 ? ` or <${minShared} shared banks` : ""})` +
+    (wilson ? ` — ranked by Wilson 95% LCB of win-rate` : ""));
   for (const r of ranked)
     console.log(`  ${r.modelId.padEnd(28)} W${String(r.wins).padStart(2)}-L${String(r.losses).padStart(2)}-T${String(r.ties).padStart(2)}` +
-      `  ΣΔ${r.ppDelta >= 0 ? "+" : ""}${r.ppDelta.toFixed(0)}pp  over ${r.sharedBanks} shared-bank result(s)`);
-  console.log(`ranking grounded on shared benchmarks only — ${unranked} pair(s) had none and count as unranked`);
+      `  ΣΔ${r.ppDelta >= 0 ? "+" : ""}${r.ppDelta.toFixed(0)}pp` +
+      (wilson ? `  LCB ${(r as any).lcb.toFixed(1)}%` : "") +
+      `  over ${r.sharedBanks} shared-bank result(s)`);
+  console.log(`ranking grounded on shared benchmarks only — ${unranked} pair(s) had none and count as unranked` +
+    (wilson ? `; order penalizes thin records (a 2–0 sits below a proven 15–2)` : ""));
   return ranked;
 }
 
@@ -4473,7 +4485,7 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "compare") {
     if (cmd[1] === "--all" || args.all) {
-      await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined, Number(args["min-shared"] ?? 1) || 1);
+      await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined, Number(args["min-shared"] ?? 1) || 1, Boolean(args.wilson));
       return;
     }
     const a = cmd[1], b = cmd[2];

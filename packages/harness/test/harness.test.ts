@@ -753,6 +753,25 @@ test("chainFeed --model filters to one model's timeline", async () => {
   } finally { console.log = origLog; }
 });
 
+test("compareAll --wilson flips thin perfect records below proven ones", async () => {
+  const { compareAll } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const raw = (await compareAll(true, snapPath, 1, false)) as any[];
+    const wil = (await compareAll(true, snapPath, 1, true)) as any[];
+    const ix = (rows: any[], id: string) => rows.findIndex((r) => r.modelId === id);
+    // raw wins order: test/oracle (4-1) above qwen2.5-3b (3-0); the 95% LCB
+    // of qwen's win rate (3/3 ≈ 43.8%) beats oracle's (4/5 ≈ 37.6%) — the
+    // proven-undefeated record must flip above the extra-win-with-a-loss one
+    assert.ok(ix(raw, "test/oracle") < ix(raw, "qwen2.5-3b-instruct"));
+    assert.ok(ix(wil, "qwen2.5-3b-instruct") < ix(wil, "test/oracle"));
+    // every row carries its LCB
+    assert.ok(wil.every((r) => typeof r.lcb === "number" && r.lcb >= 0 && r.lcb <= 100));
+  } finally { console.log = origLog; }
+});
+
 test("chainMatrix ranks coverage over the most-run banks", async () => {
   const { chainMatrix } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
