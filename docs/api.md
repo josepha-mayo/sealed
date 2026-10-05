@@ -197,6 +197,11 @@ pubkey IS (benchmark, run, ScoreLog receipt, ModelRecord, reveal,
 grant, item chunk, any venue kind, position) and prints the dossier
 command that answers questions about it. A key that isn't an account
 but signs activity resolves to the actor dossier (`chain wallet`).
+`chain tour` strings the whole set into a narrative — six stops
+(stats → search → the most-venue'd run's trail → its filtered feed →
+the biggest venue's book → a bettor's P&L) with exhibits picked live
+from the data, so a first-time reader gets the system's story in one
+command instead of assembling it.
 `packages/harness/src/snapshot.ts` decodes the committed evidence
 bundle (`web/snapshot.json`) through the same discriminator-keyed
 borsh layouts the RPC path uses, so the surfaces replay **keyless and

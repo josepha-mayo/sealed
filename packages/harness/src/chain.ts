@@ -2569,6 +2569,76 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   return out;
 }
 
+/** `chain tour` — the project demos itself: one command walks the
+ *  whole evidence story on the RICHEST objects in the ledger (not
+ *  hardcoded pks — they're picked live): headline stats → search →
+ *  a run's custody trail → its filtered feed → a venue's book → an
+ *  actor's P&L → the portable digest. replay.txt made executable. */
+export async function chainTour(snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sAcct = () => sealedProgram().program;
+  const mAcct = () => marketProgram().market;
+  type Acct = { publicKey: PublicKey; account: any };
+  const [runs, logs, banks]: Acct[][] =
+    ss ? ["Run", "ScoreLog", "Benchmark"].map((n) => snapOf(ss, n))
+       : await Promise.all(["run", "scoreLog", "benchmark"].map((n) => tolerantAll(sAcct(), n)));
+  const [markets, positions]: Acct[][] =
+    sm ? ["Market", "Position"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "position"].map((n) => tolerantAll(mAcct(), n)));
+
+  // pick the richest exhibits: the run touched by the most venues,
+  // the venue with the biggest book, the bettor with the most positions.
+  const venueRuns = new Map<string, number>();
+  for (const m of markets) {
+    const a = (m.account.run as PublicKey)?.toBase58?.();
+    if (a) venueRuns.set(a, (venueRuns.get(a) ?? 0) + 1);
+    const b = (m.account.runB as PublicKey)?.toBase58?.();
+    if (b && b !== PublicKey.default.toBase58()) venueRuns.set(b, (venueRuns.get(b) ?? 0) + 1);
+  }
+  const tourRun = [...venueRuns.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    ?? runs.find((r) => Number(r.account.status) === 1)?.publicKey.toBase58();
+  const bookSize = new Map<string, number>();
+  for (const p of positions) {
+    const v = (p.account.market as PublicKey)?.toBase58?.();
+    if (v) bookSize.set(v, (bookSize.get(v) ?? 0) + 1);
+  }
+  const tourVenue = [...bookSize.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    ?? markets[0]?.publicKey.toBase58();
+  const tourWallet = positions.find((p) => (p.account.market as PublicKey)?.toBase58?.() === tourVenue)
+    ?.account.bettor?.toBase58?.() ?? null;
+  const tourBank = banks[0]?.publicKey.toBase58();
+
+  const H = (s: string) => console.log(`\n════ ${s} ${"═".repeat(Math.max(0, 72 - s.length))}`);
+  console.log(`sealed tour — the ledger narrates itself (${snapPath ? "offline replay" : "live"})`);
+
+  H("1/6 · the whole system in one table — chain stats");
+  await chainStats(snapPath);
+
+  if (tourBank) {
+    H(`2/6 · what is this key? — chain search ${tourBank.slice(0, 8)}…`);
+    await chainSearch(tourBank, false, snapPath);
+  }
+  if (tourRun) {
+    H(`3/6 · one run's custody chain — chain trail ${tourRun.slice(0, 8)}… (${venueRuns.get(tourRun) ?? 0} venue(s) priced it)`);
+    await chainTrail(tourRun, false, snapPath);
+    H(`4/6 · its chronology — chain feed --pk ${tourRun.slice(0, 8)}…`);
+    await chainFeed(10, undefined, 0, false, snapPath, tourRun);
+  }
+  if (tourVenue) {
+    H(`5/6 · the instrument's book — chain market venue ${tourVenue.slice(0, 8)}… (${bookSize.get(tourVenue) ?? 0} position(s))`);
+    await marketVenue(tourVenue, false, snapPath);
+  }
+  if (tourWallet) {
+    H(`6/6 · an actor's P&L — chain wallet ${tourWallet.slice(0, 8)}…`);
+    await walletShow(tourWallet, false, snapPath);
+  }
+  console.log(`\nnext: sealed chain export --snapshot <file>  → the portable digest`);
+  console.log(`      sealed chain diff <a> <b>              → bundle-vs-live reproducibility`);
+  console.log(`      https://josepha-mayo.github.io/sealed/?pk=<key>  → the same resolver in the browser`);
+}
+
 /** `chain search <pk>` — the universal resolver (CLI mirror of the
  *  explorer's `?pk=` box): identify WHAT a pubkey is across every
  *  account type in both programs, then route to the dossier command
@@ -3643,6 +3713,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "search") {
     await chainSearch(String(cmd[1] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "tour") {
+    await chainTour(args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "diff") {
