@@ -940,7 +940,13 @@ function renderAll(sealedAccs, marketAccs) {
       <span class="kv">chunks sealed <b>${b.chunksSealed}/${b.chunkCount}</b></span>
       <span class="kv">acct ${link(b.pk)}</span></div>
       <div class="proof">items_root ${b.itemsRoot} &middot; fee ${sol(b.feeLamports)} SOL
-        ${b.kind === 1 || b.kind === 2 ? ` &middot; <span class="verlink" onclick="replayItems('${b.pk}',this)">verify commitment</span> <span id="irep-${b.pk}"></span>` : ""}</div>`;
+        ${b.kind === 1 || b.kind === 2 ? ` &middot; <span class="verlink" onclick="replayItems('${b.pk}',this)">verify commitment</span> <span id="irep-${b.pk}"></span>` : ""}</div>
+    ${(() => { const fin = brs.filter(r => r.status === 1);
+      if (fin.length < 2) return "";
+      const pcts = fin.map(r => 100 * r.correct / Math.max(1, r.chunkCount * 32)).sort((a, b2) => a - b2);
+      const qq = p => pcts[Math.min(pcts.length - 1, Math.floor((pcts.length - 1) * p))];
+      const spread = qq(1) - qq(0);
+      return `<div class="proof">difficulty — min ${qq(0).toFixed(1)}% · p25 ${qq(0.25).toFixed(1)}% · median ${qq(0.5).toFixed(1)}% · p75 ${qq(0.75).toFixed(1)}% · max ${qq(1).toFixed(1)}% <span class="kv">(${spread.toFixed(1)}pp spread — ${spread >= 30 ? "discriminating" : spread >= 10 ? "moderate" : "tight"} exam · same math as chain bank)</span></div>`; })()}`;
     const bcs = chunks.filter(c => c.bench === b.pk).sort((a, b2) => a.idx - b2.idx);
     if (bcs.length) {
       const sealedCts = bcs.filter(c => c.partsSealed === 15);
@@ -1336,6 +1342,12 @@ function renderAll(sealedAccs, marketAccs) {
       h += `</tr><tr>`;
       for (let i = 0; i < n; i++) h += `<td>${sol(m.totals[i])} (${pot ? (100 * Number(m.totals[i]) / (pot * 1e9)).toFixed(0) : 0}%)</td>`;
       h += `</tr></table>`;
+      if (m.status === 1 && pot > 0) {
+        const tn = m.totals.slice(0, n).map(Number);
+        const wPct = (100 * tn[m.outcome] / (pot * 1e9)).toFixed(1);
+        const fav = tn.indexOf(Math.max(...tn));
+        h += `<div class="proof" style="margin-top:4px">closing book — the winner carried <b>${wPct}%</b> implied${fav === m.outcome ? " · the favorite hit" : " · the favorite <b>missed</b> (an upset the receipts settled anyway)"}</div>`;
+      }
       if (mpos.length) {
         h += `<table><tr><th>bettor</th>`;
         for (let i = 0; i < n; i++) h += `<th>${lbl(i)}</th>`;
@@ -1377,6 +1389,12 @@ function renderAll(sealedAccs, marketAccs) {
       h += `</tr><tr>`;
       for (let i = 0; i < n; i++) h += `<td>${sol(l.totals[i])} (${pot ? (100 * Number(l.totals[i]) / (pot * 1e9)).toFixed(0) : 0}%)</td>`;
       h += `</tr></table>`;
+      if (l.status === 1 && pot > 0) {
+        const tn = l.totals.slice(0, n).map(Number), mask = Number(l.resultMask);
+        const wPct = (100 * tn.reduce((s, t, i) => s + (((mask >> i) & 1) ? t : 0), 0) / (pot * 1e9)).toFixed(1);
+        const fav = tn.indexOf(Math.max(...tn)), favWon = (mask >> fav) & 1;
+        h += `<div class="proof" style="margin-top:4px">closing book — winners carried <b>${wPct}%</b> implied${favWon ? " · the favorite hit" : " · the favorite <b>missed</b>"}</div>`;
+      }
       if (lpos.length) {
         h += `<table><tr><th>bettor</th>`;
         for (let i = 0; i < n; i++) h += `<th>leg ${i}</th>`;
