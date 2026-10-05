@@ -23,6 +23,9 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >   --run docs/evidence/calibration/run-artifact.json \
 >   --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp \
 >   --snapshot web/snapshot.json     # 7 PASS / 0 FAIL — the MPC's own arithmetic, reproduced
+> yarn --cwd packages/harness cli chain tour --snapshot web/snapshot.json
+>                                  # the project demos itself: stats → a run's custody
+>                                  # trail → its feed → a venue's book → an actor's P&L
 > ```
 >
 > The second command is the one nobody else ships: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **bit-identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
