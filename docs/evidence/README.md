@@ -389,6 +389,14 @@ view of the questions was the on-chain grant trail.
   as stage 5/6 so a stale or tampered artifact fails the pipeline loudly.
   Regenerate after intentionally changing any evidence file:
   `scripts/evidence-manifest.sh update`.
+- **`replay.txt`** — a captured transcript of the CLI's snapshot-replay
+  surfaces: `chain stats` (counts, escrow, MPC latency, the two inline
+  verdicts — all model records bit-exact, all resolutions matching
+  `Run.correct`), `gate --all`, the paired-evidence leaderboard, a
+  paired `compare`, the keeper board, a self-verifying `modelrec`, and
+  the bounty index. Every line ran keyless against `web/snapshot.json`;
+  the header shows how to reproduce it, and the loader sha256-checks the
+  bundle against `web/MANIFEST` before answering.
 - **`node scripts/decrypt-grants-test.mjs`** — offline regression for the
   explorer's "decrypt as delegate" button: vendors the real `RescueCipher`
   (`web/vendor/rescue.mjs`), decrypts the throwaway demo delegate's 4

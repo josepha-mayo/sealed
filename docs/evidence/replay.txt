@@ -1,0 +1,120 @@
+SEALED — offline replay transcript
+===================================
+
+Every command below ran against the committed evidence bundle
+(web/snapshot.json — eight merged localnet epochs) with no RPC, no
+wallet, and no localnet. Reproduce any line yourself (shown as `sealed`
+— the package bin; from the repo root that is
+`yarn --cwd packages/harness cli chain … --snapshot ../../web/snapshot.json`,
+or `export SEALED_SNAPSHOT=<path>` once and drop the flag everywhere).
+
+The loader sha256-checks snapshot.json against web/MANIFEST first and
+warns loudly if the bytes are not the committed ones.
+
+$ sealed chain stats --snapshot web/snapshot.json
+ledger — 120 banks · 503 runs (406 MPC-finalized) · 340 venues (208 band/duel, 47 dark, 48 ladder, 37 bounty) · 140 positions
+registry — 31 records · 292 receipts (20/292 vouched, 4 post-reveal)
+disclosure — 30 reveals · 145 reshare grants · 41+29 item chunks
+money — 76.075◎ escrowed · 0.0000◎ protocol fees collected
+integrity — registry 31/31 bit-exact · resolutions 201/201 match Run.correct
+mpc — scoring latency p50 4s / p95 9s (406 timed runs)
+keeper — 36 actionable now · 246 settled · 24 in play
+
+$ sealed chain gate --all --min-pct 70 --min-runs 2 --snapshot web/snapshot.json
+gate --all [pct≥70 runs≥2] — 8/31 model(s) clear:
+  PASS  test/sweep-run                       100.0% (1024/1024) 16 all run(s)
+  PASS  dark/model-a                          93.8% (480/512) 16 all run(s)
+  PASS  ladder/model-a                        93.8% (510/544) 17 all run(s)
+  PASS  mock/oracle-0.75                      80.2% (77/96) 2 all run(s)
+  PASS  ladder/tie-a                          78.1% (425/544) 17 all run(s)
+  PASS  ladder/tie-b                          78.1% (400/512) 16 all run(s)
+  PASS  duel/model-a                          78.1% (400/512) 16 all run(s)
+  PASS  test/oracle                           70.3% (810/1152) 18 all run(s)
+  FAIL  test/priv-oracle                      65.6% (378/576) 18 all run(s)  ← accuracy: 65.6% (378/576) < >= 70%
+  FAIL  ladder/model-b                        62.5% (340/544) 17 all run(s)  ← accuracy: 62.5% (340/544) < >= 70%
+  FAIL  test/bounty-wrong-payee               62.5% (160/256) 4 all run(s)  ← accuracy: 62.5% (160/256) < >= 70%
+  …
+
+$ sealed chain compare --all --snapshot web/snapshot.json
+paired-evidence leaderboard — 31 models, 465 pairs (73 rankable, 392 disjoint)
+  dark/model-a                 W 8-L 0-T 1  ΣΔ+278pp  over 137 shared-bank result(s)
+  ladder/model-a               W 8-L 0-T 1  ΣΔ+278pp  over 142 shared-bank result(s)
+  test/sweep-run               W 5-L 0-T 0  ΣΔ+239pp  over 46 shared-bank result(s)
+  ladder/tie-a                 W 5-L 2-T 2  ΣΔ+122pp  over 143 shared-bank result(s)
+  ladder/tie-b                 W 5-L 2-T 2  ΣΔ+122pp  over 137 shared-bank result(s)
+  duel/model-a                 W 5-L 2-T 2  ΣΔ+122pp  over 134 shared-bank result(s)
+  test/oracle                  W 4-L 1-T 0  ΣΔ+61pp  over 49 shared-bank result(s)
+  ladder/model-b               W 4-L 5-T 0  ΣΔ-34pp  over 142 shared-bank result(s)
+  qwen2.5-3b-instruct          W 3-L 0-T 0  ΣΔ+59pp  over 4 shared-bank result(s)
+  …
+
+$ sealed chain compare ladder/model-a ladder/model-b --snapshot web/snapshot.json
+ladder/model-a vs ladder/model-b — 17 shared benchmark(s)
+  7fBMG7SRS9MZ… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  D15D5rEHJ9LK… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  9mWBh3cMREi6… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  9wmxnqTgp9bG… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  AFTSaVq1Kw6f… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  GmTCS2vHEpWQ… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  CUqNdpieZvxE… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  GhYQGtzZLpVh… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  zWBQE1aaJ4ME… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  zgjCLgtCN9vG… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  B5dHZzxyzY7w… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+
+$ sealed chain market board --snapshot web/snapshot.json
+venue board — 37 bounties, 208 markets, 47 dark, 48 ladders over 503 runs
+
+RESOLVABLE — run finalized / no leg still moving:
+  band 4kVnqJDrVBRXSyyf4Z3JfyfWgeK6yo6JmtB9MCpm7qRy → sealed chain market resolve --market 4kVnqJDrVBRXSyyf4Z3JfyfWgeK6yo6JmtB9MCpm7qRy
+  band 4QqDv2gSZD4CcssADeYhGqcw8rN44yxM2G31nmrqygSn → sealed chain market resolve --market 4QqDv2gSZD4CcssADeYhGqcw8rN44yxM2G31nmrqygSn
+  band Hg3hc1Q2qEfbkQMsr3hVAStD3Xcqxnyao9XPy3DFRoin → sealed chain market resolve --market Hg3hc1Q2qEfbkQMsr3hVAStD3Xcqxnyao9XPy3DFRoin
+  band 8wvKG4h7tGnR9tK8msGBAD9P7yffCfBiRpCbPyKc3EX4 → sealed chain market resolve --market 8wvKG4h7tGnR9tK8msGBAD9P7yffCfBiRpCbPyKc3EX4
+  band DfeGea7EYs92ozgrHabt5nCAtVtbdETUBfJQE1nqfs37 → sealed chain market resolve --market DfeGea7EYs92ozgrHabt5nCAtVtbdETUBfJQE1nqfs37
+  duel GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv → sealed chain market resolve --market GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv
+  band 6e6JX6HvGixJ1DjQTE3uz2GGzhFY4yhCvVoizrSCMF3D → sealed chain market resolve --market 6e6JX6HvGixJ1DjQTE3uz2GGzhFY4yhCvVoizrSCMF3D
+  band EEqrWYiX78bDR7owNvYb8bggLmXwMNSzz1Vqv9b9ReqS → sealed chain market resolve --market EEqrWYiX78bDR7owNvYb8bggLmXwMNSzz1Vqv9b9ReqS
+  band 3KC5z6UwhNqYf5fJQh4cNCfTqti6nfQwTzAN42xbBAHe → sealed chain market resolve --market 3KC5z6UwhNqYf5fJQh4cNCfTqti6nfQwTzAN42xbBAHe
+  band 5S9wts7pZqH4LNj9yapHpVQnHM3LnEartfzmmxehZLDa → sealed chain market resolve --market 5S9wts7pZqH4LNj9yapHpVQnHM3LnEartfzmmxehZLDa
+  band 78mkww2tRdvWymWN9QDcmnGDsXwsa1S5Ju6L7Bj5ytmZ → sealed chain market resolve --market 78mkww2tRdvWymWN9QDcmnGDsXwsa1S5Ju6L7Bj5ytmZ
+  band 94wAXGYGc4CFazgZVw7Pq7U75Hq9nXBJxYkTZxH7qePz → sealed chain market resolve --market 94wAXGYGc4CFazgZVw7Pq7U75Hq9nXBJxYkTZxH7qePz
+  band 9ht3YfQ7dSXKc39cA965dCp9JTH1AcVWrX5eBq72xndm → sealed chain market resolve --market 9ht3YfQ7dSXKc39cA965dCp9JTH1AcVWrX5eBq72xndm
+  band GbHuonVQCwtazspRKSfMFQSrBLFZrKPqioWbMyGNSfeL → sealed chain market resolve --market GbHuonVQCwtazspRKSfMFQSrBLFZrKPqioWbMyGNSfeL
+  band DCvbvpz1jbGiB2fjwCtnmPNiJiGiG4HXQFGydaCajHjm → sealed chain market resolve --market DCvbvpz1jbGiB2fjwCtnmPNiJiGiG4HXQFGydaCajHjm
+  band tAHvEUpjp8npkjaddC27bB4j36C9f7bHMh3BXuQYw8B → sealed chain market resolve --market tAHvEUpjp8npkjaddC27bB4j36C9f7bHMh3BXuQYw8B
+  band FkcdbZhBWdbGXzRK52fSjmxVn5Hevf84bt3Xm4FmRx4x → sealed chain market resolve --market FkcdbZhBWdbGXzRK52fSjmxVn5Hevf84bt3Xm4FmRx4x
+  …
+
+$ sealed chain modelrec qwen2.5-3b-instruct --snapshot web/snapshot.json
+model record 7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
+  model_id=qwen2.5-3b-instruct  hash=e70dab371f91877d…
+  runs=3  aggregate=23/96 (24.0%)
+  replayed 3 receipt(s) — stored aggregate verified bit-exact
+  best=9/32 on run 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 (bank BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z)
+  last=GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi  first_seen=1790962105  last_scored=1791026278
+
+$ sealed chain compare ladder/model-a ladder/model-b --snapshot web/snapshot.json   (tail)
+  6vWq6XnE7m2C… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  HmAtFrceCGKE… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+pooled shared items: ladder/model-a 510/544 (93.8%)  ladder/model-b 340/544 (62.5%)
+bank wins: ladder/model-a 17 — tie 0 — ladder/model-b 0  | unshared: 0 bank(s) only ladder/model-a ran, 0 only ladder/model-b
+VERDICT: ladder/model-a +31.3pp on shared evidence
+
+$ sealed chain trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi --snapshot web/snapshot.json
+trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
+  run — model "qwen2.5-3b-instruct" by 4RUW4pDm38PE… on sealed-v77007 (authored)
+  score — 7/32 finalized
+  bank  — CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp
+  receipt — 2YncpZ3Fib8pCAmwUpnD4B3rDtGisjm2RAsqoWePD77d recorded by 4RUW4pDm38PE… @ 1791026278
+  venues — none priced this run
+
+$ sealed chain market bounties --snapshot web/snapshot.json   (head)
+37 bounties — 1 open (0 claimable right now):
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 638h  best-on-bank=64 (predates bounty — retroactivity wall)
+  3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
+  EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
+  DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
+  51z6CJUDgE7M… claimed      sealed-gen-v24703 ≥4/32  pot=0.000◎  won 20 by DMyCmrS3t2pe…
+  EJzXf3q4pRdd… claimed      sealed-gen-v91465 ≥4/32  pot=0.000◎  won 19 by 4yiXg1ryaA8n…
+  6EqmVxLMEmkD… claimed      sealed-gen-v5633 ≥4/32  pot=0.000◎  won 17 by oJf5Zhi6sEcL…
+  …
