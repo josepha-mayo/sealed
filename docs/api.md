@@ -128,7 +128,11 @@ web/snapshot.json [--out digest.json]` emits the portable integrity
 digest (`sealed-evidence-digest/v1`): the bundle's sha256, counts, the
 keeper classification, and per-row verdicts for every `ModelRecord`
 replay and every resolved venue's `Run.correct` check — the audit as
-one diffable JSON document, exit 1 on any violation.
+one diffable JSON document, exit 1 on any violation. Drop `--snapshot`
+and the same digest runs over the live cluster (`source: "live"`) —
+the verdicts applied to YOUR deployment, with a discriminator-filtered
+fallback that tolerates old-layout accounts the same way snapshot
+decoding does.
 `chain stats` is the executive dashboard — ledger counts, escrow, fees,
 MPC latency p50/p95, the keeper surface, and two verdicts recomputed
 on the spot: every `ModelRecord`'s stored aggregate replayed bit-exact

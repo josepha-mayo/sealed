@@ -94,6 +94,29 @@ function setup(): Ctx {
  *  fetches) and recovery ixs like `unbrick_pda` that don't touch the cluster. */
 /** Program id without a wallet — enough for PDA derivation in
  *  `--snapshot` replay mode, which must work keyless. */
+/** `.all()` batch-decodes every account of a type — a single old-layout
+ *  account (a real class on the merged devnet epochs) bricks the whole
+ *  fetch. Fall back to fetching raw accounts by discriminator and
+ *  decoding each individually, skipping what doesn't fit this IDL —
+ *  the exact tolerance snapshot.ts already applies offline. */
+async function tolerantAll(program: any, name: string): Promise<{ publicKey: PublicKey; account: any }[]> {
+  try { return await (program.account as any)[name].all(); } catch { /* fall through */ }
+  const disc = (program.coder.accounts as any).accountDiscriminator(name);
+  const raw = await (program.provider.connection as Connection).getProgramAccounts(program.programId, {
+    filters: [{ memcmp: { offset: 0, bytes: anchor.utils.bytes.bs58.encode(disc) } }],
+  });
+  const out: { publicKey: PublicKey; account: any }[] = [];
+  for (const { pubkey, account: acct } of raw) {
+    try {
+      const dec = (program.coder.accounts as any).decode(name, acct.data);
+      const account: any = {};
+      for (const [k, v] of Object.entries(dec)) account[k.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())] = v;
+      out.push({ publicKey: pubkey, account });
+    } catch { /* layout predates this IDL — skip */ }
+  }
+  return out;
+}
+
 function sealedProgramId(): PublicKey {
   const idl = require(join(ROOT, "target", "idl", "sealed.json"));
   return new PublicKey(process.env.SEALED_PROGRAM_ID ?? idl.address);
@@ -2526,20 +2549,29 @@ export async function chainStats(snapPath?: string, json = false) {
   return out;
 }
 
-/** `chain export --snapshot <f> [--out file]` — the portable evidence
+/** `chain export [--snapshot <f>] [--out file]` — the portable evidence
  *  digest: the classified ledger as one machine-readable document.
  *  Self-binding (carries the bundle's sha256 + MANIFEST verdict), with
  *  per-record and per-venue integrity rows an integrator or CI job can
- *  diff without learning the account layouts. */
-export async function chainExport(snapPath: string, out?: string) {
-  const raw = readFileSync(snapPath);
-  const sha256 = createHash("sha256").update(raw).digest("hex");
-  const snap = JSON.parse(raw.toString("utf8"));
-  const ss = decodeSnapshotSection(snap, "sealed"), sm = decodeSnapshotSection(snap, "market");
-  const [banks, runs, logs, records, reveals, grants, itemChunks, privChunks] =
-    ["Benchmark", "Run", "ScoreLog", "ModelRecord", "Reveal", "ShareGrant", "ItemChunk", "PrivItemChunk"].map((n) => snapOf(ss, n));
-  const [markets, darks, ladders, bounties, positions, darkPositions] =
-    ["Market", "DarkMarket", "Ladder", "Bounty", "Position", "DarkPosition"].map((n) => snapOf(sm, n));
+ *  diff without learning the account layouts. Without `--snapshot` the
+ *  digest runs over the live cluster — the same verdicts on YOUR
+ *  deployment, not just the committed bundle. */
+export async function chainExport(snapPath: string | undefined, out?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sAcct = () => sealedProgram().program;
+  const mAcct = () => marketProgram().market;
+  type Acct = { publicKey: PublicKey; account: any };
+  const [banks, runs, logs, records, reveals, grants, itemChunks, privChunks]: Acct[][] =
+    ss ? ["Benchmark", "Run", "ScoreLog", "ModelRecord", "Reveal", "ShareGrant", "ItemChunk", "PrivItemChunk"].map((n) => snapOf(ss, n))
+       : await Promise.all(["benchmark", "run", "scoreLog", "modelRecord", "reveal", "shareGrant", "itemChunk", "privItemChunk"]
+        .map((n) => tolerantAll(sAcct(), n)));
+  const [markets, darks, ladders, bounties, positions, darkPositions]: Acct[][] =
+    sm ? ["Market", "DarkMarket", "Ladder", "Bounty", "Position", "DarkPosition"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "darkMarket", "ladder", "bounty", "position", "darkPosition"]
+        .map((n) => tolerantAll(mAcct(), n)));
+  const sha256 = snapPath ? createHash("sha256").update(readFileSync(snapPath)).digest("hex") : null;
   const logsByRec = new Map<string, any[]>();
   for (const l of logs) {
     const k = (l.account.modelRecord as PublicKey).toBase58();
@@ -2552,9 +2584,9 @@ export async function chainExport(snapPath: string, out?: string) {
   const digest = {
     kind: "sealed-evidence-digest/v1",
     generatedAt: new Date().toISOString(),
-    source: snapPath, snapshotSha256: sha256,
+    source: snapPath ?? "live", snapshotSha256: sha256,
     programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
-    epochs: snap.meta?.epochs ?? null,
+    epochs: snap?.meta?.epochs ?? null,
     counts: {
       banks: banks.length, runs: runs.length, receipts: logs.length, records: records.length,
       reveals: reveals.length, grants: grants.length,
@@ -2669,12 +2701,20 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
  *  same admission policy over EVERY ModelRecord's receipts and report who
  *  clears it. "Which models provably clear ≥80% with ≥10 vouched runs?"
  *  is a one-line answer, not a leaderboard's word. */
-export async function gateAll(policy: GatePolicy, json = false, snapPath?: string) {
+export async function gateAll(policy: GatePolicy, json = false, snapPath?: string, bank?: string) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
-  const [records, logs]: [SnapAccount[], SnapAccount[]] = ss
+  const [records, allLogs]: [SnapAccount[], SnapAccount[]] = ss
     ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
     : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all()]);
+  // --bank scopes the leaderboard to one exam — pk or (possibly ambiguous) name.
+  const bankPks = bank
+    ? new Set((ss ? snapOf(ss, "Benchmark") : await acct().benchmark.all())
+        .filter((b: any) => b.publicKey.toBase58() === bank || b.account.name === bank)
+        .map((b: any) => b.publicKey.toBase58()))
+    : null;
+  if (bank && !bankPks!.size) throw new Error(`no benchmark named/addressed ${bank}`);
+  const logs = bankPks ? allLogs.filter((l) => bankPks.has((l.account.benchmark as PublicKey).toBase58())) : allLogs;
   const byRec = new Map<string, any[]>();
   for (const l of logs) {
     const k = (l.account.modelRecord as PublicKey).toBase58();
@@ -2699,7 +2739,7 @@ export async function gateAll(policy: GatePolicy, json = false, snapPath?: strin
     policy.vouchedOnly && "vouched",
     policy.noPostReveal && "no-post-reveal",
   ].filter(Boolean).join(" ");
-  console.log(`gate --all [${parts}] — ${passes}/${rows.length} model(s) clear:`);
+  console.log(`gate --all [${parts}${bank ? ` bank=${bank}` : ""}] — ${passes}/${rows.length} model(s) clear:`);
   for (const r of rows) {
     const v = r.verdict;
     const tag = v.pass ? "PASS" : v.reason === "policy" ? "FAIL" : "NOEV";
@@ -3245,9 +3285,8 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "export") {
-    const sp = args.snapshot ? String(args.snapshot) : undefined;
-    if (!sp) throw new Error("usage: chain export --snapshot <f> [--out file] — the digest IS the bundle replayed");
-    await chainExport(sp, args.out ? String(args.out) : undefined);
+    // No --snapshot → digest the live cluster (source: "live").
+    await chainExport(args.snapshot ? String(args.snapshot) : undefined, args.out ? String(args.out) : undefined);
     return;
   }
   if (sub === "runs") {
@@ -3276,7 +3315,8 @@ export async function chainMain(cmd: string[], args: Args) {
       if (policy.minPct === undefined && policy.minRuns === undefined &&
           policy.minItems === undefined && policy.minWilsonPct === undefined)
         throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
-      await gateAll(policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      await gateAll(policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
+        args.bank ? String(args.bank) : undefined);
       return;
     }
     const target = String(cmd[1] ?? args.model ?? args.run ?? "");

@@ -166,7 +166,7 @@ async function main() {
   sealed chain records                                     list every model record, accuracy-first
   sealed chain banks [--kind authored|generated|private]          list every benchmark, run-count first
   sealed chain stats                                       the dashboard — counts, escrow, bit-exact integrity verdicts
-  sealed chain export --snapshot <f> [--out file]          the portable integrity digest — every verdict as JSON
+  sealed chain export [--snapshot <f>] [--out file]        the portable integrity digest — bundle or live cluster
   sealed chain feed [--limit N] [--type a,b] [--since t]   the activity stream — runs, venues, resolutions in time order
   sealed chain bank <pk|name>                              one benchmark's dossier — spec, runs, venues, reveals
   sealed chain runs [--bank b] [--model m] [--min-pct n]   # the run substrate — who scored what where
