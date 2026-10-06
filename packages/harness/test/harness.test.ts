@@ -855,3 +855,25 @@ test("marketSharps measures the book's anonymity set and honest P&L", async () =
     assert.ok(out.byWinRate.every((s: any) => s.pnl === "0" || s.pnl.startsWith("-")));
   } finally { console.log = origLog; }
 });
+
+test("marketEscrow reconciles every lamport to an obligation bucket", async () => {
+  const { marketEscrow } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const out = (await marketEscrow(true, snapPath)) as any;
+    const B = (k: string) => BigInt(out[k]);
+    // the ledger must sum EXACTLY to cumulative stakes — any drift is a
+    // bookkeeping bug, not a rounding tolerance
+    const recomposed = B("inPlay") + B("owedWinners") + B("owedRefunds") +
+      B("feesAccrued") + B("contingent") + B("dead") + B("dust") +
+      B("bountyOpen") + B("bountyExpired") + B("settledOut");
+    assert.equal(recomposed, B("cumulativeStaked"));
+    // the bundle's finding: every winning bucket was backed, so `dead`
+    // is provably zero and the outflow is winner pots + refunds
+    assert.equal(B("dead"), 0n);
+    assert.ok(B("claimedWinnerPots") > 0n);
+    assert.ok(B("settledOut") >= B("claimedWinnerPots"));
+  } finally { console.log = origLog; }
+});

@@ -107,18 +107,31 @@ keeper board asks "what needs a transaction"; this asks "where can I
 still get one down".
 
 `chain market sharps [--min n] [--json]` is the bettor track record —
-every position across every venue kind aggregated per wallet. Wins are
-`payable` classifications, losses are `lost`/`forfeit`; refunds, live,
-and sealed positions are reported but never counted as results (the
-same honesty rule as coverage — unresolved ≠ zero). Repeat bettors
-(≥`--min` resolved, default 1) rank by Wilson 95% LCB of win-rate so a
-1–0 can't outrank a proven record; P&L uses full position stake
-(`risked` — every bucket's lamports, not just the winning share) so a
-hedged winner doesn't inflate its return. On the committed bundle the
-headline is the anonymity set: 139 bettors hold 140 positions and every
-resolved position sits in a distinct wallet — zero observable track
-records. That is the market layer's real privacy posture, measurable
-from chain state alone.
+every *surviving* position across every venue kind aggregated per
+wallet (exercised claims close their Position PDAs, so claimed winners
+are invisible to account reads — `market escrow` tracks their outflow).
+Wins are `payable` classifications, losses are `lost`/`forfeit`;
+refunds, live, and sealed positions are reported but never counted as
+results (the same honesty rule as coverage — unresolved ≠ zero). Repeat
+bettors (≥`--min` resolved, default 1) rank by Wilson 95% LCB of
+win-rate so a 1–0 can't outrank a proven record; P&L uses full position
+stake (`risked` — every bucket's lamports, not just the winning share)
+so a hedged winner doesn't inflate its return. On the committed bundle
+the headline is the anonymity set: 139 bettors hold 140 surviving
+positions and every resolved position sits in a distinct wallet — zero
+observable track records. That is the market layer's real privacy
+posture, measurable from chain state alone.
+
+`chain market escrow [--json]` is the lamport ledger — every cumulative
+stake reconciled to an obligation bucket: in-play pots, unclaimed winner
+shares (surviving payable positions), unclaimed refunds, accrued fees,
+mid-reveal dark pools, live and sponsor-refundable bounty escrow, and
+`dead` — resolved venues whose winning bucket went unbacked (`winTotal
+= 0`), pots no instruction can move. `settled out` is the balancing
+line: claims already exercised, fees collected, refunds paid. The
+ledger is forced to sum exactly to cumulative stakes — on the bundle,
+72.7◎ of 76.1◎ already left escrow (68.1◎ of it winner payouts), with
+zero dead money: every resolved venue's winning bucket was backed.
 
 `chain history <model_id|record-pk> [--json]` lists a model's ScoreLog
 receipts oldest-first with running accuracy after each — the capability
@@ -157,7 +170,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `market sharps`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `market sharps`, `market escrow`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity

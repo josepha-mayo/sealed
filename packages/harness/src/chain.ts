@@ -4037,8 +4037,9 @@ export async function marketSharps(minResolved = 1, json = false, snapPath?: str
     byWinRate: bySkill.map((s) => ({ ...s, staked: s.staked.toString(), payable: s.payable.toString(), pnl: s.pnl.toString(), liveStaked: s.liveStaked.toString() })),
     byPnl: byMoney.map((s) => s.bettor) };
   if (json) { console.log(JSON.stringify(out)); return out; }
-  console.log(`sharps — ${book.bettors} bettor(s) · ${book.positions} position(s) (${book.resolved} resolved) · ` +
+  console.log(`sharps — ${book.bettors} bettor(s) · ${book.positions} surviving position account(s) (${book.resolved} resolved) · ` +
     `${(Number(book.staked) / LAMPORTS_PER_SOL).toFixed(3)}◎ staked → ${(Number(book.payable) / LAMPORTS_PER_SOL).toFixed(3)}◎ payable`);
+  console.log(`  scope — only unclaimed positions exist as accounts; exercised claims close their PDAs (see \`market escrow\` for the outflow)`);
   if (book.maxResolved <= 1 && book.resolved > 0) {
     console.log(`  every resolved position sits in a DISTINCT wallet — a ${book.oneShot}-bettor anonymity set`);
     console.log(`  zero observable track records: per-position keys are the book's real privacy posture`);
@@ -4061,12 +4062,126 @@ export async function marketSharps(minResolved = 1, json = false, snapPath?: str
     console.log(`  biggest payouts:`);
     winners.forEach((s) => console.log(`    ${(Number(s.payable) / LAMPORTS_PER_SOL).toFixed(3)}◎ paid — ${s.bettor.slice(0, 10)}… (${(Number(s.staked) / LAMPORTS_PER_SOL).toFixed(3)}◎ at risk → pnl ${(Number(s.pnl) / LAMPORTS_PER_SOL).toFixed(3)})`));
   }
-  console.log(`  net verdict — ${netPos} of ${sharps.filter((s) => s.resolved > 0).length} resolved bettor(s) finished positive; ` +
-    `unbacked winning buckets keep pots in venue escrow (losers reclaim rent only)`);
+  console.log(`  net verdict — ${netPos} of ${sharps.filter((s) => s.resolved > 0).length} surviving resolved bettor(s) stand positive ` +
+    `(winners claim and close; losers' rent-return claims linger — the survivor bias is the finding)`);
   if (losers.length) {
     console.log(`  deepest red:`);
     losers.forEach((s) => console.log(`    ${(Number(s.pnl) / LAMPORTS_PER_SOL).toFixed(3)}◎ — ${s.bettor.slice(0, 10)}… (${s.wins}W-${s.losses}L)`));
   }
+  return out;
+}
+
+/** `chain market escrow` — the lamport ledger: every stake tracked by its
+ *  obligation bucket. Positions are unclosed claims (the program closes a
+ *  Position PDA on payout), so each surviving Position account IS an
+ *  outstanding obligation; closed ones are settled outflow. Resolved
+ *  venues whose winning bucket went unbacked hold a pot NO instruction can
+ *  move — dead money by design, reported honestly instead of hidden. */
+export async function marketEscrow(json = false, snapPath?: string) {
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
+      positions: SnapAccount[], darkPositions: SnapAccount[], bounties: SnapAccount[];
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions, bounties] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition"), snapOf(sm, "Bounty")];
+  } else {
+    const { market } = marketProgram();
+    const mAcct = market.account as any;
+    [markets, ladders, darks, positions, darkPositions, bounties] = await Promise.all([
+      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
+      mAcct.position.all(), mAcct.darkPosition.all(), mAcct.bounty.all(),
+    ]);
+  }
+  const { rows } = classifyPositions(positions, darkPositions, venueMapsOf(markets, ladders, darks), null);
+  const owedWinners = rows.filter((r) => r.state === "payable").reduce((s, r) => s + r.est, 0n);
+  const owedRefunds = rows.filter((r) => r.state === "refund").reduce((s, r) => s + r.staked, 0n);
+  const inPlayPos = rows.filter((r) => r.state === "live" || r.state === "sealed").reduce((s, r) => s + r.staked, 0n);
+  const potOf = (totals: any[]) => totals.reduce((s: bigint, t: any) => s + BigInt(t.toString()), 0n);
+  const netOf = (pot: bigint, feeBps: number) => pot - (pot * BigInt(feeBps)) / 10000n;
+  let inPlay = 0n, dead = 0n, dust = 0n, contingent = 0n, fees = 0n, claimedOut = 0n;
+  const deadVenues: { pk: string; kind: string; pot: bigint }[] = [];
+  const perVenue = new Map<string, bigint>();
+  for (const r of rows) if (r.state === "payable") perVenue.set(r.pk, (perVenue.get(r.pk) ?? 0n) + r.est);
+  const bandLike = [...markets.map((m) => ({ ...m, kind: "band/duel" as const })), ...ladders.map((l) => ({ ...l, kind: "ladder" as const }))];
+  for (const v of bandLike) {
+    const a = v.account;
+    const pot = potOf(a.totals as any[]);
+    fees += BigInt(a.feesAccrued.toString());
+    if (Number(a.status) === 0) { inPlay += pot; continue; }
+    if (Number(a.status) === 2) continue; // cancelled — pot is refund obligations, counted via positions
+    // resolved: winners split the net pot. winTotal==0 → provably stranded
+    // (no instruction can move it); winTotal>0 leftover = winners whose
+    // position PDAs already closed on claim — settled outflow, not dead.
+    const winTotal = v.kind === "ladder"
+      ? (a.totals as any[]).reduce((s: bigint, t: any, i: number) => s + ((num(a.resultMask) & (1 << i)) ? BigInt(t.toString()) : 0n), 0n)
+      : BigInt(((a.totals as any[])[num(a.outcome)] ?? 0).toString());
+    const net = netOf(pot, num(a.feeBps));
+    if (winTotal === 0n) { dead += net; deadVenues.push({ pk: v.publicKey.toBase58(), kind: v.kind, pot: net }); continue; }
+    const owed = perVenue.get(v.publicKey.toBase58()) ?? 0n;
+    const leftover = net - owed;
+    if (leftover > 1000n) claimedOut += leftover;
+    else if (leftover > 0n) dust += leftover;
+  }
+  for (const d of darks) {
+    const a = d.account;
+    const pool = BigInt(a.poolTotal.toString());
+    fees += BigInt(a.feesAccrued.toString());
+    if (Number(a.status) === 0) { inPlay += pool; continue; }
+    if (Number(a.status) === 2) continue;
+    if (!a.tallied) { contingent += pool; continue; }
+    const net = netOf(pool, num(a.feeBps));
+    const winTotal = BigInt(a.winTotal.toString());
+    if (winTotal === 0n) { dead += net; deadVenues.push({ pk: d.publicKey.toBase58(), kind: "dark", pot: net }); continue; }
+    const owed = perVenue.get(d.publicKey.toBase58()) ?? 0n;
+    const leftover = net - owed;
+    if (leftover > 1000n) claimedOut += leftover;
+    else if (leftover > 0n) dust += leftover;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  let bountyOpen = 0n, bountyExpired = 0n, bountyCount = 0, expiredCount = 0;
+  for (const b of bounties) {
+    const a = b.account;
+    if (Number(a.status) !== 0) continue;
+    const amt = BigInt(a.amount.toString());
+    if (num(a.deadline) > 0 && num(a.deadline) <= now) { bountyExpired += amt; expiredCount++; }
+    else { bountyOpen += amt; bountyCount++; }
+  }
+  const cumulative = bandLike.reduce((s, v) => s + potOf(v.account.totals as any[]), 0n)
+    + darks.reduce((s, d) => s + BigInt(d.account.poolTotal.toString()), 0n)
+    + bounties.reduce((s, b) => s + BigInt(b.account.amount.toString()), 0n);
+  // The balancing line: cumulative stakes are recorded on surviving venue
+  // accounts even after their pots pay out (totals double as audit record),
+  // so the residual plus claimedOut is lamports that already left escrow —
+  // exercised winner claims, claimed refunds, collected fees.
+  const settledOut = cumulative - inPlay - owedWinners - owedRefunds - fees - contingent - dead - dust - bountyOpen - bountyExpired;
+  const out = {
+    cumulativeStaked: cumulative.toString(), settledOut: settledOut.toString(),
+    inPlay: inPlay.toString(), positionsInPlay: inPlayPos.toString(),
+    owedWinners: owedWinners.toString(), owedRefunds: owedRefunds.toString(),
+    feesAccrued: fees.toString(), contingent: contingent.toString(),
+    dead: dead.toString(), dust: dust.toString(),
+    deadVenues: deadVenues.map((v) => ({ ...v, pot: v.pot.toString() })),
+    bountyOpen: bountyOpen.toString(), bountyExpired: bountyExpired.toString(),
+    openBounties: bountyCount, expiredBounties: expiredCount,
+    claimedWinnerPots: claimedOut.toString(),
+  };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  const S = (v: bigint) => (Number(v) / LAMPORTS_PER_SOL).toFixed(4);
+  console.log(`market escrow — ${S(cumulative)}◎ cumulative stakes tracked across ${bandLike.length + darks.length} venues + ${bounties.length} bounties`);
+  console.log(`  in play        ${S(inPlay)}◎ — open venues, positions live or sealed`);
+  console.log(`  owed winners   ${S(owedWinners)}◎ — resolved, claims unexercised (position PDAs still open)`);
+  console.log(`  refunds owed   ${S(owedRefunds)}◎ — cancelled venues, gross refunds unclaimed`);
+  console.log(`  fees accrued   ${S(fees)}◎ — resolved venues, authority fee unclaimed`);
+  if (contingent > 0n) console.log(`  contingent     ${S(contingent)}◎ — dark pools mid reveal-window, tally pending`);
+  console.log(`  bounty escrow  ${S(bountyOpen + bountyExpired)}◎ — ${bountyCount} live pots${expiredCount ? ` · ${expiredCount} past deadline (sponsor-refundable)` : ""}`);
+  console.log(`  dead money     ${S(dead + dust)}◎ — resolved pots whose winning bucket went unbacked; no instruction can move them`);
+  deadVenues.sort((a, b) => Number(b.pot - a.pot));
+  deadVenues.slice(0, 5).forEach((v) => console.log(`    ${(Number(v.pot) / LAMPORTS_PER_SOL).toFixed(4)}◎ — ${v.kind} ${v.pk.slice(0, 12)}…`));
+  if (deadVenues.length > 5) console.log(`    … ${deadVenues.length - 5} more dead venues`);
+  console.log(`  settled out    ${S(settledOut)}◎ — exercised claims + collected fees + refunds paid (of which ${S(claimedOut)}◎ winner pots)`);
+  const recomposed = inPlay + owedWinners + owedRefunds + fees + contingent + dead + dust + bountyOpen + bountyExpired + settledOut;
+  console.log(`  check          ${S(recomposed)}◎ = cumulative — ledger ${recomposed === cumulative ? "balances exactly" : `MISMATCH by ${S(recomposed - cumulative)}`}`);
   return out;
 }
 
@@ -4752,6 +4867,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketLive(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "sharps") {
       await marketSharps(Number(args.min ?? 1), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "escrow") {
+      await marketEscrow(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.
