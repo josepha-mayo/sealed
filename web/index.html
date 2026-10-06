@@ -1087,7 +1087,7 @@ function renderAll(sealedAccs, marketAccs) {
       <div class="kv">every <span class="mono">reshare_part</span> grant on this ledger — a delegated x25519 re-encryption of exam <i>specs</i> (answers never move — they stay sealed to the cluster). ${grants.length} grants · ${bN} bank(s) disclosed · ${vN} distinct viewer(s). <span class="mono">chain grants</span> prints the same rows.</div>
       <table style="margin-top:6px"><tr><th>bank</th><th>chunk.part</th><th>viewer</th><th>shared</th><th>grant</th></tr>` +
       [...grants].sort((a, b) => b.sharedAt - a.sharedAt).slice(0, 60).map(g =>
-        `<tr><td>${esc(bn2.get(g.bench) ?? short(g.bench))}</td><td class="mono">${g.chunk}.${g.part}</td><td class="mono"><a href="?pk=${g.viewer}">${short(g.viewer)}</a></td><td class="kv">${fmtTs(g.sharedAt)}</td><td class="mono"><a href="?pk=${g.pk}">${short(g.pk)}</a></td></tr>`).join("") +
+        `<tr><td><a href="?pk=${g.bench}">${esc(bn2.get(g.bench) ?? short(g.bench))}</a></td><td class="mono">${g.chunk}.${g.part}</td><td class="mono"><a href="?pk=${g.viewer}">${short(g.viewer)}</a></td><td class="kv">${fmtTs(g.sharedAt)}</td><td class="mono"><a href="?pk=${g.pk}">${short(g.pk)}</a></td></tr>`).join("") +
       `</table>${grants.length > 60 ? `<div class="kv" style="margin-top:4px">… ${grants.length - 60} more — <span class="mono">chain grants --benchmark/--viewer</span> narrows it</div>` : ""}
     </div>`;
   }
@@ -3211,7 +3211,7 @@ function runRunsFilter() {
     shown.map(x => {
       const r = x.r;
       const score = r.status === 1 ? `${r.correct}/${x.items} (${x.pct.toFixed(1)}%)` : ["PENDING", "?", "CANCELLED"][r.status] ?? "?";
-      return `<tr><td class="mono"><a href="?pk=${r.pk}">${short(r.pk)}</a></td><td class="mono">${esc(r.modelId || "—")}</td><td>${esc(bn.get(r.benchmark) ?? short(r.benchmark))}</td><td class="score">${score}</td><td>${flag(r)}</td><td class="kv">${r.finalizedAt ? fmtTs(r.finalizedAt) : "—"}</td></tr>`;
+      return `<tr><td class="mono"><a href="?pk=${r.pk}">${short(r.pk)}</a></td><td class="mono">${esc(r.modelId || "—")}</td><td><a href="?pk=${r.benchmark}">${esc(bn.get(r.benchmark) ?? short(r.benchmark))}</a></td><td class="score">${score}</td><td>${flag(r)}</td><td class="kv">${r.finalizedAt ? fmtTs(r.finalizedAt) : "—"}</td></tr>`;
     }).join("") + `</table>` +
     `<div class="kv" style="margin-top:4px">${rows.length} run(s) match` +
     (rows.length > CAP ? ` — showing ${CAP}, narrow with the filters` : "") + `</div>`;

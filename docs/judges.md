@@ -59,7 +59,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #    minted specs, scores, resolved markets
 #   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
-#   demos itself: an auto-walk through all twelve sections with one-line
+#   demos itself: an auto-walk through all fourteen sections with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   On the hosted page, in order:
 #     - hero strip: MPC ciphertext → proven score, one glance
@@ -81,6 +81,11 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #       bit-exact from its receipts. Four REAL local models lead the table;
 #       `chain record --all` is the permissionless librarian that enrolled
 #       the rest of the ledger's runs — no operator required
+#     - "runs — the scoring substrate": all 503 Run accounts, filterable
+#       by model / bank / status / min-% / attested / post-reveal — the
+#       in-page mirror of `chain runs` (try post-reveal "only": 29 rows)
+#     - "disclosure trail": all 145 reshare grants — who can see the exam
+#       QUESTIONS (answers never move). `chain grants` in-page
 #     - a benchmark card: generated-item specs render publicly while the
 #       answers exist only as ciphertext — click "verify commitment" to
 #       replay its items_root fold yourself
