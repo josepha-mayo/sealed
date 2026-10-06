@@ -1200,3 +1200,36 @@ test("verifiers --json — machine-readable checks for judge CI", async () => {
     assert.equal(cj.summary.pass + cj.summary.fail + cj.summary.noEvidence, 31);
   } finally { console.log = origLog; }
 });
+
+test("sealed-match/v1 — mint, verify, and a flipped verdict fails", async () => {
+  const { compareMatch, matchVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "sealed-match-"));
+    const good = join(dir, "m.json");
+    const card = (await compareMatch("qwen2.5-3b-instruct", "qwen2.5-1.5b-instruct", good, snapPath)) as any;
+    assert.equal(card.kind, "sealed-match/v1");
+    assert.equal(card.verdict.winner, "a");
+    assert.equal(card.verdict.sharedBanks, 2);
+    const ok = (await matchVerify(good)) as any;
+    assert.equal(ok.fail, 0);
+    card.verdict.winner = "b";
+    const bad = join(dir, "bad.json");
+    writeFileSync(bad, JSON.stringify(card));
+    process.exitCode = 0;
+    await matchVerify(bad);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+    // disjoint pair — minting must still produce a verifiable (0-shared) card
+    const m2 = join(dir, "m2.json");
+    const c2 = (await compareMatch("qwen2.5-3b-instruct", "qwen2.5-0.5b-instruct", m2, snapPath)) as any;
+    assert.equal(c2.verdict.sharedBanks >= 0, true);
+    const ok2 = (await matchVerify(m2)) as any;
+    assert.equal(ok2.fail, 0);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

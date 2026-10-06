@@ -2146,6 +2146,165 @@ export async function modelCompare(keyA: string, keyB: string, json = false, sna
   return out;
 }
 
+/** `chain compare <a> <b> --prove <file>` — mint a `sealed-match/v1` card:
+ *  the head-to-head verdict as portable evidence. The card carries both
+ *  records' PDA seeds, every receipt on every shared bank, the runs and
+ *  banks those receipts point at, and the stored verdict — a verifier
+ *  re-derives every address and replays the whole match offline. */
+export async function compareMatch(keyA: string, keyB: string, out: string, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const resolve = (keyOrName: string): PublicKey => {
+    try { return new PublicKey(keyOrName); } catch { /* model_id */ }
+    const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
+    return PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], sealedProgramId())[0];
+  };
+  const pkA = resolve(keyA), pkB = resolve(keyB);
+  const [records, logs, banks, runs]: SnapAccount[][] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog"), snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all(), acct().benchmark.all(), acct().run.all()]);
+  const recA = records.find((r) => r.publicKey.equals(pkA));
+  const recB = records.find((r) => r.publicKey.equals(pkB));
+  if (!recA || !recB) throw new Error(`no ModelRecord for ${!recA ? keyA : keyB}`);
+  const b58 = (v: any) => v?.toBase58 ? v.toBase58() : String(v);
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const modelHash = (id: string) => createHash("sha256").update(Buffer.from(id, "utf8")).digest();
+  const sharedSet = new Set(
+    logs.filter((l) => b58(l.account.modelRecord) === pkA.toBase58()).map((l) => b58(l.account.benchmark))
+      .filter((k) => logs.some((l) => b58(l.account.modelRecord) === pkB.toBase58() && b58(l.account.benchmark) === k)));
+  const logsA = logs.filter((l) => b58(l.account.modelRecord) === pkA.toBase58() && sharedSet.has(b58(l.account.benchmark)));
+  const logsB = logs.filter((l) => b58(l.account.modelRecord) === pkB.toBase58() && sharedSet.has(b58(l.account.benchmark)));
+  const runPks = new Set([...logsA, ...logsB].map((l) => b58(l.account.run)));
+  const embRuns = runs.filter((r) => runPks.has(r.publicKey.toBase58()));
+  const embBanks = banks.filter((b) => sharedSet.has(b.publicKey.toBase58()));
+  const bankName = new Map(embBanks.map((b) => [b.publicKey.toBase58(), String(b.account.name)]));
+  const agg = (ls: SnapAccount[]) => {
+    const m = new Map<string, { correct: number; items: number; runs: number }>();
+    for (const l of ls) {
+      const k = b58(l.account.benchmark);
+      const e = m.get(k) ?? { correct: 0, items: 0, runs: 0 };
+      e.correct += num(l.account.correct); e.items += num(l.account.items); e.runs++;
+      m.set(k, e);
+    }
+    return m;
+  };
+  const a = agg(logsA), b = agg(logsB);
+  const rows = [...sharedSet].map((k) => {
+    const ea = a.get(k)!, eb = b.get(k)!;
+    const pa = ea.items ? (100 * ea.correct) / ea.items : 0;
+    const pb = eb.items ? (100 * eb.correct) / eb.items : 0;
+    return { bank: k, name: bankName.get(k) ?? "?", a: ea, b: eb, pctA: pa, pctB: pb, delta: pa - pb };
+  }).sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+  const pooled = (m: Map<string, { correct: number; items: number; runs: number }>) =>
+    [...m.values()].reduce((s, e) => ({ c: s.c + e.correct, i: s.i + e.items }), { c: 0, i: 0 });
+  const pA = pooled(a), pB = pooled(b);
+  const pctA = pA.i ? (100 * pA.c) / pA.i : 0, pctB = pB.i ? (100 * pB.c) / pB.i : 0;
+  const wins = { a: rows.filter((r) => r.delta > 0).length, tie: rows.filter((r) => r.delta === 0).length, b: rows.filter((r) => r.delta < 0).length };
+  const card = {
+    kind: "sealed-match/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+    programs: { sealed: sealedProgramId().toBase58() },
+    a: { id: String(recA.account.modelId), recordPk: pkA.toBase58(), seeds: { prefix: "modelrec", modelHash: modelHash(String(recA.account.modelId)).toString("hex") } },
+    b: { id: String(recB.account.modelId), recordPk: pkB.toBase58(), seeds: { prefix: "modelrec", modelHash: modelHash(String(recB.account.modelId)).toString("hex") } },
+    banks: embBanks.map((x) => ({ pk: x.publicKey.toBase58(), name: String(x.account.name),
+      authority: b58(x.account.authority), id: num(x.account.id), itemsRoot: Buffer.from(x.account.itemsRoot as number[]).toString("hex") })),
+    runs: embRuns.map((r) => ({ pk: r.publicKey.toBase58(), benchmark: b58(r.account.benchmark),
+      index: num(r.account.index), status: num(r.account.status), correct: num(r.account.correct),
+      chunkCount: num(r.account.chunkCount), postReveal: !!r.account.postReveal })),
+    receipts: {
+      a: logsA.map((l) => ({ pk: l.publicKey.toBase58(), run: b58(l.account.run), benchmark: b58(l.account.benchmark),
+        correct: num(l.account.correct), items: num(l.account.items), vouchedAtRecord: !!l.account.vouchedAtRecord, postReveal: !!l.account.postReveal })),
+      b: logsB.map((l) => ({ pk: l.publicKey.toBase58(), run: b58(l.account.run), benchmark: b58(l.account.benchmark),
+        correct: num(l.account.correct), items: num(l.account.items), vouchedAtRecord: !!l.account.vouchedAtRecord, postReveal: !!l.account.postReveal })),
+    },
+    verdict: { pooledA: pA.c, pooledItemsA: pA.i, pooledB: pB.c, pooledItemsB: pB.i,
+      pctA, pctB, bankWins: wins, sharedBanks: rows.length,
+      winner: pctA === pctB ? "tie" : pctA > pctB ? "a" : "b" },
+  };
+  writeFileSync(out, JSON.stringify(card, null, 2) + "\n");
+  console.log(`wrote ${out} — sealed-match/v1 card: ${card.a.id} vs ${card.b.id} · ${rows.length} shared banks · ` +
+    `${wins.a}-${wins.tie}-${wins.b} · pooled ${pctA.toFixed(1)}% vs ${pctB.toFixed(1)}% (verify: chain compare --match-verify ${out})`);
+  return card;
+}
+
+/** `chain compare --match-verify <file>` — replay a sealed-match/v1 card
+ *  keyless: both record PDAs, every bank/run/receipt PDA re-derived, the
+ *  per-bank aggregates recomputed from embedded receipts, and the stored
+ *  verdict replayed bit-for-bit. Exit 1 on any violation. */
+export async function matchVerify(file: string, json = false) {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-match/v1") throw new Error(`not a sealed-match/v1 file (kind=${card.kind})`);
+  const sealedId = new PublicKey(card.programs.sealed);
+  const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
+  const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const pk = (s: string) => new PublicKey(s);
+  const derive = (seeds: Buffer[]) => PublicKey.findProgramAddressSync(seeds, sealedId)[0].toBase58();
+  let pass = 0, fail = 0;
+  const rows: { what: string; ok: boolean; detail: string }[] = [];
+  const check = (what: string, ok: boolean, detail = "") => {
+    rows.push({ what, ok, detail });
+    if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
+    ok ? pass++ : fail++;
+  };
+  // 1. identity — every address re-derives from declared seeds
+  check("record PDA a", derive([Buffer.from("modelrec"), Buffer.from(card.a.seeds.modelHash, "hex")]) === card.a.recordPk,
+    `${card.a.recordPk.slice(0, 12)}… = [modelrec, sha256(${card.a.id})]`);
+  check("record PDA b", derive([Buffer.from("modelrec"), Buffer.from(card.b.seeds.modelHash, "hex")]) === card.b.recordPk,
+    `${card.b.recordPk.slice(0, 12)}… = [modelrec, sha256(${card.b.id})]`);
+  let bankOk = 0;
+  for (const b of card.banks)
+    if (derive([Buffer.from("benchmark"), pk(b.authority).toBuffer(), u32le(b.id)]) === b.pk) bankOk++;
+  check("bank PDAs", bankOk === card.banks.length, `${bankOk}/${card.banks.length} re-derived`);
+  let runOk = 0;
+  for (const r of card.runs)
+    if (derive([Buffer.from("run"), pk(r.benchmark).toBuffer(), u64le(r.index)]) === r.pk) runOk++;
+  check("run PDAs", runOk === card.runs.length, `${runOk}/${card.runs.length} re-derived`);
+  const allRec = [...card.receipts.a, ...card.receipts.b];
+  let logOk = 0;
+  for (const l of allRec)
+    if (derive([Buffer.from("scorelog"), pk(l.run).toBuffer()]) === l.pk) logOk++;
+  check("receipt PDAs", logOk === allRec.length, `${logOk}/${allRec.length} re-derived`);
+  // 2. the match replay — per-bank aggregates recomputed from receipts
+  const bankPks = new Set(card.banks.map((b: any) => b.pk));
+  const receiptsOnBanks = (ls: any[]) => ls.filter((l) => bankPks.has(l.benchmark));
+  const agg = (ls: any[]) => {
+    const m = new Map<string, { c: number; i: number }>();
+    for (const l of receiptsOnBanks(ls)) {
+      const e = m.get(l.benchmark) ?? { c: 0, i: 0 };
+      e.c += l.correct; e.i += l.items; m.set(l.benchmark, e);
+    }
+    return m;
+  };
+  const ra = agg(card.receipts.a), rb = agg(card.receipts.b);
+  const shared = [...ra.keys()].filter((k) => rb.has(k));
+  check("shared banks", shared.length === card.verdict.sharedBanks,
+    `${shared.length} recomputed = ${card.verdict.sharedBanks} stored`);
+  const pA = [...ra.values()].reduce((s, e) => ({ c: s.c + e.c, i: s.i + e.i }), { c: 0, i: 0 });
+  const pB = [...rb.values()].reduce((s, e) => ({ c: s.c + e.c, i: s.i + e.i }), { c: 0, i: 0 });
+  check("pooled aggregates",
+    pA.c === card.verdict.pooledA && pA.i === card.verdict.pooledItemsA && pB.c === card.verdict.pooledB && pB.i === card.verdict.pooledItemsB,
+    `${pA.c}/${pA.i} vs ${pB.c}/${pB.i} recomputed = ${card.verdict.pooledA}/${card.verdict.pooledItemsA} vs ${card.verdict.pooledB}/${card.verdict.pooledItemsB} stored`);
+  const wins = { a: 0, tie: 0, b: 0 };
+  for (const k of shared) {
+    const pa = ra.get(k)!.i ? (100 * ra.get(k)!.c) / ra.get(k)!.i : 0;
+    const pb2 = rb.get(k)!.i ? (100 * rb.get(k)!.c) / rb.get(k)!.i : 0;
+    pa > pb2 ? wins.a++ : pa === pb2 ? wins.tie++ : wins.b++;
+  }
+  check("bank wins", wins.a === card.verdict.bankWins.a && wins.tie === card.verdict.bankWins.tie && wins.b === card.verdict.bankWins.b,
+    `${wins.a}-${wins.tie}-${wins.b} recomputed = ${card.verdict.bankWins.a}-${card.verdict.bankWins.tie}-${card.verdict.bankWins.b} stored`);
+  const pctA = pA.i ? (100 * pA.c) / pA.i : 0, pctB = pB.i ? (100 * pB.c) / pB.i : 0;
+  const winner = pctA === pctB ? "tie" : pctA > pctB ? "a" : "b";
+  check("verdict replay", winner === card.verdict.winner && Math.abs(pctA - card.verdict.pctA) < 0.01 && Math.abs(pctB - card.verdict.pctB) < 0.01,
+    `${card.a.id} ${pctA.toFixed(2)}% vs ${card.b.id} ${pctB.toFixed(2)}% → ${winner}`);
+  const verdict = fail === 0 ? "MATCH VERIFIED" : "MATCH FAILED";
+  if (json) console.log(JSON.stringify({ file, kind: card.kind, a: card.a.id, b: card.b.id, verified: fail === 0,
+    checks: rows, pass, fail, verdict: card.verdict }));
+  else console.log(`${verdict} — ${card.a.id} vs ${card.b.id}: ${pass} checks pass, ${fail} fail · ${card.verdict.bankWins.a}-${card.verdict.bankWins.tie}-${card.verdict.bankWins.b} on ${card.verdict.sharedBanks} shared bank(s)`);
+  if (fail) process.exitCode = 1;
+  return { pass, fail };
+}
+
 /** `chain compare --all [--json]` — the paired-evidence leaderboard: every
  *  model×model pair's shared-bank result tallied into a win table. Aggregate
  *  accuracy ranks models that never faced the same exam; this ranks them on
@@ -5908,8 +6067,16 @@ export async function chainMain(cmd: string[], args: Args) {
       await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined, Number(args["min-shared"] ?? 1) || 1, Boolean(args.wilson));
       return;
     }
+    if (args["match-verify"]) {
+      await matchVerify(String(args["match-verify"]), Boolean(args.json));
+      return;
+    }
     const a = cmd[1], b = cmd[2];
     if (!a || !b) throw new Error("usage: chain compare <model_id|record-pk> <model_id|record-pk> [--all] [--json] [--snapshot f]");
+    if (args.prove) {
+      await compareMatch(String(a), String(b), String(args.prove), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
     await modelCompare(String(a), String(b), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }

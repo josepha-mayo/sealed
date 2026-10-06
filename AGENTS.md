@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 52/52 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 53/53 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -48,7 +48,9 @@ parimutuel markets resolved from `Run.correct`.
   with the binding constraint named),
   `history`, `compare`
   (+`--all`, +`--matrix` — the N×N signed-Δpp tournament grid, `—` =
-  disjoint coverage), `trail`, `stats`, `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market venue`,
+  disjoint coverage, +`<a> <b> --prove` — a `sealed-match/v1` portable
+  head-to-head card, `--match-verify` replays it keyless), `trail`,
+  `stats`, `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market venue`,
   `market positions` (+`--viewer <pk>` keyless), `market position` (single-position dossier: stake, venue, payout class + claim cmd), `market quote` (parimutuel bet simulator — payout/ROI/implied share; totals is a fixed 8-slot array — bound by nOutcomes/legCount like the program does, dark venues quote as a reveal-scenario range), `market odds` (the implied-probability board — what stakes believe, funded first), `market sentiment` (books pooled into stake-weighted belief per model — duel tie books split half each, bands imply expected score), `market champions` (settlement record — duel W-D-L, ladder leg wins incl. co-winners, bounty claims), `market divergence` (evidence rank vs conviction rank — +gap = priced above receipts, − = below), `market calibration` (resolved-venue report card — winner's closing implied%, Brier, favorite hit-rate vs uniform baseline), `market live` (bettor's board — venues still taking positions), `market sharps` (bettor track records — W-L per wallet, Wilson LCB rank, realized P&L on FULL position stake incl. losing buckets; SURVIVING position accounts only — exercised claims close their PDAs; the bundle's headline is the 125-bettor anonymity set — every resolved position sits in a distinct wallet, zero observable track records), `market escrow` (the lamport ledger — every cumulative stake reconciled to an obligation bucket; `dead` = resolved pots with winTotal=0 that no instruction can move; settled-out is the balancing line and the ledger must sum to cumulative), `anomalies` (the skeptic's checklist — 12 hostile audits on the bundle itself: post-reveal runs, thin records, dead money, forfeits, past-deadline bounties, dup bank names, venues-on-post-reveal MUST be 0; clean checks still print — absence of anomaly is evidence), `model` (fused per-model dossier: registry + paired rank + settlement + belief + runs), `matrix` (models × most-run banks capability grid — best finalized score per cell, `*` = post-reveal-only, "—" = unproven), `watch` (live feed ticker; snapshot mode = replay ticker), `search` (universal pubkey resolver → dossier route), `items` (regenerates a
   generated bank's specs from raw ItemChunk bytes, re-fold checked
   against the stored items_root). `sealedProgramId()`
@@ -375,4 +377,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 52/52.
+  `yarn harness:test` → 53/53.

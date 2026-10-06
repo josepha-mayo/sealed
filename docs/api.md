@@ -186,6 +186,13 @@ capability gate applies to accuracy, here disciplining the *ranking*: a
 tournament grid — every pair's shared-bank verdict as a signed pp-delta
 cell (row − column), `—` for disjoint coverage (unranked, never assumed):
 the leaderboard says who's ahead, the grid shows who beat whom.
+`chain compare <a> <b> --prove <file>` mints a `sealed-match/v1` card —
+the portable head-to-head: both records' PDA seeds, every receipt on
+every shared bank, the runs/banks behind them, and the stored verdict.
+`chain compare --match-verify <file> [--json]` replays it offline —
+record/bank/run/receipt PDAs re-derived, per-bank aggregates and the
+verdict recomputed bit-exact. A committed real-model example lives at
+`docs/evidence/matches/qwen3b-vs-qwen15b.json`.
 `chain matrix [--banks N]` renders the capability matrix — models × the
 most-run banks, each cell the model's best finalized score there
 (`*` marks cells whose best score is post-reveal-only — it can't prove

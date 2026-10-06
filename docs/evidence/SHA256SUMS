@@ -1,4 +1,4 @@
-a8de5b049addc7ecdb7d2c756c2411242cd4383ea6e5d8907176df66ed1af2de  ./README.md
+1faf148a26fb49498ce647f47843c1eb0d8fbc1b7bb2db28b176996c25cb6431  ./README.md
 dd36832808d6f2a3a1d52cc51a3e4a8492eb21087e899ca7d2f507ef4e3594a0  ./acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json
 a0f8629c4e2b3426f8d8dc4e9fa09cbaf414a036230906f5d903fe5db9ca011c  ./acct-3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG.json
 7d6db15c2658002ab66cfc9a28ed047d642748202ca3aaa2ce5f999f86c32cef  ./acct-4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1.json
@@ -62,6 +62,7 @@ ae89c3955d250a65dd0237401c20d2609ee00f850e674a06e8154e0ab08de928  ./duel-local.t
 e3312151c32021428cc5de9c0f5751ce07e5d273547f2dee6fc28b8fd20afe82  ./duel-private.txt
 c025f68b98388c7fa1a12c5f656a9e2f66ab8f7d04181ba05bce60001ee1677a  ./duel-real.txt
 3df0876b4c0215fa9c3c4bf6c330e3bc1b6d376182d5f10645d137dcbf710f37  ./ladder-local.txt
+c0b6ae2f57326fce9edbd1b150103a230279b980b90202be519c0c56f9ca78dd  ./matches/qwen3b-vs-qwen15b.json
 9ea307c5be3c279e052690bfb143a6d125222255c7ea0ccd0472b698fdf48cd6  ./policies/min60-3runs.json
 d1f53177aa05342bf180cfa3f62584358ee7a6acf6fcaaed19f8e209345c1798  ./policies/sealed-test-60pct.json
 d4dbb0f4fa21d8db13af23b5f57a579bcf4970ad06ebecb4d748f94eda29bc5b  ./policies/strict70-vouched.json
