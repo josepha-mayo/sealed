@@ -965,7 +965,7 @@ test("compareMatrix — the N×N paired-evidence grid is antisymmetric and hones
   } finally { console.log = origLog; }
   const { top, cells, unrankedPairs } = JSON.parse(emitted);
   assert.ok(top.length >= 10);
-  const idx = (id) => top.indexOf(id);
+  const idx = (id: string) => top.indexOf(id);
   // dark/model-a and ladder/model-a dead-heat on their shared banks: 0pp both ways
   assert.equal(cells[idx("dark/model-a")][idx("ladder/model-a")], 0);
   // qwen2.5-3b beats qwen2.5-1.5b on their shared bank — antisymmetric cell
@@ -974,4 +974,32 @@ test("compareMatrix — the N×N paired-evidence grid is antisymmetric and hones
   // disjoint coverage stays "—" (null), never assumed: mock/oracle-0.75 shares nothing with most
   assert.equal(cells[idx("mock/oracle-0.75")][idx("dark/model-a")], null);
   assert.ok(unrankedPairs > 300);
+});
+
+test("gateCert — a policy certificate verifies, and a flipped verdict fails", async () => {
+  const { gateCert, gateCertVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "sealed-cert-"));
+    const good = join(dir, "cert.json");
+    const cert = (await gateCert({ minPct: 60, minRuns: 3 }, good, snapPath)) as any;
+    assert.equal(cert.kind, "sealed-policy/v1");
+    assert.equal(cert.models.length, 31);
+    assert.equal(cert.summary.pass + cert.summary.fail + cert.summary.noEvidence, 31);
+    const ok = (await gateCertVerify(good)) as any;
+    assert.equal(ok.fail, 0);
+    // flip one stored verdict — the receipt replay must catch it
+    cert.models[0].verdict.pass = !cert.models[0].verdict.pass;
+    const bad = join(dir, "bad.json");
+    writeFileSync(bad, JSON.stringify(cert));
+    process.exitCode = 0;
+    await gateCertVerify(bad);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = 0; }
 });

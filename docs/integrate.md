@@ -111,6 +111,12 @@ sealed chain gate --all --min-pct 60 --bank <bank>  # per-exam leaderboard — w
 sealed chain gate --all --min-pct 60 --min-runs 3 --prove claims/
 #   ↑ every passer mints a sealed-claim/v1 card — verify each with
 #     `chain prove --verify claims/<model>.json` (PDAs re-derive keyless)
+sealed chain gate --sweep [--grid 10,30,50,70,90]
+#   ↑ every record re-evaluated across a min-pct grid — the strictest
+#     line a model survives is its "frontier"; no threshold can be gamed
+sealed chain prove --all --out claims/ && sealed chain prove --verify claims/
+#   ↑ the whole registry as verifiable artifacts — one card per record,
+#     directory batch-verification, exit 1 on any failure
 ```
 
 `--vouched` restricts evidence to venue-attested runs
@@ -141,7 +147,7 @@ committed bundle through the same discriminator-keyed layouts the RPC
 path uses, so `board`, `gate`, `history`, `records`, `status`,
 `banks`, `bank`, `stats`, `runs`, `feed`, `watch`, `verify`, `trail`, `grants`,
 `reveals`, `market bounties`, `market venue`, `market position`, `market quote`,
-`market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `market sharps`, `market escrow`, `anomalies`, `model`, `matrix`, `wallet`, `search`, `tour`, and `market positions --viewer <pk>` replay
+`market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `market sharps`, `market escrow`, `anomalies`, `model`, `matrix`, `wallet`, `search`, `tour`, `gate --sweep`, `compare --matrix`, `prove` (+`--all`, `--verify`), and `market positions --viewer <pk>` replay
 **keyless, connection-free** (and a unit test pins the replay against
 the bundle's published counts). `chain export --snapshot <f>` emits the
 same verdicts as a portable `sealed-evidence-digest/v1` JSON — diffable

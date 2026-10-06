@@ -4232,6 +4232,116 @@ export async function gateSweep(base: GatePolicy, json = false, snapPath?: strin
   return rows;
 }
 
+/** `chain gate --all <policy> --cert <file>` — mint a `sealed-policy/v1`
+ *  certificate: the policy itself plus every record's verdict AND the
+ *  receipt evidence each verdict was computed from. A DAO vote, an
+ *  insurer's underwriting memo, an admission decision — the artifact a
+ *  resolver hands to whoever must be convinced, replayable keyless. */
+export async function gateCert(policy: GatePolicy, out: string, snapPath?: string, bank?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [records, allLogs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all()]);
+  const bankPks = bank
+    ? new Set((ss ? snapOf(ss, "Benchmark") : await acct().benchmark.all())
+        .filter((b: any) => b.publicKey.toBase58() === bank || b.account.name === bank)
+        .map((b: any) => b.publicKey.toBase58()))
+    : null;
+  if (bank && !bankPks!.size) throw new Error(`no benchmark named/addressed ${bank}`);
+  const logs = bankPks ? allLogs.filter((l) => bankPks.has((l.account.benchmark as PublicKey).toBase58())) : allLogs;
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const byRec = new Map<string, any[]>();
+  for (const l of logs) {
+    const k = (l.account.modelRecord as PublicKey).toBase58();
+    const list = byRec.get(k) ?? [];
+    list.push(l.account);
+    byRec.set(k, list);
+  }
+  const modelHash = (id: string) => createHash("sha256").update(Buffer.from(id, "utf8")).digest("hex");
+  const models = records.map((r) => {
+    const raw = byRec.get(r.publicKey.toBase58()) ?? [];
+    const receipts: ScoreReceipt[] = raw.map((a: any) => ({
+      correct: num(a.correct), items: num(a.items),
+      vouchedAtRecord: !!a.vouchedAtRecord, postReveal: !!a.postReveal,
+    }));
+    const v = evalGate(receipts, policy, receipts.length > 0);
+    return {
+      modelId: String(r.account.modelId), recordPk: r.publicKey.toBase58(),
+      seeds: { prefix: "modelrec", modelHash: modelHash(String(r.account.modelId)) },
+      verdict: { pass: v.pass, reason: v.reason, pct: Math.round(v.pct * 100) / 100, runs: v.runs, items: v.items, correct: v.correct, postRevealRuns: v.postRevealRuns },
+      receipts,
+    };
+  });
+  const cert = {
+    kind: "sealed-policy/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+    programs: { sealed: sealedProgramId().toBase58() },
+    policy: { ...policy, bank: bank ?? null },
+    models,
+    summary: {
+      records: models.length,
+      pass: models.filter((m) => m.verdict.pass).length,
+      noEvidence: models.filter((m) => m.verdict.reason === "no-evidence").length,
+      fail: models.filter((m) => m.verdict.reason === "policy").length,
+    },
+  };
+  writeFileSync(out, JSON.stringify(cert, null, 2) + "\n");
+  console.log(`wrote ${out} — sealed-policy/v1 certificate: ${cert.summary.pass} pass / ${cert.summary.fail} fail / ${cert.summary.noEvidence} no-evidence of ${models.length} records (verify: chain gate --certify-verify ${out})`);
+  return cert;
+}
+
+/** `chain gate --certify-verify <file>` — replay a sealed-policy/v1
+ *  certificate keyless: every ModelRecord PDA re-derives from its
+ *  declared modelHash seed, and evalGate re-run on the embedded receipts
+ *  must reproduce every stored verdict bit-for-bit. */
+export async function gateCertVerify(file: string) {
+  const cert = JSON.parse(readFileSync(file, "utf8"));
+  if (cert.kind !== "sealed-policy/v1") throw new Error(`not a sealed-policy/v1 file (kind=${cert.kind})`);
+  const sealedId = new PublicKey(cert.programs.sealed);
+  const policy: GatePolicy = {};
+  const src = cert.policy ?? {};
+  if (src.minPct !== undefined && src.minPct !== null) policy.minPct = src.minPct;
+  if (src.minRuns !== undefined && src.minRuns !== null) policy.minRuns = src.minRuns;
+  if (src.minItems !== undefined && src.minItems !== null) policy.minItems = src.minItems;
+  if (src.minWilsonPct !== undefined && src.minWilsonPct !== null) policy.minWilsonPct = src.minWilsonPct;
+  if (src.vouchedOnly) policy.vouchedOnly = true;
+  if (src.noPostReveal) policy.noPostReveal = true;
+  let pass = 0, fail = 0;
+  const check = (what: string, ok: boolean, detail = "") => {
+    console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
+    ok ? pass++ : fail++;
+  };
+  let pdaOk = 0, verdictOk = 0;
+  for (const m of cert.models as any[]) {
+    const want = m.recordPk;
+    const got = PublicKey.findProgramAddressSync(
+      [Buffer.from("modelrec"), Buffer.from(m.seeds.modelHash, "hex")], sealedId)[0].toBase58();
+    if (got === want) pdaOk++;
+    const receipts: ScoreReceipt[] = (m.receipts as any[]).map((x) => ({
+      correct: x.correct, items: x.items, vouchedAtRecord: x.vouchedAtRecord, postReveal: x.postReveal,
+    }));
+    const v = evalGate(receipts, policy, receipts.length > 0);
+    const w = m.verdict;
+    if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) < 0.01 &&
+        v.runs === w.runs && v.items === w.items && v.correct === w.correct && v.postRevealRuns === w.postRevealRuns)
+      verdictOk++;
+    else console.log(`    ↳ ${m.modelId}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)`);
+  }
+  check("record PDAs", pdaOk === cert.models.length, `${pdaOk}/${cert.models.length} re-derived from [modelrec, sha256(model_id)]`);
+  check("verdict replay", verdictOk === cert.models.length, `${verdictOk}/${cert.models.length} verdicts recomputed bit-exact from embedded receipts`);
+  const s = cert.summary;
+  const recomp = { pass: (cert.models as any[]).filter((m) => m.verdict.pass).length,
+    fail: (cert.models as any[]).filter((m) => m.verdict.reason === "policy").length,
+    noEvidence: (cert.models as any[]).filter((m) => m.verdict.reason === "no-evidence").length };
+  check("summary consistent", s.pass === recomp.pass && s.fail === recomp.fail && s.noEvidence === recomp.noEvidence,
+    `${s.pass}/${s.fail}/${s.noEvidence} stored = ${recomp.pass}/${recomp.fail}/${recomp.noEvidence} recomputed`);
+  console.log(`${fail === 0 ? "CERT VERIFIED" : "CERT FAILED"} — ${cert.models.length} records, ${pass} checks pass, ${fail} fail`);
+  if (fail) process.exitCode = 1;
+  return { pass, fail };
+}
+
 /** `chain market board [--json]` — the keeper + discovery surface: scan the
  *  ledger's venues and report what a permissionless actor can do RIGHT NOW:
  *  claimable bounties (a qualifying run already finalized), resolvable
@@ -5362,6 +5472,10 @@ export async function chainMain(cmd: string[], args: Args) {
         args.bank ? String(args.bank) : undefined, grid);
       return;
     }
+    if (args["certify-verify"]) {
+      await gateCertVerify(String(args["certify-verify"]));
+      return;
+    }
     if (cmd[1] === "--all" || args.all) {
       const policy: GatePolicy = {
         minPct: numF("min-pct"), minRuns: numF("min-runs"), minItems: numF("min-items"),
@@ -5371,6 +5485,11 @@ export async function chainMain(cmd: string[], args: Args) {
       if (policy.minPct === undefined && policy.minRuns === undefined &&
           policy.minItems === undefined && policy.minWilsonPct === undefined)
         throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
+      if (args.cert) {
+        await gateCert(policy, String(args.cert), args.snapshot ? String(args.snapshot) : undefined,
+          args.bank ? String(args.bank) : undefined);
+        return;
+      }
       await gateAll(policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
         args.bank ? String(args.bank) : undefined, args.prove ? String(args.prove) : undefined);
       return;

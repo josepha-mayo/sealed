@@ -413,3 +413,10 @@ runs. `score_chunk` reveals a count, never per-item results.
 
 Measured per-instruction compute-unit costs live in [costs.md](costs.md)
 (queue-side MPC ixs ~110-150k CU, callbacks ~130-160k, market ops ~4-16k).
+### `chain gate --all --cert <file>` / `gate --certify-verify <file>`
+`--cert` emits a `sealed-policy/v1` certificate: the policy, every
+record's verdict, AND the embedded score receipts each verdict was
+computed from — governance output as portable evidence. Verify replays
+each record PDA and recomputes all verdicts bit-exact; a flipped stored
+verdict fails `verdict replay` + `summary consistent`. A committed
+example lives at `docs/evidence/policies/min60-3runs.json`.

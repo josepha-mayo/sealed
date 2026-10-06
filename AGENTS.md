@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 41/41 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 42/42 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -369,3 +369,7 @@ parimutuel markets resolved from `Run.correct`.
 - `DeadlineInPast` is a dead error variant in market — the horizon cap now
   throws `DeadlineTooFar`; the old variant stays declared (removing it
   would renumber every later error code).
+- `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
+  + embedded receipts; `gate --certify-verify` replays PDA + verdict +
+  summary. Committed example: docs/evidence/policies/min60-3runs.json.
+  `yarn harness:test` → 42/42.
