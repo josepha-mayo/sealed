@@ -23,6 +23,36 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 ## Files
 
+### Portable artifacts — verify without a ledger
+
+The three artifact formats a judge can hold in one hand and check in the
+other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
+
+- `claims/` — **31 `sealed-claim/v1` cards**, one per registry record.
+  Each embeds the record's aggregate, every `ScoreLog` receipt, the runs
+  they point at, the banks those runs scored on, and every venue settled
+  on them — plus PDA seed material so a verifier re-derives every address.
+  Batch-verify the whole registry:
+  `chain prove --verify docs/evidence/claims` (279 checks across 31 cards).
+  Overlay your own policy while you're at it:
+  `chain prove --verify claims/qwen2.5-3b-instruct.json --min-pct 20`.
+- `policies/` — **`sealed-policy/v1` certificates**: a policy + every
+  record's verdict + the embedded receipts the verdict replayed from.
+  `min60-3runs.json` (whole registry), `strict70-vouched.json` (attested
+  pre-reveal evidence only), `sealed-test-60pct.json` (bank-scoped —
+  29 records honestly report `no-evidence` in that scope). Replay any of
+  them: `chain gate --certify-verify policies/<file>.json`.
+- `reports/` — **`sealed-report/v1` printable capability reports** —
+  the dossier as a document: registry record, four ranking lenses, the
+  receipt ledger, venue settlements, honesty flags, and a canonical
+  claim-card sha256 that re-mints identically (`generatedAt`/`source`
+  excluded from the digest). Reproduce:
+  `chain report qwen2.5-3b-instruct --snapshot ../../web/snapshot.json`.
+- `calibration/` — authored bank 77007 with plaintext answers shipped
+  *on purpose*: `scripts/rescore.mjs` recomputes answer hashes, re-binds
+  the artifact to `Run.outputs_root`, and recounts **bit-identical** to
+  the MPC-written score (7/32). See `calibration/README.md`.
+
 ### Benchmarks
 
 - `acct-EQsejQ89….json` — **the MPC-minted bank** (id 6932, PDA
