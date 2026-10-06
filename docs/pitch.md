@@ -108,7 +108,7 @@ not the commands.
   `chain gate --all --cert` binds a whole policy decision into a
   `sealed-policy/v1` certificate (the governance artifact — DAO proposals,
   insurer memos), `chain report` prints the dossier as a document,
-  `chain anomalies` runs eleven hostile audits on its own bundle, and
+  `chain anomalies` runs twelve hostile audits on its own bundle, and
   `chain market escrow` + `unclaimed` reconcile every staked lamport to
   the obligation — and the claimant — it sits with.
 - **Traction evidence:** 503 runs / 120 banks / 340 venues across six

@@ -149,7 +149,7 @@ ledger is forced to sum exactly to cumulative stakes — on the bundle,
 72.7◎ of 76.1◎ already left escrow (68.1◎ of it winner payouts), with
 zero dead money: every resolved venue's winning bucket was backed.
 
-`chain anomalies [--json]` is the skeptic's checklist — eleven hostile
+`chain anomalies [--json]` is the skeptic's checklist — twelve hostile
 audits run against the bundle itself: post-reveal runs, stuck-pending
 runs, thin high-pct records, dead money, forfeited dark stakes,
 past-deadline bounties, duplicate bank names, venues on post-reveal

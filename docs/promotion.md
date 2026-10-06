@@ -148,7 +148,7 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > records survives); `chain market escrow` reconciles every staked
 > lamport to its obligation bucket, balanced to the lamport (76.075◎ in,
 > in-play / owed / contingent / bounty / settled-out, zero dead money);
-> `chain anomalies` runs eleven hostile checks on its own bundle (the
+> `chain anomalies` runs twelve hostile checks on its own bundle (the
 > disclosed post-reveal runs are the one warn); `chain gate --sweep`
 > drops the single-threshold assumption — every record's "frontier" is
 > the strictest line it survives; and `chain prove` mints the actual
