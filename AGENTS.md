@@ -81,7 +81,10 @@ parimutuel markets resolved from `Run.correct`.
   `web/claims/` (each sha256-pinned in `web/MANIFEST`, `index.json` feeds
   the picker), `loadExampleClaim()`/`verifyClaim()` replay all 9 checks —
   PDA derivation needs the web3.js CDN, everything else is keyless; the
-  headless audit pins verify + tamper-reject.
+  headless audit pins verify + tamper-reject. The explorer also mirrors
+  `chain anomalies` at `#sec-anomalies` (the skeptic's checklist — all
+  ten findings, warn/note/ok) and `chain gate --sweep` on the gate
+  widget's sweep button (the frontier grid honoring its own filters).
 - Pure logic lives in `board.ts` (keeper classification mirroring the
   on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
   (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and

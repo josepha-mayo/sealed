@@ -113,5 +113,14 @@ const sweepOk = sweepRows === 31 && /test\/sweep-run[\s\S]{0,80}≥90%/.test(swe
   /never passes/.test(sweepTxt) && /≥80%/.test(sweepTxt);
 console.log(`in-page policy sweep — ${sweepRows} model rows, frontiers ${sweepOk ? "PASS" : "FAIL"}`);
 if (!sweepOk) fails++;
+// skeptic's checklist — all ten findings render with honest severities:
+// the disclosed post-reveal runs are the one warn, dead money stays zero.
+vm.runInContext("renderAnomalies()", ctx);
+const anomTxt = (els.get("anomres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const anomOk = /1 warn/.test(anomTxt) && /post-reveal evidence/.test(anomTxt) &&
+  /dead money/.test(anomTxt) && /duplicate bank names/.test(anomTxt) &&
+  /clean/.test(anomTxt);
+console.log(`in-page skeptic's checklist — 10 findings, severities ${anomOk ? "PASS" : "FAIL"}`);
+if (!anomOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

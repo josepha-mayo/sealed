@@ -75,7 +75,7 @@
 </div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -85,6 +85,12 @@
 <div class="card">
   <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span></div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
+</div>
+
+<h2 id="sec-anomalies">the skeptic's checklist</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the audit above proves what <i>holds</i> — this panel proves what <i>doesn't</i>. Every soft spot in the bundle, enumerated by the same checks as <code>chain anomalies</code>: weak evidence stays evidence, flagged, never hidden.</div>
+  <div id="anomres"><span class="kv">waiting for data…</span></div>
 </div>
 
 <h2 id="sec-verify">verify an output</h2>
@@ -2006,6 +2012,86 @@ function maybeAudit() {
   if (key === __auditKey) return;
   __auditKey = key;
   runAudit();
+  renderAnomalies();
+}
+
+// The skeptic's checklist — mirrors `chain anomalies` in chain.ts: the
+// audit proves what holds; this enumerates what doesn't. warn = real
+// weakness a skeptic could cite, note = disclosed context, ok = clean.
+function renderAnomalies() {
+  const out = document.getElementById("anomres");
+  const A = window.__audit;
+  if (!A) { out.innerHTML = `<span class="kv">no data loaded yet…</span>`; return; }
+  const now = Math.floor(Date.now() / 1000);
+  const f = [];
+  const num = (x) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const rows = A.runs, logs = A.scoreLogs, recs = A.modelRecords;
+  // 1. post-reveal evidence
+  const postRuns = rows.filter(r => r.postReveal);
+  f.push({ sev: postRuns.length ? "warn" : "ok", what: "post-reveal evidence", count: postRuns.length,
+    detail: postRuns.length ? `${postRuns.length} run(s) scored after fingerprint reveals — flagged on-chain, refused by markets, excludable via gate --no-post-reveal` : "no run was scored after its answers were public" });
+  // 2. stuck-pending runs
+  const stuck = rows.filter(r => r.status === 0 && num(r.createdAt) > 0 && now - num(r.createdAt) > 7 * 86400);
+  f.push({ sev: stuck.length ? "note" : "ok", what: "stuck-pending runs", count: stuck.length,
+    detail: stuck.length ? `${stuck.length} run(s) queued >7d without finalizing — honest scar tissue of the Arcium callback outage; pending forever, never claimed as evidence` : "no run has sat pending over a week" });
+  // 3. thin records
+  const thin = recs.filter(r => r.totalItems > 0 && r.totalItems < 64 && r.totalCorrect / r.totalItems > 0.85);
+  f.push({ sev: "note", what: "thin records (>85% on <64 items)", count: thin.length,
+    detail: thin.length ? `${thin.length} record(s) look strong on little evidence — Wilson LCB ranking exists precisely for this (records --wilson)` : "every high-accuracy record carries ≥64 scored items" });
+  // 4. dead money — resolved venues whose winning bucket went unbacked
+  let dead = 0n;
+  for (const v of [...A.markets, ...A.ladders]) {
+    if (v.status !== 1) continue;
+    const wt = v.resultMask !== undefined
+      ? v.totals.reduce((s, t, i) => s + ((v.resultMask & (1 << i)) ? BigInt(t) : 0n), 0n)
+      : BigInt(v.totals[v.outcome] ?? 0n);
+    if (wt === 0n) dead += v.totals.reduce((s, t) => s + BigInt(t), 0n);
+  }
+  for (const d of A.darkMarkets) if (d.status === 1 && d.tallied && d.winTotal === 0n) dead += d.poolTotal;
+  f.push({ sev: dead > 0n ? "warn" : "ok", what: "dead money (unbacked winning buckets)", count: Number(dead),
+    detail: dead > 0n ? `${(Number(dead) / 1e9).toFixed(4)}◎ stranded in venues no instruction can drain` : "every resolved venue's winning bucket was backed — zero stranded pots" });
+  // 5. forfeited dark stakes
+  const darkByPk = new Map(A.darkMarkets.map(d => [d.pk, d]));
+  const forfeits = A.darkPositions.filter(p => { const d = darkByPk.get(p.market); return d && d.status === 1 && p.revealed === null; });
+  f.push({ sev: forfeits.length ? "note" : "ok", what: "forfeited dark positions", count: forfeits.length,
+    detail: forfeits.length ? `${forfeits.length} sealed position(s) never revealed — stakes burned into the pot (the commit-reveal tax, by design)` : "every sealed position revealed in its window" });
+  // 6. expired-but-open bounties
+  const expB = A.bounties.filter(b => b.status === 0 && b.deadline > 0 && b.deadline <= now);
+  f.push({ sev: expB.length ? "note" : "ok", what: "past-deadline bounties awaiting expire", count: expB.length,
+    detail: expB.length ? `${expB.length} bounty pot(s) past deadline — sponsor-refundable via permissionless expire_bounty` : "no bounty sits past its deadline" });
+  // 7. duplicate bank names
+  const names = new Map();
+  for (const b of A.benches) names.set(b.name, (names.get(b.name) ?? 0) + 1);
+  const dupes = [...names.values()].filter(n => n > 1).reduce((s, n) => s + n, 0);
+  f.push({ sev: "note", what: "duplicate bank names", count: dupes,
+    detail: dupes ? `${dupes} banks share names — resolvers fan out to ALL matches and matrix columns disambiguate by on-chain id` : "every bank name is unique" });
+  // 8. venues on post-reveal runs — must be ZERO (program enforces)
+  const postSet = new Set(postRuns.map(r => r.pk));
+  const badVenues = [...A.markets, ...A.darkMarkets].filter(m => postSet.has(m.run)).length
+    + A.ladders.filter(l => l.legs.slice(0, l.legCount).some(p => postSet.has(p))).length;
+  f.push({ sev: badVenues ? "warn" : "ok", what: "venues on post-reveal runs", count: badVenues,
+    detail: badVenues ? `${badVenues} venue(s) priced post-reveal evidence — PostRevealRun gate violated!` : "program-level refusal holds — zero venues touch post-reveal runs" });
+  // 9. single-runner banks (≥3 runs, one key)
+  const bankRuns = new Map();
+  for (const r of rows) {
+    const k = r.benchmark;
+    (bankRuns.get(k) ?? bankRuns.set(k, new Set()).get(k)).add(r.runner);
+  }
+  const bankByPk = new Map(A.benches.map(b => [b.pk, b]));
+  const solo = [...bankRuns.entries()].filter(([pk, s]) => s.size === 1 && num(bankByPk.get(pk)?.runCount) >= 3);
+  f.push({ sev: "note", what: "single-runner banks (≥3 runs, one key)", count: solo.length,
+    detail: solo.length ? `${solo.length} bank(s) were scored entirely by one runner key — receipt-level honesty holds, runner diversity does not` : "every multi-run bank has runner diversity" });
+  // 10. empty resolved books
+  const empty = [...A.markets, ...A.ladders].filter(v => v.status === 1 && v.totals.every(t => BigInt(t) === 0n));
+  f.push({ sev: "note", what: "resolved venues with empty books", count: empty.length,
+    detail: empty.length ? `${empty.length} venue(s) resolved holding zero stake — settlement still re-verifies, but they priced nothing` : "every resolved venue carried real stake" });
+
+  const order = { warn: 0, note: 1, ok: 2 };
+  f.sort((a, b) => order[a.sev] - order[b.sev]);
+  const warn = f.filter(x => x.sev === "warn").length, note = f.filter(x => x.sev === "note").length, clean = f.filter(x => x.sev === "ok").length;
+  const pill = s => s === "warn" ? `<span class="pill cancelled">WARN</span>` : s === "note" ? `<span class="pill pending">note</span>` : `<span class="pill resolved"> ok </span>`;
+  out.innerHTML = `<div class="kv">${warn} warn · ${note} note · ${clean} clean — same checklist on the CLI: <span class="mono">sealed chain anomalies</span></div>` +
+    f.map(x => `<div style="margin:6px 0 0">${pill(x.sev)} <b>${esc(x.what)}</b> — <span class="kv">${x.count ? esc(String(x.count)) : "none"}</span><div class="kv" style="margin-left:52px">${esc(x.detail)}</div></div>`).join("");
 }
 
 async function runAudit(force) {
