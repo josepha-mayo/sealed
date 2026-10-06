@@ -228,6 +228,16 @@ yarn --cwd packages/harness cli chain gate --all --min-pct 60 --min-runs 3 --cer
 cat docs/evidence/reports/qwen2.5-3b-instruct.md
 yarn --cwd packages/harness cli chain report qwen2.5-3b-instruct --snapshot ../../web/snapshot.json
 
+# 3j. THE HEAD-TO-HEAD ARTIFACT — a sealed-match/v1 card makes a
+#     paired-evidence verdict portable: two real open-weights models,
+#     two shared banks, every receipt embedded, winner replayed offline.
+yarn --cwd packages/harness cli chain compare --match-verify ../../docs/evidence/matches/qwen3b-vs-qwen15b.json
+#         → MATCH VERIFIED — both record PDAs, all bank/run/receipt
+#           PDAs re-derived, 2-0-0 bank wins and the pooled verdict
+#           recomputed from the embedded receipts
+#         → same replay in the explorer: scroll to "verify a match
+#           card", load qwen3b-vs-qwen15b — 9 checks run in-page
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).

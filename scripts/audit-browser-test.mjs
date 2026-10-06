@@ -137,6 +137,24 @@ const certTamperTxt = (els.get("certres")?.innerHTML ?? "").replace(/<[^>]+>/g, 
 const certTamperOk = /CERT FAILED/.test(certTamperTxt) && /verdict replay/.test(certTamperTxt);
 console.log(`in-page policy-cert tamper case — flipped verdict ${certTamperOk ? "rejected PASS" : "MISSED FAIL"}`);
 if (!certTamperOk) fails++;
+// in-page match-card verifier: load the committed card through the page's
+// fetch path and run verifyMatch() — every PDA re-derives and the qwen
+// head-to-head replays. A tampered bank-win count must fail.
+await vm.runInContext("loadMatch()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+vm.runInContext("verifyMatch()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+const matchTxt = (els.get("matchres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const matchOk = /MATCH VERIFIED/.test(matchTxt) && /2-0-0/.test(matchTxt) && /14\/64 vs 4\/64/.test(matchTxt);
+console.log(`in-page match-card verifier — committed qwen3b-vs-qwen15b card ${matchOk ? "PASS" : "FAIL"}`);
+if (!matchOk) fails++;
+els.get("matchjson").value = els.get("matchjson").value.replace('"a": 2,', '"a": 1,');
+vm.runInContext("verifyMatch()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+const matchTamperTxt = (els.get("matchres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const matchTamperOk = /MATCH FAILED/.test(matchTamperTxt) && /bank wins/.test(matchTamperTxt);
+console.log(`in-page match-card tamper case — mutated bank-wins ${matchTamperOk ? "rejected PASS" : "MISSED FAIL"}`);
+if (!matchTamperOk) fails++;
 // policy sweep — the frontier grid renders all records; test/sweep-run's
 // perfect record must survive the strictest line.
 vm.runInContext("runSweep()", ctx);

@@ -78,7 +78,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -126,6 +126,16 @@
   <div><textarea id="certjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-policy/v1", &#8230;}'></textarea></div>
   <button onclick="verifyCert()">verify certificate</button>
   <div id="certres"></div>
+</div>
+<h2 id="sec-match">verify a match card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the portable head-to-head — a <code>sealed-match/v1</code> card (<code>chain compare &lt;a&gt; &lt;b&gt; --prove</code> mints them) binds two records' shared-bank receipts and the verdict they produce. Every PDA re-derives in-page, the pooled aggregates and bank-wins replay bit-exact. Same checks as <code>chain compare --match-verify</code>.</div>
+  <div><select id="matchpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed match card —</option></select>
+  <button onclick="loadMatch(document.getElementById('matchpick').value || 'qwen3b-vs-qwen15b.json')">load match</button>
+  <span class="kv">sha256-pinned in this bundle&#8217;s MANIFEST</span></div>
+  <div><textarea id="matchjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-match/v1", &#8230;}'></textarea></div>
+  <button onclick="verifyMatch()">verify match</button>
+  <div id="matchres"></div>
 </div>
 <div class="footer">benchmark items are committed by a sequential commitment fold at mint (replayable in-browser — see "verify commitment"); model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
 
@@ -2125,6 +2135,99 @@ function verifyCert() {
       : fail("summary consistent", `${s.pass}/${s.fail}/${s.noEvidence} stored ≠ ${rc.pass}/${rc.fail}/${rc.noEvidence} recomputed`);
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CERT VERIFIED" : "CERT FAILED"}</b> — ${c.models.length} records · policy: ${esc(JSON.stringify(p))}</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
+async function loadMatch(file) {
+  const ta = document.getElementById("matchjson");
+  try {
+    const r = await fetch(`matches/${file || "qwen3b-vs-qwen15b.json"}`);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text();
+  } catch (e) { ta.value = ""; document.getElementById("matchres").innerHTML = `<div class="kv">committed match card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+async function loadMatchIndex() {
+  const sel = document.getElementById("matchpick");
+  if (!sel) return;
+  try {
+    const r = await fetch("matches/index.json");
+    if (!r.ok) throw new Error(String(r.status));
+    for (const f of await r.json()) {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = f.replace(/\.json$/, "");
+      sel.appendChild(o);
+    }
+  } catch (e) { /* picker stays on the default option */ }
+}
+loadMatchIndex();
+// sealed-match/v1 verifier — mirrors `chain compare --match-verify`:
+// both record PDAs, every bank/run/receipt PDA re-derived, the per-bank
+// aggregates recomputed from embedded receipts, the verdict replayed.
+function verifyMatch() {
+  const res = document.getElementById("matchres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("matchjson").value);
+    if (c.kind !== "sealed-match/v1") throw new Error(`not a sealed-match/v1 card (kind=${c.kind})`);
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    const spid = new PK(c.programs.sealed);
+    const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
+    pdaB([utf8("modelrec"), hex2u8(c.a.seeds.modelHash)], spid) === c.a.recordPk
+      ? pass("record PDA a", `${c.a.recordPk.slice(0, 12)}… = [modelrec, sha256(${esc(c.a.id)})]`)
+      : fail("record PDA a", `${c.a.recordPk.slice(0, 12)}… ≠ [modelrec, sha256(${esc(c.a.id)})]`);
+    pdaB([utf8("modelrec"), hex2u8(c.b.seeds.modelHash)], spid) === c.b.recordPk
+      ? pass("record PDA b", `${c.b.recordPk.slice(0, 12)}… = [modelrec, sha256(${esc(c.b.id)})]`)
+      : fail("record PDA b", `${c.b.recordPk.slice(0, 12)}… ≠ [modelrec, sha256(${esc(c.b.id)})]`);
+    const bankOk = c.banks.filter(b => pdaB([utf8("benchmark"), pkB(b.authority), u32le(b.id)], spid) === b.pk).length;
+    bankOk === c.banks.length ? pass("bank PDAs", `${bankOk}/${c.banks.length} re-derived`)
+      : fail("bank PDAs", `${bankOk}/${c.banks.length} re-derived`);
+    const runOk = c.runs.filter(r => pdaB([utf8("run"), pkB(r.benchmark), u64le(r.index)], spid) === r.pk).length;
+    runOk === c.runs.length ? pass("run PDAs", `${runOk}/${c.runs.length} re-derived`)
+      : fail("run PDAs", `${runOk}/${c.runs.length} re-derived`);
+    const allRec = [...c.receipts.a, ...c.receipts.b];
+    const logOk = allRec.filter(l => pdaB([utf8("scorelog"), pkB(l.run)], spid) === l.pk).length;
+    logOk === allRec.length ? pass("receipt PDAs", `${logOk}/${allRec.length} re-derived`)
+      : fail("receipt PDAs", `${logOk}/${allRec.length} re-derived`);
+    const bankPks = new Set(c.banks.map(b => b.pk));
+    const agg = (ls) => {
+      const m = new Map();
+      for (const l of ls.filter(x => bankPks.has(x.benchmark))) {
+        const e = m.get(l.benchmark) ?? { c: 0, i: 0 };
+        e.c += l.correct; e.i += l.items; m.set(l.benchmark, e);
+      }
+      return m;
+    };
+    const ra = agg(c.receipts.a), rb = agg(c.receipts.b);
+    const shared = [...ra.keys()].filter(k => rb.has(k));
+    shared.length === c.verdict.sharedBanks
+      ? pass("shared banks", `${shared.length} recomputed = ${c.verdict.sharedBanks} stored`)
+      : fail("shared banks", `${shared.length} recomputed ≠ ${c.verdict.sharedBanks} stored`);
+    const pool = (m) => [...m.values()].reduce((s, e) => ({ c: s.c + e.c, i: s.i + e.i }), { c: 0, i: 0 });
+    const pA = pool(ra), pB = pool(rb);
+    (pA.c === c.verdict.pooledA && pA.i === c.verdict.pooledItemsA && pB.c === c.verdict.pooledB && pB.i === c.verdict.pooledItemsB)
+      ? pass("pooled aggregates", `${pA.c}/${pA.i} vs ${pB.c}/${pB.i} recomputed = stored`)
+      : fail("pooled aggregates", `${pA.c}/${pA.i} vs ${pB.c}/${pB.i} recomputed ≠ ${c.verdict.pooledA}/${c.verdict.pooledItemsA} vs ${c.verdict.pooledB}/${c.verdict.pooledItemsB} stored`);
+    const wins = { a: 0, tie: 0, b: 0 };
+    for (const k of shared) {
+      const pa = ra.get(k).i ? (100 * ra.get(k).c) / ra.get(k).i : 0;
+      const pb = rb.get(k).i ? (100 * rb.get(k).c) / rb.get(k).i : 0;
+      pa > pb ? wins.a++ : pa === pb ? wins.tie++ : wins.b++;
+    }
+    (wins.a === c.verdict.bankWins.a && wins.tie === c.verdict.bankWins.tie && wins.b === c.verdict.bankWins.b)
+      ? pass("bank wins", `${wins.a}-${wins.tie}-${wins.b} recomputed = stored`)
+      : fail("bank wins", `${wins.a}-${wins.tie}-${wins.b} recomputed ≠ ${c.verdict.bankWins.a}-${c.verdict.bankWins.tie}-${c.verdict.bankWins.b} stored`);
+    const pctA = pA.i ? (100 * pA.c) / pA.i : 0, pctB = pB.i ? (100 * pB.c) / pB.i : 0;
+    const winner = pctA === pctB ? "tie" : pctA > pctB ? "a" : "b";
+    (winner === c.verdict.winner && Math.abs(pctA - c.verdict.pctA) < 0.01 && Math.abs(pctB - c.verdict.pctB) < 0.01)
+      ? pass("verdict replay", `${esc(c.a.id)} ${pctA.toFixed(1)}% vs ${esc(c.b.id)} ${pctB.toFixed(1)}% → ${winner}`)
+      : fail("verdict replay", `recomputed ${winner} ${pctA.toFixed(2)}/${pctB.toFixed(2)} ≠ stored ${c.verdict.winner} ${c.verdict.pctA}/${c.verdict.pctB}`);
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "MATCH VERIFIED" : "MATCH FAILED"}</b> — ${esc(c.a.id)} vs ${esc(c.b.id)} · ${c.banks.length} shared banks · ${wins.a}-${wins.tie}-${wins.b}</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;

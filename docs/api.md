@@ -192,7 +192,9 @@ every shared bank, the runs/banks behind them, and the stored verdict.
 `chain compare --match-verify <file> [--json]` replays it offline —
 record/bank/run/receipt PDAs re-derived, per-bank aggregates and the
 verdict recomputed bit-exact. A committed real-model example lives at
-`docs/evidence/matches/qwen3b-vs-qwen15b.json`.
+`docs/evidence/matches/qwen3b-vs-qwen15b.json` (mirrored at
+`web/matches/`, sha256-pinned in `web/MANIFEST`); the explorer's
+"verify a match card" section replays the same checks in-page.
 `chain matrix [--banks N]` renders the capability matrix — models × the
 most-run banks, each cell the model's best finalized score there
 (`*` marks cells whose best score is post-reveal-only — it can't prove
