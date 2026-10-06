@@ -3695,6 +3695,12 @@ export async function chainStats(snapPath?: string, json = false) {
       itemChunks: itemChunks.length, privChunks: privChunks.length,
       reveals: reveals.length, grants: grants.length,
       records: records.length, receipts: logs.length,
+      venuesPriced: (() => {
+        const pkS = (v: any) => v?.toBase58 ? v.toBase58() : String(v);
+        const venuePks = new Set([...markets, ...darks, ...ladders].map((v) => v.publicKey.toBase58()));
+        const touched = new Set([...positions, ...darkPositions].map((p) => pkS(p.account.market)));
+        return [...touched].filter((t) => venuePks.has(t)).length;
+      })(),
       venues: markets.length + darks.length + ladders.length + bounties.length,
       markets: markets.length, darks: darks.length, ladders: ladders.length, bounties: bounties.length,
       positions: positions.length + darkPositions.length,
@@ -3755,7 +3761,8 @@ export async function chainStats(snapPath?: string, json = false) {
         .map(([pk, v]) => { const s = v.pcts.slice().sort((a, b) => a - b);
           return { pk, name: v.name, runs: s.length, spread: +(s[s.length - 1] - s[0]).toFixed(1), median: +s[Math.floor((s.length - 1) / 2)].toFixed(1) }; })
         .sort((a, b) => b.spread - a.spread);
-      return { banksMeasured: rows.length, medianSpreadPp: rows.length ? rows[Math.floor(rows.length / 2)].spread : 0, top: rows.slice(0, 3), hardest: rows.length ? rows.reduce((a, b) => (b.median < a.median ? b : a)) : null };
+      return { banksMeasured: rows.length, medianSpreadPp: rows.length ? rows[Math.floor(rows.length / 2)].spread : 0, top: rows.slice(0, 3), hardest: rows.length ? rows.reduce((a, b) => (b.median < a.median ? b : a)) : null,
+        dead: banks.length - new Set(runs.map((r) => (r.account.benchmark as PublicKey).toBase58())).size };
     })(),
   };
   if (json) {
@@ -3769,7 +3776,7 @@ export async function chainStats(snapPath?: string, json = false) {
     out.keeper.tallyable.length + out.keeper.expirable.length + out.keeper.expiredBounties.length;
   console.log(`ledger — ${out.ledger.banks} banks · ${out.ledger.runs} runs (${out.ledger.finalized} MPC-finalized)` +
     ` · ${out.ledger.venues} venues (${out.ledger.markets} band/duel, ${out.ledger.darks} dark, ${out.ledger.ladders} ladder, ${out.ledger.bounties} bounty)` +
-    ` · ${out.ledger.positions} positions`);
+    ` · ${out.ledger.positions} positions (${Math.round(100 * out.ledger.venuesPriced / Math.max(1, out.ledger.markets + out.ledger.darks + out.ledger.ladders))}% venue fill)`);
   console.log(`registry — ${out.ledger.records} records · ${out.ledger.receipts} receipts (${out.integrity.vouchedReceipts} vouched, ${postRev} post-reveal)`);
   console.log(`disclosure — ${out.ledger.reveals} reveals · ${out.ledger.grants} reshare grants · ${out.ledger.itemChunks}+${out.ledger.privChunks} item chunks`);
   console.log(`money — ${(escrow / 1e9).toFixed(3)}◎ escrowed · ${(fees / 1e9).toFixed(4)}◎ protocol fees collected`);
@@ -3783,6 +3790,7 @@ export async function chainStats(snapPath?: string, json = false) {
   const D = out.discrimination;
   if (D.banksMeasured) {
     console.log(`exams — ${D.banksMeasured} bank(s) with ≥4 models run · median spread ${D.medianSpreadPp}pp` +
+      (D.dead ? ` · ${D.dead} sealed bank(s) never raced` : "") +
       (D.hardest ? ` · hardest ${D.hardest.name} (median ${D.hardest.median}%)` : ""));
     for (const t of D.top.slice(0, 1)) console.log(`  most discriminating — ${t.name}: ${t.spread}pp spread over ${t.runs} runs (chain bank ${t.pk.slice(0, 8)}…)`);
   }

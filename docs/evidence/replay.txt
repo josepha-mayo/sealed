@@ -13,7 +13,7 @@ warns loudly if the bytes are not the committed ones.
 
 
 $ sealed chain stats --snapshot web/snapshot.json
-ledger — 120 banks · 503 runs (406 MPC-finalized) · 340 venues (208 band/duel, 47 dark, 48 ladder, 37 bounty) · 140 positions
+ledger — 120 banks · 503 runs (406 MPC-finalized) · 340 venues (208 band/duel, 47 dark, 48 ladder, 37 bounty) · 140 positions (30% venue fill)
 registry — 31 records · 292 receipts (20/292 vouched, 4 post-reveal)
 disclosure — 30 reveals · 145 reshare grants · 41+29 item chunks
 money — 76.075◎ escrowed · 0.0000◎ protocol fees collected
@@ -22,7 +22,7 @@ mpc — scoring latency p50 4s / p95 9s (406 timed runs)
 actors — 470 runner wallets · 140 bettor wallets (3 sealed) · 1 bounty sponsors · 55 grant viewers
 keeper — 36 actionable now · 246 settled · 24 in play
 activity — ▂█▇▁ (2004 events over 4 day(s), 2026-09-30 → 2026-10-03 · peak 967/day)
-exams — 39 bank(s) with ≥4 models run · median spread 62.5pp · hardest sealed-gen-v88123 (median 0%)
+exams — 39 bank(s) with ≥4 models run · median spread 62.5pp · 30 sealed bank(s) never raced · hardest sealed-gen-v88123 (median 0%)
   most discriminating — sealed-test: 87.5pp spread over 8 runs (chain bank A6UkXHYN…)
 
 $ sealed chain anomalies --snapshot web/snapshot.json
@@ -392,7 +392,7 @@ open venues — 28 accepting positions, soonest-close first
 
 $ sealed chain market bounties --snapshot web/snapshot.json   (head -10)
 37 bounties — 1 open (0 claimable right now):
-  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 600h  best-on-bank=64 (predates bounty — retroactivity wall)
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 599h  best-on-bank=64 (predates bounty — retroactivity wall)
   3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor

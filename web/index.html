@@ -808,6 +808,7 @@ function renderAll(sealedAccs, marketAccs) {
     [new Set(runs.map(r => r.runner)).size, "runner wallets"],
     [new Set(positions.map(p => p.bettor)).size + new Set(darkPositions.map(p => p.bettor)).size, "bettor wallets"],
     [new Set(grants.map(g => g.viewer)).size, "grant viewers"],
+    [benches.length - new Set(runs.map(r => r.benchmark)).size, "sealed banks never raced"],
   ].filter(([v]) => typeof v === "string" ? v.length > 0 : Number.isFinite(Number(v)) && Number(v) !== 0);
 
   // ---- hero: the confidentiality paradox, in one strip ----
