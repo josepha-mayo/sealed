@@ -82,7 +82,9 @@ the chain never trusts self-reported scores. The capability registry
 persists per-model records — 31 records / 292 receipts replayed
 bit-exact by verify.mjs (12/12) and in-browser (13/13); the calibration
 specimen runs the same MPC arithmetic in-browser on a two-model,
-per-item exam (3b 7/32 vs 1.5b 2/32, strict discrimination).
+per-item exam (3b 7/32 vs 1.5b 2/32, strict discrimination). Outputs
+are portable proof — 115 committed artifacts replay keyless via
+`chain artifact --recursive`; `chain fingerprint` = one sha256.
 
 ## targetAudience
 

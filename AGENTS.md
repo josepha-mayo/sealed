@@ -13,12 +13,14 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 53/53 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 57/57 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
-- `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
-  headless browser audit + grant-decrypt regression + calibration rescore
-  + evidence/web manifests + doc-count freshness + submission preflight.
+- `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
+  closer): offline verify + headless browser audit + grant-decrypt
+  regression + calibration rescore + recursive artifact replay (115
+  artifacts in one pass) + evidence/web manifests + doc-count freshness
+  + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
   --benchmark <pk> [--run-pubkey <pk>] [--snapshot web/snapshot.json]` →
   independent MPC-arithmetic verification: recomputes answerHash from
@@ -391,4 +393,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 53/53.
+  `yarn harness:test` → 57/57.
