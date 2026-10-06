@@ -129,6 +129,12 @@ positions and every resolved position sits in a distinct wallet — zero
 observable track records. That is the market layer's real privacy
 posture, measurable from chain state alone.
 
+`chain market unclaimed [--json]` is the owed-money ledger — every position
+the chain still owes a payout or refund, grouped by bettor with per-position
+pro-rata estimates and the largest single claims. The actionable mirror of
+`market escrow`: escrow counts obligations by venue, unclaimed names the
+claimants.
+
 `chain market escrow [--json]` is the lamport ledger — every cumulative
 stake reconciled to an obligation bucket: in-play pots, unclaimed winner
 shares (surviving payable positions), unclaimed refunds, accrued fees,

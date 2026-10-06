@@ -4681,6 +4681,58 @@ export async function marketSharps(minResolved = 1, json = false, snapPath?: str
  *  outstanding obligation; closed ones are settled outflow. Resolved
  *  venues whose winning bucket went unbacked hold a pot NO instruction can
  *  move — dead money by design, reported honestly instead of hidden. */
+/** `chain market unclaimed` — the owed-money ledger: every position the
+ *  chain owes a payout or refund to, grouped by bettor, with per-position
+ *  estimates. The actionable mirror of `market escrow` — escrow counts
+ *  obligations by venue; this names who can collect how much. */
+export async function marketUnclaimed(json = false, snapPath?: string) {
+  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
+      positions: SnapAccount[], darkPositions: SnapAccount[];
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
+  } else {
+    const { market } = marketProgram();
+    const mAcct = market.account as any;
+    [markets, ladders, darks, positions, darkPositions] = await Promise.all([
+      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
+      mAcct.position.all(), mAcct.darkPosition.all(),
+    ]);
+  }
+  const { rows } = classifyPositions(positions, darkPositions, venueMapsOf(markets, ladders, darks), null);
+  // winners + refundable; losing positions still return rent but aren't "owed".
+  const owed = rows.filter((r) => r.state === "payable" || r.state === "refund");
+  const byBettor = new Map<string, { payouts: bigint; refunds: bigint; rows: PosRow[] }>();
+  for (const r of owed) {
+    const a = byBettor.get(r.bettor) ?? { payouts: 0n, refunds: 0n, rows: [] };
+    if (r.state === "payable") a.payouts += r.est; else a.refunds += r.est;
+    a.rows.push(r);
+    byBettor.set(r.bettor, a);
+  }
+  const totPay = owed.filter((r) => r.state === "payable").reduce((s, r) => s + r.est, 0n);
+  const totRef = owed.filter((r) => r.state === "refund").reduce((s, r) => s + r.est, 0n);
+  const out = {
+    positions: owed.length,
+    payableLamports: totPay.toString(), refundLamports: totRef.toString(),
+    payableSol: Number(totPay) / 1e9, refundSol: Number(totRef) / 1e9,
+    bettors: [...byBettor.entries()].map(([b, a]) => ({ bettor: b, positions: a.rows.length,
+      payableSol: Number(a.payouts) / 1e9, refundSol: Number(a.refunds) / 1e9 }))
+      .sort((x, y) => y.payableSol - x.payableSol || y.refundSol - x.refundSol),
+  };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`unclaimed money — ${owed.length} positions the chain still owes (${out.payableSol.toFixed(3)}◎ payouts + ${out.refundSol.toFixed(3)}◎ refunds):`);
+  for (const b of out.bettors.slice(0, 15))
+    console.log(`  ${b.bettor.slice(0, 12)}… ${b.positions} position(s) · ${b.payableSol.toFixed(3)}◎ winnings${b.refundSol ? ` + ${b.refundSol.toFixed(3)}◎ refunds` : ""}`);
+  const top = owed.filter((r) => r.state === "payable").sort((a, b) => (a.est < b.est ? 1 : -1)).slice(0, 8);
+  if (top.length) {
+    console.log(`  largest single claims:`);
+    for (const r of top)
+      console.log(`    ${solAmt(r.est)} SOL ← ${r.bettor.slice(0, 12)}… on ${r.kind} ${r.pk.slice(0, 12)}… — ${r.note}`);
+  }
+  return out;
+}
+
 export async function marketEscrow(json = false, snapPath?: string) {
   const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
   let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
@@ -5676,6 +5728,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketSharps(Number(args.min ?? 1), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "escrow") {
       await marketEscrow(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "unclaimed") {
+      await marketUnclaimed(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

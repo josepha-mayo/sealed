@@ -1025,3 +1025,18 @@ test("chainReport — the dossier as a document, card-hash pinned", async () => 
     assert.match(md, /post-reveal runs: 0/);
   } finally { console.log = origLog; }
 });
+
+test("marketUnclaimed — the owed-money ledger names who can collect", async () => {
+  const { marketUnclaimed } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const out = (await marketUnclaimed(true, snapPath)) as any;
+    assert.equal(out.positions, 17);
+    assert.equal(out.payableSol, 0.58);
+    assert.equal(out.refundSol, 0);
+    assert.equal(out.bettors.length, 17);
+    assert.equal(out.bettors[0].payableSol, 0.1); // largest claim first
+  } finally { console.log = origLog; }
+});

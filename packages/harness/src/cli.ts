@@ -199,6 +199,7 @@ async function main() {
   sealed chain market live    [--json] [--snapshot file]                   the bettor's board — venues still taking positions, soonest-close first
   sealed chain market sharps  [--min n] [--json] [--snapshot file]          bettor track records — W-L, Wilson LCB rank, realized P&L, anonymity set
   sealed chain market escrow  [--json] [--snapshot file]                    the lamport ledger — every stake reconciled to an obligation bucket
+  sealed chain market unclaimed [--json] [--snapshot file]                  the owed-money ledger — who can claim how much, per position
   sealed chain anomalies    [--json] [--snapshot file]                      the skeptic's checklist — every soft spot in this evidence, enumerated
   sealed chain market sweep   [--bettor kp.json] [--watch secs]            execute every permissionless action the board lists (loop = keeper daemon)
   sealed chain market positions [--bettor kp.json|--viewer <pk>] [--json] [--snapshot file]
