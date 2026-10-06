@@ -1062,3 +1062,19 @@ test("gateWhy — the policy envelope names the binding constraint", async () =>
     assert.equal(v2.binding, "runs");
   } finally { console.log = origLog; }
 });
+
+test("bank depth — venues' lamports attribute to the exams they priced", async () => {
+  const { bankList, bankShow } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const rows = (await bankList(snapPath, true, undefined, true)) as any[];
+    const withDepth = rows.filter(r => (r.depthSol ?? 0) > 0);
+    assert.ok(withDepth.length > 0, "some bank must carry venue depth");
+    assert.ok(withDepth.every(r => r.depthSol! > 0));
+    const b = (await bankShow("A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1", true, snapPath)) as any;
+    assert.equal(b.marketDepth.venues, 10);
+    assert.ok(Number(b.marketDepth.lamports) > 1.5e9);
+  } finally { console.log = origLog; }
+});

@@ -1626,21 +1626,41 @@ const BANK_KIND = ["authored", "generated", "private"] as const;
 
 /** `chain banks [--snapshot f] [--json]` — every benchmark, run-count first:
  *  the index `chain status --benchmark <pk>` needs without an explorer. */
-export async function bankList(snapPath?: string, json = false, kind?: string) {
+export async function bankList(snapPath?: string, json = false, kind?: string, depth = false) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const sm = depth && snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "market") : null;
   const acct = () => (sealedProgram().program.account as any);
   const [banks, runs]: [SnapAccount[], SnapAccount[]] = ss
     ? [snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
     : await Promise.all([acct().benchmark.all(), acct().run.all()]);
   const best = new Map<string, number>();
   const finalized = new Map<string, number>();
+  const bankOfRun = new Map<string, string>();
   for (const r of runs) {
-    if (r.account.status !== 1) continue;
     const k = (r.account.benchmark as PublicKey).toBase58();
+    bankOfRun.set(r.publicKey.toBase58(), k);
+    if (r.account.status !== 1) continue;
     const items = Number(r.account.chunkCount) * 32;
     const pct = items ? (100 * Number(r.account.correct)) / items : 0;
     best.set(k, Math.max(best.get(k) ?? 0, pct));
     finalized.set(k, (finalized.get(k) ?? 0) + 1);
+  }
+  // --depth: lamports that flowed through each exam's venues.
+  const depthLam = new Map<string, bigint>();
+  if (depth) {
+    const mAcct = () => (marketProgram().market.account as any);
+    const [markets, darks, ladders, bounties]: SnapAccount[][] = sm
+      ? ["Market", "DarkMarket", "Ladder", "Bounty"].map((n) => snapOf(sm, n))
+      : await Promise.all([mAcct().market.all(), mAcct().darkMarket.all(), mAcct().ladder.all(), mAcct().bounty.all()]);
+    const add = (bank: string | undefined, lam: bigint) => { if (bank) depthLam.set(bank, (depthLam.get(bank) ?? 0n) + lam); };
+    for (const m of [...markets, ...darks])
+      add(bankOfRun.get((m.account.run as PublicKey).toBase58()),
+        m.account.totals ? (m.account.totals as any[]).reduce((s: bigint, t: any) => s + BigInt(t.toString()), 0n) : BigInt((m.account.poolTotal as any)?.toString() ?? "0"));
+    for (const l of ladders) {
+      const lam = (l.account.totals as any[]).reduce((s: bigint, t: any) => s + BigInt(t.toString()), 0n);
+      for (const p of (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount))) add(bankOfRun.get(p.toBase58()), lam);
+    }
+    for (const b of bounties) add((b.account.bank as PublicKey).toBase58(), BigInt((b.account.amount as any)?.toString() ?? "0"));
   }
   const want = kind ? BANK_KIND.indexOf(kind as any) : -1;
   if (kind && want < 0) throw new Error(`--kind one of ${BANK_KIND.join("|")}`);
@@ -1653,13 +1673,14 @@ export async function bankList(snapPath?: string, json = false, kind?: string) {
       finalized: finalized.get(pk) ?? 0, best: best.get(pk) ?? 0,
       reveals: Number(b.revealCount), createdAt: Number(b.createdAt),
       authority: (b.authority as PublicKey).toBase58(),
+      depthSol: depth ? Number(depthLam.get(pk) ?? 0n) / 1e9 : undefined,
     };
-  }).sort((p, q) => q.runs - p.runs || p.name.localeCompare(q.name));
+  }).sort((p, q) => depth ? ((q.depthSol ?? 0) - (p.depthSol ?? 0) || q.runs - p.runs) : (q.runs - p.runs || p.name.localeCompare(q.name)));
   if (json) { console.log(JSON.stringify(rows)); return rows; }
-  console.log(`${rows.length} benchmarks — run count first:`);
+  console.log(`${rows.length} benchmarks — ${depth ? "market depth" : "run count"} first:`);
   for (const r of rows)
     console.log(`  ${r.pk}  ${r.name.padEnd(20)} ${r.kind.padEnd(9)} items=${String(r.items).padStart(3)} runs=${String(r.runs).padStart(3)}` +
-      ` finalized=${String(r.finalized).padStart(3)} best=${r.best.toFixed(1)}%${r.reveals ? ` reveals=${r.reveals}` : ""}`);
+      ` finalized=${String(r.finalized).padStart(3)} best=${r.best.toFixed(1)}%${r.reveals ? ` reveals=${r.reveals}` : ""}${r.depthSol !== undefined ? ` depth=${r.depthSol.toFixed(3)}◎` : ""}`);
   return rows;
 }
 
@@ -1729,6 +1750,29 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
     venueRow(ladders, "ladder", "benchmark"),
     venueRow(bounties, "bounty", "bank", (a) => (a.status === 0 ? "open" : "claimed")),
   ].filter((v): v is NonNullable<typeof v> => Boolean(v));
+  // market depth — lamports that moved through venues pricing THIS exam's
+  // runs (markets/ladders/darks key on run; bounties key on the bank).
+  const runSet = new Set(bRuns.map((r) => r.publicKey.toBase58()));
+  const depth = { venues: 0, lamports: 0n, resolved: 0n, open: 0n };
+  for (const m of [...markets, ...darks]) {
+    if (!runSet.has((m.account.run as PublicKey).toBase58())) continue;
+    const pot = m.account.totals
+      ? (m.account.totals as any[]).reduce((s: bigint, t: any) => s + BigInt(t.toString()), 0n)
+      : BigInt((m.account.poolTotal as any)?.toString() ?? "0");
+    depth.venues++; depth.lamports += pot;
+    if (Number(m.account.status) === 1) depth.resolved += pot; else depth.open += pot;
+  }
+  for (const l of ladders) {
+    if (!(l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).some((p) => runSet.has(p.toBase58()))) continue;
+    const pot = (l.account.totals as any[]).reduce((s: bigint, t: any) => s + BigInt(t.toString()), 0n);
+    depth.venues++; depth.lamports += pot;
+    if (Number(l.account.status) === 1) depth.resolved += pot; else depth.open += pot;
+  }
+  for (const b of bounties.filter((b) => (b.account.bank as PublicKey).toBase58() === pk)) {
+    depth.venues++; depth.lamports += BigInt((b.account.amount as any)?.toString() ?? "0");
+    if (Number(b.account.status) !== 0) depth.resolved += BigInt((b.account.amount as any)?.toString() ?? "0");
+    else depth.open += BigInt((b.account.amount as any)?.toString() ?? "0");
+  }
   const out = {
     pk, name: B.name, kind: BANK_KIND[B.kind as number] ?? String(B.kind),
     authority: (B.authority as PublicKey).toBase58(), status: B.status,
@@ -1745,6 +1789,8 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
     grants: bGrants.length,
     chunks: { public: bItem.length, private: bPriv.length },
     venues,
+    marketDepth: depth.venues ? { venues: depth.venues, lamports: depth.lamports.toString(),
+      resolved: depth.resolved.toString(), open: depth.open.toString() } : null,
   };
   if (json) { console.log(JSON.stringify(out)); return out; }
   const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
@@ -1764,6 +1810,10 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
   if (!venues.length) console.log(`  venues — none priced runs on this bank`);
   for (const v of venues)
     console.log(`  venues — ${v.kind}: ${v.total} (${Object.entries(v.byStatus).map(([k, n]) => `${n} ${k}`).join(", ")})`);
+  if (out.marketDepth) {
+    const md = out.marketDepth;
+    console.log(`  depth — ${md.venues} venue(s) moved ${(Number(md.lamports) / 1e9).toFixed(3)}◎ through this exam's runs (${(Number(md.resolved) / 1e9).toFixed(3)}◎ resolved · ${(Number(md.open) / 1e9).toFixed(3)}◎ still in play)`);
+  }
   return out;
 }
 
@@ -5600,7 +5650,7 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "banks") {
     await bankList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json),
-      args.kind ? String(args.kind) : undefined);
+      args.kind ? String(args.kind) : undefined, Boolean(args.depth));
     return;
   }
   if (sub === "matrix") {

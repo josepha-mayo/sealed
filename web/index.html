@@ -1031,7 +1031,14 @@ function renderAll(sealedAccs, marketAccs) {
       const pcts = fin.map(r => 100 * r.correct / Math.max(1, r.chunkCount * 32)).sort((a, b2) => a - b2);
       const qq = p => pcts[Math.min(pcts.length - 1, Math.floor((pcts.length - 1) * p))];
       const spread = qq(1) - qq(0);
-      return `<div class="proof">difficulty — min ${qq(0).toFixed(1)}% · p25 ${qq(0.25).toFixed(1)}% · median ${qq(0.5).toFixed(1)}% · p75 ${qq(0.75).toFixed(1)}% · max ${qq(1).toFixed(1)}% <span class="kv">(${spread.toFixed(1)}pp spread — ${spread >= 30 ? "discriminating" : spread >= 10 ? "moderate" : "tight"} exam · same math as chain bank)</span></div>`; })()}`;
+      return `<div class="proof">difficulty — min ${qq(0).toFixed(1)}% · p25 ${qq(0.25).toFixed(1)}% · median ${qq(0.5).toFixed(1)}% · p75 ${qq(0.75).toFixed(1)}% · max ${qq(1).toFixed(1)}% <span class="kv">(${spread.toFixed(1)}pp spread — ${spread >= 30 ? "discriminating" : spread >= 10 ? "moderate" : "tight"} exam · same math as chain bank)</span></div>`; })()}${(() => { // market depth — lamports that moved through venues pricing THIS exam
+        const runPks = new Set(brs.map(r => r.pk));
+        let depth = 0, vn = 0, res = 0;
+        for (const m of markets) { if (!runPks.has(m.run) && !(m.duel && runPks.has(m.runB))) continue; const pot = m.totals.reduce((s, t) => s + Number(t), 0) / 1e9; depth += pot; vn++; if (m.status === 1) res += pot; }
+        for (const l of ladders) { if (!l.legs.slice(0, l.legCount).some(p => runPks.has(p))) continue; const pot = l.totals.reduce((s, t) => s + Number(t), 0) / 1e9; depth += pot; vn++; if (l.status === 1) res += pot; }
+        for (const d of darkMarkets) { if (!runPks.has(d.run)) continue; const pot = Number(d.poolTotal) / 1e9; depth += pot; vn++; if (d.status === 1) res += pot; }
+        for (const bo of bounties) { if (bo.bank !== b.pk) continue; depth += Number(bo.amount) / 1e9; vn++; if (bo.status !== 0) res += Number(bo.amount) / 1e9; }
+        return vn ? `<div class="proof">depth — ${vn} venue(s) moved ${depth.toFixed(3)}◎ through this exam's runs (${res.toFixed(3)}◎ resolved · ${(depth - res).toFixed(3)}◎ still in play) <span class="kv">· chain bank &lt;pk&gt;</span></div>` : ""; })()}`
     const bcs = chunks.filter(c => c.bench === b.pk).sort((a, b2) => a.idx - b2.idx);
     if (bcs.length) {
       const sealedCts = bcs.filter(c => c.partsSealed === 15);
