@@ -164,7 +164,12 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > `chain report` prints the dossier as a card-hash-pinned document,
 > `chain gate <model> --why` autopsies the binding constraint,
 > `chain market unclaimed` names every owed claimant, and
-> `chain banks --depth` sorts exams by lamports moved.
+> `chain banks --depth` sorts exams by lamports moved. The capper:
+> `chain artifact docs/evidence --recursive` replays all 115 committed
+> artifacts in one pass (claims, matches, policies, trails, reports —
+> five portable kinds, one universal verifier), and `chain fingerprint`
+> folds every manifest-pinned byte into a single `BUNDLE ROOT` sha256
+> the terminal and the explorer agree on.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201
