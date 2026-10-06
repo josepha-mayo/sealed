@@ -1093,3 +1093,21 @@ test("records --vouched isolates venue-attested receipts only", async () => {
     assert.ok(vouched.some(r => r.modelId === "test/sweep-run"));
   } finally { console.log = origLog; }
 });
+
+test("runs --post-reveal isolates the flagged substrate honestly", async () => {
+  const { runList } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const all = (await runList({ snapPath, json: true })) as any[];
+    const pr = (await runList({ snapPath, json: true, postReveal: true })) as any[];
+    const clean = (await runList({ snapPath, json: true, postReveal: false })) as any[];
+    assert.ok(pr.length > 0, "post-reveal runs exist in the bundle");
+    assert.ok(pr.every(r => r.postReveal), "every filtered row carries the flag");
+    assert.ok(clean.every(r => !r.postReveal));
+    assert.equal(pr.length + clean.length, all.length, "partition is total");
+    // real models carry the flag too — honesty over polish
+    assert.ok(pr.some(r => r.model === "qwen2.5-1.5b-instruct"));
+  } finally { console.log = origLog; }
+});

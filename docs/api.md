@@ -214,9 +214,11 @@ the verdicts applied to YOUR deployment, with a discriminator-filtered
 fallback that tolerates old-layout accounts the same way snapshot
 decoding does.
 `chain runs` filters the substrate — `--bank`, `--model`, `--min-pct`,
-`--status`, and `--attested` isolates authority-countersigned runs (the
-flag markets and the `vouched` gate trust; an unattested run is a claim,
-an attested one is a co-signed measurement).
+`--status`, `--attested` isolates authority-countersigned runs (the flag
+markets and the `vouched` gate trust), and `--post-reveal` isolates runs
+created after their bank's fingerprint reveals — outputs could have been
+stuffed, so the flag is recorded on-chain, markets refuse them, and the
+gate can exclude them via `--no-post-reveal`.
 `chain prove <model|record-pk> [--out claim.json]` mints a
 `sealed-claim/v1` card — the product's actual deliverable: one model's
 ModelRecord, every receipt, every run (plus the co-participant runs its

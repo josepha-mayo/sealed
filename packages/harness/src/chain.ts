@@ -1830,7 +1830,7 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
  *  bank Y" — as a grep-able table. */
 export async function runList(opts: {
   snapPath?: string; json?: boolean; bank?: string; model?: string;
-  minPct?: number; status?: string; attested?: boolean;
+  minPct?: number; status?: string; attested?: boolean; postReveal?: boolean;
 }) {
   const ss = opts.snapPath ? decodeSnapshotSection(loadSnapshotJson(opts.snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
@@ -1866,6 +1866,7 @@ export async function runList(opts: {
     (!bankPks || bankPks.has(r.bank)) &&
     (!opts.model || r.model === opts.model) &&
     (opts.attested === undefined || r.attested === opts.attested) &&
+    (opts.postReveal === undefined || r.postReveal === opts.postReveal) &&
     (opts.minPct === undefined || r.pct >= opts.minPct) &&
     (want === undefined || r.status === want))
     .sort((a, b) => b.pct - a.pct || b.finalizedAt - a.finalizedAt);
@@ -5726,6 +5727,7 @@ export async function chainMain(cmd: string[], args: Args) {
       minPct: args["min-pct"] !== undefined ? Number(args["min-pct"]) : undefined,
       status: args.status ? String(args.status) : undefined,
       attested: args.attested === undefined ? undefined : Boolean(args.attested),
+      postReveal: args["post-reveal"] === undefined ? undefined : Boolean(args["post-reveal"]),
     });
     return;
   }
