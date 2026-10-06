@@ -1087,7 +1087,7 @@ function renderAll(sealedAccs, marketAccs) {
       <div class="kv">every <span class="mono">reshare_part</span> grant on this ledger — a delegated x25519 re-encryption of exam <i>specs</i> (answers never move — they stay sealed to the cluster). ${grants.length} grants · ${bN} bank(s) disclosed · ${vN} distinct viewer(s). <span class="mono">chain grants</span> prints the same rows.</div>
       <table style="margin-top:6px"><tr><th>bank</th><th>chunk.part</th><th>viewer</th><th>shared</th><th>grant</th></tr>` +
       [...grants].sort((a, b) => b.sharedAt - a.sharedAt).slice(0, 60).map(g =>
-        `<tr><td>${esc(bn2.get(g.bench) ?? short(g.bench))}</td><td class="mono">${g.chunk}.${g.part}</td><td class="mono"><a href="?pk=${g.viewer}">${short(g.viewer)}</a></td><td class="kv">${fmtTs(g.sharedAt)}</td><td class="mono">${short(g.pk)}</td></tr>`).join("") +
+        `<tr><td>${esc(bn2.get(g.bench) ?? short(g.bench))}</td><td class="mono">${g.chunk}.${g.part}</td><td class="mono"><a href="?pk=${g.viewer}">${short(g.viewer)}</a></td><td class="kv">${fmtTs(g.sharedAt)}</td><td class="mono"><a href="?pk=${g.pk}">${short(g.pk)}</a></td></tr>`).join("") +
       `</table>${grants.length > 60 ? `<div class="kv" style="margin-top:4px">… ${grants.length - 60} more — <span class="mono">chain grants --benchmark/--viewer</span> narrows it</div>` : ""}
     </div>`;
   }
