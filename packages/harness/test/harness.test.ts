@@ -1321,6 +1321,21 @@ test("chain artifact — the universal verifier routes every kind", async () => 
       join(new URL("../../../docs/evidence/reports", import.meta.url).pathname, "qwen2.5-3b-instruct.md"),
       false, snapPath)) as any;
     assert.equal(rep.fail, 0);
+    // recursive: nested artifacts are replayed, nested non-artifacts skipped —
+    // a flat scan of the same tree can't see below the top level
+    const { mkdirSync } = await import("node:fs");
+    const tree = mkdtempSync(join(tmpdir(), "sealed-tree-"));
+    mkdirSync(join(tree, "a", "b"), { recursive: true });
+    copyFileSync(join(new URL("../../../docs/evidence/trails", import.meta.url).pathname, "qwen3b-private-duel.json"), join(tree, "a", "b", "t.json"));
+    copyFileSync(join(new URL("../../../docs/evidence/claims", import.meta.url).pathname, "qwen2.5-3b-instruct.json"), join(tree, "c.json"));
+    writeFileSync(join(tree, "a", "data.json"), "{\"not\":\"an artifact\"}");
+    const rec = (await artifactVerify(tree, false, snapPath, true)) as any;
+    assert.equal(rec.ok, true);
+    assert.equal(rec.artifacts.length, 3);
+    assert.equal(rec.artifacts.find((a: any) => a.file === "a/data.json").skipped, true);
+    assert.equal(rec.artifacts.find((a: any) => a.file === "a/b/t.json").kind, "sealed-trail/v1");
+    const flat = (await artifactVerify(tree, false, snapPath)) as any;
+    assert.equal(flat.artifacts.length, 1); // only the top-level claim card
   } finally { console.log = origLog; process.exitCode = origExit; }
 });
 

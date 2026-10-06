@@ -3115,7 +3115,7 @@ export async function trailVerify(file: string, json = false) {
  *  keyless replay. One command verifies everything — a judge never has to
  *  know which flag goes with which artifact. A directory verifies every
  *  artifact inside it (mixed kinds welcome). */
-export async function artifactVerify(target: string, json = false, snapPath?: string) {
+export async function artifactVerify(target: string, json = false, snapPath?: string, recursive = false) {
   const { statSync, readdirSync } = await import("node:fs");
   const kindOf = (f: string): string | null => {
     const raw = readFileSync(f, "utf8");
@@ -3130,14 +3130,24 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
   };
   if (statSync(target).isDirectory()) {
-    const files = readdirSync(target).filter((f) => (f.endsWith(".json") || f.endsWith(".md")) && f !== "index.json" && f !== "SHA256SUMS" && f !== "README.md").sort();
-    if (!files.length) throw new Error(`no artifacts (*.json) in ${target}`);
+    const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
+      !["index.json", "SHA256SUMS", "README.md"].includes(f);
+    const files: string[] = [];
+    const walk = (dir: string, depth: number) => {
+      for (const f of readdirSync(dir).sort()) {
+        const full = `${dir}/${f}`;
+        if (statSync(full).isDirectory()) { if (recursive && depth < 3) walk(full, depth + 1); continue; }
+        if (isArtifactFile(f)) files.push(full);
+      }
+    };
+    walk(target, 0);
+    if (!files.length) throw new Error(`no artifacts (*.json|*.md) in ${target}${recursive ? " (recursive)" : ""}`);
     let okAll = true;
     const results: any[] = [];
-    if (!json) console.log(`verifying ${files.length} artifact(s) in ${target}/`);
+    if (!json) console.log(`scanning ${files.length} candidate file(s) in ${target}${recursive ? " (recursive)" : ""}`);
     const orig = console.log;
-    for (const f of files) {
-      const full = `${target}/${f}`;
+    for (const full of files) {
+      const f = full.slice(target.length + 1);
       try {
         const kind = kindOf(full);
         const route = kind ? ROUTES[kind] : null;
@@ -3156,13 +3166,22 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
       }
     }
     if (json) console.log(JSON.stringify({ dir: target, artifacts: results, ok: okAll }));
-    else console.log(`${okAll ? "ALL ARTIFACTS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} file(s), ${target}`);
+    else {
+      const byKind = new Map<string, number>();
+      let skipped = 0;
+      for (const r of results) {
+        if (r.skipped) { skipped++; continue; }
+        if (r.kind) byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + 1);
+      }
+      console.log(`${okAll ? "ALL ARTIFACTS VERIFIED" : "VERIFICATION FAILED"} — ${results.length - skipped} artifact(s) replayed, ${skipped} non-artifact(s) skipped, ${target}` +
+        (byKind.size > 1 ? ` · ${[...byKind].map(([k, n]) => `${n}× ${k}`).join(", ")}` : ""));
+    }
     if (!okAll) process.exitCode = 1;
     return { ok: okAll, artifacts: results };
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
 }
@@ -6248,8 +6267,9 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "artifact") {
     const target = cmd[1] ?? args.file;
-    if (!target) throw new Error("usage: chain artifact <file|dir> [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless");
-    await artifactVerify(String(target), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    if (!target) throw new Error("usage: chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless");
+    await artifactVerify(String(target), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
+      Boolean(args.recursive));
     return;
   }
   if (sub === "attest") {

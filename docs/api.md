@@ -217,11 +217,14 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 `docs/evidence/trails/` cover every venue kind (mirrored at
 `web/trails/`); the explorer's "verify a trail card" section replays
 the same checks in-page.
-`chain artifact <file|dir> [--json]` is the universal verifier —
-auto-detects any `sealed-claim|policy|match|trail|report/v1` payload
-and routes it to the right replay. A directory verifies every artifact
-in it, mixing kinds freely (`ALL ARTIFACTS VERIFIED`, exit 1 on any
-failure; non-artifact files are skipped, not failed). The explorer's
+`chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json]` is
+the universal verifier — auto-detects any
+`sealed-claim|policy|match|trail|report/v1` payload and routes it to
+the right replay. A directory verifies every artifact in it, mixing
+kinds freely; `--recursive` walks the whole tree (115 artifacts in
+`docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any failure;
+non-artifact files are skipped, not failed). Reports need `--snapshot`
+(or live RPC) to re-mint their bound claim card. The explorer's
 "verify anything" panel does the same routing in-page.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`
 capability document — the dossier + claim card as printable markdown,

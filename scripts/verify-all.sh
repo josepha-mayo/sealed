@@ -23,21 +23,9 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
   --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
   --snapshot web/snapshot.json
 
-say "5/8 committed claim cards + policy certificate — every PDA re-derived, every verdict replayed"
-yarn --cwd packages/harness -s cli chain prove --verify \
-  ../../docs/evidence/claims
-yarn --cwd packages/harness -s cli chain gate --certify-verify \
-  ../../docs/evidence/policies/min60-3runs.json
-yarn --cwd packages/harness -s cli chain gate --certify-verify \
-  ../../docs/evidence/policies/strict70-vouched.json
-yarn --cwd packages/harness -s cli chain gate --certify-verify \
-  ../../docs/evidence/policies/sealed-test-60pct.json
-yarn --cwd packages/harness -s cli chain compare --match-verify \
-  ../../docs/evidence/matches
-yarn --cwd packages/harness -s cli chain trail --verify \
-  ../../docs/evidence/trails
+say "5/8 whole-tree artifact replay — one recursive pass, 115 artifacts, non-artifacts skipped"
 yarn --cwd packages/harness -s cli chain artifact \
-  ../../docs/evidence/reports --snapshot ../../web/snapshot.json
+  ../../docs/evidence --recursive --snapshot ../../web/snapshot.json
 
 say "6/8 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
 scripts/evidence-manifest.sh check
