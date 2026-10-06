@@ -1220,8 +1220,18 @@ function renderAll(sealedAccs, marketAccs) {
       push(b.createdAt, "venue", b.pk, `bounty posted — ≥${b.threshold} pays ${sol(b.amount)} SOL${b.status !== 0 ? ` (claimed @${b.winningScore})` : ""}`, `bounty-${b.pk}`);
     ev.sort((a, b) => b.t - a.t);
     window.__feed = ev;
+    // the pulse line — `chain stats`' heartbeat in-page: MPC finalize
+    // latency percentiles (queued→finalized) + a per-day event sparkline.
+    const lats = runs.filter(r => r.status === 1 && r.finalizedAt > r.createdAt).map(r => r.finalizedAt - r.createdAt).sort((a, b) => a - b);
+    const pct = (xs, p) => xs.length ? xs[Math.min(xs.length - 1, Math.floor(p * xs.length))] : 0;
+    const days = new Map();
+    for (const e of ev) { const d = new Date(e.t * 1000).toISOString().slice(0, 10); days.set(d, (days.get(d) ?? 0) + 1); }
+    const dks = [...days.keys()].sort(), dMax = Math.max(...[...days.values()]);
+    const spark = dks.map(k => "▁▂▃▄▅▆▇█"[Math.min(7, Math.round(7 * days.get(k) / dMax))]).join("");
+    const fmtDur = (s) => s >= 3600 ? `${(s / 3600).toFixed(1)}h` : s >= 60 ? `${(s / 60).toFixed(1)}m` : `${s}s`;
     h += `<h2 id="sec-feed">activity — the ledger's chronology in one stream</h2><div class="card">
       <div class="kv">every timestamped event across both programs, newest first — the same stream <span class="mono">chain feed</span> prints. ${ev.length} events on this ledger.</div>
+      <div class="kv">pulse — MPC finalize latency p50 ${fmtDur(pct(lats, 0.5))} · p95 ${fmtDur(pct(lats, 0.95))} (${lats.length} finalized) · ${dks.length} day(s) of activity <span class="mono">${spark}</span> — the same numbers <span class="mono">chain stats</span> reports</div>
       <div class="kv" style="margin:4px 0">type <select id="feedType" onchange="runFeedFilter()"><option value="">all</option><option>bank</option><option>run</option><option>score</option><option>receipt</option><option>reveal</option><option>grant</option><option>venue</option><option>resolution</option></select>
       · match <input id="feedMatch" size="26" placeholder="model id, bank name, pk…" oninput="runFeedFilter()">
       <span class="kv">— <span class="mono">chain feed --type/--model/--bank</span> in-page</span></div>
