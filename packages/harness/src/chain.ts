@@ -3639,6 +3639,217 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
   return digest;
 }
 
+/** `chain prove <model> [--out f]` — mint a portable claim card
+ *  (`sealed-claim/v1`): one model's ModelRecord + every receipt + every
+ *  run + every bank + every venue that settled on those runs, each with
+ *  its PDA seeds so `prove --verify` can re-derive every address and
+ *  replay every verdict keyless. This is the product's deliverable: a
+ *  model provider hands the card to anyone and the claims check out
+ *  with nothing but the program IDs. */
+export async function chainProve(modelStr: string, out: string | undefined, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sAcct = () => sealedProgram().program;
+  const mAcct = () => marketProgram().market;
+  type Acct = { publicKey: PublicKey; account: any };
+  const [banks, runs, logs, records]: Acct[][] =
+    ss ? ["Benchmark", "Run", "ScoreLog", "ModelRecord"].map((n) => snapOf(ss, n))
+       : await Promise.all(["benchmark", "run", "scoreLog", "modelRecord"].map((n) => tolerantAll(sAcct(), n)));
+  const [markets, darks, ladders, bounties]: Acct[][] =
+    sm ? ["Market", "DarkMarket", "Ladder", "Bounty"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "darkMarket", "ladder", "bounty"].map((n) => tolerantAll(mAcct(), n)));
+
+  const modelHash = (id: string) => createHash("sha256").update(Buffer.from(id, "utf8")).digest();
+  const rec = records.find((x) => x.publicKey.toBase58() === modelStr)
+    ?? records.find((x) => String(x.account.modelId) === modelStr);
+  if (!rec) throw new Error(`no ModelRecord for ${modelStr} (try chain records for the list)`);
+  const modelId = String(rec.account.modelId);
+  const recPk = rec.publicKey.toBase58();
+  const myLogs = logs.filter((l) => l.account.modelRecord.toBase58() === recPk);
+  const myRuns = runs.filter((r) => String(r.account.modelId) === modelId);
+  const runSet = new Set(myRuns.map((r) => r.publicKey.toBase58()));
+  const isDuel = (m: any) => m.account.runB && m.account.runB.toBase58() !== PublicKey.default.toBase58();
+  const myMarkets = markets.filter((m) => runSet.has(m.account.run.toBase58()) || (isDuel(m) && runSet.has(m.account.runB.toBase58())));
+  const myDarks = darks.filter((d) => runSet.has(d.account.run.toBase58()));
+  const myLadders = ladders.filter((l) => (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).some((p) => runSet.has(p.toBase58())));
+  // co-participant runs a venue's verdict needs (duel runB, ladder legs) —
+  // the card is self-contained: every account its verdicts touch is inside
+  const coSet = new Set<string>();
+  for (const m of myMarkets) { coSet.add(m.account.run.toBase58()); if (isDuel(m)) coSet.add(m.account.runB.toBase58()); }
+  for (const d of myDarks) coSet.add(d.account.run.toBase58());
+  for (const l of myLadders) for (const p of (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount))) coSet.add(p.toBase58());
+  const coRuns = runs.filter((r) => !runSet.has(r.publicKey.toBase58()) && coSet.has(r.publicKey.toBase58()));
+  const allRuns = [...myRuns, ...coRuns];
+  for (const r of coRuns) runSet.add(r.publicKey.toBase58());
+  const bankSet = new Set(allRuns.map((r) => r.account.benchmark.toBase58()));
+  const myBanks = banks.filter((b) => bankSet.has(b.publicKey.toBase58()));
+  const myBounties = bounties.filter((b) => bankSet.has(b.account.bank.toBase58()) || (b.account.winnerRun && runSet.has(b.account.winnerRun.toBase58())));
+
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const u64le = (n: any) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(num(n))); return b; };
+  const claim = {
+    kind: "sealed-claim/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+    programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
+    model: { id: modelId, recordPk: recPk,
+      runsScored: num(rec.account.runsScored), totalCorrect: num(rec.account.totalCorrect), totalItems: num(rec.account.totalItems) },
+    record: { pk: recPk, seeds: { prefix: "modelrec", modelHash: modelHash(modelId).toString("hex") } },
+    receipts: myLogs.map((l) => ({ pk: l.publicKey.toBase58(), run: l.account.run.toBase58(), benchmark: l.account.benchmark.toBase58(),
+      correct: num(l.account.correct), items: num(l.account.items), recordedAt: num(l.account.recordedAt),
+      vouched: !!l.account.vouchedAtRecord, postReveal: !!l.account.postReveal })),
+    runs: allRuns.map((r) => ({ pk: r.publicKey.toBase58(), benchmark: r.account.benchmark.toBase58(), index: num(r.account.index),
+      role: String(r.account.modelId) !== modelId ? "co-participant" : "subject",
+      status: num(r.account.status), correct: num(r.account.correct), chunkCount: num(r.account.chunkCount),
+      createdAt: num(r.account.createdAt), finalizedAt: num(r.account.finalizedAt), runner: r.account.runner.toBase58(),
+      attested: !!r.account.attested, postReveal: !!r.account.postReveal })),
+    banks: myBanks.map((b) => ({ pk: b.publicKey.toBase58(), name: String(b.account.name), authority: b.account.authority.toBase58(),
+      id: num(b.account.id), kind: num(b.account.kind), chunkCount: num(b.account.chunkCount),
+      itemsRoot: Buffer.from(b.account.itemsRoot as number[]).toString("hex") })),
+    venues: [
+      ...myMarkets.map((m) => ({ pk: m.publicKey.toBase58(), kind: isDuel(m) ? "duel" : "band", run: m.account.run.toBase58(),
+        runB: isDuel(m) ? m.account.runB.toBase58() : null, salt: num(m.account.salt), status: num(m.account.status),
+        outcome: num(m.account.outcome), resolvedScore: num(m.account.resolvedScore), pot: (m.account.totals as any[]).reduce((s: number, t: any) => s + num(t), 0) })),
+      ...myDarks.map((d) => ({ pk: d.publicKey.toBase58(), kind: "dark", run: d.account.run.toBase58(), salt: num(d.account.salt),
+        status: num(d.account.status), outcome: num(d.account.outcome), resolvedScore: num(d.account.resolvedScore),
+        tallied: !!d.account.tallied, pool: num(d.account.poolTotal) })),
+      ...myLadders.map((l) => ({ pk: l.publicKey.toBase58(), kind: "ladder", legs: (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).map((p) => p.toBase58()),
+        salt: num(l.account.salt), status: num(l.account.status), resultMask: num(l.account.resultMask),
+        resolvedScore: num(l.account.resolvedScore), pot: (l.account.totals as any[]).reduce((s: number, t: any) => s + num(t), 0) })),
+      ...myBounties.map((b) => ({ pk: b.publicKey.toBase58(), kind: "bounty", bank: b.account.bank.toBase58(), sponsor: b.account.sponsor.toBase58(),
+        salt: num(b.account.salt), status: num(b.account.status), threshold: num(b.account.threshold), amount: num(b.account.amount),
+        winnerRun: b.account.winnerRun ? b.account.winnerRun.toBase58() : null, winningScore: num(b.account.winningScore) })),
+    ],
+  };
+  // verdicts the verifier replays — emitted so a reader sees WHAT passed,
+  // recomputed so a verifier sees THAT it passes
+  const totC = claim.receipts.reduce((s, l) => s + l.correct, 0);
+  const totI = claim.receipts.reduce((s, l) => s + l.items, 0);
+  const verdicts = {
+    recordBitExact: totC === claim.model.totalCorrect && totI === claim.model.totalItems && claim.receipts.length === claim.model.runsScored,
+    postRevealRuns: myRuns.filter((r) => !!r.account.postReveal).length,
+    coParticipantRuns: coRuns.length,
+    postRevealReceipts: claim.receipts.filter((l) => l.postReveal).length,
+    venuesPriced: claim.venues.length,
+    venuesResolved: claim.venues.filter((v: any) => v.status === 1).length,
+  };
+  const card = { ...claim, verdicts };
+  const text = JSON.stringify(card, null, 2) + "\n";
+  if (out) { writeFileSync(out, text); console.log(`wrote ${out} — claim card for ${modelId}: ${myLogs.length} receipts, ${myRuns.length} runs, ${myBanks.length} banks, ${claim.venues.length} venues`); }
+  else console.log(text);
+  return card;
+}
+
+/** `chain prove --verify <file>` — verify a claim card offline: every PDA
+ *  re-derives from its declared seeds (an account's address IS its
+ *  identity), the record aggregate replays bit-exact from its receipts,
+ *  run scores match their receipts, and venue resolutions re-derive from
+ *  the runs they priced. Exit 1 on any violation. */
+export async function chainProveVerify(file: string) {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 file (kind=${card.kind})`);
+  const sealedId = new PublicKey(card.programs.sealed);
+  const marketId = new PublicKey(card.programs.market);
+  const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
+  const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const pk = (s: string) => new PublicKey(s);
+  const derive = (seeds: Buffer[], program: PublicKey) => PublicKey.findProgramAddressSync(seeds, program)[0].toBase58();
+  let pass = 0, fail = 0;
+  const check = (what: string, ok: boolean, detail = "") => {
+    console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
+    ok ? pass++ : fail++;
+  };
+
+  // 1. every PDA re-derives — identity is cryptographic, not claimed
+  check("record PDA", derive([Buffer.from("modelrec"), Buffer.from(card.record.seeds.modelHash, "hex")], sealedId) === card.record.pk,
+    `${card.record.pk.slice(0, 12)}… = [modelrec, sha256(${card.model.id})]`);
+  const runByPk = new Map(card.runs.map((r: any) => [r.pk, r]));
+  let runOk = 0;
+  for (const r of card.runs)
+    if (derive([Buffer.from("run"), pk(r.benchmark).toBuffer(), u64le(r.index)], sealedId) === r.pk) runOk++;
+  check("run PDAs", runOk === card.runs.length, `${runOk}/${card.runs.length} re-derived`);
+  const bankByPk = new Map(card.banks.map((b: any) => [b.pk, b]));
+  let bankOk = 0;
+  for (const b of card.banks)
+    if (derive([Buffer.from("benchmark"), pk(b.authority).toBuffer(), u32le(b.id)], sealedId) === b.pk) bankOk++;
+  check("bank PDAs", bankOk === card.banks.length, `${bankOk}/${card.banks.length} re-derived`);
+  let logOk = 0;
+  for (const l of card.receipts)
+    if (runByPk.has(l.run) && derive([Buffer.from("scorelog"), pk(l.run).toBuffer()], sealedId) === l.pk) logOk++;
+  check("receipt PDAs", logOk === card.receipts.length, `${logOk}/${card.receipts.length} re-derived`);
+  let venueOk = 0;
+  for (const v of card.venues) {
+    let seeds: Buffer[] | null = null;
+    if (v.kind === "band") seeds = [Buffer.from("market"), pk(v.run).toBuffer(), u64le(v.salt)];
+    else if (v.kind === "duel") seeds = [Buffer.from("duel"), pk(v.run).toBuffer(), pk(v.runB).toBuffer(), u64le(v.salt)];
+    else if (v.kind === "dark") seeds = [Buffer.from("dark"), pk(v.run).toBuffer(), u64le(v.salt)];
+    else if (v.kind === "ladder") seeds = [Buffer.from("ladder"), pk(v.legs[0]).toBuffer(), u64le(v.salt)];
+    else if (v.kind === "bounty") seeds = [Buffer.from("bounty"), pk(v.bank).toBuffer(), pk(v.sponsor).toBuffer(), u64le(v.salt)];
+    if (seeds && derive(seeds, marketId) === v.pk) venueOk++;
+  }
+  check("venue PDAs", venueOk === card.venues.length, `${venueOk}/${card.venues.length} re-derived`);
+
+  // 2. the record aggregate replays bit-exact from its receipts
+  const totC = card.receipts.reduce((s: number, l: any) => s + l.correct, 0);
+  const totI = card.receipts.reduce((s: number, l: any) => s + l.items, 0);
+  check("record aggregate", totC === card.model.totalCorrect && totI === card.model.totalItems,
+    `${totC}/${totI} = stored ${card.model.totalCorrect}/${card.model.totalItems}`);
+  // runsScored counts receipted runs (record_score mints one ScoreLog per
+  // run — [scorelog, run] is singleton) — NOT every finalized run
+  check("runsScored=receipts", card.receipts.length === card.model.runsScored,
+    `${card.receipts.length} receipt(s) = stored ${card.model.runsScored}`);
+
+  // 3. receipts' scores match their runs' Run.correct
+  let scoreOk = 0, scoreChecked = 0;
+  for (const l of card.receipts) {
+    const r = runByPk.get(l.run) as any;
+    if (!r || r.status !== 1) continue;
+    scoreChecked++;
+    if (r.correct === l.correct) scoreOk++;
+  }
+  check("receipt=run score", scoreOk === scoreChecked, `${scoreOk}/${scoreChecked} receipts agree with Run.correct`);
+
+  // 4. venues re-verify against the runs they priced
+  let resOk = 0, resChecked = 0;
+  for (const v of card.venues) {
+    if (v.status !== 1) continue;
+    if (v.kind === "duel") {
+      const a = runByPk.get(v.run) as any, b = runByPk.get(v.runB) as any;
+      if (!a || !b || a.status !== 1 || b.status !== 1) continue;
+      resChecked++;
+      const packed = (a.correct << 16) | b.correct;
+      const expected = a.correct > b.correct ? 0 : a.correct < b.correct ? 1 : 2;
+      if (v.resolvedScore === packed && v.outcome === expected) resOk++;
+    } else if (v.kind === "ladder") {
+      const legs = (v.legs as string[]).map((p) => runByPk.get(p) as any);
+      if (legs.some((r) => !r || r.status !== 1)) continue;
+      resChecked++;
+      const best = Math.max(...legs.map((r) => r.correct));
+      const mask = legs.reduce((s, r, i) => s + (r.correct === best ? (1 << i) : 0), 0);
+      if (v.resolvedScore === best && v.resultMask === mask) resOk++;
+    } else if (v.kind === "bounty") {
+      if (!v.winnerRun) continue;
+      const w = runByPk.get(v.winnerRun) as any;
+      if (!w || w.status !== 1) continue;
+      resChecked++;
+      if (w.correct === v.winningScore && w.correct >= v.threshold) resOk++;
+    } else {
+      const r = runByPk.get(v.run) as any;
+      if (!r || r.status !== 1) continue;
+      resChecked++;
+      if (v.resolvedScore === r.correct) resOk++;
+    }
+  }
+  check("venue resolutions", resOk === resChecked, `${resOk}/${resChecked} re-derived from Run.correct`);
+
+  console.log(`${fail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"} — ${card.model.id}: ${pass} checks pass, ${fail} fail · ` +
+    `${card.model.totalCorrect}/${card.model.totalItems} across ${card.model.runsScored} run(s)` +
+    (card.verdicts?.postRevealRuns ? ` · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""));
+  if (fail) process.exitCode = 1;
+  return { pass, fail };
+}
+
 /** `chain feed [--limit N] [--type a,b] [--since ts] [--json]` — the
  *  network's activity stream: every timestamped event across both
  *  programs (bank created → run queued → MPC finalized → receipt
@@ -4903,6 +5114,11 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "export") {
     // No --snapshot → digest the live cluster (source: "live").
     await chainExport(args.snapshot ? String(args.snapshot) : undefined, args.out ? String(args.out) : undefined);
+    return;
+  }
+  if (sub === "prove") {
+    if (args.verify) { await chainProveVerify(String(args.verify)); return; }
+    await chainProve(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "search") {

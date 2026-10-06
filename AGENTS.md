@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 38/38 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 39/39 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -63,7 +63,15 @@ parimutuel markets resolved from `Run.correct`.
   per-record replay line. `chain export --snapshot <f> [--out]` emits
   `sealed-evidence-digest/v1` — the same verdicts (via shared
   `ledgerIntegrity`) as one diffable JSON doc; snapshot-only, exit 1 on
-  violation.
+  violation. `chain prove <model> [--out]` mints `sealed-claim/v1` — a
+  portable per-model card (record + receipts + runs incl. co-participant
+  venue legs + banks + venues + PDA seeds); `chain prove --verify <f>`
+  re-checks it keyless: every PDA re-derives from declared seeds, the
+  record replays bit-exact, every resolved venue re-derives from
+  Run.correct (duel packs `(a<<16)|b`, ladder re-argmaxs mask, bounty
+  score≥threshold). Tamper fails exactly at the replay check.
+  `runsScored` counts RECEIPTED runs ([scorelog,run] singleton) — never
+  equate it with finalized-run count (runs may finalize unrecorded).
 - Pure logic lives in `board.ts` (keeper classification mirroring the
   on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
   (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and

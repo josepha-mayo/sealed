@@ -169,6 +169,8 @@ async function main() {
   sealed chain matrix [--banks N] [--json]                        the capability matrix — models × most-run banks, best score per cell
   sealed chain stats                                       the dashboard — counts, escrow, bit-exact integrity verdicts
   sealed chain export [--snapshot <f>] [--out file]        the portable integrity digest — bundle or live cluster
+  sealed chain prove <model> [--out file] [--snapshot f]   mint a claim card — record+receipts+runs+venues+PDA seeds
+  sealed chain prove --verify <file>                     verify a claim card offline — every PDA re-derived, verdicts replayed
   sealed chain diff <a.json> <b.json>                      two bundles — account deltas + both integrity verdicts
   sealed chain feed [--limit N] [--type a,b] [--since t] [--pk k] [--model id] [--bank b]  the activity stream — runs, venues, resolutions in time order
   sealed chain bank <pk|name>                              one benchmark's dossier — spec, runs, venues, reveals

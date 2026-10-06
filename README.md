@@ -268,6 +268,8 @@ sealed chain market live                                             # the betto
 sealed chain market sharps [--min n]                                 # bettor track records — W-L, LCB rank, realized P&L, anonymity set
 sealed chain market escrow                                           # the lamport ledger — every stake reconciled, ledger balances exactly
 sealed chain anomalies                                               # the skeptic's checklist — the bundle's own soft spots, enumerated
+sealed chain prove <model> --out claim.json && sealed chain prove --verify claim.json
+                                                                     # the deliverable — a portable, cryptographically verifiable claim card
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
 sealed chain market champions                                        # the settlement record — duel W-D-L · ladder leg wins · bounty claims

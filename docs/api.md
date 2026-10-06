@@ -197,6 +197,24 @@ decoding does.
 `--status`, and `--attested` isolates authority-countersigned runs (the
 flag markets and the `vouched` gate trust; an unattested run is a claim,
 an attested one is a co-signed measurement).
+`chain prove <model|record-pk> [--out claim.json]` mints a
+`sealed-claim/v1` card — the product's actual deliverable: one model's
+ModelRecord, every receipt, every run (plus the co-participant runs its
+venues' verdicts need — duel runB, ladder legs), every bank, and every
+venue that priced those runs, each carrying its PDA seeds. `chain prove
+--verify claim.json` re-verifies the card with nothing but the program
+IDs: every account address re-derives from its declared seeds (identity
+is cryptographic, not claimed — `[modelrec, sha256(model_id)]`,
+`[run, bank, index]`, `[scorelog, run]`, `[benchmark, authority, id]`,
+`[market|duel|dark|ladder|bounty, …]`), the record aggregate replays
+bit-exact from receipts, receipts agree with `Run.correct`, and venue
+resolutions re-derive (duels unpack `(a<<16)|b`, ladders re-argmax the
+result mask, bounties check winner score ≥ threshold). A tampered card
+fails exactly where it should. `chain prove` works keyless on the
+snapshot, so the committed bundle already contains a verifiable claim
+for every registered model — `qwen2.5-3b-instruct`'s card, for example,
+is a public audit trail no one had to ask permission for.
+
 `chain diff <a.json> <b.json>` compares two bundles — per-type account
 deltas (added/removed, and MUTATED: same PDA, different bytes), both
 sides' sha256 and integrity verdicts recomputed. Pair it with

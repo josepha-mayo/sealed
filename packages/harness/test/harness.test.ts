@@ -901,3 +901,33 @@ test("chainAnomalies enumerates the bundle's own soft spots", async () => {
     for (const x of out.findings) assert.ok(x.drill.length > 0);
   } finally { console.log = origLog; }
 });
+
+test("chainProve mints a claim card that verifies — and fails on tamper", async () => {
+  const { chainProve, chainProveVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const card = (await chainProve("ladder/model-a", undefined, snapPath)) as any;
+    assert.equal(card.kind, "sealed-claim/v1");
+    assert.ok(card.receipts.length > 0);
+    assert.ok(card.runs.length > card.model.runsScored); // co-participant runs included
+    assert.ok(card.venues.length > 0);
+    const dir = mkdtempSync(join(tmpdir(), "sealed-claim-"));
+    const good = join(dir, "claim.json");
+    writeFileSync(good, JSON.stringify(card));
+    const ok = (await chainProveVerify(good)) as any;
+    assert.equal(ok.fail, 0);
+    // a tampered aggregate must fail exactly at the replay check
+    card.model.totalCorrect += 50;
+    const bad = join(dir, "tampered.json");
+    writeFileSync(bad, JSON.stringify(card));
+    process.exitCode = 0;
+    await chainProveVerify(bad);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
