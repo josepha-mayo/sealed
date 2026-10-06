@@ -70,7 +70,11 @@ proof" produces a folder of verifiable claims, not a printout.
 `chain records [--wilson]` lists the same registry accuracy-first; the
 flag re-ranks on the Wilson lower bound of cumulative accuracy — the
 claim each record can defend (80% on a thin record correctly sits below
-78% on a proven one).
+78% on a proven one). `chain gate --sweep` drops the single-threshold
+assumption entirely: every record re-evaluated across a min-pct grid
+(default 10–90%, `--grid a,b,c` overrides, all other flags apply), each
+model's "frontier" = the strictest line it survives. `gate --all` says
+who clears *this* policy; the sweep says who is *robustly* good.
 
 `chain market positions [--bettor kp.json] [--json]` — the bettor-side
 mirror: every position the wallet holds across bands/duels/ladders/darks,

@@ -4102,6 +4102,68 @@ export async function gateAll(policy: GatePolicy, json = false, snapPath?: strin
   return rows;
 }
 
+/** `chain gate --sweep [flags]` — the policy-sensitivity grid. `gate --all`
+ *  answers "who clears THIS line"; the sweep answers "who is robustly
+ *  good" — every record re-evaluated across a min-pct grid, so no
+ *  leaderboard depends on where someone chose to draw one threshold.
+ *  Cell: ● pass · fail — no-evidence. `frontier` = strictest threshold
+ *  cleared; models whose pass-set is contiguous-from-below are stable,
+ *  a model that only clears low bars with gaps is threshold-fragile. */
+export async function gateSweep(base: GatePolicy, json = false, snapPath?: string, bank?: string, grid = [10, 20, 30, 40, 50, 60, 70, 80, 90]) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [records, allLogs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all()]);
+  const bankPks = bank
+    ? new Set((ss ? snapOf(ss, "Benchmark") : await acct().benchmark.all())
+        .filter((b: any) => b.publicKey.toBase58() === bank || b.account.name === bank)
+        .map((b: any) => b.publicKey.toBase58()))
+    : null;
+  if (bank && !bankPks!.size) throw new Error(`no benchmark named/addressed ${bank}`);
+  const logs = bankPks ? allLogs.filter((l) => bankPks.has((l.account.benchmark as PublicKey).toBase58())) : allLogs;
+  const byRec = new Map<string, any[]>();
+  for (const l of logs) {
+    const k = (l.account.modelRecord as PublicKey).toBase58();
+    const list = byRec.get(k) ?? [];
+    list.push(l.account);
+    byRec.set(k, list);
+  }
+  const rows = records.map((r) => {
+    const receipts: ScoreReceipt[] = (byRec.get(r.publicKey.toBase58()) ?? []).map((a: any) => ({
+      correct: a.correct as number, items: a.items as number,
+      vouchedAtRecord: a.vouchedAtRecord, postReveal: a.postReveal,
+    }));
+    const cells = grid.map((minPct) => evalGate(receipts, { ...base, minPct }, receipts.length > 0));
+    const frontier = cells.reduce((f, v, i) => (v.pass ? grid[i] : f), null as number | null);
+    return {
+      record: r.publicKey.toBase58(), modelId: r.account.modelId as string,
+      pct: cells[0].pct, runs: cells[0].runs, items: cells[0].items,
+      cells: cells.map((v) => (v.pass ? "pass" : v.reason === "no-evidence" ? "noev" : "fail")),
+      frontier,
+    };
+  }).sort((a, b) => (b.frontier ?? -1) - (a.frontier ?? -1) || b.pct - a.pct);
+  if (json) { console.log(JSON.stringify({ grid, rows })); return rows; }
+  const parts = [
+    base.minRuns !== undefined && `runs≥${base.minRuns}`,
+    base.minItems !== undefined && `items≥${base.minItems}`,
+    base.minWilsonPct !== undefined && `wilson≥${base.minWilsonPct}`,
+    base.vouchedOnly && "vouched",
+    base.noPostReveal && "no-post-reveal",
+  ].filter(Boolean).join(" ");
+  console.log(`gate --sweep${parts ? ` [${parts}]` : ""}${bank ? ` bank=${bank}` : ""} — who is robustly good, not just above one line:`);
+  console.log(`  ${"model".padEnd(36)} ${"pct".padStart(6)}  ${grid.map((g) => String(g).padStart(3)).join("")}  frontier`);
+  const glyph = (c: string) => (c === "pass" ? " ● " : c === "noev" ? " — " : " · ");
+  for (const r of rows) {
+    console.log(`  ${r.modelId.padEnd(36).slice(0, 36)} ${r.pct.toFixed(1).padStart(5)}% ${r.cells.map(glyph).join("")}  ${r.frontier === null ? "never passes" : `≥${r.frontier}%`}`);
+  }
+  const robust = rows.filter((r) => r.frontier !== null).length;
+  const never = rows.length - robust;
+  console.log(`  ${robust}/${rows.length} models clear at least the lowest bar${never ? ` · ${never} never pass (no evidence or below ${grid[0]}%)` : ""}` +
+    ` — the strictest line a model survives is its frontier; receipts, not rhetoric.`);
+  return rows;
+}
+
 /** `chain market board [--json]` — the keeper + discovery surface: scan the
  *  ledger's venues and report what a permissionless actor can do RIGHT NOW:
  *  claimable bounties (a qualifying run already finalized), resolvable
@@ -5221,6 +5283,17 @@ export async function chainMain(cmd: string[], args: Args) {
       if (!Number.isFinite(n)) throw new Error(`--${k} must be a number`);
       return n;
     };
+    if (args.sweep) {
+      const base: GatePolicy = {
+        minRuns: numF("min-runs"), minItems: numF("min-items"),
+        minWilsonPct: numF("wilson"), vouchedOnly: Boolean(args.vouched),
+        noPostReveal: Boolean(args["no-post-reveal"]),
+      };
+      const grid = args.grid ? String(args.grid).split(",").map((s) => { const n = Number(s); if (!Number.isFinite(n)) throw new Error("--grid must be comma-separated numbers"); return n; }) : undefined;
+      await gateSweep(base, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
+        args.bank ? String(args.bank) : undefined, grid);
+      return;
+    }
     if (cmd[1] === "--all" || args.all) {
       const policy: GatePolicy = {
         minPct: numF("min-pct"), minRuns: numF("min-runs"), minItems: numF("min-items"),

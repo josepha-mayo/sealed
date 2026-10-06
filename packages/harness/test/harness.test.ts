@@ -931,3 +931,25 @@ test("chainProve mints a claim card that verifies — and fails on tamper", asyn
     process.exitCode = 0;
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("gateSweep frontiers — every model gets its strictest cleared line", async () => {
+  const { gateSweep } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const rows = (await gateSweep({}, false, snapPath)) as any[];
+    const byId = new Map(rows.map((r) => [r.modelId, r]));
+    // frontier = strictest threshold cleared: perfect record survives the grid
+    assert.equal(byId.get("test/sweep-run")?.frontier, 90);
+    assert.equal(byId.get("mock/oracle-0.75")?.frontier, 80);
+    // real open-weights models land exactly where their receipts put them
+    assert.equal(byId.get("qwen2.5-3b-instruct")?.frontier, 20);
+    // zero-score models never pass — no-evidence honesty, not disproof
+    assert.equal(byId.get("qwen2.5-0.5b-instruct")?.frontier, null);
+    // sorted by frontier desc then pct
+    for (let i = 1; i < rows.length; i++)
+      assert.ok((rows[i - 1].frontier ?? -1) > (rows[i].frontier ?? -1) ||
+        ((rows[i - 1].frontier ?? -1) === (rows[i].frontier ?? -1) && rows[i - 1].pct >= rows[i].pct));
+  } finally { console.log = origLog; }
+});
