@@ -918,8 +918,10 @@ function renderAll(sealedAccs, marketAccs) {
       <label class="kv"><input type="checkbox" id="gateNoPR"> exclude post-reveal</label>
       <button onclick="runGate()">evaluate</button>
       <button onclick="runSweep()" title="re-evaluate every model across a 10–90% accuracy grid — same flags apply">sweep</button>
+      <button onclick="runWhy()" title="the policy autopsy — survivable ceiling under each evidence scope (chain gate &lt;model&gt; --why)">why</button>
       <div id="gateOut" class="kv" style="margin-top:6px"></div>
-      <div id="sweepOut" class="kv" style="margin-top:6px"></div></div>`;
+      <div id="sweepOut" class="kv" style="margin-top:6px"></div>
+      <div id="whyOut" class="kv" style="margin-top:6px"></div></div>`;
     h += `<div class="card"><b>compare</b> — <span class="kv">does A beat B on the SAME benchmarks? receipts joined per-bank, not pooled aggregates:</span><br>
       <span class="mono">chain compare</span>
       <select id="cmpA">${recs.map(m => `<option value="${m.pk}">${esc(m.modelId)}</option>`).join("")}</select> vs
@@ -2763,6 +2765,39 @@ function runSweep() {
     `<table><tr><th>model</th><th style="text-align:right">pct</th>${grid.map(g => `<th style="text-align:center">≥${g}</th>`).join("")}<th>frontier</th></tr>` +
     rows.map(r => `<tr><td class="mono">${esc(r.modelId)}</td><td style="text-align:right">${r.pct.toFixed(1)}%</td>${r.cells.map(glyph).join("")}<td>${r.frontier === null ? "never passes" : `≥${r.frontier}%`}</td></tr>`).join("") +
     `</table>`;
+}
+
+// Policy autopsy — mirrors `chain gate <model> --why`: for each evidence
+// scope (all receipts / vouched-only / pre-reveal-only), the model's pct and
+// the strictest minPct it can survive. Names the binding constraint.
+function runWhy() {
+  const out = document.getElementById("whyOut");
+  const a = window.__audit || {};
+  const pk = document.getElementById("gateModel").value;
+  const rec = (a.modelRecords || []).find(m => m.pk === pk);
+  const name = r => r ? esc(r.modelId) : "?";
+  const scope = name2 => (a.scoreLogs || [])
+    .filter(l => l.modelRecord === pk && l.benchmark)
+    .map(l => ({ correct: l.correct, items: l.items, vouched: !!l.vouched, postReveal: !!l.postReveal }))
+    .filter(r => name2 === "vouched" ? r.vouched : name2 === "pre-reveal" ? !r.postReveal : true);
+  const env = rs => {
+    if (!rs.length) return { pct: 0, runs: 0, ceiling: 0 };
+    const c = rs.reduce((s, r) => s + r.correct, 0), i = rs.reduce((s, r) => s + r.items, 0);
+    const pct = i ? c / i * 100 : 0;
+    // strictest whole-percent threshold it still passes: floor(pct)
+    return { pct, runs: rs.length, ceiling: Math.floor(pct) };
+  };
+  const rows = [
+    ["all receipts", env(scope("all"))],
+    ["vouched-only", env(scope("vouched"))],
+    ["pre-reveal only", env(scope("pre-reveal"))],
+  ];
+  const v = env(scope("all"));
+  const gaps = [];
+  if (v.runs === 0) gaps.push("no scored receipts at all");
+  if (v.pct < 100) gaps.push(`accuracy caps the ceiling at ${v.ceiling}%`);
+  const rowsHtml = rows.map(([n2, e]) => `${n2.padEnd(16)} runs=${String(e.runs).padStart(3)} pct=${e.runs ? e.pct.toFixed(2) + "%" : "—"} → passes any minPct ≤ ${e.runs ? e.ceiling + "%" : "nothing"}`).join("\n");
+  out.innerHTML = `<pre class="kv" style="font-size:11px;margin:0">policy envelope — ${name(rec)}\n${rowsHtml}\n${gaps.length ? "binding: " + gaps.join("; ") : "binding: none — the registry can set any threshold"}</pre>`;
 }
 
 // Receipt-scoped head-to-head — mirrors `chain compare` in chain.ts exactly:

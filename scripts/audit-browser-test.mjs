@@ -146,6 +146,15 @@ const sweepOk = sweepRows === 31 && /test\/sweep-run[\s\S]{0,80}≥90%/.test(swe
   /never passes/.test(sweepTxt) && /≥80%/.test(sweepTxt);
 console.log(`in-page policy sweep — ${sweepRows} model rows, frontiers ${sweepOk ? "PASS" : "FAIL"}`);
 if (!sweepOk) fails++;
+
+// policy autopsy — the --why envelope renders per-scope ceilings
+vm.runInContext("runWhy()", ctx);
+const whyTxt = (els.get("whyOut")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const whyOk = /policy envelope/.test(whyTxt) && /all receipts/.test(whyTxt) &&
+  /vouched-only/.test(whyTxt) && /pre-reveal only/.test(whyTxt) &&
+  /passes any minPct|nothing/.test(whyTxt) && /binding:/.test(whyTxt);
+console.log(`in-page policy autopsy — envelope + binding constraint ${whyOk ? "PASS" : "FAIL"}`);
+if (!whyOk) fails++;
 // skeptic's checklist — all eleven findings render with honest severities:
 // the disclosed post-reveal runs are the one warn, dead money stays zero.
 vm.runInContext("renderAnomalies()", ctx);

@@ -152,6 +152,10 @@ yarn --cwd packages/harness cli chain gate --sweep --snapshot ../../web/snapshot
 #       10–90% — each model's "frontier" is the strictest line it
 #       survives. gate --all says who clears THIS line; the sweep says
 #       who is robustly good (no single threshold can be gamed)
+yarn --cwd packages/harness cli chain gate qwen2.5-3b-instruct --why --snapshot ../../web/snapshot.json
+#     ↑ the policy autopsy — survivable ceiling per evidence scope, and
+#       the binding constraint named. The explorer's gate panel runs the
+#       same autopsy via its "why" button.
 yarn --cwd packages/harness cli chain records --snapshot ../../web/snapshot.json
 #     the dossier set — `chain search <pk>` resolves ANY key to its
 #       dossier, or pick directly:
