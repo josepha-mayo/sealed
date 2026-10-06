@@ -440,9 +440,12 @@ view of the questions was the on-chain grant trail.
   verdicts — all model records bit-exact, all resolutions matching
   `Run.correct`), `gate --all`, the paired-evidence leaderboard, a
   paired `compare`, the keeper board, a self-verifying `modelrec`, and
-  the bounty index. Every line ran keyless against `web/snapshot.json`;
+  the bounty index — closing on `chain artifact --recursive` (all 115
+  artifacts replayed) and `chain fingerprint` (the whole tree as one
+  sha256). Every line ran keyless against `web/snapshot.json`;
   the header shows how to reproduce it, and the loader sha256-checks the
-  bundle against `web/MANIFEST` before answering.
+  bundle against `web/MANIFEST` before answering. Regenerate:
+  `scripts/gen-replay.sh` (then both manifest updates).
 - **`node scripts/decrypt-grants-test.mjs`** — offline regression for the
   explorer's "decrypt as delegate" button: vendors the real `RescueCipher`
   (`web/vendor/rescue.mjs`), decrypts the throwaway demo delegate's 4

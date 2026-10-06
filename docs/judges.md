@@ -275,12 +275,14 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #           verifier in-browser: all 115 committed artifacts
 #           through their own check lists, live progress
 
-# 3m. THE ONE HASH — `chain fingerprint` re-hashes all 291 manifest-
-#     pinned files and prints BUNDLE ROOT: a single sha256 covering
+# 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
+#     pinned file and prints BUNDLE ROOT: a single sha256 covering
 #     every byte of evidence. The in-page bundle replay ends on the
 #     SAME root — terminal and browser agree, or the bundle is dirty.
 yarn --cwd packages/harness cli chain fingerprint
-#         → re-hash check PASS — 291/291 · BUNDLE ROOT f75a872d…
+#         → re-hash check PASS — 292/292 · BUNDLE ROOT <64-hex sha256>
+#           (the root moves whenever evidence moves — that's the point;
+#           verify-all prints the current one at the end of the audit)
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
