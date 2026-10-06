@@ -148,21 +148,30 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > records survives); `chain market escrow` reconciles every staked
 > lamport to its obligation bucket, balanced to the lamport (76.075◎ in,
 > in-play / owed / contingent / bounty / settled-out, zero dead money);
-> `chain anomalies` runs ten hostile checks on its own bundle (the
+> `chain anomalies` runs eleven hostile checks on its own bundle (the
 > disclosed post-reveal runs are the one warn); `chain gate --sweep`
 > drops the single-threshold assumption — every record's "frontier" is
 > the strictest line it survives; and `chain prove` mints the actual
 > deliverable — a portable `sealed-claim/v1` card per model where every
 > PDA re-derives keyless and every verdict replays. `chain prove --all`
 > ships the entire registry that way: 31 committed cards, `chain prove
-> --verify claims/` replays all 279 checks.
+> --verify claims/` replays all 279 checks — and `--verify <card>
+> --min-pct N` re-grades a card against the *caller's* policy (authentic
+> AND sufficient in one verdict). The governance artifact follows the
+> same pattern: `chain gate --all --cert` mints `sealed-policy/v1`
+> certificates (two committed: a 60%-3runs admission and a strict
+> vouched 70% — the strict one honestly returns 27 no-evidence),
+> `chain report` prints the dossier as a card-hash-pinned document,
+> `chain gate <model> --why` autopsies the binding constraint,
+> `chain market unclaimed` names every owed claimant, and
+> `chain banks --depth` sorts exams by lamports moved.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201
 > market resolutions re-derived from `Run.correct`, the 31-record
 > registry replayed bit-exact from 292 receipts — plus a public
 > calibration exam where the page recomputes the MPC score per item,
-> an in-page claim-card verifier (pick any of the 31 committed cards,
+> an in-page claim-card verifier (pick any of the 31 committed cards, set YOUR policy thresholds on it,
 > all sha256-pinned in the bundle MANIFEST), a skeptic's-checklist
 > panel, the policy sweep, the escrow ledger, and a "diff…" button that
 > shows added/removed/mutated accounts when you drop any bundle.

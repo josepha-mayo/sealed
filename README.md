@@ -255,7 +255,11 @@ sealed chain market bet     --market <pk> --side yes --lamports 500000000   # bi
 sealed chain market resolve --market <pk>                            # settles off Run.correct
 sealed chain gate qwen2.5-3b --min-pct 60 --vouched                  # capability gate over the registry (exit 0/1/2)
 sealed chain gate qwen2.5-3b --min-pct 60 --bank <bank>              # the same policy scoped to one exam (pk or name)
+sealed chain gate <model> --why [<policy>]                           # the policy autopsy — survivable ceiling per scope + binding constraint
 sealed chain gate --all --min-pct 70 --min-runs 2                    # the registry filtered by policy — who clears, ranked
+sealed chain gate --all --min-pct 60 --cert policy.json              # sealed-policy/v1 — the decision as a verifiable certificate
+sealed chain gate --certify-verify policy.json                       # replay it keyless: PDAs + every verdict recomputed bit-exact
+sealed chain gate --sweep                                            # threshold-sensitivity grid — who's robustly good, not just lucky
 sealed chain history qwen2.5-3b                                      # trajectory: every receipt, running accuracy
 sealed chain compare qwen2.5-3b-instruct qwen2.5-1.5b-instruct         # head-to-head on shared banks (exit 0/1/2)
 sealed chain compare --all                                           # paired-evidence leaderboard — W-L-T, disjoint pairs unranked
@@ -267,11 +271,16 @@ sealed chain market quote <venue> --outcome <i> --lamports <n>        # bet simu
 sealed chain market live                                             # the bettor's board — venues still taking positions, soonest-close first
 sealed chain market sharps [--min n]                                 # bettor track records — W-L, LCB rank, realized P&L, anonymity set
 sealed chain market escrow                                           # the lamport ledger — every stake reconciled, ledger balances exactly
+sealed chain market unclaimed                                        # the owed-money ledger — who can claim how much, per position
 sealed chain anomalies                                               # the skeptic's checklist — the bundle's own soft spots, enumerated
+sealed chain compare --matrix                                        # N×N paired-evidence grid — who beat whom, signed pp deltas
+sealed chain banks --depth                                           # exams sorted by lamports moved through their venues
 sealed chain prove <model> --out claim.json && sealed chain prove --verify claim.json
                                                                      # the deliverable — a portable, cryptographically verifiable claim card
 sealed chain prove --all --out claims/ && sealed chain prove --verify claims/
                                                                      # the whole registry as verifiable artifacts — 31 cards, all replayed
+sealed chain prove --verify claim.json --min-pct 60 --min-runs 3       # verifier-composable — authentic AND sufficient for YOUR policy
+sealed chain report <model> --out report.md                          # sealed-report/v1 — the dossier as a printable document
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
 sealed chain market champions                                        # the settlement record — duel W-D-L · ladder leg wins · bounty claims

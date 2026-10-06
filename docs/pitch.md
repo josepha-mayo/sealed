@@ -100,12 +100,17 @@ not the commands.
   K-way ladder races with dead-heat pro-rata, unseen-exam markets, dark
   commit-reveal markets, capability bounties), a persistent permissionless
   capability registry (`ModelRecord`/`ScoreLog`), fingerprint reveal audits,
-  mocha suite 17/17 + 42/42 unit tests green. Authored banks work too (seal+score).
+  mocha suite 17/17 + 46/46 unit tests green. Authored banks work too (seal+score).
   And the outputs aren't claims you take on faith — `chain prove` mints a
   portable `sealed-claim/v1` card per model (PDAs re-derive keyless,
-  verdicts replay, tamper fails), `chain anomalies` runs ten hostile
-  audits on its own bundle, and `chain market escrow` reconciles every
-  staked lamport to the obligation bucket it sits in.
+  verdicts replay, tamper fails, and `--verify <card> --min-pct N`
+  re-grades it against the CALLER's policy — authentic AND sufficient),
+  `chain gate --all --cert` binds a whole policy decision into a
+  `sealed-policy/v1` certificate (the governance artifact — DAO proposals,
+  insurer memos), `chain report` prints the dossier as a document,
+  `chain anomalies` runs eleven hostile audits on its own bundle, and
+  `chain market escrow` + `unclaimed` reconcile every staked lamport to
+  the obligation — and the claimant — it sits with.
 - **Traction evidence:** 503 runs / 120 banks / 340 venues across six
   primitives on the merged evidence ledger (8 epochs) — 201 resolutions
   re-derived bit-exact by the offline audit, 31 capability records replayed
