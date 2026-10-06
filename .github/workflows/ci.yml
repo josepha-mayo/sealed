@@ -42,9 +42,9 @@ jobs:
         run: node scripts/freshness.mjs
       - name: calibration rescore (recompute the MPC's arithmetic offline)
         run: node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json --run docs/evidence/calibration/run-artifact.json --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp --snapshot web/snapshot.json
-      - name: claim cards — all 31 registry cards re-verify (PDAs + verdicts)
-        run: yarn --cwd packages/harness -s cli chain prove --verify ../../docs/evidence/claims
-      - name: policy certificates — all committed sealed-policy/v1 certs re-verify
-        run: for c in docs/evidence/policies/*.json; do yarn --cwd packages/harness -s cli chain gate --certify-verify ../../$c || exit 1; done
+      - name: artifact replay — all 115 committed artifacts re-verify in one pass
+        run: yarn --cwd packages/harness -s cli chain artifact ../../docs/evidence --recursive --snapshot ../../web/snapshot.json
+      - name: bundle fingerprint — every manifest-pinned byte re-hashed
+        run: yarn --cwd packages/harness -s cli chain fingerprint
       - name: submission pre-flight
         run: node scripts/check-submission.mjs

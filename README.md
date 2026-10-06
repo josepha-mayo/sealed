@@ -26,6 +26,14 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 > yarn --cwd packages/harness cli chain tour --snapshot web/snapshot.json
 >                                  # the project demos itself: stats → a run's custody
 >                                  # trail → its feed → a venue's book → an actor's P&L
+> yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
+>   --snapshot ../../web/snapshot.json
+>                                  # THE one command — all 115 committed artifacts
+>                                  # (claims, matches, policies, trails, reports)
+>                                  # replayed keyless; non-artifacts skipped
+> yarn --cwd packages/harness cli chain fingerprint
+>                                  # THE one hash — every manifest-pinned byte
+>                                  # re-checked → a single BUNDLE ROOT
 > ```
 >
 > The second command is the one nobody else ships: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **bit-identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
