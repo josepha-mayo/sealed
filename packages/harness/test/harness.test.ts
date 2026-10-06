@@ -1173,3 +1173,30 @@ test("bank leaderboard — per-model best scores on the exam itself", async () =
     assert.ok(pr, "a post-reveal runner is flagged on the leaderboard");
   } finally { console.log = origLog; }
 });
+
+test("verifiers --json — machine-readable checks for judge CI", async () => {
+  const { chainProveVerify, gateCertVerify } = await import("../src/chain.js");
+  const claims = new URL("../../../docs/evidence/claims", import.meta.url).pathname;
+  const cert = new URL("../../../docs/evidence/policies/min60-3runs.json", import.meta.url).pathname;
+  const out: string[] = [];
+  const origLog = console.log;
+  console.log = (...a: any[]) => out.push(a.join(" "));
+  try {
+    const dir = (await chainProveVerify(claims, undefined, true)) as any;
+    assert.equal(dir.ok, true);
+    assert.equal(dir.cards.length, 31);
+    assert.ok(dir.cards.every((c: any) => c.ok && c.fail === 0));
+    const card = (await chainProveVerify(`${claims}/qwen2.5-3b-instruct.json`, undefined, true)) as any;
+    assert.equal(card.fail, 0);
+    const j = JSON.parse(out[out.length - 1]);
+    assert.equal(j.verified, true);
+    assert.equal(j.checks.length, 9);
+    assert.ok(j.checks.every((c: any) => c.ok));
+    const cv = (await gateCertVerify(cert, true)) as any;
+    assert.equal(cv.fail, 0);
+    const cj = JSON.parse(out[out.length - 1]);
+    assert.equal(cj.verified, true);
+    assert.equal(cj.models, 31);
+    assert.equal(cj.summary.pass + cj.summary.fail + cj.summary.noEvidence, 31);
+  } finally { console.log = origLog; }
+});

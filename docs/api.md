@@ -454,3 +454,5 @@ example lives at `docs/evidence/policies/min60-3runs.json`.
 `--cert` composes with `--prove <dir>` — the full governance kit in one
 command: the certificate binds the policy to every verdict, and each
 admitted model gets its portable `sealed-claim/v1` card minted alongside.
+Both verifiers take `--json` — per-check rows as machine-readable
+objects (`verified`, `checks[]`, `summary`) for judge automation or CI.

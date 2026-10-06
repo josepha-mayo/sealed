@@ -171,7 +171,7 @@ async function main() {
   sealed chain export [--snapshot <f>] [--out file]        the portable integrity digest — bundle or live cluster
   sealed chain prove <model> [--out file] [--snapshot f]   mint a claim card — record+receipts+runs+venues+PDA seeds
   sealed chain prove --all [--out dir] [--snapshot f]      mint one claim card per record — the whole registry as verifiable artifacts
-  sealed chain prove --verify <file|dir>                   verify a claim card (or every card in a directory) offline — every PDA re-derived, verdicts replayed
+  sealed chain prove --verify <file|dir> [--json]           verify a claim card (or every card in a directory) offline — every PDA re-derived, verdicts replayed (--json = machine-readable checks for CI)
                                                            + your policy: --min-pct/--min-runs/--min-items/--wilson/--vouched/--no-post-reveal
                                                            re-grade the card's receipts against YOUR thresholds (authentic AND sufficient)
   sealed chain report <model> [--out file.md] [--snapshot f]   sealed-report/v1 — the dossier as a printable document, card-hash pinned
@@ -192,7 +192,7 @@ async function main() {
   sealed chain gate --sweep [--min-runs N] [--wilson N] [--vouched] [--no-post-reveal] [--bank b] [--grid a,b,c]
                                                                      # the policy-sensitivity grid — who is robustly good, frontier per model
   sealed chain gate --all <policy flags> --cert <file> [--prove <dir>]  mint a sealed-policy/v1 certificate — policy + every verdict + receipt evidence (+ a claim card per passer when --prove joins)
-  sealed chain gate --certify-verify <file>                          replay a policy certificate keyless — PDAs + verdicts recomputed bit-exact
+  sealed chain gate --certify-verify <file> [--json]                 replay a policy certificate keyless — PDAs + verdicts recomputed bit-exact (--json for CI)
   sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
                                      (all read commands take --snapshot web/snapshot.json to replay the committed evidence bundle offline, keyless)

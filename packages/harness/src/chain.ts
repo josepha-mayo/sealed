@@ -3993,40 +3993,51 @@ export async function chainProve(modelStr: string | undefined, out: string | und
  *  identity), the record aggregate replays bit-exact from its receipts,
  *  run scores match their receipts, and venue resolutions re-derive from
  *  the runs they priced. Exit 1 on any violation. */
-export async function chainProveVerify(file: string, policy?: GatePolicy) {
+export async function chainProveVerify(file: string, policy?: GatePolicy, json = false) {
   const { statSync, readdirSync } = await import("node:fs");
   if (statSync(file).isDirectory()) {
     const files = readdirSync(file).filter((f) => f.endsWith(".json")).sort();
     if (!files.length) throw new Error(`no claim cards (*.json) in ${file}`);
     let okAll = true;
-    console.log(`verifying ${files.length} claim card(s) in ${file}/`);
+    const results: any[] = [];
+    if (!json) console.log(`verifying ${files.length} claim card(s) in ${file}/`);
     for (const f of files) {
       try {
         const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
         const r = await verifyClaimCard(card);
-        console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(40)} ${card.model?.id ?? "?"} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
+        results.push({ file: f, model: card.model?.id ?? null, ok: r.ok, pass: r.pass, fail: r.fail, fails: r.fails });
+        if (!json) console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(40)} ${card.model?.id ?? "?"} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
         okAll &&= r.ok;
-      } catch (e: any) { okAll = false; console.log(`  FAIL ${f} — ${e?.message ?? e}`); }
+      } catch (e: any) { okAll = false; results.push({ file: f, ok: false, error: String(e?.message ?? e) }); if (!json) console.log(`  FAIL ${f} — ${e?.message ?? e}`); }
     }
-    console.log(`${okAll ? "ALL CARDS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
+    if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
+    else console.log(`${okAll ? "ALL CARDS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
     if (!okAll) process.exit(1);
-    return;
+    return { ok: okAll, cards: results };
   }
   const card = JSON.parse(readFileSync(file, "utf8"));
   if (card.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 file (kind=${card.kind})`);
-  const r = verifyClaimCard(card, (what, ok, detail) => console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`));
-  console.log(`${r.ok ? "CLAIM VERIFIED" : "CLAIM FAILED"} — ${card.model.id}: ${r.pass} checks pass, ${r.fail} fail · ` +
+  const rows: { what: string; ok: boolean; detail: string }[] = [];
+  const r = verifyClaimCard(card, (what, ok, detail) => { rows.push({ what, ok, detail }); if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); });
+  const summary = `${card.model.id}: ${r.pass} checks pass, ${r.fail} fail · ` +
     `${card.model.totalCorrect}/${card.model.totalItems} across ${card.model.runsScored} run(s)` +
-    (card.verdicts?.postRevealRuns ? ` · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""));
+    (card.verdicts?.postRevealRuns ? ` · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged` : "");
+  if (!json) console.log(`${r.ok ? "CLAIM VERIFIED" : "CLAIM FAILED"} — ${summary}`);
   if (r.fail) process.exitCode = 1;
   if (policy) {
     const v = evalGate(card.receipts as ScoreReceipt[], policy, true);
-    const checks = v.checks.map((c) => `  ${c.pass ? "ok  " : "MISS"} ${c.name}: ${c.actual} (needed ${c.needed})`);
-    console.log(`policy verdict — ${v.pass ? "PASS" : "FAIL"} (${v.reason}) · ${v.correct}/${v.items} = ${v.pct.toFixed(1)}% over ${v.runs} run(s)` +
-      (v.postRevealRuns ? ` · ${v.postRevealRuns} post-reveal` : "") + (checks.length ? "\n" + checks.join("\n") : ""));
+    if (json) console.log(JSON.stringify({ file, model: card.model.id, verified: r.ok, checks: rows, pass: r.pass, fail: r.fail,
+      policy: { pass: v.pass, reason: v.reason, pct: v.pct, runs: v.runs, correct: v.correct, items: v.items,
+        checks: v.checks.map((c) => ({ name: c.name, pass: c.pass, actual: c.actual, needed: c.needed })) } }));
+    else {
+      const checks = v.checks.map((c) => `  ${c.pass ? "ok  " : "MISS"} ${c.name}: ${c.actual} (needed ${c.needed})`);
+      console.log(`policy verdict — ${v.pass ? "PASS" : "FAIL"} (${v.reason}) · ${v.correct}/${v.items} = ${v.pct.toFixed(1)}% over ${v.runs} run(s)` +
+        (v.postRevealRuns ? ` · ${v.postRevealRuns} post-reveal` : "") + (checks.length ? "\n" + checks.join("\n") : ""));
+    }
     if (!v.pass) process.exitCode = v.reason === "no-evidence" ? 2 : 1;
     return { pass: r.pass, fail: r.fail, policy: v.pass };
   }
+  if (json) console.log(JSON.stringify({ file, model: card.model.id, verified: r.ok, checks: rows, pass: r.pass, fail: r.fail }));
   return { pass: r.pass, fail: r.fail };
 }
 
@@ -4526,7 +4537,7 @@ export async function gateCert(policy: GatePolicy, out: string, snapPath?: strin
  *  certificate keyless: every ModelRecord PDA re-derives from its
  *  declared modelHash seed, and evalGate re-run on the embedded receipts
  *  must reproduce every stored verdict bit-for-bit. */
-export async function gateCertVerify(file: string) {
+export async function gateCertVerify(file: string, json = false) {
   const cert = JSON.parse(readFileSync(file, "utf8"));
   if (cert.kind !== "sealed-policy/v1") throw new Error(`not a sealed-policy/v1 file (kind=${cert.kind})`);
   const sealedId = new PublicKey(cert.programs.sealed);
@@ -4539,8 +4550,10 @@ export async function gateCertVerify(file: string) {
   if (src.vouchedOnly) policy.vouchedOnly = true;
   if (src.noPostReveal) policy.noPostReveal = true;
   let pass = 0, fail = 0;
+  const rows: { what: string; ok: boolean; detail: string }[] = [];
   const check = (what: string, ok: boolean, detail = "") => {
-    console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
+    rows.push({ what, ok, detail });
+    if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
     ok ? pass++ : fail++;
   };
   let pdaOk = 0, verdictOk = 0;
@@ -4557,7 +4570,7 @@ export async function gateCertVerify(file: string) {
     if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) < 0.01 &&
         v.runs === w.runs && v.items === w.items && v.correct === w.correct && v.postRevealRuns === w.postRevealRuns)
       verdictOk++;
-    else console.log(`    ↳ ${m.modelId}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)`);
+    else if (!json) console.log(`    ↳ ${m.modelId}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)`);
   }
   check("record PDAs", pdaOk === cert.models.length, `${pdaOk}/${cert.models.length} re-derived from [modelrec, sha256(model_id)]`);
   check("verdict replay", verdictOk === cert.models.length, `${verdictOk}/${cert.models.length} verdicts recomputed bit-exact from embedded receipts`);
@@ -4567,7 +4580,9 @@ export async function gateCertVerify(file: string) {
     noEvidence: (cert.models as any[]).filter((m) => m.verdict.reason === "no-evidence").length };
   check("summary consistent", s.pass === recomp.pass && s.fail === recomp.fail && s.noEvidence === recomp.noEvidence,
     `${s.pass}/${s.fail}/${s.noEvidence} stored = ${recomp.pass}/${recomp.fail}/${recomp.noEvidence} recomputed`);
-  console.log(`${fail === 0 ? "CERT VERIFIED" : "CERT FAILED"} — ${cert.models.length} records, ${pass} checks pass, ${fail} fail`);
+  if (json) console.log(JSON.stringify({ file, kind: cert.kind, models: cert.models.length, verified: fail === 0,
+    checks: rows, pass, fail, summary: cert.summary }));
+  else console.log(`${fail === 0 ? "CERT VERIFIED" : "CERT FAILED"} — ${cert.models.length} records, ${pass} checks pass, ${fail} fail`);
   if (fail) process.exitCode = 1;
   return { pass, fail };
 }
@@ -5736,7 +5751,7 @@ export async function chainMain(cmd: string[], args: Args) {
         noPostReveal: Boolean(args["no-post-reveal"]),
       };
       const hasPolicy = Object.values(policy).some((v) => v !== undefined && v !== false);
-      await chainProveVerify(String(args.verify), hasPolicy ? policy : undefined);
+      await chainProveVerify(String(args.verify), hasPolicy ? policy : undefined, Boolean(args.json));
       return;
     }
     if (args.all) { await chainProve(undefined, args.out ? String(args.out) : "claims", args.snapshot ? String(args.snapshot) : undefined, true); return; }
@@ -5797,7 +5812,7 @@ export async function chainMain(cmd: string[], args: Args) {
       return;
     }
     if (args["certify-verify"]) {
-      await gateCertVerify(String(args["certify-verify"]));
+      await gateCertVerify(String(args["certify-verify"]), Boolean(args.json));
       return;
     }
     if (cmd[1] === "--all" || args.all) {
