@@ -146,7 +146,7 @@ vm.runInContext("verifyMatch()", ctx);
 await new Promise((r) => setTimeout(r, 50));
 const matchTxt = (els.get("matchres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
 const matchOk = /MATCH VERIFIED/.test(matchTxt) && /2-0-0/.test(matchTxt) && /14\/64 vs 4\/64/.test(matchTxt);
-console.log(`in-page match-card verifier — committed qwen3b-vs-qwen15b card ${matchOk ? "PASS" : "FAIL"}`);
+console.log(`in-page match-card verifier — committed qwen-3b-vs-1.5b card ${matchOk ? "PASS" : "FAIL"}`);
 if (!matchOk) fails++;
 els.get("matchjson").value = els.get("matchjson").value.replace('"a": 2,', '"a": 1,');
 vm.runInContext("verifyMatch()", ctx);

@@ -130,8 +130,8 @@
 <h2 id="sec-match">verify a match card</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">the portable head-to-head — a <code>sealed-match/v1</code> card (<code>chain compare &lt;a&gt; &lt;b&gt; --prove</code> mints them) binds two records' shared-bank receipts and the verdict they produce. Every PDA re-derives in-page, the pooled aggregates and bank-wins replay bit-exact. Same checks as <code>chain compare --match-verify</code>.</div>
-  <div><select id="matchpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed match card —</option></select>
-  <button onclick="loadMatch(document.getElementById('matchpick').value || 'qwen3b-vs-qwen15b.json')">load match</button>
+  <div><select id="matchpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:340px"><option value="">— pick one of 73 committed cards —</option></select>
+  <button onclick="loadMatch(document.getElementById('matchpick').value || 'qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json')">load match</button>
   <span class="kv">sha256-pinned in this bundle&#8217;s MANIFEST</span></div>
   <div><textarea id="matchjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-match/v1", &#8230;}'></textarea></div>
   <button onclick="verifyMatch()">verify match</button>
@@ -2144,7 +2144,7 @@ function verifyCert() {
 async function loadMatch(file) {
   const ta = document.getElementById("matchjson");
   try {
-    const r = await fetch(`matches/${file || "qwen3b-vs-qwen15b.json"}`);
+    const r = await fetch(`matches/${file || "qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json"}`);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text();
   } catch (e) { ta.value = ""; document.getElementById("matchres").innerHTML = `<div class="kv">committed match card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }

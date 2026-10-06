@@ -1,0 +1,92 @@
+{
+  "kind": "sealed-match/v1",
+  "generatedAt": "2026-10-06T16:07:16.330Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ"
+  },
+  "a": {
+    "id": "mock/oracle-0.50",
+    "recordPk": "A121sfjRJm9xYknMCJfoApjbcLnfNEbt6neFYVL8fGM8",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "c4c3eb2af60a5c55d11c4c59c23c66a08c2baafb87688e3c992b6dbec9c52444"
+    }
+  },
+  "b": {
+    "id": "mock/oracle-0.75",
+    "recordPk": "HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "c98a734437002ddff92f9ccefa56c60f220d62b32be21c74d6ea89163f21d444"
+    }
+  },
+  "banks": [
+    {
+      "pk": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+      "name": "sealed-gen-v31808",
+      "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "id": 31808,
+      "itemsRoot": "04a0d52fcbfe8f4abf7692dfa8264f3188734f13df9cf8be82e682361068e516"
+    }
+  ],
+  "runs": [
+    {
+      "pk": "2KXXoUrpBVmgxqcQdzuY2aT7k8vJn7Mtmmf9B4LybuYz",
+      "benchmark": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+      "index": 1,
+      "status": 1,
+      "correct": 32,
+      "chunkCount": 2,
+      "postReveal": false
+    },
+    {
+      "pk": "BoEDCeg4jP9vCyaj2Q1Y9jVCeZd2rweFCJcmM2GNRvY9",
+      "benchmark": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+      "index": 0,
+      "status": 1,
+      "correct": 53,
+      "chunkCount": 2,
+      "postReveal": false
+    }
+  ],
+  "receipts": {
+    "a": [
+      {
+        "pk": "77ywVsQXCpA7N7vCrHVUCgELisk1EpQRFbfoz7fYmkx5",
+        "run": "2KXXoUrpBVmgxqcQdzuY2aT7k8vJn7Mtmmf9B4LybuYz",
+        "benchmark": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+        "correct": 32,
+        "items": 64,
+        "vouchedAtRecord": false,
+        "postReveal": false
+      }
+    ],
+    "b": [
+      {
+        "pk": "2Kvt5ryP8q5HgzLzbssZDGaTbEMKGfVGncStvrWGuAMB",
+        "run": "BoEDCeg4jP9vCyaj2Q1Y9jVCeZd2rweFCJcmM2GNRvY9",
+        "benchmark": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+        "correct": 53,
+        "items": 64,
+        "vouchedAtRecord": false,
+        "postReveal": false
+      }
+    ]
+  },
+  "verdict": {
+    "pooledA": 32,
+    "pooledItemsA": 64,
+    "pooledB": 53,
+    "pooledItemsB": 64,
+    "pctA": 50,
+    "pctB": 82.8125,
+    "bankWins": {
+      "a": 0,
+      "tie": 0,
+      "b": 1
+    },
+    "sharedBanks": 1,
+    "winner": "b"
+  }
+}

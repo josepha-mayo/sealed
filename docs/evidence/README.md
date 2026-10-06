@@ -44,9 +44,10 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   them: `chain gate --certify-verify policies/<file>.json`.
 - `matches/` — **`sealed-match/v1` head-to-head cards** — the portable
   match record: two records' PDA seeds, every receipt on every shared
-  bank, and the verdict replayable offline (`chain compare --match-verify
-  matches/qwen3b-vs-qwen15b.json`). Two real open-weights models, two
-  shared exams, MPC-scored: qwen2.5-3b beat qwen2.5-1.5b 2-0-0.
+  bank, and the verdict replayable offline. All 73 shared-evidence
+  pairs are committed (`chain compare --match-verify matches` batch-
+  replays them). Headline: two real open-weights models, two shared
+  exams, MPC-scored — qwen2.5-3b beat qwen2.5-1.5b 2-0-0.
 - `reports/` — **`sealed-report/v1` printable capability reports** —
   the dossier as a document: registry record, four ranking lenses, the
   receipt ledger, venue settlements, honesty flags, and a canonical

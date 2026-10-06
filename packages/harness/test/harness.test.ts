@@ -1231,5 +1231,15 @@ test("sealed-match/v1 — mint, verify, and a flipped verdict fails", async () =
     assert.equal(c2.verdict.sharedBanks >= 0, true);
     const ok2 = (await matchVerify(m2)) as any;
     assert.equal(ok2.fail, 0);
+    // batch: --all --prove mints every shared-evidence pair; the dir verifier
+    // replays all of them (and skips index.json itself)
+    const { compareMatchAll } = await import("../src/chain.js");
+    const allDir = join(dir, "all");
+    const minted = (await compareMatchAll(allDir, snapPath)) as number;
+    assert.equal(minted, 73);
+    const batch = (await matchVerify(allDir)) as any;
+    assert.equal(batch.ok, true);
+    assert.equal(batch.cards.length, 73);
+    assert.equal(batch.cards.every((c: any) => c.ok && c.pass === 9), true);
   } finally { console.log = origLog; process.exitCode = 0; }
 });

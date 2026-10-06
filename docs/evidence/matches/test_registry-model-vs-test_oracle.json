@@ -1,0 +1,110 @@
+{
+  "kind": "sealed-match/v1",
+  "generatedAt": "2026-10-06T16:07:06.761Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ"
+  },
+  "a": {
+    "id": "test/registry-model",
+    "recordPk": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "13df86ebdff45c9dcb250d88cf4d7af05e680390ccdd0c0d8cc074be7adfe7a0"
+    }
+  },
+  "b": {
+    "id": "test/oracle",
+    "recordPk": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "e59e599a88a99fcd579b00ba8701253c8c264d05e796c334d21796f7456d0bb7"
+    }
+  },
+  "banks": [
+    {
+      "pk": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+      "name": "sealed-test",
+      "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "id": 96223,
+      "itemsRoot": "f434f57d62ad35f48191ba08eb586115effc9f49980030dfe38cb018a5085ccf"
+    }
+  ],
+  "runs": [
+    {
+      "pk": "B6YGugnq95JxD4nbQh7fjVdD67Pbz5Fw5Pj7t6GHgPjC",
+      "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+      "index": 9,
+      "status": 1,
+      "correct": 16,
+      "chunkCount": 2,
+      "postReveal": false
+    },
+    {
+      "pk": "BGv2jNdcSmLGiLDHK3ZMQFQnmMkzB23q2WgqDjz7EDSf",
+      "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false
+    },
+    {
+      "pk": "J1zCYGJ7gWEm5MZEkBH3h3SrYyuqQNMmXi2sQ8nazTQp",
+      "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+      "index": 8,
+      "status": 1,
+      "correct": 48,
+      "chunkCount": 2,
+      "postReveal": false
+    }
+  ],
+  "receipts": {
+    "a": [
+      {
+        "pk": "5sSQxH3QP9MEBbptGzu16PovJkBsVpggNjtqUtdLtFGH",
+        "run": "J1zCYGJ7gWEm5MZEkBH3h3SrYyuqQNMmXi2sQ8nazTQp",
+        "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+        "correct": 48,
+        "items": 64,
+        "vouchedAtRecord": true,
+        "postReveal": false
+      },
+      {
+        "pk": "DDptcfPTUj2a277Uf1dswQ4BXmrtSH6GdLEt6j94vD9J",
+        "run": "B6YGugnq95JxD4nbQh7fjVdD67Pbz5Fw5Pj7t6GHgPjC",
+        "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+        "correct": 16,
+        "items": 64,
+        "vouchedAtRecord": false,
+        "postReveal": false
+      }
+    ],
+    "b": [
+      {
+        "pk": "DLBZHFCk8MaKBNfJDT4Qjtt3gFWND4yfjWodUv2mi3kF",
+        "run": "BGv2jNdcSmLGiLDHK3ZMQFQnmMkzB23q2WgqDjz7EDSf",
+        "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+        "correct": 45,
+        "items": 64,
+        "vouchedAtRecord": false,
+        "postReveal": false
+      }
+    ]
+  },
+  "verdict": {
+    "pooledA": 64,
+    "pooledItemsA": 128,
+    "pooledB": 45,
+    "pooledItemsB": 64,
+    "pctA": 50,
+    "pctB": 70.3125,
+    "bankWins": {
+      "a": 0,
+      "tie": 0,
+      "b": 1
+    },
+    "sharedBanks": 1,
+    "winner": "b"
+  }
+}

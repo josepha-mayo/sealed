@@ -2151,21 +2151,11 @@ export async function modelCompare(keyA: string, keyB: string, json = false, sna
  *  records' PDA seeds, every receipt on every shared bank, the runs and
  *  banks those receipts point at, and the stored verdict — a verifier
  *  re-derives every address and replays the whole match offline. */
-export async function compareMatch(keyA: string, keyB: string, out: string, snapPath?: string) {
-  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
-  const acct = () => (sealedProgram().program.account as any);
-  const resolve = (keyOrName: string): PublicKey => {
-    try { return new PublicKey(keyOrName); } catch { /* model_id */ }
-    const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
-    return PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], sealedProgramId())[0];
-  };
-  const pkA = resolve(keyA), pkB = resolve(keyB);
-  const [records, logs, banks, runs]: SnapAccount[][] = ss
-    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog"), snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
-    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all(), acct().benchmark.all(), acct().run.all()]);
-  const recA = records.find((r) => r.publicKey.equals(pkA));
-  const recB = records.find((r) => r.publicKey.equals(pkB));
-  if (!recA || !recB) throw new Error(`no ModelRecord for ${!recA ? keyA : keyB}`);
+/** The card builder shared by `compareMatch` (one pair) and
+ *  `compareMatchAll` (every pair with shared evidence). */
+function buildMatchCard(recA: SnapAccount, recB: SnapAccount, logs: SnapAccount[],
+    banks: SnapAccount[], runs: SnapAccount[], source: string) {
+  const pkA = recA.publicKey, pkB = recB.publicKey;
   const b58 = (v: any) => v?.toBase58 ? v.toBase58() : String(v);
   const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
   const modelHash = (id: string) => createHash("sha256").update(Buffer.from(id, "utf8")).digest();
@@ -2200,10 +2190,10 @@ export async function compareMatch(keyA: string, keyB: string, out: string, snap
   const pA = pooled(a), pB = pooled(b);
   const pctA = pA.i ? (100 * pA.c) / pA.i : 0, pctB = pB.i ? (100 * pB.c) / pB.i : 0;
   const wins = { a: rows.filter((r) => r.delta > 0).length, tie: rows.filter((r) => r.delta === 0).length, b: rows.filter((r) => r.delta < 0).length };
-  const card = {
+  return {
     kind: "sealed-match/v1",
     generatedAt: new Date().toISOString(),
-    source: snapPath ?? "live",
+    source,
     programs: { sealed: sealedProgramId().toBase58() },
     a: { id: String(recA.account.modelId), recordPk: pkA.toBase58(), seeds: { prefix: "modelrec", modelHash: modelHash(String(recA.account.modelId)).toString("hex") } },
     b: { id: String(recB.account.modelId), recordPk: pkB.toBase58(), seeds: { prefix: "modelrec", modelHash: modelHash(String(recB.account.modelId)).toString("hex") } },
@@ -2222,29 +2212,84 @@ export async function compareMatch(keyA: string, keyB: string, out: string, snap
       pctA, pctB, bankWins: wins, sharedBanks: rows.length,
       winner: pctA === pctB ? "tie" : pctA > pctB ? "a" : "b" },
   };
+}
+
+export async function compareMatch(keyA: string, keyB: string, out: string, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const resolve = (keyOrName: string): PublicKey => {
+    try { return new PublicKey(keyOrName); } catch { /* model_id */ }
+    const h = createHash("sha256").update(Buffer.from(keyOrName, "utf8")).digest();
+    return PublicKey.findProgramAddressSync([Buffer.from("modelrec"), h], sealedProgramId())[0];
+  };
+  const pkA = resolve(keyA), pkB = resolve(keyB);
+  const [records, logs, banks, runs]: SnapAccount[][] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog"), snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all(), acct().benchmark.all(), acct().run.all()]);
+  const recA = records.find((r) => r.publicKey.equals(pkA));
+  const recB = records.find((r) => r.publicKey.equals(pkB));
+  if (!recA || !recB) throw new Error(`no ModelRecord for ${!recA ? keyA : keyB}`);
+  const card = buildMatchCard(recA, recB, logs, banks, runs, snapPath ?? "live");
   writeFileSync(out, JSON.stringify(card, null, 2) + "\n");
-  console.log(`wrote ${out} — sealed-match/v1 card: ${card.a.id} vs ${card.b.id} · ${rows.length} shared banks · ` +
-    `${wins.a}-${wins.tie}-${wins.b} · pooled ${pctA.toFixed(1)}% vs ${pctB.toFixed(1)}% (verify: chain compare --match-verify ${out})`);
+  console.log(`wrote ${out} — sealed-match/v1 card: ${card.a.id} vs ${card.b.id} · ${card.verdict.sharedBanks} shared banks · ` +
+    `${card.verdict.bankWins.a}-${card.verdict.bankWins.tie}-${card.verdict.bankWins.b} · pooled ${card.verdict.pctA.toFixed(1)}% vs ${card.verdict.pctB.toFixed(1)}% (verify: chain compare --match-verify ${out})`);
   return card;
 }
 
-/** `chain compare --match-verify <file>` — replay a sealed-match/v1 card
- *  keyless: both record PDAs, every bank/run/receipt PDA re-derived, the
- *  per-bank aggregates recomputed from embedded receipts, and the stored
- *  verdict replayed bit-for-bit. Exit 1 on any violation. */
-export async function matchVerify(file: string, json = false) {
-  const card = JSON.parse(readFileSync(file, "utf8"));
-  if (card.kind !== "sealed-match/v1") throw new Error(`not a sealed-match/v1 file (kind=${card.kind})`);
+/** `chain compare --all --prove <dir>` — mint one sealed-match/v1 card per
+ *  ordered pair of records sharing ≥1 bank's receipts (A-vs-B once, not
+ *  both directions). Writes <dir>/<a>-vs-<b>.json + an index.json. */
+export async function compareMatchAll(dir: string, snapPath?: string, minShared = 1) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [records, logs, banks, runs]: SnapAccount[][] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog"), snapOf(ss, "Benchmark"), snapOf(ss, "Run")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all(), acct().benchmark.all(), acct().run.all()]);
+  const b58 = (v: any) => v?.toBase58 ? v.toBase58() : String(v);
+  const byRec = new Map<string, Set<string>>();
+  for (const l of logs) {
+    const k = b58(l.account.modelRecord);
+    if (!byRec.has(k)) byRec.set(k, new Set());
+    byRec.get(k)!.add(b58(l.account.benchmark));
+  }
+  mkdirSync(dir, { recursive: true });
+  const slug = (id: string) => id.replace(/[^A-Za-z0-9._-]+/g, "_");
+  const files: string[] = [];
+  let minted = 0;
+  for (let i = 0; i < records.length; i++) {
+    for (let j = i + 1; j < records.length; j++) {
+      const pkA = records[i].publicKey.toBase58(), pkB = records[j].publicKey.toBase58();
+      const shared = [...(byRec.get(pkA) ?? [])].filter((k) => byRec.get(pkB)?.has(k));
+      if (shared.length < minShared) continue;
+      const card = buildMatchCard(records[i], records[j], logs, banks, runs, snapPath ?? "live");
+      const file = `${slug(card.a.id)}-vs-${slug(card.b.id)}.json`;
+      writeFileSync(`${dir}/${file}`, JSON.stringify(card, null, 2) + "\n");
+      files.push(file); minted++;
+      const v = card.verdict;
+      console.log(`${card.a.id} vs ${card.b.id} — ${v.sharedBanks} shared · ${v.bankWins.a}-${v.bankWins.tie}-${v.bankWins.b} · ${v.pctA.toFixed(1)}% vs ${v.pctB.toFixed(1)}% → ${file}`);
+    }
+  }
+  writeFileSync(`${dir}/index.json`, JSON.stringify(files));
+  console.log(`${minted} sealed-match/v1 cards → ${dir} (+index.json) · verify all: chain compare --match-verify ${dir}`);
+  return minted;
+}
+
+/** The per-card match verifier shared by single-file and directory modes:
+ *  every PDA re-derives, per-bank aggregates recompute from embedded
+ *  receipts, the stored verdict replays bit-for-bit. */
+function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void) {
   const sealedId = new PublicKey(card.programs.sealed);
   const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
   const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
   const pk = (s: string) => new PublicKey(s);
   const derive = (seeds: Buffer[]) => PublicKey.findProgramAddressSync(seeds, sealedId)[0].toBase58();
   let pass = 0, fail = 0;
+  const fails: string[] = [];
   const rows: { what: string; ok: boolean; detail: string }[] = [];
   const check = (what: string, ok: boolean, detail = "") => {
     rows.push({ what, ok, detail });
-    if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
+    emit?.(what, ok, detail);
+    if (!ok) fails.push(what);
     ok ? pass++ : fail++;
   };
   // 1. identity — every address re-derives from declared seeds
@@ -2297,12 +2342,46 @@ export async function matchVerify(file: string, json = false) {
   const winner = pctA === pctB ? "tie" : pctA > pctB ? "a" : "b";
   check("verdict replay", winner === card.verdict.winner && Math.abs(pctA - card.verdict.pctA) < 0.01 && Math.abs(pctB - card.verdict.pctB) < 0.01,
     `${card.a.id} ${pctA.toFixed(2)}% vs ${card.b.id} ${pctB.toFixed(2)}% → ${winner}`);
-  const verdict = fail === 0 ? "MATCH VERIFIED" : "MATCH FAILED";
-  if (json) console.log(JSON.stringify({ file, kind: card.kind, a: card.a.id, b: card.b.id, verified: fail === 0,
-    checks: rows, pass, fail, verdict: card.verdict }));
-  else console.log(`${verdict} — ${card.a.id} vs ${card.b.id}: ${pass} checks pass, ${fail} fail · ${card.verdict.bankWins.a}-${card.verdict.bankWins.tie}-${card.verdict.bankWins.b} on ${card.verdict.sharedBanks} shared bank(s)`);
-  if (fail) process.exitCode = 1;
-  return { pass, fail };
+  return { ok: fail === 0, pass, fail, fails, rows };
+}
+
+/** `chain compare --match-verify <file|dir>` — replay a sealed-match/v1 card
+ *  keyless: both record PDAs, every bank/run/receipt PDA re-derived, the
+ *  per-bank aggregates recomputed from embedded receipts, and the stored
+ *  verdict replayed bit-for-bit. A directory batch-verifies every *.json
+ *  card in it. Exit 1 on any violation. */
+export async function matchVerify(file: string, json = false) {
+  const { statSync, readdirSync } = await import("node:fs");
+  if (statSync(file).isDirectory()) {
+    const files = readdirSync(file).filter((f) => f.endsWith(".json") && f !== "index.json").sort();
+    if (!files.length) throw new Error(`no match cards (*.json) in ${file}`);
+    let okAll = true;
+    const results: any[] = [];
+    if (!json) console.log(`verifying ${files.length} match card(s) in ${file}/`);
+    for (const f of files) {
+      try {
+        const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
+        if (card.kind !== "sealed-match/v1") throw new Error(`kind=${card.kind}`);
+        const r = verifyMatchCard(card);
+        results.push({ file: f, a: card.a?.id ?? null, b: card.b?.id ?? null, ok: r.ok, pass: r.pass, fail: r.fail, fails: r.fails });
+        if (!json) console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(44)} ${card.a?.id ?? "?"} vs ${card.b?.id ?? "?"} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
+        okAll &&= r.ok;
+      } catch (e: any) { okAll = false; results.push({ file: f, ok: false, error: String(e?.message ?? e) }); if (!json) console.log(`  FAIL ${f} — ${e?.message ?? e}`); }
+    }
+    if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
+    else console.log(`${okAll ? "ALL MATCHES VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
+    if (!okAll) process.exit(1);
+    return { ok: okAll, cards: results };
+  }
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-match/v1") throw new Error(`not a sealed-match/v1 file (kind=${card.kind})`);
+  const r = verifyMatchCard(card, (what, ok, detail) => { if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); });
+  const verdict = r.fail === 0 ? "MATCH VERIFIED" : "MATCH FAILED";
+  if (json) console.log(JSON.stringify({ file, kind: card.kind, a: card.a.id, b: card.b.id, verified: r.fail === 0,
+    checks: r.rows, pass: r.pass, fail: r.fail, verdict: card.verdict }));
+  else console.log(`${verdict} — ${card.a.id} vs ${card.b.id}: ${r.pass} checks pass, ${r.fail} fail · ${card.verdict.bankWins.a}-${card.verdict.bankWins.tie}-${card.verdict.bankWins.b} on ${card.verdict.sharedBanks} shared bank(s)`);
+  if (r.fail) process.exitCode = 1;
+  return { pass: r.pass, fail: r.fail };
 }
 
 /** `chain compare --all [--json]` — the paired-evidence leaderboard: every
@@ -6064,6 +6143,10 @@ export async function chainMain(cmd: string[], args: Args) {
       return;
     }
     if (cmd[1] === "--all" || args.all) {
+      if (args.prove) {
+        await compareMatchAll(String(args.prove), args.snapshot ? String(args.snapshot) : undefined, Number(args["min-shared"] ?? 1) || 1);
+        return;
+      }
       await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined, Number(args["min-shared"] ?? 1) || 1, Boolean(args.wilson));
       return;
     }
