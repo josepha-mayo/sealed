@@ -1033,7 +1033,14 @@ function renderAll(sealedAccs, marketAccs) {
       const pcts = fin.map(r => 100 * r.correct / Math.max(1, r.chunkCount * 32)).sort((a, b2) => a - b2);
       const qq = p => pcts[Math.min(pcts.length - 1, Math.floor((pcts.length - 1) * p))];
       const spread = qq(1) - qq(0);
-      return `<div class="proof">difficulty — min ${qq(0).toFixed(1)}% · p25 ${qq(0.25).toFixed(1)}% · median ${qq(0.5).toFixed(1)}% · p75 ${qq(0.75).toFixed(1)}% · max ${qq(1).toFixed(1)}% <span class="kv">(${spread.toFixed(1)}pp spread — ${spread >= 30 ? "discriminating" : spread >= 10 ? "moderate" : "tight"} exam · same math as chain bank)</span></div>`; })()}${(() => { // market depth — lamports that moved through venues pricing THIS exam
+      return `<div class="proof">difficulty — min ${qq(0).toFixed(1)}% · p25 ${qq(0.25).toFixed(1)}% · median ${qq(0.5).toFixed(1)}% · p75 ${qq(0.75).toFixed(1)}% · max ${qq(1).toFixed(1)}% <span class="kv">(${spread.toFixed(1)}pp spread — ${spread >= 30 ? "discriminating" : spread >= 10 ? "moderate" : "tight"} exam · same math as chain bank)</span></div>` +
+        (() => { const bm = new Map();
+          for (const r of fin) { const id = r.modelId; const e = bm.get(id) ?? { c: -1, i: 0, n: 0, pr: false }; e.n++; e.pr ||= !!r.postReveal;
+            if (r.correct > e.c) { e.c = r.correct; e.i = r.chunkCount * 32; } bm.set(id, e); }
+          const lb = [...bm.entries()].map(([m, e]) => ({ m, c: e.c, i: e.i, n: e.n, pr: e.pr, p: e.i ? 100 * e.c / e.i : 0 })).sort((x, y) => y.p - x.p);
+          if (!lb.length) return "";
+          const top = lb.slice(0, 6).map(e => `${esc(e.m)} ${e.c}/${e.i} (${e.p.toFixed(1)}%)${e.n > 1 ? ` ×${e.n}` : ""}${e.pr ? " ⚠post-reveal" : ""}`).join(" · ");
+          return `<div class="proof">leaderboard — ${lb.length} model(s) raced this exam: ${top}${lb.length > 6 ? ` · +${lb.length - 6} more` : ""}</div>`; })(); })()}${(() => { // market depth — lamports that moved through venues pricing THIS exam
         const runPks = new Set(brs.map(r => r.pk));
         let depth = 0, vn = 0, res = 0;
         for (const m of markets) { if (!runPks.has(m.run) && !(m.duel && runPks.has(m.runB))) continue; const pot = m.totals.reduce((s, t) => s + Number(t), 0) / 1e9; depth += pot; vn++; if (m.status === 1) res += pot; }

@@ -1155,3 +1155,21 @@ test("chainTour — the ledger narrates itself: all 7 stops + anomaly epilogue",
   assert.ok(/portable artifacts/.test(txt), "the artifact epilogue prints");
   assert.ok(/chain prove/.test(txt) && /sealed-policy\/v1/.test(txt));
 });
+
+test("bank leaderboard — per-model best scores on the exam itself", async () => {
+  const { bankShow } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const b = (await bankShow("A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1", true, snapPath)) as any;
+    const lb = b.runs.leaderboard;
+    assert.ok(lb.length >= 5, "several models raced sealed-test");
+    assert.equal(lb[0].pct, 100, "test/sweep-run tops the exam at 100%");
+    assert.equal(lb[0].model, "test/sweep-run");
+    assert.ok(lb.every((e: any, i: number) => i === 0 || lb[i - 1].pct >= e.pct), "sorted desc");
+    // honest flags ride along — post-reveal runners are marked, not hidden
+    const pr = lb.find((e: any) => e.postReveal);
+    assert.ok(pr, "a post-reveal runner is flagged on the leaderboard");
+  } finally { console.log = origLog; }
+});

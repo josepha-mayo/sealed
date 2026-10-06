@@ -1734,6 +1734,20 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
     p75: +q(0.75).toFixed(1), max: +q(1).toFixed(1),
     spread: +(q(1) - q(0)).toFixed(1),
   } : null;
+  // the exam's own leaderboard — best score per model id that raced it
+  const byModel = new Map<string, { correct: number; items: number; runs: number; postReveal: boolean }>();
+  for (const r of fin) {
+    const id = String(r.account.modelId);
+    const items2 = Number(r.account.chunkCount) * 32;
+    const e = byModel.get(id) ?? { correct: -1, items: items2, runs: 0, postReveal: false };
+    e.runs++; e.postReveal ||= !!r.account.postReveal;
+    if (Number(r.account.correct) > e.correct) { e.correct = Number(r.account.correct); e.items = items2; }
+    byModel.set(id, e);
+  }
+  const leaderboard = [...byModel.entries()]
+    .map(([model, e]) => ({ model, best: e.correct, items: e.items, runs: e.runs,
+      pct: e.items ? +(100 * e.correct / e.items).toFixed(1) : 0, postReveal: e.postReveal }))
+    .sort((a, b) => b.pct - a.pct);
   const STATUS = ["open", "resolved", "expired"];
   const venueRow = (xs: Acct[], kind: string, key: "benchmark" | "bank", statusName?: (a: any) => string) => {
     const list = xs.filter((v) => (v.account[key] as PublicKey)?.toBase58?.() === pk);
@@ -1781,7 +1795,7 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
     feeLamports: Number(B.feeLamports), createdAt: Number(B.createdAt),
     runs: { total: bRuns.length, finalized: fin.length, pending: bRuns.length - fin.length,
       postReveal: postRev.length, bestCorrect: best < 0 ? null : best, bestPct: best < 0 ? null : +(100 * best / Math.max(1, items)).toFixed(1),
-      scoreDistPct: scoreDist },
+      scoreDistPct: scoreDist, leaderboard },
     receipts: { total: bLogs.length, vouched: bLogs.filter((l) => l.account.vouchedAtRecord).length,
       postReveal: bLogs.filter((l) => l.account.postReveal).length },
     reveals: bReveals.map((r) => ({ pk: r.publicKey.toBase58(), chunk: r.account.chunkIndex, part: r.account.part, revealedAt: Number(r.account.revealedAt) }))
@@ -1801,6 +1815,12 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
   if (out.runs.scoreDistPct) {
     const d = out.runs.scoreDistPct;
     console.log(`  difficulty — scores across models: min ${d.min}% · p25 ${d.p25}% · median ${d.median}% · p75 ${d.p75}% · max ${d.max}% (spread ${d.spread}pp — ${d.spread >= 30 ? "discriminating" : d.spread >= 10 ? "moderate" : "tight"} exam)`);
+  }
+  if (out.runs.leaderboard.length) {
+    const lb = out.runs.leaderboard.slice(0, 6)
+      .map((e: any) => `${e.model} ${e.best}/${e.items} (${e.pct}%)${e.runs > 1 ? ` ×${e.runs}` : ""}${e.postReveal ? " ⚠post-reveal" : ""}`)
+      .join(" · ");
+    console.log(`  leaderboard — ${out.runs.leaderboard.length} model(s) raced this exam: ${lb}${out.runs.leaderboard.length > 6 ? ` · +${out.runs.leaderboard.length - 6} more` : ""}`);
   }
   console.log(`  receipts — ${out.receipts.total} minted · ${out.receipts.vouched} vouched · ${out.receipts.postReveal} post-reveal`);
   if (out.reveals.length)
