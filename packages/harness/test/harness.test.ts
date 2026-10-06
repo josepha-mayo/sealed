@@ -794,6 +794,28 @@ test("chainFeed --bank follows custody one hop — venues join via run refs", as
   } finally { console.log = origLog; }
 });
 
+test("marketLive lists only venues that can still take a bet", async () => {
+  const { marketLive } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const out = (await marketLive(true, snapPath)) as any;
+    const now = Math.floor(Date.now() / 1000);
+    assert.ok(out.open > 0);
+    // every listed venue's deadlines are still in the future — a venue
+    // whose closes_at/resolve_by passed can't accept a position, and the
+    // keeper board (not this one) owns sweeping it
+    for (const v of out.venues) {
+      assert.ok(!v.closesAt || v.closesAt > now);
+      assert.ok(!v.resolveBy || v.resolveBy > now);
+    }
+    // sorted soonest-close first
+    const cs = out.venues.map((v: any) => v.closesAt || Infinity);
+    assert.deepEqual(cs, [...cs].sort((a, b) => a - b));
+  } finally { console.log = origLog; }
+});
+
 test("chainMatrix ranks coverage over the most-run banks", async () => {
   const { chainMatrix } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

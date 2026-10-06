@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 34/34 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 35/35 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -189,7 +189,7 @@ parimutuel markets resolved from `Run.correct`.
   via `scripts/score-artifact-insecure.mts` since `chain score` now
   rejects unbound artifacts). `scripts/real-unseen-run.sh` runs a real
   model on a PRIVATE bank it can only see through reshare grants —
-  gpt-oss-20b scored 34/34 on bank `Fa4WS8B1…` (run `9nfKSXnM…`,
+  gpt-oss-20b scored 35/35 on bank `Fa4WS8B1…` (run `9nfKSXnM…`,
   delegate `9z6CwKCQ…`; rerun on the current ledger: `qwen2.5-1.5b`
   scored 8/32 on private bank `F1owH6zE…`, run `7S9ZmxrT…`, MPC == local
   pre-score). `scripts/duel-local.sh` duels two local llama.cpp endpoints:

@@ -94,6 +94,14 @@ same `expire_decision` split the program makes). Read-only; the
 classification is pure (`packages/harness/src/board.ts`) and mirrors the
 on-chain `still_moving`/`proven`/`bounty_qualifies` gates exactly.
 
+`chain market live [--json]` is the bettor's counterpart — every venue
+still accepting positions (status open AND `closes_at`/`resolve_by` both
+in the future; a past-expiry venue can't take a bet — that's the keeper
+board's job, not the bettor's), soonest-close first, each row carrying
+the live book, countdown, and a prefilled `market quote` command. The
+keeper board asks "what needs a transaction"; this asks "where can I
+still get one down".
+
 `chain history <model_id|record-pk> [--json]` lists a model's ScoreLog
 receipts oldest-first with running accuracy after each — the capability
 trajectory ("did it regress after the fine-tune?") answered from
@@ -131,7 +139,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity

@@ -3873,6 +3873,69 @@ export async function marketBoard(json = false, snapPath?: string) {
   return board;
 }
 
+/** `chain market live` — the BETTOR's board: every venue still accepting
+ *  positions, soonest-close first, with the live book and a `chain market
+ *  quote` hint per row. The keeper board asks "what needs a transaction";
+ *  this asks "where can I still get one down". */
+export async function marketLive(json = false, snapPath?: string) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const mAcct = () => (marketProgram().market.account as any);
+  const sAcct = () => (sealedProgram().program.account as any);
+  const [markets, darks, ladders, runs]: [SnapAccount[], SnapAccount[], SnapAccount[], SnapAccount[]] = sm
+    ? [snapOf(sm, "Market"), snapOf(sm, "DarkMarket"), snapOf(sm, "Ladder"), snapOf(ss!, "Run")]
+    : await Promise.all([tolerantAll(marketProgram().market as any, "market"), tolerantAll(marketProgram().market as any, "darkMarket"),
+        tolerantAll(marketProgram().market as any, "ladder"), sAcct().run.all()]);
+  const runBy = new Map(runs.map((r) => [r.publicKey.toBase58(), r.account]));
+  const modelOf = (pk: any) => String(runBy.get(pk?.toBase58?.() ?? String(pk))?.modelId ?? "?");
+  const num = (x: any) => Number(x ?? 0);
+  const now = Math.floor(Date.now() / 1000);
+  const in_ = (s: number, past: string) => s <= now ? past : s - now < 3600 ? `in ${Math.ceil((s - now) / 60)}m` : s - now < 86400 ? `in ${((s - now) / 3600).toFixed(1)}h` : `in ${((s - now) / 86400).toFixed(1)}d`;
+  type Row = { pk: string; kind: string; q: string; pot: number; closesAt: number; resolveBy: number };
+  const rows: Row[] = [];
+  // "open" means open AND accepting — a closes_at that already passed can't
+  // take a bet (the program rejects it); those are the keeper board's, not
+  // the bettor's.
+  const bettable = (a: any) => Number(a.status) === 0
+    && (!num(a.closesAt) || num(a.closesAt) > now)
+    && (!num(a.resolveBy) || num(a.resolveBy) > now);
+  for (const m of markets) {
+    const a = m.account;
+    if (!bettable(a)) continue;
+    const pot = (a.totals as any[]).reduce((s: number, t: any) => s + num(t), 0) / LAMPORTS_PER_SOL;
+    const q = isDuel(a)
+      ? `${modelOf(a.run)} vs ${modelOf(a.runB)} — who scores higher?`
+      : `${modelOf(a.run)} — which of ${a.nOutcomes} band(s)?`;
+    rows.push({ pk: m.publicKey.toBase58(), kind: isDuel(a) ? "duel" : "band", q, pot, closesAt: num(a.closesAt), resolveBy: num(a.resolveBy) });
+  }
+  for (const d of darks) {
+    const a = d.account;
+    if (!bettable(a)) continue;
+    rows.push({ pk: d.publicKey.toBase58(), kind: "dark",
+      q: `${modelOf(a.run)} — sealed positions, ${a.nOutcomes} bucket(s)`,
+      pot: num(a.poolTotal) / LAMPORTS_PER_SOL, closesAt: num(a.closesAt), resolveBy: num(a.revealUntil) });
+  }
+  for (const l of ladders) {
+    const a = l.account;
+    if (!bettable(a)) continue;
+    const legs = (a.legs as PublicKey[]).slice(0, Number(a.legCount));
+    rows.push({ pk: l.publicKey.toBase58(), kind: "ladder",
+      q: `ladder — ${legs.map((p) => modelOf(p)).join(" vs ")}`,
+      pot: (a.totals as any[]).reduce((s: number, t: any) => s + num(t), 0) / LAMPORTS_PER_SOL,
+      closesAt: num(a.closesAt), resolveBy: num(a.resolveBy) });
+  }
+  rows.sort((a, b) => (a.closesAt || 9e18) - (b.closesAt || 9e18));
+  const out = { open: rows.length, venues: rows };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`open venues — ${rows.length} accepting positions, soonest-close first`);
+  for (const r of rows)
+    console.log(`  ${r.kind.padEnd(7)} ${r.pk.slice(0, 12)}… ${r.q}` +
+      `\n    book ${r.pot.toFixed(3)}◎ · bets close ${r.closesAt ? in_(r.closesAt, "now") : "—"} · expires ${r.resolveBy ? in_(r.resolveBy, "past expiry") : "—"}` +
+      `\n    sealed chain market quote ${r.pk} <outcome> <lamports>`);
+  return out;
+}
+
 /** The no-operator design made executable: scan the board, then EXECUTE
  *  every permissionless action it lists — bounty claims (the pot pays the
  *  winning run's operator on-chain, not the sweeper — pure public good),
@@ -4551,6 +4614,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketDivergence(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "calibration") {
       await marketCalibration(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "live") {
+      await marketLive(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.
