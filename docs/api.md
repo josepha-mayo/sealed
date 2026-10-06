@@ -175,7 +175,10 @@ and each matched row annotates `· via <class> <key>` (the role the
 filtered key played in that event: its run, its bank, its record).
 `--model <id>` filters to one model's timeline — its runs, scores,
 receipts, and every venue event whose refs touch its runs — the
-dossier's chronological counterpart.
+dossier's chronological counterpart. `--bank <pk|name>` is the same
+join anchored on an exam — the bank's own creation/runs/reveals/grants
+plus every venue event whose run refs resolve to it (a venue references
+runs, not banks, so the bank timeline follows custody one hop deep).
 `chain bank <pk|name>` is the per-benchmark dossier — spec (kind,
 authority, chunks sealed, items_root, fee), run totals (finalized,
 pending, post-reveal-stamped, best score), the exam's difficulty
@@ -252,7 +255,7 @@ checks against `Run.correct` (on the committed ledger: favorites hit
 aggregate (receipt-replayable), the paired-evidence rank, the
 settlement record, the market's current belief, and the run history —
 the whole answer to "what does the system know about this model?"
-`chain watch [--interval s] [--type a,b]` is the live pulse —
+`chain watch [--interval s] [--type a,b] [--model id] [--bank b]` is the live pulse —
 a `feed` tail that polls and prints new events oldest-first as they
 land, deduplicated by a bounded seen-set; with `--snapshot` it becomes
 a replay ticker (the bundle's last events, then idle).

@@ -772,6 +772,28 @@ test("compareAll --wilson flips thin perfect records below proven ones", async (
   } finally { console.log = origLog; }
 });
 
+test("chainFeed --bank follows custody one hop — venues join via run refs", async () => {
+  const { chainFeed } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    // the most-venue'd bank in the bundle: its run-hosted venues must
+    // appear even though venue accounts never reference the bank directly
+    const venueRows = (await chainFeed(500, "venue,resolution", 0, true, snapPath, undefined, true, undefined,
+      "8FoR83eiNPfd8vPtRBRtFCgA1BsUnKmHUTcLTGjPiETb")) as any[];
+    assert.ok(venueRows.length > 5);
+    assert.ok(venueRows.every((e) => e.type === "venue" || e.type === "resolution"));
+    // every event in a bank filter mentions it (the bank's own name shows
+    // in msgs like "on sealed-test", and venue events always ride run refs)
+    const runs = (await chainFeed(500, "run", 0, true, snapPath, undefined, true, undefined, "sealed-test")) as any[];
+    assert.ok(runs.length > 0);
+    assert.ok(runs.every((e) => e.msg.includes("sealed-test")));
+    // an unknown bank is an error, never an empty feed pretending coverage
+    await assert.rejects(() => chainFeed(10, undefined, 0, true, snapPath, undefined, true, undefined, "no-such-bank"));
+  } finally { console.log = origLog; }
+});
+
 test("chainMatrix ranks coverage over the most-run banks", async () => {
   const { chainMatrix } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

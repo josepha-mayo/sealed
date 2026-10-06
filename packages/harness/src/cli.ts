@@ -170,7 +170,7 @@ async function main() {
   sealed chain stats                                       the dashboard — counts, escrow, bit-exact integrity verdicts
   sealed chain export [--snapshot <f>] [--out file]        the portable integrity digest — bundle or live cluster
   sealed chain diff <a.json> <b.json>                      two bundles — account deltas + both integrity verdicts
-  sealed chain feed [--limit N] [--type a,b] [--since t] [--pk k] [--model id]   the activity stream — runs, venues, resolutions in time order
+  sealed chain feed [--limit N] [--type a,b] [--since t] [--pk k] [--model id] [--bank b]  the activity stream — runs, venues, resolutions in time order
   sealed chain bank <pk|name>                              one benchmark's dossier — spec, runs, venues, reveals
   sealed chain wallet <pk>                                 one address's footprint — banks, runs, venues, positions, grants
   sealed chain runs [--bank b] [--model m] [--min-pct n] [--attested]  # the run substrate — who scored what where
@@ -197,7 +197,7 @@ async function main() {
   sealed chain market calibration [--json] [--snapshot file]                closing-book implied% on what resolved — favorite hit-rate + Brier vs uniform
   sealed chain search <pk> [--json] [--snapshot file]                       universal resolver — what IS this key? routes to the dossier
   sealed chain tour [--snapshot file]                                      the project demos itself — stats → trail → feed → book → P&L → sentiment
-  sealed chain watch [--interval s] [--type a,b] [--model id] [--snapshot file]   the live pulse — feed events as they land (snapshot = replay ticker)
+  sealed chain watch [--interval s] [--type a,b] [--model id] [--bank b] [--snapshot file] the live pulse — feed events as they land (snapshot = replay ticker)
   sealed chain market open    --run <pubkey> --edges <40,55[,64..]> [--salt n]   N-way buckets; --threshold n = binary
                               [--fee-bps 0..1000] [--closes-at +secs|ts] --resolve-by +secs|ts  (required)
   sealed chain market duel    --run-a <pk> --run-b <pk> [--salt n]         head-to-head: does A outscore B? (A/B/tie)

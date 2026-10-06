@@ -3588,7 +3588,7 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
  *  chronological list, newest first. The per-type indexes answer "what
  *  exists"; this answers "is it alive". `--type` filters by event class
  *  (bank,run,score,receipt,venue,resolution,reveal,grant). */
-export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string, pkFilter?: string, quiet = false, modelFilter?: string) {
+export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json = false, snapPath?: string, pkFilter?: string, quiet = false, modelFilter?: string, bankFilter?: string) {
   const snap = snapPath ? loadSnapshotJson(snapPath) : null;
   const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
   const sm = snap ? decodeSnapshotSection(snap, "market") : null;
@@ -3646,9 +3646,20 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
     push(b.account.createdAt, "venue", b.publicKey, `bounty posted — ≥${b.account.threshold} pays ${(Number(b.account.amount) / 1e9).toFixed(3)}◎${claimed ? ` (claimed @${b.account.winningScore})` : ""}`, [b.account.bank, b.account.sponsor, b.account.winnerRun]);
   }
   const keep = typeFilter ? new Set(typeFilter.split(",").map((s) => s.trim())) : null;
+  // --bank: a bank's timeline covers every event touching it — its runs,
+  // receipts, reveals, grants, and (through the run refs venues carry) the
+  // markets that priced those runs. Names match every bank carrying them.
+  let bankSet: Set<string> | null = null, bankRunSet: Set<string> | null = null;
+  if (bankFilter) {
+    const hit = banks.filter((b) => b.publicKey.toBase58() === bankFilter || b.account.name === bankFilter);
+    if (!hit.length) throw new Error(`no benchmark named/addressed ${bankFilter}`);
+    bankSet = new Set(hit.map((b) => b.publicKey.toBase58()));
+    bankRunSet = new Set(runs.filter((r) => bankSet!.has((r.account.benchmark as PublicKey).toBase58())).map((r) => r.publicKey.toBase58()));
+  }
   const filtered = evs.filter((e) => e.t >= since && (!keep || keep.has(e.type))
     && (!pkFilter || e.pk === pkFilter || e.refs.includes(pkFilter))
-    && (!modelFilter || runModel.get(e.pk) === modelFilter || e.refs.some((r) => runModel.get(r) === modelFilter)))
+    && (!modelFilter || runModel.get(e.pk) === modelFilter || e.refs.some((r) => runModel.get(r) === modelFilter))
+    && (!bankSet || e.refs.some((r) => bankSet!.has(r) || bankRunSet!.has(r))))
     .sort((a, b) => b.t - a.t).slice(0, limit);
   if (json) { console.log(JSON.stringify(filtered)); return filtered; }
   if (quiet) return filtered;
@@ -3660,7 +3671,7 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
   tagAll(banks, "bank"); tagAll(runs, "run"); tagAll(logs, "receipt");
   tagAll(records, "record"); tagAll(reveals, "reveal"); tagAll(grants, "grant");
   tagAll(markets, "venue"); tagAll(darks, "venue"); tagAll(ladders, "venue"); tagAll(bounties, "venue");
-  console.log(`feed — ${filtered.length} event(s)${typeFilter ? ` [${typeFilter}]` : ""}${pkFilter ? ` touching ${pkFilter.slice(0, 12)}…` : ""}${modelFilter ? ` [model ${modelFilter}]` : ""} newest first`);
+  console.log(`feed — ${filtered.length} event(s)${typeFilter ? ` [${typeFilter}]` : ""}${pkFilter ? ` touching ${pkFilter.slice(0, 12)}…` : ""}${modelFilter ? ` [model ${modelFilter}]` : ""}${bankFilter ? ` [bank ${bankFilter}]` : ""} newest first`);
   for (const e of filtered) {
     let via = "";
     if (pkFilter && e.pk !== pkFilter) {
@@ -3676,13 +3687,13 @@ export async function chainFeed(limit = 40, typeFilter?: string, since = 0, json
  *  tail of `chain feed`. Prints new events oldest-first as they land —
  *  "run queued → MPC finalized → receipt minted → venue resolved" in
  *  real time. RPC mode only (a snapshot can't tick); Ctrl-C exits. */
-export async function chainWatch(intervalSecs = 15, typeFilter?: string, since = 0, snapPath?: string, modelFilter?: string) {
+export async function chainWatch(intervalSecs = 15, typeFilter?: string, since = 0, snapPath?: string, modelFilter?: string, bankFilter?: string) {
   const fmt = (t: number) => new Date(t * 1000).toISOString().slice(0, 16).replace("T", " ");
   const key = (e: any) => `${e.t}|${e.type}|${e.pk}|${e.msg}`;
   let lastT = since > 0 ? since : snapPath ? 0 : Math.floor(Date.now() / 1000) - 60;
   const tail = new Set<string>();
-  console.log(`watch — ${snapPath ? "snapshot" : "live"} feed every ${intervalSecs}s (Ctrl-C to stop)${typeFilter ? ` [${typeFilter}]` : ""}${modelFilter ? ` [model ${modelFilter}]` : ""}`);
-  const first = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true, modelFilter)) as any[];
+  console.log(`watch — ${snapPath ? "snapshot" : "live"} feed every ${intervalSecs}s (Ctrl-C to stop)${typeFilter ? ` [${typeFilter}]` : ""}${modelFilter ? ` [model ${modelFilter}]` : ""}${bankFilter ? ` [bank ${bankFilter}]` : ""}`);
+  const first = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true, modelFilter, bankFilter)) as any[];
   if (first.length) {
     for (const e of first.slice(-15)) {
       console.log(`  ${fmt(e.t)}  ${e.type.padEnd(10)} ${e.pk.slice(0, 12)}…  ${e.msg}`);
@@ -3693,7 +3704,7 @@ export async function chainWatch(intervalSecs = 15, typeFilter?: string, since =
   for (;;) {
     await new Promise((r) => setTimeout(r, intervalSecs * 1000));
     let fresh: any[] = [];
-    try { fresh = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true, modelFilter)) as any[]; }
+    try { fresh = (await chainFeed(500, typeFilter, lastT - 1, false, snapPath, undefined, true, modelFilter, bankFilter)) as any[]; }
     catch (e: any) { console.log(`  ${fmt(Math.floor(Date.now() / 1000))}  …poll error: ${String(e?.message ?? e).slice(0, 80)}`); continue; }
     if (!fresh.length) continue;
     for (const e of fresh.slice().sort((a, b) => a.t - b.t)) {
@@ -4393,7 +4404,8 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "feed") {
     await chainFeed(Number(args.limit ?? 40), args.type ? String(args.type) : undefined,
       Number(args.since ?? 0), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
-      args.pk ? String(args.pk) : undefined, false, args.model ? String(args.model) : undefined);
+      args.pk ? String(args.pk) : undefined, false, args.model ? String(args.model) : undefined,
+      args.bank ? String(args.bank) : undefined);
     return;
   }
   if (sub === "export") {
@@ -4412,7 +4424,7 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "watch") {
     await chainWatch(Number(args.interval ?? 15) || 15, args.type ? String(args.type) : undefined,
       Number(args.since ?? 0), args.snapshot ? String(args.snapshot) : undefined,
-      args.model ? String(args.model) : undefined);
+      args.model ? String(args.model) : undefined, args.bank ? String(args.bank) : undefined);
     return;
   }
   if (sub === "diff") {
