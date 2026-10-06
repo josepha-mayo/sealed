@@ -3990,7 +3990,7 @@ export async function chainWatch(intervalSecs = 15, typeFilter?: string, since =
  *  same admission policy over EVERY ModelRecord's receipts and report who
  *  clears it. "Which models provably clear ≥80% with ≥10 vouched runs?"
  *  is a one-line answer, not a leaderboard's word. */
-export async function gateAll(policy: GatePolicy, json = false, snapPath?: string, bank?: string) {
+export async function gateAll(policy: GatePolicy, json = false, snapPath?: string, bank?: string, proveDir?: string) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
   const [records, allLogs]: [SnapAccount[], SnapAccount[]] = ss
@@ -4035,6 +4035,22 @@ export async function gateAll(policy: GatePolicy, json = false, snapPath?: strin
     const miss = v.checks.find((c) => !c.pass);
     console.log(`  ${tag}  ${r.modelId.padEnd(36)} ${v.pct.toFixed(1).padStart(5)}% (${v.correct}/${v.items}) ${v.runs} ${v.scope} run(s)` +
       (miss ? `  ← ${miss.name}: ${miss.actual} < ${miss.needed}` : ""));
+  }
+  // --prove <dir>: for every model the policy admits, mint its portable
+  // claim card. The gate answers "who clears"; the cards are the proof
+  // you can hand to whoever asked.
+  if (proveDir) {
+    const { mkdirSync } = await import("node:fs");
+    mkdirSync(proveDir, { recursive: true });
+    const passers = rows.filter((r) => r.verdict.pass);
+    const origLog = console.log; console.log = () => {};
+    try {
+      for (const r of passers) {
+        const slug = r.modelId.replace(/[^A-Za-z0-9._-]+/g, "_");
+        await chainProve(r.modelId, `${proveDir}/${slug}.json`, snapPath);
+      }
+    } finally { console.log = origLog; }
+    if (passers.length) console.log(`  prove — ${passers.length} claim card(s) minted to ${proveDir}/ (verify each: chain prove --verify <file>)`);
   }
   return rows;
 }
@@ -5167,7 +5183,7 @@ export async function chainMain(cmd: string[], args: Args) {
           policy.minItems === undefined && policy.minWilsonPct === undefined)
         throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
       await gateAll(policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
-        args.bank ? String(args.bank) : undefined);
+        args.bank ? String(args.bank) : undefined, args.prove ? String(args.prove) : undefined);
       return;
     }
     const target = String(cmd[1] ?? args.model ?? args.run ?? "");

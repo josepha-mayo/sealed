@@ -108,6 +108,9 @@ sealed chain gate llama-3.2-1b --wilson 50 --no-post-reveal
 sealed chain gate qwen2.5-3b --min-pct 60 --bank sealed-v77007   # policy scoped to one exam
 sealed chain gate --all --min-pct 70 --min-runs 2   # the leaderboard filtered by policy
 sealed chain gate --all --min-pct 60 --bank <bank>  # per-exam leaderboard — who clears it HERE
+sealed chain gate --all --min-pct 60 --min-runs 3 --prove claims/
+#   ↑ every passer mints a sealed-claim/v1 card — verify each with
+#     `chain prove --verify claims/<model>.json` (PDAs re-derive keyless)
 ```
 
 `--vouched` restricts evidence to venue-attested runs

@@ -182,7 +182,7 @@ async function main() {
   sealed chain market bounties                             the runner index: open capability bounties by pot
   sealed chain market venue <pk>                           one venue's dossier — pools, positions, keeper state, re-verified resolution
   sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--bank b] [--json]
-  sealed chain gate --all <same policy flags>                          the gate as a leaderboard: who clears the policy, ranked
+  sealed chain gate --all <same policy flags> [--prove <dir>]          the gate as a leaderboard — passers get claim cards minted
   sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
                                      (all read commands take --snapshot web/snapshot.json to replay the committed evidence bundle offline, keyless)

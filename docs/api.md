@@ -63,7 +63,10 @@ policy to one exam (name resolves every same-named benchmark), so
 "does it clear 70% on *this* bank" is one command. Same evaluation runs
 in-page in the hosted explorer. `chain gate --all` applies the policy
 to *every* ModelRecord and prints the ranked pass/fail table — the
-capability registry as a filterable leaderboard, not a list.
+capability registry as a filterable leaderboard, not a list. Add
+`--prove <dir>` and every model the policy admits gets a
+`sealed-claim/v1` card minted into `<dir>` — "who clears ≥80% with
+proof" produces a folder of verifiable claims, not a printout.
 `chain records [--wilson]` lists the same registry accuracy-first; the
 flag re-ranks on the Wilson lower bound of cumulative accuracy — the
 claim each record can defend (80% on a thin record correctly sits below
