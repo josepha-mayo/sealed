@@ -75,7 +75,7 @@
 </div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -1343,6 +1343,82 @@ function renderAll(sealedAccs, marketAccs) {
           c === null ? `<td class="kv">—</td>` : `<td class="${c.post ? "" : "score"}">${c.pct.toFixed(0)}%${c.post ? `<span class="kv" title="post-reveal only — the answers were public">*</span>` : ""}</td>`).join("")}</tr>`;
       h += `</table></div></div>`;
     }
+  }
+  { // market escrow — the lamport ledger, same buckets as `chain market escrow`:
+    // positions are unclosed claims (PDAs close on payout), so surviving
+    // Position accounts ARE the outstanding obligations; winTotal==0 pots
+    // are provably stranded; the residual is settled outflow.
+    const est = (m, p) => {
+      const net = (pot) => pot - (pot * BigInt(m.feeBps || 0)) / 10000n;
+      if (m.legs) { // ladder
+        const won = p.amounts.reduce((s, a, i) => s + ((m.resultMask & (1 << i)) ? a : 0n), 0n);
+        const wt = m.totals.reduce((s, t, i) => s + ((m.resultMask & (1 << i)) ? t : 0n), 0n);
+        return won > 0n && wt > 0n ? won * net(m.totals.reduce((s, t) => s + t, 0n)) / wt : 0n;
+      }
+      const won = p.amounts[m.outcome] ?? 0n, wt = m.totals[m.outcome] ?? 0n;
+      return won > 0n && wt > 0n ? won * net(m.totals.reduce((s, t) => s + t, 0n)) / wt : 0n;
+    };
+    const owedM = new Map(); // venue pk -> outstanding winner claims
+    for (const p of positions) {
+      const m = markets.find(x => x.pk === p.market) || ladders.find(x => x.pk === p.market);
+      if (!m || m.status !== 1) continue;
+      owedM.set(m.pk, (owedM.get(m.pk) || 0n) + est(m, p));
+    }
+    for (const p of darkPositions) {
+      const d = darkMarkets.find(x => x.pk === p.market);
+      if (!d || d.status !== 1 || !d.tallied || p.revealed === null || p.revealed !== d.outcome || d.winTotal === 0n) continue;
+      const net = d.poolTotal - (d.poolTotal * BigInt(d.feeBps)) / 10000n;
+      owedM.set(d.pk, (owedM.get(d.pk) || 0n) + p.amount * net / d.winTotal);
+    }
+    let inPlay = 0n, owed = 0n, refunds = 0n, fees = 0n, contingent = 0n, dead = 0n, cumulative = 0n, claimedPots = 0n;
+    for (const m of [...markets, ...ladders]) {
+      const pot = m.totals.reduce((s, t) => s + t, 0n); cumulative += pot; fees += m.feesAccrued || 0n;
+      if (m.status === 0) { inPlay += pot; continue; }
+      if (m.status === 2) continue;
+      const net = pot - (pot * BigInt(m.feeBps)) / 10000n;
+      const wt = m.legs ? m.totals.reduce((s, t, i) => s + ((m.resultMask & (1 << i)) ? t : 0n), 0n) : (m.totals[m.outcome] ?? 0n);
+      const o = owedM.get(m.pk) || 0n; owed += o;
+      if (wt === 0n) dead += net; else claimedPots += (net - o) > 0n ? net - o : 0n;
+    }
+    for (const d of darkMarkets) {
+      cumulative += d.poolTotal; fees += d.feesAccrued;
+      if (d.status === 0) { inPlay += d.poolTotal; continue; }
+      if (d.status === 2) continue;
+      if (!d.tallied) { contingent += d.poolTotal; continue; }
+      const net = d.poolTotal - (d.poolTotal * BigInt(d.feeBps)) / 10000n;
+      const o = owedM.get(d.pk) || 0n; owed += o;
+      if (d.winTotal === 0n) dead += net; else claimedPots += (net - o) > 0n ? net - o : 0n;
+    }
+    // refunds owed = cancelled-venue surviving positions' gross stakes
+    for (const p of positions) {
+      const m = markets.find(x => x.pk === p.market) || ladders.find(x => x.pk === p.market);
+      if (m && m.status === 2) refunds += p.amounts.reduce((s, a) => s + a, 0n);
+    }
+    for (const p of darkPositions) {
+      const d = darkMarkets.find(x => x.pk === p.market);
+      if (d && d.status === 2) refunds += p.amount;
+    }
+    const now = Date.now() / 1000;
+    let bountyOpen = 0n, bountyExpired = 0n;
+    for (const b of bounties) {
+      if (b.status !== 0) continue;
+      cumulative += b.amount;
+      if (b.deadline > 0 && b.deadline <= now) bountyExpired += b.amount; else bountyOpen += b.amount;
+    }
+    const settled = cumulative - inPlay - owed - refunds - fees - contingent - dead - bountyOpen - bountyExpired;
+    const L = (v) => (Number(v) / 1e9).toFixed(4);
+    h += `<h2 id="sec-escrow">market escrow — the lamport ledger</h2><div class="card">` +
+      `<div class="kv">every cumulative stake reconciled to an obligation bucket (<span class="mono">chain market escrow</span>) — positions are unclosed claims; the ledger sums <b>exactly</b>.</div>` +
+      `<table><tr><th>bucket</th><th>SOL</th><th>meaning</th></tr>` +
+      `<tr><td>in play</td><td class="score">${L(inPlay)}</td><td class="kv">open venues — positions live or sealed</td></tr>` +
+      `<tr><td>owed to winners</td><td class="score">${L(owed)}</td><td class="kv">resolved, unexercised claims (PDAs still open)</td></tr>` +
+      `<tr><td>refunds owed</td><td class="score">${L(refunds)}</td><td class="kv">cancelled venues — gross refunds unclaimed</td></tr>` +
+      `<tr><td>fees accrued</td><td class="score">${L(fees)}</td><td class="kv">authority fees unclaimed</td></tr>` +
+      `<tr><td>contingent</td><td class="score">${L(contingent)}</td><td class="kv">dark pools mid reveal-window</td></tr>` +
+      `<tr><td>bounty escrow</td><td class="score">${L(bountyOpen + bountyExpired)}</td><td class="kv">live pots + past-deadline sponsor-refundable</td></tr>` +
+      `<tr><td>dead money</td><td class="score">${L(dead)}</td><td class="kv">resolved pots with an unbacked winning bucket — no instruction can move them</td></tr>` +
+      `<tr><td>settled out</td><td class="score">${L(settled)}</td><td class="kv">exercised claims (of which ${L(claimedPots)} winner pots) + collected fees + paid refunds</td></tr>` +
+      `<tr><td><b>cumulative</b></td><td class="score"><b>${L(cumulative)}</b></td><td class="kv">the ledger balances — every lamport accounted</td></tr></table></div>`;
   }
   if (markets.length) {
     h += `<h2 id="sec-markets">markets</h2>`;
