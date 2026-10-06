@@ -1004,6 +1004,33 @@ test("gateCert — a policy certificate verifies, and a flipped verdict fails", 
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("gate --all --cert + --prove — the governance kit in one command", async () => {
+  const { chainMain } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { mkdtempSync, readdirSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "sealed-kit-"));
+    const certPath = join(dir, "cert.json"), cardsDir = join(dir, "cards");
+    await chainMain(["gate", "--all"], {
+      "min-pct": "60", "min-runs": "3", cert: certPath, prove: cardsDir,
+      snapshot: snapPath,
+    });
+    const cards = readdirSync(cardsDir).filter(f => f.endsWith(".json"));
+    assert.equal(cards.length, 11, "one card per policy passer");
+    const { gateCertVerify, chainProveVerify } = await import("../src/chain.js");
+    const ok = (await gateCertVerify(certPath)) as any;
+    assert.equal(ok.fail, 0);
+    for (const c of cards) {
+      const v = (await chainProveVerify(join(cardsDir, c))) as any;
+      assert.equal(v.fail, 0, `${c} must verify`);
+    }
+  } finally { console.log = origLog; }
+});
+
 test("chainReport — the dossier as a document, card-hash pinned", async () => {
   const { chainReport } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

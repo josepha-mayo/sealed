@@ -5764,8 +5764,18 @@ export async function chainMain(cmd: string[], args: Args) {
           policy.minItems === undefined && policy.minWilsonPct === undefined)
         throw new Error("a gate needs a criterion: --min-pct/--min-runs/--min-items/--wilson");
       if (args.cert) {
-        await gateCert(policy, String(args.cert), args.snapshot ? String(args.snapshot) : undefined,
+        const cert = await gateCert(policy, String(args.cert), args.snapshot ? String(args.snapshot) : undefined,
           args.bank ? String(args.bank) : undefined);
+        // --prove composes: the governance kit in one command — certificate
+        // for the policy, a claim card for every model it admits.
+        if (args.prove) {
+          const dir = String(args.prove);
+          mkdirSync(dir, { recursive: true });
+          for (const m of cert.models.filter((m: any) => m.verdict.pass)) {
+            const fname = `${m.modelId.replace(/[^a-zA-Z0-9._-]+/g, "_")}.json`;
+            await chainProve(m.modelId, `${dir}/${fname}`, args.snapshot ? String(args.snapshot) : undefined);
+          }
+        }
         return;
       }
       await gateAll(policy, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,

@@ -451,3 +451,6 @@ computed from — governance output as portable evidence. Verify replays
 each record PDA and recomputes all verdicts bit-exact; a flipped stored
 verdict fails `verdict replay` + `summary consistent`. A committed
 example lives at `docs/evidence/policies/min60-3runs.json`.
+`--cert` composes with `--prove <dir>` — the full governance kit in one
+command: the certificate binds the policy to every verdict, and each
+admitted model gets its portable `sealed-claim/v1` card minted alongside.

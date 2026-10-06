@@ -191,7 +191,7 @@ async function main() {
   sealed chain gate <model> --why [<policy flags>] [--snapshot f]      the policy autopsy — survivable ceiling per scope, binding constraint
   sealed chain gate --sweep [--min-runs N] [--wilson N] [--vouched] [--no-post-reveal] [--bank b] [--grid a,b,c]
                                                                      # the policy-sensitivity grid — who is robustly good, frontier per model
-  sealed chain gate --all <policy flags> --cert <file>                 mint a sealed-policy/v1 certificate — policy + every verdict + receipt evidence
+  sealed chain gate --all <policy flags> --cert <file> [--prove <dir>]  mint a sealed-policy/v1 certificate — policy + every verdict + receipt evidence (+ a claim card per passer when --prove joins)
   sealed chain gate --certify-verify <file>                          replay a policy certificate keyless — PDAs + verdicts recomputed bit-exact
   sealed chain history <model_id|record-pk> [--json]                  capability trajectory: every ScoreLog receipt, oldest first
                                      capability gate over the on-chain registry — exit 0 pass / 1 fail / 2 no evidence
