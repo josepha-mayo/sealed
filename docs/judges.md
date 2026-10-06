@@ -181,6 +181,9 @@ node scripts/snapshot.mjs --rpc https://api.devnet.solana.com --out /tmp/fresh.j
 yarn --cwd packages/harness cli chain diff ../../web/snapshot.json /tmp/fresh.json
 #     ↑ one command: per-type account deltas (added/removed/mutated),
 #       both bundles' sha256 + integrity verdicts side by side
+#     ↑ or skip the CLI: the explorer's "diff…" button (top toolbar)
+#       takes any dumped bundle and shows the same added/removed/mutated
+#       table in-page against whatever's loaded
 
 # 3g. THE DELIVERABLE — a portable claim card. Prove mints a
 #     self-contained sealed-claim/v1 bundle for one model; verify

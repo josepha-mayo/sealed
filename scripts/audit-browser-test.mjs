@@ -122,5 +122,20 @@ const anomOk = /1 warn/.test(anomTxt) && /post-reveal evidence/.test(anomTxt) &&
   /clean/.test(anomTxt);
 console.log(`in-page skeptic's checklist — 10 findings, severities ${anomOk ? "PASS" : "FAIL"}`);
 if (!anomOk) fails++;
+// bundle diff — the same file must read identical; one account dropped
+// must count as a removal in its type row.
+ctx.__snapText = snapText;
+await vm.runInContext('diffSnapshot({ name: "self.json", text: async () => __snapText })', ctx);
+await new Promise((r) => setTimeout(r, 50));
+const diffSelf = els.get("diffres")?.innerHTML ?? "";
+const diffOk1 = /identical — every account byte-for-byte the same/.test(diffSelf);
+const smaller = JSON.parse(snapText); smaller.sealed = smaller.sealed.slice(1);
+ctx.__smallerText = JSON.stringify(smaller);
+await vm.runInContext('diffSnapshot({ name: "smaller.json", text: async () => __smallerText })', ctx);
+await new Promise((r) => setTimeout(r, 50));
+const diffMut = els.get("diffres")?.innerHTML ?? "";
+const diffOk2 = /−1<\/td>/.test(diffMut) && /removed/.test(diffMut);
+console.log(`in-page bundle diff — self-diff ${diffOk1 ? "identical" : "FAIL"}, removal case ${diffOk2 ? "counts −1 PASS" : "MISSED FAIL"}`);
+if (!diffOk1 || !diffOk2) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

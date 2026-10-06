@@ -71,8 +71,11 @@
   <input id="rpc" size="42"> <button onclick="connectLive()">connect</button>
   <button onclick="document.getElementById('snapPick').click()">load snapshot</button>
   <input type="file" id="snapPick" accept=".json" style="display:none" onchange="this.files[0] && loadSnapshot(this.files[0])">
+  <button onclick="document.getElementById('diffPick').click()" title="drop a second bundle — added/removed/mutated accounts vs what's loaded">diff…</button>
+  <input type="file" id="diffPick" accept=".json" style="display:none" onchange="this.files[0] && diffSnapshot(this.files[0])">
   <span id="net" class="kv"></span>
 </div>
+<div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
   <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a>
@@ -618,6 +621,12 @@ async function load() {
 // Offline snapshot: `node scripts/snapshot.mjs [rpc]` dumps every program
 // account to JSON; loading it here renders the identical views from frozen
 // real chain data — the full explorer without standing up a localnet.
+const TYPEOF = Object.fromEntries(Object.entries(DISC).map(([k, v]) => [v, k]));
+const discName = (data) => {
+  const u8 = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  return TYPEOF[u8.length >= 8 ? hex(u8.slice(0, 8)) : ""] ?? "other";
+};
+
 function applySnapshot(snap) {
   if (!snap || (!Array.isArray(snap.sealed) && !Array.isArray(snap.market)))
     throw new Error("not a sealed snapshot (expected {sealed:[],market:[]})");
@@ -625,6 +634,10 @@ function applySnapshot(snap) {
     pubkey: new PK(pubkey),
     account: { data: Uint8Array.from(atob(data), (c) => c.charCodeAt(0)) },
   }));
+  // raw bytes kept for diffSnapshot — pubkey → {type, data}
+  window.__raw = new Map();
+  for (const { pubkey, data } of [...(snap.sealed || []), ...(snap.market || [])])
+    window.__raw.set(pubkey, { type: discName(data), data });
   const meta = snap.meta || {};
   if (meta.rpc) {
     rpcIn.value = meta.rpc; // verify-proof lookups hit the snapshot's origin RPC
@@ -657,6 +670,42 @@ async function loadSnapshot(file) {
     applySnapshot(JSON.parse(await file.text()));
   }
   catch (e) { document.getElementById("err").textContent = "snapshot error: " + e.message; }
+}
+
+// `chain diff` in-page — drop a second bundle, get per-type deltas vs
+// what's loaded: accounts added, removed, or mutated (byte-different at
+// the same address). Nothing is trusted — it's a set-diff over raw data.
+async function diffSnapshot(file) {
+  const out = document.getElementById("diffres");
+  try {
+    const cur = window.__raw;
+    if (!cur || !cur.size) { out.innerHTML = `<div class="kv">nothing loaded to diff against</div>`; return; }
+    const snap = JSON.parse(await file.text());
+    if (!snap || (!Array.isArray(snap.sealed) && !Array.isArray(snap.market)))
+      throw new Error("not a sealed snapshot (expected {sealed:[],market:[]})");
+    const other = new Map();
+    for (const { pubkey, data } of [...(snap.sealed || []), ...(snap.market || [])])
+      other.set(pubkey, { type: discName(data), data });
+    const types = new Set([...cur.values()].map(v => v.type).concat([...other.values()].map(v => v.type)));
+    const per = [];
+    let addT = 0, delT = 0, mutT = 0;
+    for (const t of [...types].sort()) {
+      let add = 0, del = 0, mut = 0;
+      for (const [pk, v] of other) if (v.type === t && !cur.has(pk)) add++;
+      for (const [pk, v] of cur) if (v.type === t && !other.has(pk)) del++;
+      for (const [pk, v] of cur) if (v.type === t && other.has(pk) && other.get(pk).data !== v.data) mut++;
+      if (add || del || mut) per.push(`<tr><td class="mono">${esc(t)}</td><td style="text-align:right;color:var(--ok)">+${add}</td><td style="text-align:right;color:var(--err)">−${del}</td><td style="text-align:right">${mut ? `~${mut}` : "0"}</td></tr>`);
+      addT += add; delT += del; mutT += mut;
+    }
+    const m = snap.meta || {};
+    out.innerHTML = `<div class="card" style="margin-top:8px"><b>bundle diff</b> — <span class="mono">${esc(file.name)}</span>${m.takenAt ? ` <span class="kv">(taken ${esc(m.takenAt)}${m.rpc ? ` via ${esc(m.rpc)})` : ")"}` : ""} vs the loaded bundle:</span>` +
+      (addT + delT + mutT === 0
+        ? `<div class="kv" style="color:var(--ok)">identical — every account byte-for-byte the same</div>`
+        : `<table><tr><th>type</th><th style="text-align:right">added</th><th style="text-align:right">removed</th><th style="text-align:right">mutated</th></tr>${per.join("")}` +
+          `<tr><td><b>total</b></td><td style="text-align:right"><b>+${addT}</b></td><td style="text-align:right"><b>−${delT}</b></td><td style="text-align:right"><b>~${mutT}</b></td></tr></table>` +
+          `<div class="kv">the evidence ledger is append-mostly: added rows are new history, removed rows are closed accounts (claimed positions), mutated rows are counters that moved.</div>`) +
+      `</div>`;
+  } catch (e) { out.innerHTML = `<div class="kv" style="color:var(--err)">diff failed: ${esc(e.message)}</div>`; }
 }
 
 async function loadSnapshotUrl(u) {
