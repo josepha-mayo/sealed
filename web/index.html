@@ -3027,6 +3027,13 @@ async function runAudit(force) {
       badList.length === 0
         ? pass("bundle integrity", `all ${okN} served files sha256-match web/MANIFEST — this page's bytes are the repo's bytes${canon}`)
         : fail("bundle integrity", `${badList.length}/${lines.length} file(s) differ from MANIFEST: ${badList.slice(0, 3).join(", ")}${canon}`);
+      // bundle root — the same recipe `chain fingerprint` prints: sha256
+      // over the evidence manifest (served pinned as SHA256SUMS) + MANIFEST.
+      try {
+        const evRoot = hex(await sha(utf8(await (await fetch("SHA256SUMS")).text())));
+        const root = hex(await sha(utf8(`sealed-fingerprint/v1\n${evRoot}\n${hex(await sha(utf8(mf)))}\n`)));
+        rows.push(`<div class="proof"><span class="kv">bundle root <code>${root}</code> — one sha256 for the whole evidence base; <code>chain fingerprint</code> prints the same hash</span></div>`);
+      } catch {}
     } catch (e) {
       skip("bundle integrity", "MANIFEST not reachable (serve the repo root or use the hosted explorer)");
     }

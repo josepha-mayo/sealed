@@ -229,7 +229,9 @@ if (!bundleOk) fails++;
   const evRoot = sh(readFileSync(join(ROOT, "web", "SHA256SUMS"), "utf8"));
   const webRoot = sh(readFileSync(join(ROOT, "web", "MANIFEST"), "utf8"));
   const want = sh(`sealed-fingerprint/v1\n${evRoot}\n${webRoot}\n`);
-  const fpOk = new RegExp(`bundle root\\s+${want}`).test(bundleTxt);
+  const auditTxt = (els.get("auditres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+  const fpOk = new RegExp(`bundle root\\s+${want}`).test(bundleTxt) &&
+    new RegExp(`bundle root\\s+${want}`).test(auditTxt);
   console.log(`in-page bundle fingerprint — root ${want.slice(0, 16)}… ${fpOk ? "PASS" : "FAIL"}`);
   if (!fpOk) fails++;
 }
