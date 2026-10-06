@@ -3707,6 +3707,16 @@ export async function chainStats(snapPath?: string, json = false) {
       postRevealReceipts: postRev,
     },
     mpcLatency: { samples: lats.length, p50s: pct(50), p95s: pct(95) },
+    actors: (() => {
+      const pkS = (v: any) => v?.toBase58 ? v.toBase58() : String(v);
+      return {
+        runners: new Set(runs.map((r) => pkS(r.account.runner))).size,
+        bettors: new Set(positions.map((p) => pkS(p.account.bettor))).size,
+        darkBettors: new Set(darkPositions.map((p) => pkS(p.account.bettor))).size,
+        sponsors: new Set(bounties.map((b) => pkS(b.account.sponsor))).size,
+        viewers: new Set(grants.map((g) => pkS(g.account.viewer))).size,
+      };
+    })(),
     keeper: (await loadBoard(snapPath)).board,
     activity: (() => {
       // the ledger's heartbeat — every timestamped event bucketed per UTC
@@ -3765,6 +3775,8 @@ export async function chainStats(snapPath?: string, json = false) {
   console.log(`money — ${(escrow / 1e9).toFixed(3)}◎ escrowed · ${(fees / 1e9).toFixed(4)}◎ protocol fees collected`);
   console.log(`integrity — registry ${out.integrity.registryReplay} · resolutions ${out.integrity.resolutionsVerified}`);
   console.log(`mpc — scoring latency p50 ${out.mpcLatency.p50s}s / p95 ${out.mpcLatency.p95s}s (${lats.length} timed runs)`);
+  const A0 = out.actors;
+  console.log(`actors — ${A0.runners} runner wallets · ${A0.bettors + A0.darkBettors} bettor wallets (${A0.darkBettors} sealed) · ${A0.sponsors} bounty sponsors · ${A0.viewers} grant viewers`);
   console.log(`keeper — ${actionable} actionable now · ${out.keeper.settled} settled · ${out.keeper.filling} in play`);
   const A = out.activity;
   console.log(`activity — ${A.spark} (${A.total} events over ${A.days} day(s), ${A.first} → ${A.last} · peak ${A.peak}/day)`);

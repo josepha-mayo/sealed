@@ -805,6 +805,9 @@ function renderAll(sealedAccs, marketAccs) {
     [sol(potLamports), "SOL escrowed across venues"],
     [sol(feesLamports), "protocol fees collected"],
     [lats.length ? `${fmtSecs(qp(50))} / ${fmtSecs(qp(95))}` : 0, "MPC latency p50 / p95"],
+    [new Set(runs.map(r => r.runner)).size, "runner wallets"],
+    [new Set(positions.map(p => p.bettor)).size + new Set(darkPositions.map(p => p.bettor)).size, "bettor wallets"],
+    [new Set(grants.map(g => g.viewer)).size, "grant viewers"],
   ].filter(([v]) => typeof v === "string" ? v.length > 0 : Number.isFinite(Number(v)) && Number(v) !== 0);
 
   // ---- hero: the confidentiality paradox, in one strip ----
