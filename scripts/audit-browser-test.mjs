@@ -304,6 +304,33 @@ els.get("feedType").value = "";
 vm.runInContext("runFeedFilter()", ctx);
 console.log(`in-page activity feed — ${feedAll} events shown, resolution filter ${feedOk ? "narrows PASS" : "FAIL"}`);
 if (!feedOk) fails++;
+// runs substrate — the `chain runs` index renders + every filter narrows
+// honestly (post-reveal isolates a strict subset, attested a strict subset).
+const runsRows = els.get("runsrows")?.innerHTML ?? "";
+const runsAll = Number((runsRows.match(/(\d+) run\(s\) match/) ?? [])[1]);
+els.get("runsPR").value = "1";
+vm.runInContext("runRunsFilter()", ctx);
+const prHtml = els.get("runsrows")?.innerHTML ?? "";
+const prN = Number((prHtml.match(/(\d+) run\(s\) match/) ?? [])[1]);
+const prPills = (prHtml.match(/>post-reveal<\/span>/g) || []).length;
+els.get("runsPR").value = "";
+els.get("runsAttested").checked = true;
+vm.runInContext("runRunsFilter()", ctx);
+const attHtml = els.get("runsrows")?.innerHTML ?? "";
+const attN = Number((attHtml.match(/(\d+) run\(s\) match/) ?? [])[1]);
+const attPills = (attHtml.match(/>attested<\/span>/g) || []).length;
+els.get("runsAttested").checked = false;
+vm.runInContext("runRunsFilter()", ctx);
+const runsOk = runsAll === 503 && prN > 0 && prN < runsAll && prPills >= prN &&
+  attN > 0 && attN < runsAll && attPills >= attN;
+console.log(`in-page runs index — ${runsAll} runs, post-reveal filter ${prN} rows, attested filter ${attN} rows ${runsOk ? "PASS" : "FAIL"}`);
+if (!runsOk) fails++;
+// disclosure trail — the `chain grants` surface renders grants + counts
+const grantsRows = (rendered.match(/<td class="mono"><a href="\?pk=/g) || []).length;
+const grantsSec = /disclosure trail — who can see the questions/.test(rendered) &&
+  /145 grants/.test(rendered) && grantsRows >= 55;
+console.log(`in-page disclosure trail — section ${grantsSec ? `renders ${grantsRows} viewer links PASS` : "FAIL"}`);
+if (!grantsSec) fails++;
 // tournament grid — top-12 table renders with signed cells + dead-heat zeros
 vm.runInContext("runH2HGrid(true)", ctx);
 const gridHtml = els.get("h2hGridOut")?.innerHTML ?? "";

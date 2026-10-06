@@ -78,7 +78,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -1057,6 +1057,39 @@ function renderAll(sealedAccs, marketAccs) {
         <td>${p.n}</td></tr>`;
     });
     h += `</table></div><div class="kv" style="margin:4px 0 10px">each comparison is two runs scored by MPC on the <i>same exam</i> — duel markets resolve A-wins/B-wins/tie directly, ladders contribute every same-bank leg pair. W–L–T from A's side.</div>`;
+  }
+
+  // ---- the runs substrate index — `chain runs` in-page: every Run
+  // account, filterable by model / bank / status / pct / attested /
+  // post-reveal, score-first sort. ----
+  if (runs.length) {
+    h += `<h2 id="sec-runs">runs — the scoring substrate</h2><div class="card">
+      <div class="kv">every Run account on this ledger, filterable — the same index <span class="mono">chain runs --model/--bank/--min-pct/--status/--attested/--post-reveal</span> prints. ${runs.length} run(s); ${runs.filter(r => r.status === 1).length} MPC-finalized.</div>
+      <div class="kv" style="margin:4px 0">model <input id="runsModel" size="16" placeholder="model id…" oninput="runRunsFilter()">
+      · bank <input id="runsBank" size="14" placeholder="name or pk…" oninput="runRunsFilter()">
+      · status <select id="runsStatus" onchange="runRunsFilter()"><option value="">all</option><option value="1">finalized</option><option value="0">pending</option><option value="2">cancelled</option></select>
+      · min-% <input id="runsPct" size="3" oninput="runRunsFilter()">
+      · <label><input type="checkbox" id="runsAttested" onchange="runRunsFilter()"> attested only</label>
+      · post-reveal <select id="runsPR" onchange="runRunsFilter()"><option value="">any</option><option value="1">only</option><option value="0">excluded</option></select></div>
+      <div id="runsrows"></div>
+    </div>`;
+    queueMicrotask(runRunsFilter);
+  }
+
+  // ---- the disclosure trail — `chain grants` in-page: every reshare_part
+  // grant = someone who can see the QUESTIONS (never the answers). The
+  // privacy story made enumerable. ----
+  if (grants.length) {
+    const bn2 = new Map(benches.map(b => [b.pk, b.name]));
+    const vN = new Set(grants.map(g => g.viewer)).size;
+    const bN = new Set(grants.map(g => g.bench)).size;
+    h += `<h2 id="sec-grants">disclosure trail — who can see the questions</h2><div class="card">
+      <div class="kv">every <span class="mono">reshare_part</span> grant on this ledger — a delegated x25519 re-encryption of exam <i>specs</i> (answers never move — they stay sealed to the cluster). ${grants.length} grants · ${bN} bank(s) disclosed · ${vN} distinct viewer(s). <span class="mono">chain grants</span> prints the same rows.</div>
+      <table style="margin-top:6px"><tr><th>bank</th><th>chunk.part</th><th>viewer</th><th>shared</th><th>grant</th></tr>` +
+      [...grants].sort((a, b) => b.sharedAt - a.sharedAt).slice(0, 60).map(g =>
+        `<tr><td>${esc(bn2.get(g.bench) ?? short(g.bench))}</td><td class="mono">${g.chunk}.${g.part}</td><td class="mono"><a href="?pk=${g.viewer}">${short(g.viewer)}</a></td><td class="kv">${fmtTs(g.sharedAt)}</td><td class="mono">${short(g.pk)}</td></tr>`).join("") +
+      `</table>${grants.length > 60 ? `<div class="kv" style="margin-top:4px">… ${grants.length - 60} more — <span class="mono">chain grants --benchmark/--viewer</span> narrows it</div>` : ""}
+    </div>`;
   }
 
   // ---- calibration specimen: the one bank whose plaintext answers are
@@ -3147,6 +3180,39 @@ function runFeedFilter() {
   const shown = hits.slice(0, 40);
   box.innerHTML = (type || q ? `<div class="kv">${hits.length} match${hits.length === 1 ? "" : "es"}${hits.length > shown.length ? ` · showing ${shown.length}` : ""}</div>` : "") +
     shown.map(e => `<div class="proof">${fmtTs(e.t)} <span class="pill ${e.type === "resolution" ? "resolved" : e.type === "reveal" ? "cancelled" : e.type === "score" ? "live" : "open"}" style="font-size:10px">${e.type}</span> <a href="#${e.anchor}">${short(e.pk)}</a> — ${e.msg}</div>`).join("");
+}
+
+// `chain runs` in-page — same fields, same sort (pct desc, finalized desc).
+function runRunsFilter() {
+  const out = document.getElementById("runsrows");
+  const A = window.__audit;
+  if (!A || !out) return;
+  const bn = new Map(A.benches.map(b => [b.pk, b.name]));
+  const mf = (document.getElementById("runsModel")?.value || "").trim().toLowerCase();
+  const bf = (document.getElementById("runsBank")?.value || "").trim().toLowerCase();
+  const st = document.getElementById("runsStatus")?.value ?? "";
+  const mp = Number(document.getElementById("runsPct")?.value) || 0;
+  const att = !!document.getElementById("runsAttested")?.checked;
+  const pr = document.getElementById("runsPR")?.value ?? "";
+  const rows = A.runs.map(r => ({ r, items: r.chunkCount * 32, pct: r.status === 1 && r.chunkCount ? 100 * r.correct / (r.chunkCount * 32) : 0 }))
+    .filter(x =>
+      (!mf || (x.r.modelId || "").toLowerCase().includes(mf)) &&
+      (!bf || (bn.get(x.r.benchmark) || "").toLowerCase().includes(bf) || x.r.benchmark.toLowerCase().startsWith(bf)) &&
+      (st === "" || x.r.status === Number(st)) &&
+      x.pct >= mp &&
+      (!att || x.r.attested) &&
+      (pr === "" || !!x.r.postReveal === (pr === "1")))
+    .sort((a, b) => b.pct - a.pct || b.r.finalizedAt - a.r.finalizedAt);
+  const CAP = 80, shown = rows.slice(0, CAP);
+  const flag = r => `${r.postReveal ? ` <span class="pill cancelled">post-reveal</span>` : ""}${r.attested ? ` <span class="pill resolved">attested</span>` : ""}`;
+  out.innerHTML = `<table><tr><th>run</th><th>model</th><th>bank</th><th>score</th><th></th><th>finalized</th></tr>` +
+    shown.map(x => {
+      const r = x.r;
+      const score = r.status === 1 ? `${r.correct}/${x.items} (${x.pct.toFixed(1)}%)` : ["PENDING", "?", "CANCELLED"][r.status] ?? "?";
+      return `<tr><td class="mono"><a href="?pk=${r.pk}">${short(r.pk)}</a></td><td class="mono">${esc(r.modelId || "—")}</td><td>${esc(bn.get(r.benchmark) ?? short(r.benchmark))}</td><td class="score">${score}</td><td>${flag(r)}</td><td class="kv">${r.finalizedAt ? fmtTs(r.finalizedAt) : "—"}</td></tr>`;
+    }).join("") + `</table>` +
+    `<div class="kv" style="margin-top:4px">${rows.length} run(s) match` +
+    (rows.length > CAP ? ` — showing ${CAP}, narrow with the filters` : "") + `</div>`;
 }
 
 function runGate() {

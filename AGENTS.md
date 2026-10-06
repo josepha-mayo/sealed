@@ -103,6 +103,10 @@ parimutuel markets resolved from `Run.correct`.
   `chain anomalies` at `#sec-anomalies` (the skeptic's checklist — all
   ten findings, warn/note/ok) and `chain gate --sweep` on the gate
   widget's sweep button (the frontier grid honoring its own filters).
+  `#sec-runs` mirrors `chain runs` (the 503-run substrate index — model /
+  bank / status / min-% / attested / post-reveal filters, score-first
+  sort) and `#sec-grants` mirrors `chain grants` (the 145-grant
+  disclosure trail — bank · chunk.part · viewer · shared-at).
 - Pure logic lives in `board.ts` (keeper classification mirroring the
   on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
   (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and
