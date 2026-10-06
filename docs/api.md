@@ -225,7 +225,10 @@ kinds freely; `--recursive` walks the whole tree (115 artifacts in
 `docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any failure;
 non-artifact files are skipped, not failed). Reports need `--snapshot`
 (or live RPC) to re-mint their bound claim card. The explorer's
-"verify anything" panel does the same routing in-page.
+"verify anything" panel does the same routing in-page, and its
+"replay the whole bundle" button is the recursive verifier
+in-browser — all 115 committed artifacts driven through their own
+in-page check lists with live progress.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`
 capability document — the dossier + claim card as printable markdown,
 bound to its card by canonical sha256 (`generatedAt`/`source` excluded

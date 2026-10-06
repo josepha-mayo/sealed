@@ -270,7 +270,10 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
-#           routing in-page for pasted artifacts
+#           routing in-page for pasted artifacts — and its
+#           "replay the whole bundle" button is the recursive
+#           verifier in-browser: all 115 committed artifacts
+#           through their own check lists, live progress
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh

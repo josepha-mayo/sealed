@@ -111,6 +111,9 @@
   <textarea id="artifactjson" rows="6" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}'></textarea>
   <button onclick="verifyAnyArtifact()">verify artifact</button>
   <span id="artifactnote" class="kv"></span>
+  <div class="kv" style="margin-top:10px">…or replay <b>every committed artifact</b> — the in-page mirror of <code>chain artifact docs/evidence --recursive</code>. Each file below runs through its own verifier above: every PDA re-derived, every verdict replayed, nothing trusted.</div>
+  <button onclick="replayBundle()">replay the whole bundle</button>
+  <div id="bundleres"></div>
 </div>
 
 <h2 id="sec-claim">verify a claim card</h2>
@@ -2307,6 +2310,62 @@ function verifyAnyArtifact() {
     document.getElementById(r[1]).scrollIntoView({ behavior: "smooth", block: "start" });
     r[2]();
   } catch (e) { note.innerHTML = ` — <span style="color:var(--err)">${esc(e.message ?? String(e))}</span>`; }
+}
+
+// The in-page mirror of `chain artifact <tree> --recursive`: fetch every
+// committed artifact index and drive each file through the SAME verifier a
+// judge would click — pills in each section's own result render are counted,
+// so a check that renders here is the check that ran.
+async function replayBundle() {
+  const res = document.getElementById("bundleres");
+  if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI recursive verifier works without it)</div>`; return; }
+  const KINDS = [
+    ["claims", "claimjson", "claimres", verifyClaim, "sealed-claim/v1"],
+    ["policies", "certjson", "certres", verifyCert, "sealed-policy/v1"],
+    ["matches", "matchjson", "matchres", verifyMatch, "sealed-match/v1"],
+    ["trails", "trailjson", "trailres", verifyTrail, "sealed-trail/v1"],
+    ["reports", "reportjson", "reportres", verifyReport, "sealed-report/v1"],
+  ];
+  const rows = [];
+  let total = 0, passed = 0, checks = 0;
+  // save + neutralize DOM state the verifiers read, restore when done
+  const saved = new Map();
+  for (const [, taId, resId] of KINDS) {
+    for (const id of [taId, resId]) { const e = document.getElementById(id); saved.set(id, { value: e.value, html: e.innerHTML }); }
+  }
+  for (const id of ["claimPct", "claimRuns", "claimItems"]) { const e = document.getElementById(id); saved.set(id, { value: e.value }); e.value = ""; }
+  const restore = () => { for (const [id, s] of saved) { const e = document.getElementById(id); if (s.value !== undefined) e.value = s.value; if (s.html !== undefined) e.innerHTML = s.html; } };
+  res.innerHTML = `<div class="kv">replaying… fetching the five indexes, then every artifact through its own verifier</div>`;
+  try {
+    for (const [dir, taId, resId, fn, kind] of KINDS) {
+      let files;
+      try { files = await (await fetch(`${dir}/index.json`)).json(); }
+      catch { rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/index.json — artifact index unreachable</div>`); continue; }
+      const ta = document.getElementById(taId), sub = document.getElementById(resId);
+      let ok = 0;
+      for (const f of files) {
+        total++;
+        try {
+          const fr = await fetch(`${dir}/${f}`);
+          if (!fr.ok) throw new Error(`HTTP ${fr.status}`);
+          ta.value = await fr.text();
+          await fn();
+          const html = sub.innerHTML;
+          const fails = (html.match(/pill cancelled/g) || []).length;
+          checks += fails + (html.match(/pill resolved/g) || []).length;
+          if (fails === 0 && html.includes("VERIFIED")) ok++;
+          else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/${f} — ${fails || "verdict"} failed check(s)</div>`);
+        } catch (e) {
+          rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/${f} — ${esc(e.message ?? String(e))}</div>`);
+        }
+      }
+      passed += ok;
+      rows.push(`<div class="proof"><span class="pill ${ok === files.length ? "resolved" : "cancelled"}">${ok === files.length ? "PASS" : "FAIL"}</span> ${kind} — ${ok}/${files.length} artifact(s) replayed</div>`);
+      res.innerHTML = rows.join("");
+    }
+  } finally { restore(); }
+  rows.unshift(`<div class="kv" style="margin-bottom:8px"><b>${passed === total && total > 0 ? "BUNDLE VERIFIED" : "BUNDLE FAILED"}</b> — ${passed}/${total} artifacts replayed in-page · ${checks} checks · nothing trusted</div>`);
+  res.innerHTML = rows.join("");
 }
 
 // sealed-trail/v1 verifier — mirrors `chain trail --verify`: the run/bank/

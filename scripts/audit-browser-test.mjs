@@ -212,6 +212,15 @@ const anyReportTxt = (els.get("reportres")?.innerHTML ?? "").replace(/<[^>]+>/g,
 const anyReportOk = /REPORT VERIFIED/.test(anyReportTxt) && /sealed-report\/v1/.test(els.get("artifactnote")?.innerHTML ?? "");
 console.log(`in-page universal verifier — markdown report routed + verified ${anyReportOk ? "PASS" : "FAIL"}`);
 if (!anyReportOk) fails++;
+// the bundle replay: every committed artifact through its own verifier —
+// the in-page mirror of `chain artifact docs/evidence --recursive`.
+await vm.runInContext("replayBundle()", ctx);
+await new Promise((r) => setTimeout(r, 100));
+const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /115\/115 artifacts replayed in-page/.test(bundleTxt) &&
+  /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt);
+console.log(`in-page bundle replay — 115 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+if (!bundleOk) fails++;
 // policy sweep — the frontier grid renders all records; test/sweep-run's
 // perfect record must survive the strictest line.
 vm.runInContext("runSweep()", ctx);
