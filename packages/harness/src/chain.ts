@@ -4991,7 +4991,21 @@ export async function chainAnomalies(json = false, snapPath?: string) {
     detail: postRuns.length
       ? `${postRuns.length} run(s) scored after fingerprint reveals — flagged on-chain, refused by markets, excludable via gate --no-post-reveal`
       : "no run was scored after its answers were public",
-    drill: "chain runs --bank <bank> · flags show on every row" });
+    drill: "chain runs --post-reveal · flags show on every row" });
+
+  // 1b. collapsible records — every receipt post-reveal: under a strict
+  // --no-post-reveal policy these models have NO surviving evidence at all
+  const preLogs = logs.filter((l) => !l.account.postReveal);
+  const withPre = new Set(preLogs.map((l) => (l.account.modelRecord as PublicKey).toBase58()));
+  const withAny = new Set(logs.map((l) => (l.account.modelRecord as PublicKey).toBase58()));
+  const collapsible = records.filter((r) =>
+    withAny.has(r.publicKey.toBase58()) && !withPre.has(r.publicKey.toBase58()));
+  f.push({ sev: collapsible.length ? "warn" : "ok", what: "records that collapse under --no-post-reveal",
+    count: collapsible.length,
+    detail: collapsible.length
+      ? `${collapsible.length} record(s) lose EVERY receipt under a strict pre-reveal policy (${collapsible.map((r) => r.account.modelId).slice(0, 4).join(", ")}${collapsible.length > 4 ? "…" : ""}) — their entire evidence postdates answer exposure`
+      : "every record keeps at least one pre-reveal receipt — no evidence is entirely post-reveal",
+    drill: "chain gate --all --no-post-reveal --min-runs 1 · chain runs --post-reveal" });
 
   // 2. stuck-pending runs — queued, never finalized (callback-outage casualties)
   const stuck = runs.filter((r) => Number(r.account.status) === 0 && num(r.account.createdAt) > 0 && now - num(r.account.createdAt) > 7 * 86400);

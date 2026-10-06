@@ -155,14 +155,16 @@ const whyOk = /policy envelope/.test(whyTxt) && /all receipts/.test(whyTxt) &&
   /passes any minPct|nothing/.test(whyTxt) && /binding:/.test(whyTxt);
 console.log(`in-page policy autopsy — envelope + binding constraint ${whyOk ? "PASS" : "FAIL"}`);
 if (!whyOk) fails++;
-// skeptic's checklist — all eleven findings render with honest severities:
-// the disclosed post-reveal runs are the one warn, dead money stays zero.
+// skeptic's checklist — all twelve findings render with honest severities:
+// the disclosed post-reveal runs + collapsible records are the two warns,
+// dead money stays zero.
 vm.runInContext("renderAnomalies()", ctx);
 const anomTxt = (els.get("anomres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const anomOk = /1 warn/.test(anomTxt) && /post-reveal evidence/.test(anomTxt) &&
+const anomOk = /2 warn/.test(anomTxt) && /post-reveal evidence/.test(anomTxt) &&
+  /collapse under --no-post-reveal/.test(anomTxt) && /test\/post-reveal/.test(anomTxt) &&
   /dead money/.test(anomTxt) && /duplicate bank names/.test(anomTxt) &&
   /clean/.test(anomTxt);
-console.log(`in-page skeptic's checklist — 11 findings, severities ${anomOk ? "PASS" : "FAIL"}`);
+console.log(`in-page skeptic's checklist — 12 findings, severities ${anomOk ? "PASS" : "FAIL"}`);
 if (!anomOk) fails++;
 // bundle diff — the same file must read identical; one account dropped
 // must count as a removal in its type row.

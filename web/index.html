@@ -2238,6 +2238,12 @@ function renderAnomalies() {
   const postRuns = rows.filter(r => r.postReveal);
   f.push({ sev: postRuns.length ? "warn" : "ok", what: "post-reveal evidence", count: postRuns.length,
     detail: postRuns.length ? `${postRuns.length} run(s) scored after fingerprint reveals — flagged on-chain, refused by markets, excludable via gate --no-post-reveal` : "no run was scored after its answers were public" });
+  // 1b. collapsible records — every receipt post-reveal
+  const preSet = new Set(logs.filter(l => !l.postReveal).map(l => l.modelRecord));
+  const anySet = new Set(logs.map(l => l.modelRecord));
+  const collapsible = recs.filter(r => anySet.has(r.pk) && !preSet.has(r.pk));
+  f.push({ sev: collapsible.length ? "warn" : "ok", what: "records that collapse under --no-post-reveal", count: collapsible.length,
+    detail: collapsible.length ? `${collapsible.length} record(s) lose EVERY receipt under a strict pre-reveal policy (${collapsible.map(r => esc(r.modelId)).slice(0, 4).join(", ")}${collapsible.length > 4 ? "…" : ""}) — their entire evidence postdates answer exposure` : "every record keeps at least one pre-reveal receipt" });
   // 2. stuck-pending runs
   const stuck = rows.filter(r => r.status === 0 && num(r.createdAt) > 0 && now - num(r.createdAt) > 7 * 86400);
   f.push({ sev: stuck.length ? "note" : "ok", what: "stuck-pending runs", count: stuck.length,
