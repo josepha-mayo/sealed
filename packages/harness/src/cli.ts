@@ -179,6 +179,7 @@ async function main() {
   sealed chain runs [--bank b] [--model m] [--min-pct n] [--attested]  # the run substrate — who scored what where
   sealed chain compare <A> <B>                             head-to-head on shared benchmarks, paired deltas
   sealed chain compare --all [--min-shared n] [--wilson]     paired-evidence leaderboard (W-L-T over shared banks; --wilson = rank by 95% LCB)
+  sealed chain compare --matrix [--top n] [--min-shared k]   the N×N tournament grid — cell = row−col pp delta, "—" = disjoint coverage
   sealed chain trail <run-pk>                              custody chain: bank → receipt → venues, resolutions re-verified
   sealed chain market bounties                             the runner index: open capability bounties by pot
   sealed chain market venue <pk>                           one venue's dossier — pools, positions, keeper state, re-verified resolution

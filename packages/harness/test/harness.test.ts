@@ -953,3 +953,25 @@ test("gateSweep frontiers — every model gets its strictest cleared line", asyn
         ((rows[i - 1].frontier ?? -1) === (rows[i].frontier ?? -1) && rows[i - 1].pct >= rows[i].pct));
   } finally { console.log = origLog; }
 });
+
+test("compareMatrix — the N×N paired-evidence grid is antisymmetric and honest", async () => {
+  const { compareMatrix } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  let emitted = "";
+  const origLog = console.log;
+  console.log = (x) => { emitted += String(x) + "\n"; };
+  try {
+    await compareMatrix(12, 1, true, snapPath);
+  } finally { console.log = origLog; }
+  const { top, cells, unrankedPairs } = JSON.parse(emitted);
+  assert.ok(top.length >= 10);
+  const idx = (id) => top.indexOf(id);
+  // dark/model-a and ladder/model-a dead-heat on their shared banks: 0pp both ways
+  assert.equal(cells[idx("dark/model-a")][idx("ladder/model-a")], 0);
+  // qwen2.5-3b beats qwen2.5-1.5b on their shared bank — antisymmetric cell
+  assert.ok(cells[idx("qwen2.5-3b-instruct")][idx("qwen2.5-1.5b-instruct")] > 0);
+  assert.ok(cells[idx("qwen2.5-1.5b-instruct")][idx("qwen2.5-3b-instruct")] < 0);
+  // disjoint coverage stays "—" (null), never assumed: mock/oracle-0.75 shares nothing with most
+  assert.equal(cells[idx("mock/oracle-0.75")][idx("dark/model-a")], null);
+  assert.ok(unrankedPairs > 300);
+});

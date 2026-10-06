@@ -142,12 +142,30 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > dossier, `chain model` fuses all four model lenses plus matrix
 > coverage into one page, `compare --all --wilson` ranks by 95% lower
 > bound instead of raw wins, and `chain watch` ticks the ledger live.
+> Then the surfaces nobody else has: `chain market sharps` ranks bettor
+> track records on realized P&L and reports the book's anonymity set
+> honestly (126 positions, almost all one-position wallets — no repeat
+> records survives); `chain market escrow` reconciles every staked
+> lamport to its obligation bucket, balanced to the lamport (76.075◎ in,
+> in-play / owed / contingent / bounty / settled-out, zero dead money);
+> `chain anomalies` runs ten hostile checks on its own bundle (the
+> disclosed post-reveal runs are the one warn); `chain gate --sweep`
+> drops the single-threshold assumption — every record's "frontier" is
+> the strictest line it survives; and `chain prove` mints the actual
+> deliverable — a portable `sealed-claim/v1` card per model where every
+> PDA re-derives keyless and every verdict replays. `chain prove --all`
+> ships the entire registry that way: 31 committed cards, `chain prove
+> --verify claims/` replays all 279 checks.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201
 > market resolutions re-derived from `Run.correct`, the 31-record
 > registry replayed bit-exact from 292 receipts — plus a public
-> calibration exam where the page recomputes the MPC score per item.
+> calibration exam where the page recomputes the MPC score per item,
+> an in-page claim-card verifier (pick any of the 31 committed cards,
+> all sha256-pinned in the bundle MANIFEST), a skeptic's-checklist
+> panel, the policy sweep, the escrow ledger, and a "diff…" button that
+> shows added/removed/mutated accounts when you drop any bundle.
 > Or don't run anything: `docs/evidence/replay.txt` is a captured
 > transcript of the same commands.
 > No install, no trust in us.

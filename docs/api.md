@@ -173,6 +173,10 @@ only, with disjoint pairs reported as unranked rather than assumed;
 rate (ties count half, n = ranked pairs) — the same interval math the
 capability gate applies to accuracy, here disciplining the *ranking*: a
 2–0 record can't sit above a proven 15–2 on thin evidence.
+`chain compare --matrix [--top N] [--min-shared K]` renders the N×N
+tournament grid — every pair's shared-bank verdict as a signed pp-delta
+cell (row − column), `—` for disjoint coverage (unranked, never assumed):
+the leaderboard says who's ahead, the grid shows who beat whom.
 `chain matrix [--banks N]` renders the capability matrix — models × the
 most-run banks, each cell the model's best finalized score there
 (`*` marks cells whose best score is post-reveal-only — it can't prove

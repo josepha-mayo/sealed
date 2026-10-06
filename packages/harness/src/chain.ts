@@ -2140,6 +2140,74 @@ export async function compareAll(json = false, snapPath?: string, minShared = 1,
   return ranked;
 }
 
+/** `chain compare --matrix [--top N] [--min-shared K]` — the N×N
+ *  tournament table: every pair's shared-bank verdict as a cell.
+ *  Leaderboards tell you who's ahead; the grid shows WHO beat WHOM —
+ *  a model strong against the top tier but absent from the bottom half
+ *  reads differently than an aggregate rank. Cell = signed pp delta on
+ *  shared banks (row − column), `—` = disjoint coverage (unranked, not
+ *  assumed), `·` = diagonal. */
+export async function compareMatrix(top = 12, minShared = 1, json = false, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [records, logs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all()]);
+  const byBank = new Map<string, Map<string, { correct: number; items: number }>>();
+  for (const l of logs) {
+    const rec = (l.account.modelRecord as PublicKey).toBase58();
+    const k = (l.account.benchmark as PublicKey).toBase58();
+    const m = byBank.get(rec) ?? new Map<string, { correct: number; items: number }>();
+    const e = m.get(k) ?? { correct: 0, items: 0 };
+    e.correct += Number(l.account.correct); e.items += Number(l.account.items);
+    m.set(k, e);
+    byBank.set(rec, m);
+  }
+  const recs = records.map((r) => ({
+    pk: r.publicKey.toBase58(), modelId: r.account.modelId as string,
+    wins: 0, losses: 0, ties: 0, rankedPairs: 0, ppDelta: 0,
+  }));
+  const cell = new Map<string, number | null>();
+  let unranked = 0;
+  for (let i = 0; i < recs.length; i++) for (let j = i + 1; j < recs.length; j++) {
+    const a = byBank.get(recs[i].pk) ?? new Map(), b = byBank.get(recs[j].pk) ?? new Map();
+    const shared = [...a.keys()].filter((k) => b.has(k));
+    if (shared.length < minShared) { unranked++; cell.set(`${i}:${j}`, null); cell.set(`${j}:${i}`, null); continue; }
+    const pa = shared.reduce((s, k) => s + a.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k)!.items, 0));
+    const pb = shared.reduce((s, k) => s + b.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k)!.items, 0));
+    recs[i].rankedPairs++; recs[j].rankedPairs++;
+    const d = 100 * (pa - pb);
+    recs[i].ppDelta += d; recs[j].ppDelta -= d;
+    cell.set(`${i}:${j}`, d); cell.set(`${j}:${i}`, -d);
+    if (pa > pb) { recs[i].wins++; recs[j].losses++; }
+    else if (pa < pb) { recs[j].wins++; recs[i].losses++; }
+    else { recs[i].ties++; recs[j].ties++; }
+  }
+  const ranked = recs.map((r, i) => ({ ...r, i }))
+    .sort((x, y) => y.wins - x.wins || x.losses - y.losses || y.ppDelta - x.ppDelta)
+    .slice(0, top);
+  if (json) {
+    console.log(JSON.stringify({ top: ranked.map((r) => r.modelId),
+      cells: ranked.map((r) => ranked.map((c) => (c.i === r.i ? "diag" : cell.get(`${r.i}:${c.i}`) ?? null))),
+      unrankedPairs: unranked }));
+    return ranked;
+  }
+  const abc = (n: number) => { let s = ""; n += 1; while (n > 0) { s = String.fromCharCode(96 + ((n - 1) % 26 + 1)) + s; n = Math.floor((n - 1) / 26); } return s; };
+  console.log(`paired-evidence grid — top ${ranked.length} by W-L, cell = row−col pp delta on shared banks:`);
+  console.log(`      ${ranked.map((_, k) => abc(k).padStart(5)).join("")}`);
+  for (let k = 0; k < ranked.length; k++) {
+    const r = ranked[k];
+    console.log(`  ${abc(k).padStart(2)}  ${ranked.map((c) => {
+      if (c.i === r.i) return "   · ";
+      const v = cell.get(`${r.i}:${c.i}`);
+      return v === null || v === undefined ? "   — " : `${v >= 0 ? "+" : ""}${v.toFixed(0)}`.padStart(4) + " ";
+    }).join("")} ${r.modelId}`);
+  }
+  const coverage = ranked.filter((r) => r.rankedPairs === 0).length;
+  console.log(`  ${coverage ? `${coverage} shown model(s) have zero ranked pairs · ` : ""}${unranked} pair(s) ledger-wide share <${minShared} bank(s) — "—" is honest absence, not a loss.`);
+  return ranked;
+}
+
 /** `chain matrix [--banks N]` — the capability matrix: models × the
  *  most-run banks, each cell the model's BEST finalized score there.
  *  Leaderboards aggregate over different exams; this shows the exam-by-
@@ -5344,6 +5412,10 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "compare") {
+    if (cmd[1] === "--matrix" || args.matrix) {
+      await compareMatrix(Number(args.top ?? 12) || 12, Number(args["min-shared"] ?? 1) || 1, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
     if (cmd[1] === "--all" || args.all) {
       await compareAll(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined, Number(args["min-shared"] ?? 1) || 1, Boolean(args.wilson));
       return;
