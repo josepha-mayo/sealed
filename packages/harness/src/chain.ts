@@ -2260,6 +2260,19 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
   if (json) { console.log(JSON.stringify(out)); return out; }
   console.log(`model ${modelId} — the four lenses on one page`);
   console.log(`  registry    — ${out.registry.runs} receipts · ${out.registry.correct}/${out.registry.items} items (${out.registry.accuracyPct}%)${out.registry.bestScore ? ` · best ${out.registry.bestScore}` : ""}`);
+  { // trajectory — finalized runs in time order as a sparkline: whether the
+    // ledger watched this model climb or slide is visible at a glance.
+    const ticks = "▁▂▃▄▅▆▇█";
+    const byT = fin.filter((r: any) => r.finalizedAt > 0).sort((a: any, b: any) => a.finalizedAt - b.finalizedAt);
+    if (byT.length >= 2) {
+      const spark = byT.slice(-24).map((r: any) => ticks[Math.min(7, Math.max(0, Math.floor(r.pct / 12.5)))]);
+      const trend = byT.length >= 4
+        ? (() => { const h = Math.floor(byT.length / 2); const a = byT.slice(0, h).reduce((s, r) => s + r.pct, 0) / h, b = byT.slice(-h).reduce((s, r) => s + r.pct, 0) / h;
+            return b - a > 5 ? "rising" : a - b > 5 ? "falling" : "flat"; })()
+        : "short history";
+      console.log(`  trajectory  — ${spark.join("")} (${byT.length} runs, ${new Date(byT[0].finalizedAt * 1000).toISOString().slice(0, 10)} → ${new Date(byT.at(-1)!.finalizedAt * 1000).toISOString().slice(0, 10)} · ${trend})`);
+    }
+  }
   console.log(`  evidence    — ${out.pairedEvidence.rank ? `paired rank #${out.pairedEvidence.rank} · ${out.pairedEvidence.wins}W-${out.pairedEvidence.losses}L-${out.pairedEvidence.ties}T · ΣΔ${out.pairedEvidence.ppDelta >= 0 ? "+" : ""}${out.pairedEvidence.ppDelta}pp over ${out.pairedEvidence.sharedBankResults} shared-bank result(s)` : out.pairedEvidence.note}`);
   console.log(`  settlement  — ${champ ? `${out.settlement!.duels} (${champ.duelWinPct ?? "—"}%) · legs ${out.settlement!.ladderLegs} · bounties ${out.settlement!.bounties}` : "no resolved venues"}`);
   console.log(`  belief      — ${bel ? `${bel.impliedWinPct !== null ? `wins ${bel.impliedWinPct}%` : ""}${bel.impliedScore !== null ? ` scores ~${bel.impliedScore}` : ""} (${bel.stakeWeighed} staked · conviction #${belIdx + 1})` : "no open book prices it"}`);

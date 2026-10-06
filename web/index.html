@@ -799,9 +799,12 @@ function renderAll(sealedAccs, marketAccs) {
       const vc = vl.reduce((s, l) => s + l.correct, 0), vi = vl.reduce((s, l) => s + l.items, 0);
       const lb = 100 * wilson(m.totalCorrect, m.totalItems);
       // Trajectory view — same rows `chain history` prints: oldest first,
-      // running accuracy after each receipt (a regression detector).
+      // running accuracy after each receipt (a regression detector). The
+      // sparkline is `chain model`'s trajectory strip, one glyph per receipt.
       let rc = 0, ri = 0;
-      const receipts = logs.length ? `<details style="margin-top:4px"><summary class="kv" style="cursor:pointer">${logs.length} receipt${logs.length === 1 ? "" : "s"} — trajectory</summary>` +
+      const TICKS = "▁▂▃▄▅▆▇█";
+      const spark = [...logs].reverse().map(l => TICKS[Math.min(7, Math.max(0, Math.floor((100 * l.correct / Math.max(1, l.items)) / 12.5)))]).join("");
+      const receipts = logs.length ? `<details style="margin-top:4px"><summary class="kv" style="cursor:pointer">${logs.length} receipt${logs.length === 1 ? "" : "s"} — trajectory <span class="mono" title="one glyph per receipt, oldest → newest">${spark}</span></summary>` +
         [...logs].reverse().map(l => {
           rc += l.correct; ri += l.items;
           return `<div class="kv mono" style="font-size:11px">${link(l.run)} ${l.correct}/${l.items} → ${(100 * rc / ri).toFixed(1)}%` +
