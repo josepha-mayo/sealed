@@ -137,5 +137,18 @@ const diffMut = els.get("diffres")?.innerHTML ?? "";
 const diffOk2 = /−1<\/td>/.test(diffMut) && /removed/.test(diffMut);
 console.log(`in-page bundle diff — self-diff ${diffOk1 ? "identical" : "FAIL"}, removal case ${diffOk2 ? "counts −1 PASS" : "MISSED FAIL"}`);
 if (!diffOk1 || !diffOk2) fails++;
+// activity feed — filterable stream renders events; a type filter must
+// narrow the count (resolutions alone < all events).
+const feedAll = (els.get("feedrows")?.innerHTML.match(/<div class="proof">/g) || []).length;
+els.get("feedType").value = "resolution";
+vm.runInContext("runFeedFilter()", ctx);
+const feedHtml = els.get("feedrows")?.innerHTML ?? "";
+const feedRes = (feedHtml.match(/>resolution<\/span>/g) || []).length;
+const feedOther = (feedHtml.match(/>(bank|run|score|receipt|reveal|grant|venue)<\/span>/g) || []).length;
+const feedOk = feedAll === 40 && feedRes > 0 && feedOther === 0 && /matches/.test(feedHtml);
+els.get("feedType").value = "";
+vm.runInContext("runFeedFilter()", ctx);
+console.log(`in-page activity feed — ${feedAll} events shown, resolution filter ${feedOk ? "narrows PASS" : "FAIL"}`);
+if (!feedOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

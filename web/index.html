@@ -1219,12 +1219,15 @@ function renderAll(sealedAccs, marketAccs) {
     for (const b of bounties)
       push(b.createdAt, "venue", b.pk, `bounty posted — ≥${b.threshold} pays ${sol(b.amount)} SOL${b.status !== 0 ? ` (claimed @${b.winningScore})` : ""}`, `bounty-${b.pk}`);
     ev.sort((a, b) => b.t - a.t);
-    const shown = ev.slice(0, 18);
+    window.__feed = ev;
     h += `<h2 id="sec-feed">activity — the ledger's chronology in one stream</h2><div class="card">
-      <div class="kv">every timestamped event across both programs, newest first — the same stream <span class="mono">chain feed</span> prints. ${ev.length} events on this ledger; showing latest ${shown.length}.</div>`;
-    for (const e of shown)
-      h += `<div class="proof">${fmtTs(e.t)} <span class="pill ${e.type === "resolution" ? "resolved" : e.type === "reveal" ? "cancelled" : e.type === "score" ? "live" : "open"}" style="font-size:10px">${e.type}</span> <a href="#${e.anchor}">${short(e.pk)}</a> — ${e.msg}</div>`;
-    h += `</div>`;
+      <div class="kv">every timestamped event across both programs, newest first — the same stream <span class="mono">chain feed</span> prints. ${ev.length} events on this ledger.</div>
+      <div class="kv" style="margin:4px 0">type <select id="feedType" onchange="runFeedFilter()"><option value="">all</option><option>bank</option><option>run</option><option>score</option><option>receipt</option><option>reveal</option><option>grant</option><option>venue</option><option>resolution</option></select>
+      · match <input id="feedMatch" size="26" placeholder="model id, bank name, pk…" oninput="runFeedFilter()">
+      <span class="kv">— <span class="mono">chain feed --type/--model/--bank</span> in-page</span></div>
+      <div id="feedrows"></div>
+    </div>`;
+    queueMicrotask(runFeedFilter);
   }
   let sRows = [];
   { // what the stakes believe — pooled implied probabilities per model
@@ -2462,6 +2465,23 @@ function sortH2H(byWilson) {
   body.innerHTML = rows.map((r, i) => `<tr><td>${i + 1}</td><td class="mono">${esc(r.id)}</td>` +
     `<td class="score">${r.w}–${r.l}–${r.t}</td><td class="score">${r.pp >= 0 ? "+" : ""}${r.pp.toFixed(0)}</td>` +
     `<td class="${byWilson ? "score" : "kv"}">${r.lcb.toFixed(1)}%</td><td>${r.shared}</td></tr>`).join("");
+}
+
+// Activity-stream filter — `chain feed --type/--model/--bank` in-page:
+// the same events, filtered by class or substring (model id, bank name,
+// pubkey). Renders into #feedrows; called on input + after renderAll.
+function runFeedFilter() {
+  const box = document.getElementById("feedrows");
+  if (!box) return;
+  const ev = window.__feed || [];
+  const type = document.getElementById("feedType")?.value || "";
+  const q = (document.getElementById("feedMatch")?.value || "").trim().toLowerCase();
+  const hits = ev.filter(e =>
+    (!type || e.type === type) &&
+    (!q || e.pk.toLowerCase().includes(q) || e.msg.toLowerCase().includes(q)));
+  const shown = hits.slice(0, 40);
+  box.innerHTML = (type || q ? `<div class="kv">${hits.length} match${hits.length === 1 ? "" : "es"}${hits.length > shown.length ? ` · showing ${shown.length}` : ""}</div>` : "") +
+    shown.map(e => `<div class="proof">${fmtTs(e.t)} <span class="pill ${e.type === "resolution" ? "resolved" : e.type === "reveal" ? "cancelled" : e.type === "score" ? "live" : "open"}" style="font-size:10px">${e.type}</span> <a href="#${e.anchor}">${short(e.pk)}</a> — ${e.msg}</div>`).join("");
 }
 
 function runGate() {
