@@ -290,7 +290,7 @@ sealed chain attest        --run <pk>                                 # authorit
 sealed chain record        --run <pk>                                 # enroll a finalized run into the persistent capability registry (anyone)
 sealed chain modelrec      <pubkey|model_id>                          # show a model's aggregate record
 sealed chain record --all [--watch s]                                # enroll EVERY finalized run — librarian daemon with --watch
-sealed chain records                                                  # the whole registry, accuracy-first
+sealed chain records [--wilson]                                     # the whole registry — accuracy-first, or 95% LCB ranking with --wilson
 sealed chain banks                                                    # every benchmark — kind, items, runs, best score
 sealed chain bank <pk|name>                                           # one bank's dossier — spec, runs, venues, reveals
 sealed chain wallet <pk>                                              # one address's footprint — banks, runs, venues, positions, grants

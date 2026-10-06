@@ -64,6 +64,10 @@ policy to one exam (name resolves every same-named benchmark), so
 in-page in the hosted explorer. `chain gate --all` applies the policy
 to *every* ModelRecord and prints the ranked pass/fail table — the
 capability registry as a filterable leaderboard, not a list.
+`chain records [--wilson]` lists the same registry accuracy-first; the
+flag re-ranks on the Wilson lower bound of cumulative accuracy — the
+claim each record can defend (80% on 2 runs correctly sits below 78%
+on 17 runs).
 
 `chain market positions [--bettor kp.json] [--json]` — the bettor-side
 mirror: every position the wallet holds across bands/duels/ladders/darks,

@@ -1827,8 +1827,11 @@ export async function runList(opts: {
   return rows;
 }
 
-/** `chain records` — the whole capability registry, accuracy-first. */
-export async function modelRecordList(snapPath?: string, json = false) {
+/** `chain records [--wilson]` — the whole capability registry, accuracy-first.
+ *  `--wilson` re-ranks on the Wilson 95% lower bound of cumulative accuracy —
+ *  100% on 64 items can't sit above 87% on 4,000 on raw rate alone; the
+ *  lower bound is the claim the ledger can actually defend. */
+export async function modelRecordList(snapPath?: string, json = false, wilson = false) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const [all, logs] = ss
     ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
@@ -1853,23 +1856,24 @@ export async function modelRecordList(snapPath?: string, json = false) {
       modelId: r.modelId as string,
       runs: r.runsScored as number,
       pct: r.totalItems.toNumber() ? 100 * r.totalCorrect.toNumber() / r.totalItems.toNumber() : 0,
+      lcb: wilsonLowerBoundPct(r.totalCorrect.toNumber(), r.totalItems.toNumber()),
       bestPct: r.bestItems ? 100 * r.bestCorrect / r.bestItems : 0,
       best: `${r.bestCorrect}/${r.bestItems}`,
       vouched: vAgg.get(pk.toBase58()),
       last: (r.lastRun as PublicKey).toBase58(),
     }))
-    .sort((a: any, b: any) => b.bestPct - a.bestPct || b.pct - a.pct);
+    .sort((a: any, b: any) => wilson ? b.lcb - a.lcb || b.pct - a.pct : b.bestPct - a.bestPct || b.pct - a.pct);
   if (json) {
     console.log(JSON.stringify(rows.map((r: any) => ({
       record: r.pk.toBase58(), modelId: r.modelId, runs: r.runs,
-      pct: r.pct, best: r.best, bestPct: r.bestPct,
+      pct: r.pct, lcb: r.lcb, best: r.best, bestPct: r.bestPct,
       vouched: r.vouched ? `${r.vouched.c}/${r.vouched.i}` : null, lastRun: r.last,
     }))));
     return rows;
   }
-  console.log(`${rows.length} model record(s) — cumulative MPC-scored performance:`);
+  console.log(`${rows.length} model record(s) — cumulative MPC-scored performance${wilson ? " — ranked by Wilson 95% LCB" : ""}:`);
   for (const r of rows)
-    console.log(`  ${r.modelId.padEnd(36)} runs=${r.runs}  agg=${r.pct.toFixed(1)}%  best=${r.best} (${r.bestPct.toFixed(1)}%)` +
+    console.log(`  ${r.modelId.padEnd(36)} runs=${r.runs}  agg=${r.pct.toFixed(1)}%${wilson ? `  LCB=${r.lcb.toFixed(1)}%` : ""}  best=${r.best} (${r.bestPct.toFixed(1)}%)` +
       `${r.vouched ? `  vouched=${r.vouched.c}/${r.vouched.i}` : ""}  rec=${r.pk.toBase58()}`);
 }
 
@@ -4483,7 +4487,7 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "records") {
-    await modelRecordList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    await modelRecordList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json), Boolean(args.wilson));
     return;
   }
   if (sub === "bank") {

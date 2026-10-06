@@ -164,7 +164,7 @@ async function main() {
   sealed chain record --all [--watch s]                        enroll EVERY finalized-but-unrecorded run — the permissionless librarian (--watch = daemon)
   sealed chain modelrec <pubkey|model_id>                  show a model's aggregated score record
   sealed chain model <pk|model_id> [--json] [--snapshot f] the fused dossier — registry · evidence rank · settlement · belief · runs
-  sealed chain records                                     list every model record, accuracy-first
+  sealed chain records [--wilson]                             list every model record, accuracy-first (--wilson = rank by 95% LCB)
   sealed chain banks [--kind authored|generated|private]          list every benchmark, run-count first
   sealed chain matrix [--banks N] [--json]                        the capability matrix — models × most-run banks, best score per cell
   sealed chain stats                                       the dashboard — counts, escrow, bit-exact integrity verdicts
