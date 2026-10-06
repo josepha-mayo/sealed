@@ -2227,11 +2227,12 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
   // save/restore around the whole Promise.all; per-call save/restore
   // races and can leave the console muted)
   const origLog = console.log; console.log = () => {};
-  let ranked: any, champs: any, senti: any, runsRows: any;
+  let ranked: any, champs: any, senti: any, runsRows: any, mx: any;
   try {
-    [ranked, champs, senti, runsRows] = await Promise.all([
+    [ranked, champs, senti, runsRows, mx] = await Promise.all([
       compareAll(true, snapPath), marketChampions(true, snapPath),
       marketSentiment(true, snapPath), runList({ snapPath, json: true, model: modelId }),
+      chainMatrix(8, true, snapPath),
     ]);
   } finally { console.log = origLog; }
   const rank = (ranked as any[])?.findIndex?.((r: any) => r.modelId === modelId) ?? -1;
@@ -2254,6 +2255,8 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
     marketBelief: bel ? { impliedWinPct: bel.impliedWinPct, impliedScore: bel.impliedScore, stakeWeighed: bel.stakeWeighed, convictionRank: belIdx + 1 } : null,
     divergence: rankRow || bel ? { evidenceRank: rankRow ? rank + 1 : null, convictionRank: bel ? belIdx + 1 : null,
       gap: rankRow && bel ? rank + 1 - (belIdx + 1) : null } : null,
+    coverage: (() => { const mrow = (mx?.matrix as any[])?.find?.((r: any) => r.model === modelId);
+      return mrow ? { banksCovered: mrow.banksCovered, ofBanks: (mx.banks as any[]).length, meanPct: mrow.meanPct } : null; })(),
     runs: { total: runs.length, finalized: fin.length,
       recent: runs.slice(0, 10).map((r: any) => ({ pk: r.pk, score: `${r.correct}/${r.items}`, bank: r.bankName, status: r.status })) },
   };
@@ -2278,6 +2281,9 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
   console.log(`  belief      — ${bel ? `${bel.impliedWinPct !== null ? `wins ${bel.impliedWinPct}%` : ""}${bel.impliedScore !== null ? ` scores ~${bel.impliedScore}` : ""} (${bel.stakeWeighed} staked · conviction #${belIdx + 1})` : "no open book prices it"}`);
   if (out.divergence?.gap !== null && out.divergence?.gap !== undefined && out.divergence.gap !== 0)
     console.log(`  divergence  — evidence #${out.divergence.evidenceRank} vs conviction #${out.divergence.convictionRank} → gap ${out.divergence.gap > 0 ? "+" : ""}${out.divergence.gap} (${out.divergence.gap > 0 ? "priced above" : "priced below"} the receipts)`);
+  console.log(out.coverage
+    ? `  coverage    — ${out.coverage.banksCovered}/${out.coverage.ofBanks} most-run banks · mean best ${out.coverage.meanPct}% (chain matrix)`
+    : `  coverage    — 0/${(mx?.banks as any[])?.length ?? 8} most-run banks — absent from the most-run suite`);
   console.log(`  runs        — ${out.runs.total} submitted · ${out.runs.finalized} finalized`);
   for (const r of out.runs.recent.slice(0, 8))
     console.log(`    ${String(r.pk).slice(0, 12)}… ${r.score} on ${r.bank} (status ${r.status})`);
