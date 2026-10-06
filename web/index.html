@@ -1080,16 +1080,15 @@ function renderAll(sealedAccs, marketAccs) {
   // grant = someone who can see the QUESTIONS (never the answers). The
   // privacy story made enumerable. ----
   if (grants.length) {
-    const bn2 = new Map(benches.map(b => [b.pk, b.name]));
     const vN = new Set(grants.map(g => g.viewer)).size;
     const bN = new Set(grants.map(g => g.bench)).size;
     h += `<h2 id="sec-grants">disclosure trail — who can see the questions</h2><div class="card">
-      <div class="kv">every <span class="mono">reshare_part</span> grant on this ledger — a delegated x25519 re-encryption of exam <i>specs</i> (answers never move — they stay sealed to the cluster). ${grants.length} grants · ${bN} bank(s) disclosed · ${vN} distinct viewer(s). <span class="mono">chain grants</span> prints the same rows.</div>
-      <table style="margin-top:6px"><tr><th>bank</th><th>chunk.part</th><th>viewer</th><th>shared</th><th>grant</th></tr>` +
-      [...grants].sort((a, b) => b.sharedAt - a.sharedAt).slice(0, 60).map(g =>
-        `<tr><td><a href="?pk=${g.bench}">${esc(bn2.get(g.bench) ?? short(g.bench))}</a></td><td class="mono">${g.chunk}.${g.part}</td><td class="mono"><a href="?pk=${g.viewer}">${short(g.viewer)}</a></td><td class="kv">${fmtTs(g.sharedAt)}</td><td class="mono"><a href="?pk=${g.pk}">${short(g.pk)}</a></td></tr>`).join("") +
-      `</table>${grants.length > 60 ? `<div class="kv" style="margin-top:4px">… ${grants.length - 60} more — <span class="mono">chain grants --benchmark/--viewer</span> narrows it</div>` : ""}
+      <div class="kv">every <span class="mono">reshare_part</span> grant on this ledger — a delegated x25519 re-encryption of exam <i>specs</i> (answers never move — they stay sealed to the cluster). ${grants.length} grants · ${bN} bank(s) disclosed · ${vN} distinct viewer(s). <span class="mono">chain grants --benchmark/--viewer</span> filters below.</div>
+      <div class="kv" style="margin:4px 0">bank <input id="grantsBank" size="16" placeholder="name or pk…" oninput="runGrantsFilter()">
+      · viewer <input id="grantsViewer" size="16" placeholder="pubkey…" oninput="runGrantsFilter()"></div>
+      <div id="grantsrows"></div>
     </div>`;
+    queueMicrotask(runGrantsFilter);
   }
 
   // ---- calibration specimen: the one bank whose plaintext answers are
@@ -3214,6 +3213,26 @@ function runRunsFilter() {
       return `<tr><td class="mono"><a href="?pk=${r.pk}">${short(r.pk)}</a></td><td class="mono">${esc(r.modelId || "—")}</td><td><a href="?pk=${r.benchmark}">${esc(bn.get(r.benchmark) ?? short(r.benchmark))}</a></td><td class="score">${score}</td><td>${flag(r)}</td><td class="kv">${r.finalizedAt ? fmtTs(r.finalizedAt) : "—"}</td></tr>`;
     }).join("") + `</table>` +
     `<div class="kv" style="margin-top:4px">${rows.length} run(s) match` +
+    (rows.length > CAP ? ` — showing ${CAP}, narrow with the filters` : "") + `</div>`;
+}
+
+// `chain grants` in-page — same bank/viewer filters, newest-first.
+function runGrantsFilter() {
+  const out = document.getElementById("grantsrows");
+  const A = window.__audit;
+  if (!A || !out) return;
+  const bn = new Map(A.benches.map(b => [b.pk, b.name]));
+  const bf = (document.getElementById("grantsBank")?.value || "").trim().toLowerCase();
+  const vf = (document.getElementById("grantsViewer")?.value || "").trim().toLowerCase();
+  const rows = (A.grants || []).filter(g =>
+    (!bf || (bn.get(g.bench) || "").toLowerCase().includes(bf) || g.bench.toLowerCase().startsWith(bf)) &&
+    (!vf || g.viewer.toLowerCase().startsWith(vf)))
+    .sort((a, b) => b.sharedAt - a.sharedAt);
+  const CAP = 60, shown = rows.slice(0, CAP);
+  out.innerHTML = `<table><tr><th>bank</th><th>chunk.part</th><th>viewer</th><th>shared</th><th>grant</th></tr>` +
+    shown.map(g => `<tr><td><a href="?pk=${g.bench}">${esc(bn.get(g.bench) ?? short(g.bench))}</a></td><td class="mono">${g.chunk}.${g.part}</td><td class="mono"><a href="?pk=${g.viewer}">${short(g.viewer)}</a></td><td class="kv">${fmtTs(g.sharedAt)}</td><td class="mono"><a href="?pk=${g.pk}">${short(g.pk)}</a></td></tr>`).join("") +
+    `</table>` +
+    `<div class="kv" style="margin-top:4px">${rows.length} grant(s) match` +
     (rows.length > CAP ? ` — showing ${CAP}, narrow with the filters` : "") + `</div>`;
 }
 

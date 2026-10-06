@@ -325,11 +325,21 @@ const runsOk = runsAll === 503 && prN > 0 && prN < runsAll && prPills >= prN &&
   attN > 0 && attN < runsAll && attPills >= attN;
 console.log(`in-page runs index — ${runsAll} runs, post-reveal filter ${prN} rows, attested filter ${attN} rows ${runsOk ? "PASS" : "FAIL"}`);
 if (!runsOk) fails++;
-// disclosure trail — the `chain grants` surface renders grants + counts
-const grantsRows = (rendered.match(/<td class="mono"><a href="\?pk=/g) || []).length;
+// disclosure trail — the `chain grants` surface renders grants + counts;
+// the viewer filter isolates exactly one pubkey's disclosures.
+const grantsHtml = els.get("grantsrows")?.innerHTML ?? "";
+const grantsAll = Number((grantsHtml.match(/(\d+) grant\(s\) match/) ?? [])[1]);
+const grantLinks = (grantsHtml.match(/<td class="mono"><a href="\?pk=/g) || []).length;
+const oneViewer = (grantsHtml.match(/<a href="\?pk=([1-9A-HJ-NP-Za-km-z]+)">[1-9A-HJ-NP-Za-km-z…]+<\/a><\/td><td class="kv">/) ?? [])[1];
+els.get("grantsViewer").value = oneViewer || "";
+vm.runInContext("runGrantsFilter()", ctx);
+const vfHtml = els.get("grantsrows")?.innerHTML ?? "";
+const vfN = Number((vfHtml.match(/(\d+) grant\(s\) match/) ?? [])[1]);
+els.get("grantsViewer").value = "";
+vm.runInContext("runGrantsFilter()", ctx);
 const grantsSec = /disclosure trail — who can see the questions/.test(rendered) &&
-  /145 grants/.test(rendered) && grantsRows >= 55;
-console.log(`in-page disclosure trail — section ${grantsSec ? `renders ${grantsRows} viewer links PASS` : "FAIL"}`);
+  grantsAll === 145 && grantLinks >= 55 && !!oneViewer && vfN > 0 && vfN < grantsAll;
+console.log(`in-page disclosure trail — ${grantsAll} grants, viewer filter ${vfN} rows ${grantsSec ? "PASS" : "FAIL"}`);
 if (!grantsSec) fails++;
 // tournament grid — top-12 table renders with signed cells + dead-heat zeros
 vm.runInContext("runH2HGrid(true)", ctx);
