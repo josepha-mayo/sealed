@@ -25,6 +25,7 @@ b10c57fae9ce4b88102799fdfbe1f6a9164ecfaba8ba52176107f2fa63972d61  ./calibration/
 1e6db69f87c1d8624f4eb71d4aae3f1434d77b4d6cb2bf08071f8b4fbb15adfe  ./calibration/rescore.txt
 3d5b6b008634a78c3bd5a371827dd834ca9c28659a57438cdaf5d40433574bd2  ./calibration/run-artifact-15b.json
 c352fb0b994cba31b7a461edaa30820c465234b99e2391bbfcdae9739dc78b1d  ./calibration/run-artifact.json
+82f82f4e40e035684f332159da98dc1d3dedd52fc4d2b12a519dfc2175547094  ./claims/qwen2.5-3b-instruct.json
 48ea080c799e09c7cc8b7ce503ec776ec5114011cc6c942ab4df85e408b90f0d  ./dark-local.txt
 70e84a37f0f40e11323926a4bb56dc5167836a501dfd349308803825029b1d49  ./dark-run.txt
 ae89c3955d250a65dd0237401c20d2609ee00f850e674a06e8154e0ab08de928  ./duel-local.txt

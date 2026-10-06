@@ -186,6 +186,10 @@ yarn --cwd packages/harness cli chain diff ../../web/snapshot.json /tmp/fresh.js
 #     exactly there. This is what a model provider hands a customer.
 yarn --cwd packages/harness cli chain prove qwen2.5-3b-instruct --snapshot ../../web/snapshot.json --out /tmp/claim.json
 yarn --cwd packages/harness cli chain prove --verify /tmp/claim.json
+#     ↑ or verify the card we already committed:
+yarn --cwd packages/harness cli chain prove --verify ../../docs/evidence/claims/qwen2.5-3b-instruct.json
+#         → a REAL open-weights model's claim: 23/96 across 3 MPC-scored
+#           runs — every address re-derives, every verdict replays
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
