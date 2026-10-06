@@ -67,10 +67,13 @@ capability registry as a filterable leaderboard, not a list. Add
 `--prove <dir>` and every model the policy admits gets a
 `sealed-claim/v1` card minted into `<dir>` — "who clears ≥80% with
 proof" produces a folder of verifiable claims, not a printout.
-`chain records [--wilson]` lists the same registry accuracy-first; the
-flag re-ranks on the Wilson lower bound of cumulative accuracy — the
-claim each record can defend (80% on a thin record correctly sits below
-78% on a proven one). `chain gate --sweep` drops the single-threshold
+`chain records [--wilson] [--vouched]` lists the same registry
+accuracy-first; `--wilson` re-ranks on the Wilson lower bound of
+cumulative accuracy — the claim each record can defend (80% on a thin
+record correctly sits below 78% on a proven one) — and `--vouched`
+filters to records carrying at least one venue-attested receipt, so a
+judge can separate authority-countersigned evidence from self-reported
+enrollments. `chain gate --sweep` drops the single-threshold
 assumption entirely: every record re-evaluated across a min-pct grid
 (default 10–90%, `--grid a,b,c` overrides, all other flags apply), each
 model's "frontier" = the strictest line it survives. `gate --all` says

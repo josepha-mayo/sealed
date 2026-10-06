@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 46/46 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 47/47 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (7 stages): offline verify +
@@ -41,8 +41,11 @@ parimutuel markets resolved from `Run.correct`.
   `{publicKey, account}` wrappers. Old-layout Runs decode with safe tail
   defaults (pre-`scored_mask`/`post_reveal` epochs).
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
-  `status`, `records`, `modelrec`, `gate` (+`--all`, +`--bank`, +`--sweep` —
-  the min-pct grid that shows each model's frontier, `--grid a,b,c`),
+  `status`, `records` (+`--wilson`, +`--vouched` — attested-receipt records
+  only), `modelrec`, `gate` (+`--all`, +`--bank`, +`--sweep` —
+  the min-pct grid that shows each model's frontier, `--grid a,b,c`,
+  +`--why` — the policy autopsy: survivable envelope per evidence scope
+  with the binding constraint named),
   `history`, `compare`
   (+`--all`, +`--matrix` — the N×N signed-Δpp tournament grid, `—` =
   disjoint coverage), `trail`, `stats`, `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market venue`,
@@ -372,4 +375,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 46/46.
+  `yarn harness:test` → 47/47.

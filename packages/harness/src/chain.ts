@@ -1881,7 +1881,7 @@ export async function runList(opts: {
  *  `--wilson` re-ranks on the Wilson 95% lower bound of cumulative accuracy —
  *  100% on 64 items can't sit above 87% on 4,000 on raw rate alone; the
  *  lower bound is the claim the ledger can actually defend. */
-export async function modelRecordList(snapPath?: string, json = false, wilson = false) {
+export async function modelRecordList(snapPath?: string, json = false, wilson = false, vouchedOnly = false) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const [all, logs] = ss
     ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
@@ -1912,7 +1912,8 @@ export async function modelRecordList(snapPath?: string, json = false, wilson = 
       vouched: vAgg.get(pk.toBase58()),
       last: (r.lastRun as PublicKey).toBase58(),
     }))
-    .sort((a: any, b: any) => wilson ? b.lcb - a.lcb || b.pct - a.pct : b.bestPct - a.bestPct || b.pct - a.pct);
+    .sort((a: any, b: any) => wilson ? b.lcb - a.lcb || b.pct - a.pct : b.bestPct - a.bestPct || b.pct - a.pct)
+    .filter((r: any) => !vouchedOnly || r.vouched);
   if (json) {
     console.log(JSON.stringify(rows.map((r: any) => ({
       record: r.pk.toBase58(), modelId: r.modelId, runs: r.runs,
@@ -1921,7 +1922,7 @@ export async function modelRecordList(snapPath?: string, json = false, wilson = 
     }))));
     return rows;
   }
-  console.log(`${rows.length} model record(s) — cumulative MPC-scored performance${wilson ? " — ranked by Wilson 95% LCB" : ""}:`);
+  console.log(`${rows.length} model record(s) — cumulative MPC-scored performance${wilson ? " — ranked by Wilson 95% LCB" : ""}${vouchedOnly ? " — venue-attested receipts only" : ""}:`);
   for (const r of rows)
     console.log(`  ${r.modelId.padEnd(36)} runs=${r.runs}  agg=${r.pct.toFixed(1)}%${wilson ? `  LCB=${r.lcb.toFixed(1)}%` : ""}  best=${r.best} (${r.bestPct.toFixed(1)}%)` +
       `${r.vouched ? `  vouched=${r.vouched.c}/${r.vouched.i}` : ""}  rec=${r.pk.toBase58()}`);
@@ -5637,7 +5638,7 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "records") {
-    await modelRecordList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json), Boolean(args.wilson));
+    await modelRecordList(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json), Boolean(args.wilson), Boolean(args.vouched));
     return;
   }
   if (sub === "bank") {

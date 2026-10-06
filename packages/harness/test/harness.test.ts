@@ -1078,3 +1078,18 @@ test("bank depth — venues' lamports attribute to the exams they priced", async
     assert.ok(Number(b.marketDepth.lamports) > 1.5e9);
   } finally { console.log = origLog; }
 });
+
+test("records --vouched isolates venue-attested receipts only", async () => {
+  const { modelRecordList } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const all = (await modelRecordList(snapPath, true)) as any[];
+    const vouched = (await modelRecordList(snapPath, true, false, true)) as any[];
+    assert.ok(all.length > vouched.length, "vouched is a strict subset");
+    assert.equal(vouched.length, 4);
+    assert.ok(vouched.every(r => r.vouched !== null));
+    assert.ok(vouched.some(r => r.modelId === "test/sweep-run"));
+  } finally { console.log = origLog; }
+});
