@@ -78,7 +78,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -154,6 +154,16 @@
   <div><textarea id="trailjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-trail/v1", &#8230;}'></textarea></div>
   <button onclick="verifyTrail()">verify trail</button>
   <div id="trailres"></div>
+</div>
+<h2 id="sec-report">verify a capability report</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the printable deliverable, checkable — a <code>sealed-report/v1</code> document binds itself to a claim card by canonical sha256. Paste one (or load a committed report) and the page fetches the bound card, rehashes it byte-for-byte, and re-derives the record PDA — the document is only as honest as the evidence it fingerprints. Same checks as <code>chain report --verify</code>.</div>
+  <div><select id="reportpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed report —</option></select>
+  <button onclick="loadReport(document.getElementById('reportpick').value || 'qwen2.5-3b-instruct.md')">load report</button>
+  <span class="kv">sha256-pinned in this bundle&#8217;s MANIFEST</span></div>
+  <div><textarea id="reportjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='# Capability report — … (sealed-report/v1 markdown)'></textarea></div>
+  <button onclick="verifyReport()">verify report</button>
+  <div id="reportres"></div>
 </div>
 <div class="footer">benchmark items are committed by a sequential commitment fold at mint (replayable in-browser — see "verify commitment"); model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
 
@@ -2278,18 +2288,22 @@ loadTrailIndex();
 // sealed-*/v1 kind, hand the payload to that kind's verifier + section.
 function verifyAnyArtifact() {
   const note = document.getElementById("artifactnote");
+  const raw = document.getElementById("artifactjson").value;
   try {
-    const c = JSON.parse(document.getElementById("artifactjson").value);
+    let kind = null;
+    try { kind = JSON.parse(raw).kind ?? null; }
+    catch { kind = raw.includes("sealed-report/v1") ? "sealed-report/v1" : null; }
     const ROUTE = {
       "sealed-claim/v1": ["claimjson", "sec-claim", verifyClaim],
       "sealed-policy/v1": ["certjson", "sec-policy", verifyCert],
       "sealed-match/v1": ["matchjson", "sec-match", verifyMatch],
       "sealed-trail/v1": ["trailjson", "sec-trail", verifyTrail],
+      "sealed-report/v1": ["reportjson", "sec-report", verifyReport],
     };
-    const r = ROUTE[c.kind];
-    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(c.kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/v1)`; return; }
-    document.getElementById(r[0]).value = document.getElementById("artifactjson").value;
-    note.innerHTML = ` — detected <code>${esc(c.kind)}</code>, routed to its verifier below`;
+    const r = kind ? ROUTE[kind] : null;
+    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/v1)`; return; }
+    document.getElementById(r[0]).value = raw;
+    note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below`;
     document.getElementById(r[1]).scrollIntoView({ behavior: "smooth", block: "start" });
     r[2]();
   } catch (e) { note.innerHTML = ` — <span style="color:var(--err)">${esc(e.message ?? String(e))}</span>`; }
@@ -2364,6 +2378,76 @@ function verifyTrail() {
       : fail("verdict summary", "stored counts ≠ recomputed");
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "TRAIL VERIFIED" : "TRAIL FAILED"}</b> — ${esc(c.run.modelId)} ${c.run.correct}/${c.run.chunkCount * 32} · ${c.venues.length} venue(s) priced this score</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
+async function loadReport(file) {
+  const ta = document.getElementById("reportjson");
+  try {
+    const r = await fetch(`reports/${file || "qwen2.5-3b-instruct.md"}`);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text();
+  } catch (e) { ta.value = ""; document.getElementById("reportres").innerHTML = `<div class="kv">committed report not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+async function loadReportIndex() {
+  const sel = document.getElementById("reportpick");
+  if (!sel) return;
+  try {
+    const r = await fetch("reports/index.json");
+    if (!r.ok) throw new Error(String(r.status));
+    for (const f of await r.json()) {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = f.replace(/\.md$/, "");
+      sel.appendChild(o);
+    }
+  } catch (e) { /* picker stays on the default option */ }
+}
+loadReportIndex();
+// sealed-report/v1 verifier — mirrors `chain report --verify`: the report
+// binds itself to a claim card by canonical sha256 (generatedAt/source
+// excluded). The page fetches the bound card, rehashes byte-for-byte, and
+// re-derives the record PDA; the card itself can then be replayed below.
+async function verifyReport() {
+  const res = document.getElementById("reportres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const md = document.getElementById("reportjson").value;
+    if (!md.includes("sealed-report/v1")) throw new Error("not a sealed-report/v1 document");
+    const model = md.match(/^# Capability report — (.+)$/m)?.[1]?.trim();
+    const wantHash = md.match(/claim-card content sha256 `([0-9a-f]{64})`/)?.[1];
+    const recordPk = md.match(/record PDA `([1-9A-HJ-NP-Za-km-z]{32,44})`/)?.[1];
+    if (!model || !wantHash || !recordPk) throw new Error("malformed report — missing model header, card sha256, or record PDA line");
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    // fetch the bound card — by convention it's served at claims/<slug>.json
+    const slug = model.replace(/[^A-Za-z0-9._-]+/g, "_");
+    const cr = await fetch(`claims/${slug}.json`);
+    if (!cr.ok) { fail("bound card fetch", `claims/${slug}.json → HTTP ${cr.status} — the report names a card not served with this bundle`); res.innerHTML = rows.join(""); return; }
+    const card = JSON.parse(await cr.text());
+    if (card.kind !== "sealed-claim/v1" || card.model?.id !== model) { fail("bound card fetch", `claims/${slug}.json is not a sealed-claim/v1 card for ${esc(model)}`); res.innerHTML = rows.join(""); return; }
+    const canon = (v) => JSON.stringify(v, (_k, x) => {
+      if (x && typeof x === "object" && !Array.isArray(x))
+        return Object.keys(x).sort().reduce((o, k) => (o[k] = x[k], o), {});
+      return x;
+    });
+    const body = { ...card }; delete body.generatedAt; delete body.source;
+    const gotHash = hex(await sha(utf8(canon(body))));
+    const modelHash = hex(await sha(utf8(model)));
+    const recPda = pdaB([utf8("modelrec"), unhex(modelHash)], new PK(card.programs.sealed));
+    (recPda === recordPk && recPda === card.model.recordPk)
+      ? pass("record PDA", `${recordPk.slice(0, 12)}… = [modelrec, sha256(${esc(model)})] = card's bound record`)
+      : fail("record PDA", `${recPda.slice(0, 12)}… derived ≠ printed ${recordPk.slice(0, 12)}… / card ${card.model.recordPk.slice(0, 12)}…`);
+    (gotHash === wantHash)
+      ? pass("card digest binding", `sha256(canonical card) ${gotHash.slice(0, 16)}… = printed`)
+      : fail("card digest binding", `recomputed ${gotHash.slice(0, 16)}… ≠ printed ${wantHash.slice(0, 16)}…`);
+    window.__reportBoundCard = card;
+    pass("bound card available", `claims/${slug}.json loaded — <a href="#sec-claim" onclick="document.getElementById('claimjson').value=JSON.stringify(window.__reportBoundCard);verifyClaim()">replay it in the claim verifier →</a>`);
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "REPORT VERIFIED" : "REPORT FAILED"}</b> — ${esc(model)} · digest + identity bound to a committed card</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;

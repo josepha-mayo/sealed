@@ -227,6 +227,11 @@ yarn --cwd packages/harness cli chain gate --all --min-pct 60 --min-runs 3 --cer
 #     canonical card hash you can re-mint and compare. A committed example:
 cat docs/evidence/reports/qwen2.5-3b-instruct.md
 yarn --cwd packages/harness cli chain report qwen2.5-3b-instruct --snapshot ../../web/snapshot.json
+#     and the binding is checkable, not just readable:
+yarn --cwd packages/harness cli chain report --verify ../../docs/evidence/reports/qwen2.5-3b-instruct.md --snapshot ../../web/snapshot.json
+#         → REPORT VERIFIED — record PDA re-derives, the printed
+#           canonical sha256 equals the re-minted card's digest, and the
+#           bound card itself replays (9 claim checks)
 
 # 3j. THE HEAD-TO-HEAD ARTIFACT — a sealed-match/v1 card makes a
 #     paired-evidence verdict portable: every pair of records sharing

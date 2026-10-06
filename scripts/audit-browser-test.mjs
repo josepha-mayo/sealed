@@ -184,6 +184,34 @@ const noteTxt = els.get("artifactnote")?.innerHTML ?? "";
 const anyOk = /MATCH VERIFIED/.test(anyTxt) && /detected/.test(noteTxt) && /sealed-match\/v1/.test(noteTxt);
 console.log(`in-page universal verifier — match card routed + verified ${anyOk ? "PASS" : "FAIL"}`);
 if (!anyOk) fails++;
+// in-page report verifier: the qwen2.5-3b report binds to its committed
+// claim card by canonical sha256 — rehash byte-for-byte, record PDA
+// re-derives. A mutated printed hash must fail.
+await vm.runInContext("loadReport()", ctx);
+await new Promise((r) => setTimeout(r, 100));
+await vm.runInContext("verifyReport()", ctx);
+await new Promise((r) => setTimeout(r, 100));
+const reportTxt = (els.get("reportres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const reportOk = /REPORT VERIFIED/.test(reportTxt) && /card digest binding/.test(reportTxt) && /record PDA/.test(reportTxt);
+console.log(`in-page report verifier — committed qwen2.5-3b report ${reportOk ? "PASS" : "FAIL"}`);
+if (!reportOk) fails++;
+els.get("reportjson").value = els.get("reportjson").value.replace(/sha256 `([0-9a-f]{64})`/, "sha256 `f00ba5f00ba5f00ba5f00ba5f00ba5f00ba5f00ba5f00ba5f00ba5f00ba5f00b`");
+await vm.runInContext("verifyReport()", ctx);
+await new Promise((r) => setTimeout(r, 100));
+const reportTamperTxt = (els.get("reportres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const reportTamperOk = /REPORT FAILED/.test(reportTamperTxt) && /card digest binding/.test(reportTamperTxt);
+console.log(`in-page report tamper case — mutated printed hash ${reportTamperOk ? "rejected PASS" : "MISSED FAIL"}`);
+if (!reportTamperOk) fails++;
+// the universal router must route a report (non-JSON markdown) too
+await vm.runInContext("loadReport()", ctx);
+await new Promise((r) => setTimeout(r, 100));
+els.get("artifactjson").value = els.get("reportjson").value;
+vm.runInContext("verifyAnyArtifact()", ctx);
+await new Promise((r) => setTimeout(r, 150));
+const anyReportTxt = (els.get("reportres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const anyReportOk = /REPORT VERIFIED/.test(anyReportTxt) && /sealed-report\/v1/.test(els.get("artifactnote")?.innerHTML ?? "");
+console.log(`in-page universal verifier — markdown report routed + verified ${anyReportOk ? "PASS" : "FAIL"}`);
+if (!anyReportOk) fails++;
 // policy sweep — the frontier grid renders all records; test/sweep-run's
 // perfect record must survive the strictest line.
 vm.runInContext("runSweep()", ctx);

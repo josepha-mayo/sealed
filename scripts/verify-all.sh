@@ -36,6 +36,8 @@ yarn --cwd packages/harness -s cli chain compare --match-verify \
   ../../docs/evidence/matches
 yarn --cwd packages/harness -s cli chain trail --verify \
   ../../docs/evidence/trails
+yarn --cwd packages/harness -s cli chain artifact \
+  ../../docs/evidence/reports --snapshot ../../web/snapshot.json
 
 say "6/8 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
 scripts/evidence-manifest.sh check

@@ -218,11 +218,19 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 `web/trails/`); the explorer's "verify a trail card" section replays
 the same checks in-page.
 `chain artifact <file|dir> [--json]` is the universal verifier —
-auto-detects any `sealed-claim|policy|match|trail/v1` payload and
-routes it to the right replay. A directory verifies every artifact in
-it, mixing kinds freely (`ALL ARTIFACTS VERIFIED`, exit 1 on any
+auto-detects any `sealed-claim|policy|match|trail|report/v1` payload
+and routes it to the right replay. A directory verifies every artifact
+in it, mixing kinds freely (`ALL ARTIFACTS VERIFIED`, exit 1 on any
 failure; non-artifact files are skipped, not failed). The explorer's
 "verify anything" panel does the same routing in-page.
+`chain report <model> [--out <file>]` renders the `sealed-report/v1`
+capability document — the dossier + claim card as printable markdown,
+bound to its card by canonical sha256 (`generatedAt`/`source` excluded
+so the digest is stable live or replayed). `chain report --verify
+<file.md>` replays the binding: re-mints the card (live or
+`--snapshot`), rehashes, re-derives the record PDA, and runs the bound
+card's full claim replay — the document is only as honest as the
+evidence it fingerprints.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,

@@ -34,7 +34,7 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 64a499f1d4ff202ff1cdcd7ba2db036315102ccf35fd133480d2b38e057d5bca  ./claims/test_registry-model.json
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
-caa4587d6c0c2364206ff1f109d848286b0f5aa3c3e17acdc9842a38b1d19b6d  ./index.html
+a4b83a44e0d9121e48233c2bf4123a9296412b88790fb09211cdd0d5eb130878  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json
@@ -113,6 +113,11 @@ f726621e9d6dd6428dc67e761a258e79c15ab20b11528c2a2895f5bae4098b19  ./policies/ind
 9ea307c5be3c279e052690bfb143a6d125222255c7ea0ccd0472b698fdf48cd6  ./policies/min60-3runs.json
 d1f53177aa05342bf180cfa3f62584358ee7a6acf6fcaaed19f8e209345c1798  ./policies/sealed-test-60pct.json
 d4dbb0f4fa21d8db13af23b5f57a579bcf4970ad06ebecb4d748f94eda29bc5b  ./policies/strict70-vouched.json
+d46dfd70e966f8d815d0d1f4223b67f67cd8bc19e395cad1a30b46e6c213b0d8  ./reports/index.json
+cb1812b5d2faf569f782bc78934a1a7e10dea92a7309828b415f5d4bc6aa0666  ./reports/llama-3.2-1b-instruct.md
+0b540b2b152e8743fb3b5f81bc476e16c6dc84b5dd99d285de7b508c635d4559  ./reports/qwen2.5-0.5b-instruct.md
+db76c83e616727758b434190293654f79f81264e09997d0e8ec19a6151cb7689  ./reports/qwen2.5-1.5b-instruct.md
+304cc58d0e37d0ac3b8467271a067274549d8e14d965c1a7a5e4de1fd3280e7f  ./reports/qwen2.5-3b-instruct.md
 f09dd766837ac4b64f7d873a394ba5fa36b8005bd40d6f3305c5dbb826a0bb64  ./sample-proof.json
 ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079  ./snapshot.json
 238addb9cd00cdfa27af3fdf16b02e01f69a71d4615837259a89e5075a6575c8  ./trails/index.json

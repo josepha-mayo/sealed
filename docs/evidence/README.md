@@ -60,7 +60,9 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   the dossier as a document: registry record, four ranking lenses, the
   receipt ledger, venue settlements, honesty flags, and a canonical
   claim-card sha256 that re-mints identically (`generatedAt`/`source`
-  excluded from the digest). Reproduce:
+  excluded from the digest) — and the binding verifies:
+  `chain report --verify reports/qwen2.5-3b-instruct.md` re-mints the
+  card, rehashes, and replays the bound claim (9 checks). Reproduce:
   `chain report qwen2.5-3b-instruct --snapshot ../../web/snapshot.json`.
 - `calibration/` — authored bank 77007 with plaintext answers shipped
   *on purpose*: `scripts/rescore.mjs` recomputes answer hashes, re-binds

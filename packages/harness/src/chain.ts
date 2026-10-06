@@ -2743,6 +2743,56 @@ export async function chainReport(modelStr: string, out?: string, snapPath?: str
   return { model: d.model, cardHash };
 }
 
+/** `chain report --verify <file.md>` — a report binds itself to a claim
+ *  card by canonical sha256. The verifier re-mints the card for the named
+ *  model (live or snapshot), recomputes the digest, checks the printed
+ *  record PDA re-derives, and replays the bound card in full — so the
+ *  document is only as honest as the evidence it fingerprints, and the
+ *  evidence verifies. */
+export async function reportVerify(file: string, snapPath?: string, json = false) {
+  const md = readFileSync(file, "utf8");
+  if (!md.includes("sealed-report/v1")) throw new Error(`not a sealed-report/v1 file (${file})`);
+  const model = md.match(/^# Capability report — (.+)$/m)?.[1]?.trim();
+  const wantHash = md.match(/claim-card content sha256 `([0-9a-f]{64})`/)?.[1];
+  const recordPk = md.match(/record PDA `([1-9A-HJ-NP-Za-km-z]{32,44})`/)?.[1];
+  if (!model || !wantHash || !recordPk)
+    throw new Error("malformed report — missing model header, claim-card sha256, or record PDA line");
+  const orig = console.log; console.log = () => {};
+  let card: any;
+  try { card = await chainProve(model, undefined, snapPath); }
+  finally { console.log = orig; }
+  if (!card) throw new Error(`no claim card for "${model}" — the report names a model with no record`);
+  const canon = (v: any): string => JSON.stringify(v, (_k, x) => {
+    if (x && typeof x === "object" && !Array.isArray(x))
+      return Object.keys(x).sort().reduce((o: any, k) => (o[k] = x[k], o), {});
+    return x;
+  });
+  const { generatedAt: _d1, source: _d2, ...cardBody } = card;
+  const gotHash = createHash("sha256").update(canon(cardBody)).digest("hex");
+  const recPda = PublicKey.findProgramAddressSync(
+    [Buffer.from("modelrec"), createHash("sha256").update(Buffer.from(model, "utf8")).digest()],
+    sealedProgramId())[0].toBase58();
+  let pass = 0, fail = 0;
+  const rows: { what: string; ok: boolean; detail: string }[] = [];
+  const check = (what: string, ok: boolean, detail = "") => {
+    rows.push({ what, ok, detail });
+    if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
+    ok ? pass++ : fail++;
+  };
+  check("record PDA", recPda === recordPk && recPda === card.model.recordPk,
+    `${recordPk.slice(0, 12)}… = [modelrec, sha256(${model})] = card's bound record`);
+  check("card digest binding", gotHash === wantHash,
+    `sha256(canonical card) ${gotHash.slice(0, 16)}… ${gotHash === wantHash ? "=" : "≠"} printed ${wantHash.slice(0, 16)}…`);
+  const cr = verifyClaimCard(card);
+  check("bound card replay", cr.ok, `${cr.pass} claim checks pass${cr.ok ? "" : ` · ${cr.fails.join("; ")}`}`);
+  const verdict = fail === 0 ? "REPORT VERIFIED" : "REPORT FAILED";
+  if (json) console.log(JSON.stringify({ file, kind: "sealed-report/v1", model, verified: fail === 0,
+    cardHash: gotHash, checks: rows, pass, fail }));
+  else console.log(`${verdict} — ${model}: ${pass} checks pass, ${fail} fail · bound card ${cr.pass}/${cr.pass + cr.fail} checks`);
+  if (fail) process.exitCode = 1;
+  return { pass, fail };
+}
+
 /** `chain trail <run-pk> [--json]` — one run's custody chain: bank → receipt
  *  → every venue that priced it → resolution re-verified. The explorer's
  *  custody row as a portable report: each resolved venue's `resolvedScore`
@@ -3065,7 +3115,7 @@ export async function trailVerify(file: string, json = false) {
  *  keyless replay. One command verifies everything — a judge never has to
  *  know which flag goes with which artifact. A directory verifies every
  *  artifact inside it (mixed kinds welcome). */
-export async function artifactVerify(target: string, json = false) {
+export async function artifactVerify(target: string, json = false, snapPath?: string) {
   const { statSync, readdirSync } = await import("node:fs");
   const kindOf = (f: string): string | null => {
     const raw = readFileSync(f, "utf8");
@@ -3077,9 +3127,10 @@ export async function artifactVerify(target: string, json = false) {
     "sealed-policy/v1": (f) => gateCertVerify(f, json),
     "sealed-match/v1": (f) => matchVerify(f, json),
     "sealed-trail/v1": (f) => trailVerify(f, json),
+    "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
   };
   if (statSync(target).isDirectory()) {
-    const files = readdirSync(target).filter((f) => f.endsWith(".json") && f !== "index.json" && f !== "SHA256SUMS").sort();
+    const files = readdirSync(target).filter((f) => (f.endsWith(".json") || f.endsWith(".md")) && f !== "index.json" && f !== "SHA256SUMS" && f !== "README.md").sort();
     if (!files.length) throw new Error(`no artifacts (*.json) in ${target}`);
     let okAll = true;
     const results: any[] = [];
@@ -3110,12 +3161,6 @@ export async function artifactVerify(target: string, json = false) {
     return { ok: okAll, artifacts: results };
   }
   const kind = kindOf(target);
-  if (kind === "sealed-report/v1") {
-    console.log("sealed-report/v1 — a report is a rendered document, not self-contained evidence. " +
-      "Verify it by re-minting `chain report <model>` and comparing the canonical claim-card sha256 it prints, " +
-      "then `chain artifact <the-card>.json` on the card itself.");
-    return { ok: true, kind };
-  }
   const route = kind ? ROUTES[kind] : null;
   if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
@@ -6204,7 +6249,7 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "artifact") {
     const target = cmd[1] ?? args.file;
     if (!target) throw new Error("usage: chain artifact <file|dir> [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless");
-    await artifactVerify(String(target), Boolean(args.json));
+    await artifactVerify(String(target), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "attest") {
@@ -6292,6 +6337,10 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "report") {
+    if (args.verify || cmd[1] === "--verify") {
+      await reportVerify(String(args.verify ?? cmd[2]), args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+      return;
+    }
     await chainReport(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined,
       args.snapshot ? String(args.snapshot) : undefined);
     return;

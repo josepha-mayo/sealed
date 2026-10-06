@@ -188,6 +188,8 @@ async function main() {
   sealed chain trail <run> --prove <file>               mint a sealed-trail/v1 card — the money-trail as portable evidence
   sealed chain trail --verify <file|dir> [--json]       replay trail card(s) keyless — every PDA + settlement recomputed vs Run.correct
   sealed chain artifact <file|dir> [--json]             THE universal verifier — auto-detects any sealed-*/v1 artifact and replays it keyless
+  sealed chain report <model> [--out f]                 mint a sealed-report/v1 printable capability document
+  sealed chain report --verify <file.md> [--json]       replay a report — record PDA + canonical card digest bound to a re-minted card
   sealed chain compare --matrix [--top n] [--min-shared k]   the N×N tournament grid — cell = row−col pp delta, "—" = disjoint coverage
   sealed chain trail <run-pk>                              custody chain: bank → receipt → venues, resolutions re-verified
   sealed chain market bounties                             the runner index: open capability bounties by pot

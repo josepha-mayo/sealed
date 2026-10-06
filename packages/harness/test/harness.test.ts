@@ -1315,5 +1315,34 @@ test("chain artifact — the universal verifier routes every kind", async () => 
     assert.equal(batch3.ok, false);
     assert.equal(process.exitCode, 1);
     process.exitCode = origExit;
+    // reports route through the same universal verifier (needs the bundle)
+    const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+    const rep = (await artifactVerify(
+      join(new URL("../../../docs/evidence/reports", import.meta.url).pathname, "qwen2.5-3b-instruct.md"),
+      false, snapPath)) as any;
+    assert.equal(rep.fail, 0);
   } finally { console.log = origLog; process.exitCode = origExit; }
+});
+
+test("sealed-report/v1 — the document's card binding verifies, and a forged hash fails", async () => {
+  const { reportVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const good = new URL("../../../docs/evidence/reports/qwen2.5-3b-instruct.md", import.meta.url).pathname;
+    const ok = (await reportVerify(good, snapPath)) as any;
+    assert.equal(ok.fail, 0);
+    assert.equal(ok.pass, 3);
+    // a forged printed hash must break the binding
+    const bad = join(mkdtempSync(join(tmpdir(), "sealed-rep-")), "bad.md");
+    writeFileSync(bad, readFileSync(good, "utf8").replace(/sha256 `[0-9a-f]{64}`/, "sha256 `" + "0".repeat(64) + "`"));
+    process.exitCode = 0;
+    await reportVerify(bad, snapPath);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = 0; }
 });
