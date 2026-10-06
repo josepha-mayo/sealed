@@ -281,6 +281,8 @@ sealed chain prove --all --out claims/ && sealed chain prove --verify claims/
                                                                      # the whole registry as verifiable artifacts — 31 cards, all replayed
 sealed chain prove --verify claim.json --min-pct 60 --min-runs 3       # verifier-composable — authentic AND sufficient for YOUR policy
 sealed chain report <model> --out report.md                          # sealed-report/v1 — the dossier as a printable document
+sealed chain artifact docs/evidence --recursive                      # THE one command — all 115 artifacts replayed, non-artifacts skipped
+sealed chain fingerprint                                             # THE one hash — every pinned byte re-hashed → one BUNDLE ROOT
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
 sealed chain market champions                                        # the settlement record — duel W-D-L · ladder leg wins · bounty claims

@@ -2363,6 +2363,14 @@ async function replayBundle() {
       rows.push(`<div class="proof"><span class="pill ${ok === files.length ? "resolved" : "cancelled"}">${ok === files.length ? "PASS" : "FAIL"}</span> ${kind} — ${ok}/${files.length} artifact(s) replayed</div>`);
       res.innerHTML = rows.join("");
     }
+    // bundle root — the same recipe `chain fingerprint` prints: sha256 over
+    // the evidence manifest (served pinned as SHA256SUMS) + the web MANIFEST.
+    try {
+      const h = async (u) => hex(await sha(utf8(await (await fetch(u)).text())));
+      const evRoot = await h("SHA256SUMS"), webRoot = await h("MANIFEST");
+      const root = hex(await sha(utf8(`sealed-fingerprint/v1\n${evRoot}\n${webRoot}\n`)));
+      rows.push(`<div class="kv" style="margin-top:6px">bundle root <code>${root}</code> — sha256 over the evidence + web manifests; <code>chain fingerprint</code> prints the same hash</div>`);
+    } catch {}
   } finally { restore(); }
   rows.unshift(`<div class="kv" style="margin-bottom:8px"><b>${passed === total && total > 0 ? "BUNDLE VERIFIED" : "BUNDLE FAILED"}</b> — ${passed}/${total} artifacts replayed in-page · ${checks} checks · nothing trusted</div>`);
   res.innerHTML = rows.join("");

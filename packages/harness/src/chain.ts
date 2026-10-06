@@ -3186,6 +3186,59 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   return route(target);
 }
 
+/** `sealed-fingerprint/v1` — the whole evidence base as ONE sha256.
+ *  SHA256SUMS pins every docs/evidence byte, MANIFEST pins every web byte
+ *  (including snapshot.json + the served artifact copies); the bundle root
+ *  binds the two manifests, so changing any single byte anywhere in the
+ *  trees breaks it. Every pinned file is re-hashed before the root prints —
+ *  the fingerprint is earned, not asserted. */
+export async function chainFingerprint(evidenceDir: string, webDir: string, json = false) {
+  const { readFileSync, existsSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const shaBytes = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
+  const shaFile = (f: string) => shaBytes(readFileSync(f));
+  const resolve = (d: string, mf: string) =>
+    existsSync(join(d, mf)) ? d : existsSync(join("..", "..", d, mf)) ? join("..", "..", d) : d;
+  evidenceDir = resolve(evidenceDir, "SHA256SUMS");
+  webDir = resolve(webDir, "MANIFEST");
+  const parseSums = (mf: string) =>
+    readFileSync(mf, "utf8").split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+      const m = l.match(/^([0-9a-f]{64})\s+[ *]?(.+)$/);
+      if (!m) throw new Error(`malformed manifest line in ${mf}: ${l}`);
+      return { hash: m[1], rel: m[2].replace(/^\.\//, "") };
+    });
+  const evMf = join(evidenceDir, "SHA256SUMS"), webMf = join(webDir, "MANIFEST");
+  const ev = parseSums(evMf), web = parseSums(webMf);
+  const bad: string[] = [];
+  for (const [entries, base] of [[ev, evidenceDir], [web, webDir]] as const) {
+    for (const e of entries) {
+      try { if (shaFile(join(base, e.rel)) !== e.hash) bad.push(`${base}/${e.rel}`); }
+      catch { bad.push(`${base}/${e.rel}`); }
+    }
+  }
+  const evidenceRoot = shaFile(evMf), webRoot = shaFile(webMf);
+  const snapshotHash = shaFile(join(webDir, "snapshot.json"));
+  const bundleRoot = shaBytes(`sealed-fingerprint/v1\n${evidenceRoot}\n${webRoot}\n`);
+  const total = ev.length + web.length, ok = bad.length === 0;
+  const out = {
+    kind: "sealed-fingerprint/v1", snapshot: snapshotHash,
+    evidenceRoot, evidenceFiles: ev.length, webRoot, webFiles: web.length,
+    bundleRoot, filesHashed: total - bad.length, filesTotal: total,
+    mismatches: bad.length ? bad : undefined,
+  };
+  if (json) console.log(JSON.stringify(out));
+  else {
+    console.log(`sealed-fingerprint/v1 — the whole evidence base as one hash`);
+    console.log(`  snapshot.json     ${snapshotHash}`);
+    console.log(`  docs/evidence     ${evidenceRoot}  (${ev.length} pinned file(s))`);
+    console.log(`  web bundle        ${webRoot}  (${web.length} pinned file(s))`);
+    console.log(`  re-hash check     ${ok ? "PASS" : "FAIL"} — ${total - bad.length}/${total} file(s) match${ok ? "" : ` · ${bad.slice(0, 5).join(", ")}${bad.length > 5 ? "…" : ""}`}`);
+    console.log(`  BUNDLE ROOT       ${bundleRoot}`);
+  }
+  if (!ok) process.exitCode = 1;
+  return out;
+}
+
 /** `chain bounties [--snapshot f] [--json]` — the runner-facing index: every
  *  capability bounty (open / claimed / expired), threshold, pot, deadline.
  *  Board serves keepers; this answers "where can my model earn?" */
@@ -6270,6 +6323,10 @@ export async function chainMain(cmd: string[], args: Args) {
     if (!target) throw new Error("usage: chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless");
     await artifactVerify(String(target), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
       Boolean(args.recursive));
+    return;
+  }
+  if (sub === "fingerprint") {
+    await chainFingerprint(String(args.evidence ?? "docs/evidence"), String(args.web ?? "web"), Boolean(args.json));
     return;
   }
   if (sub === "attest") {

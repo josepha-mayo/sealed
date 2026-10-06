@@ -37,4 +37,7 @@ node scripts/freshness.mjs
 say "8/8 submission pre-flight"
 node scripts/check-submission.mjs
 
+say "bundle fingerprint — every pinned byte re-hashed, one root for all of it"
+yarn --cwd packages/harness -s cli chain fingerprint
+
 say "ALL GREEN — every check above recomputed, nothing trusted"

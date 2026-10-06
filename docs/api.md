@@ -228,7 +228,12 @@ non-artifact files are skipped, not failed). Reports need `--snapshot`
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
 in-browser — all 115 committed artifacts driven through their own
-in-page check lists with live progress.
+in-page check lists with live progress, ending in the bundle root.
+`chain fingerprint` reduces the entire evidence base to one sha256 —
+`BUNDLE ROOT` = sha256 over the evidence + web manifests after
+re-hashing every pinned file (291 entries; exit 1 on any mismatch).
+The in-page replay prints the same root, so the terminal and the
+browser agree on one hash for the whole submission.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`
 capability document — the dossier + claim card as printable markdown,
 bound to its card by canonical sha256 (`generatedAt`/`source` excluded

@@ -1361,3 +1361,41 @@ test("sealed-report/v1 — the document's card binding verifies, and a forged ha
     process.exitCode = 0;
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("sealed-fingerprint/v1 — the bundle root re-hashes every pinned file and breaks on a one-bit change", async () => {
+  const { chainFingerprint } = await import("../src/chain.js");
+  const { readFileSync, writeFileSync, mkdtempSync, mkdirSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  const origExit = process.exitCode;
+  try {
+    const ev = new URL("../../../docs/evidence", import.meta.url).pathname;
+    const web = new URL("../../../web", import.meta.url).pathname;
+    const fp = (await chainFingerprint(ev, web)) as any;
+    assert.equal(fp.kind, "sealed-fingerprint/v1");
+    assert.match(fp.bundleRoot, /^[0-9a-f]{64}$/);
+    assert.equal(fp.filesHashed, fp.filesTotal);
+    assert.equal(fp.mismatches, undefined);
+    // a one-bit change to a pinned file must break the re-hash check
+    const tree = mkdtempSync(join(tmpdir(), "sealed-fp-"));
+    mkdirSync(join(tree, "ev"), { recursive: true });
+    mkdirSync(join(tree, "web"), { recursive: true });
+    writeFileSync(join(tree, "ev", "a.json"), "{}");
+    writeFileSync(join(tree, "web", "b.txt"), "x");
+    writeFileSync(join(tree, "web", "snapshot.json"), "{}");
+    const { createHash } = await import("node:crypto");
+    const h = (s: string) => createHash("sha256").update(s).digest("hex");
+    writeFileSync(join(tree, "ev", "SHA256SUMS"), `${h("{}")}  ./a.json\n`);
+    writeFileSync(join(tree, "web", "MANIFEST"), `${h("x")}  ./b.txt\n${h("{}")}  ./snapshot.json\n`);
+    const ok = (await chainFingerprint(join(tree, "ev"), join(tree, "web"))) as any;
+    assert.equal(ok.filesHashed, 3);
+    process.exitCode = 0;
+    writeFileSync(join(tree, "web", "b.txt"), "y");
+    const broken = (await chainFingerprint(join(tree, "ev"), join(tree, "web"))) as any;
+    assert.equal(process.exitCode, 1);
+    assert.equal(broken.mismatches.length, 1);
+    process.exitCode = origExit;
+  } finally { console.log = origLog; process.exitCode = origExit; }
+});

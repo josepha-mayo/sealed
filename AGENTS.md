@@ -82,7 +82,12 @@ parimutuel markets resolved from `Run.correct`.
   sealed-claim/policy/match/trail/report/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 115 artifacts in one pass). `runsScored`
+  replays all 115 artifacts in one pass). `chain fingerprint` is the
+  one-hash closer: re-hashes every manifest-pinned file, then prints
+  BUNDLE ROOT = sha256(evidenceRoot ‖ webRoot); web/SHA256SUMS is a
+  byte-copy of docs/evidence/SHA256SUMS (evidence-manifest.sh check
+  cmps them) so the in-page bundle replay prints the SAME root.
+  `runsScored`
   counts RECEIPTED runs ([scorelog,run] singleton) — never
   equate it with finalized-run count (runs may finalize unrecorded).
   `chain prove --all [--out dir]` mints one card per record — the whole

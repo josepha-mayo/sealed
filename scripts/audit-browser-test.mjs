@@ -6,6 +6,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { createHash } from "node:crypto";
 const require = createRequire(import.meta.url);
 const web3 = require("@solana/web3.js");
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -221,6 +222,17 @@ const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /115\/115 artifacts replay
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt);
 console.log(`in-page bundle replay — 115 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
+// cross-surface agreement: the in-page bundle root must equal the recipe
+// `chain fingerprint` computes — sha256(SHA256SUMS) || sha256(MANIFEST).
+{
+  const sh = (b) => createHash("sha256").update(b).digest("hex");
+  const evRoot = sh(readFileSync(join(ROOT, "web", "SHA256SUMS"), "utf8"));
+  const webRoot = sh(readFileSync(join(ROOT, "web", "MANIFEST"), "utf8"));
+  const want = sh(`sealed-fingerprint/v1\n${evRoot}\n${webRoot}\n`);
+  const fpOk = new RegExp(`bundle root\\s+${want}`).test(bundleTxt);
+  console.log(`in-page bundle fingerprint — root ${want.slice(0, 16)}… ${fpOk ? "PASS" : "FAIL"}`);
+  if (!fpOk) fails++;
+}
 // policy sweep — the frontier grid renders all records; test/sweep-run's
 // perfect record must survive the strictest line.
 vm.runInContext("runSweep()", ctx);
