@@ -34,7 +34,7 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 64a499f1d4ff202ff1cdcd7ba2db036315102ccf35fd133480d2b38e057d5bca  ./claims/test_registry-model.json
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
-1d6839877b58012e8da81d70a2b4751eb0707c906d3b62cdb9a6e370a51fe0b8  ./index.html
+caa4587d6c0c2364206ff1f109d848286b0f5aa3c3e17acdc9842a38b1d19b6d  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json

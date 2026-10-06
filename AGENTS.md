@@ -78,7 +78,10 @@ parimutuel markets resolved from `Run.correct`.
   record replays bit-exact, every resolved venue re-derives from
   Run.correct (duel packs `(a<<16)|b`, ladder re-argmaxs mask, bounty
   score≥threshold). Tamper fails exactly at the replay check.
-  `runsScored` counts RECEIPTED runs ([scorelog,run] singleton) — never
+  `chain artifact <file|dir>` is the universal verifier — detects any
+  sealed-claim/policy/match/trail/v1 payload and routes to the right
+  replay (dir mode mixes kinds; non-artifacts skipped). `runsScored`
+  counts RECEIPTED runs ([scorelog,run] singleton) — never
   equate it with finalized-run count (runs may finalize unrecorded).
   `chain prove --all [--out dir]` mints one card per record — the whole
   registry as verifiable artifacts (`docs/evidence/claims/` ships all 31,

@@ -217,6 +217,12 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 `docs/evidence/trails/` cover every venue kind (mirrored at
 `web/trails/`); the explorer's "verify a trail card" section replays
 the same checks in-page.
+`chain artifact <file|dir> [--json]` is the universal verifier —
+auto-detects any `sealed-claim|policy|match|trail/v1` payload and
+routes it to the right replay. A directory verifies every artifact in
+it, mixing kinds freely (`ALL ARTIFACTS VERIFIED`, exit 1 on any
+failure; non-artifact files are skipped, not failed). The explorer's
+"verify anything" panel does the same routing in-page.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,

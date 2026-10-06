@@ -253,6 +253,17 @@ yarn --cwd packages/harness cli chain trail --verify ../../docs/evidence/trails
 #           re-derived, settlements replayed vs Run.correct, ladder
 #           argmax mask + pool accounting recomputed
 
+# 3l. THE ONE COMMAND — `chain artifact` is the universal verifier:
+#     give it ANY file (or directory) and it detects the artifact kind
+#     and routes it to the right replay. A judge never needs to know
+#     which flag goes with which artifact.
+yarn --cwd packages/harness cli chain artifact ../../docs/evidence/matches
+#         → ALL ARTIFACTS VERIFIED — 73 cards, kind auto-detected
+yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
+#         → detected sealed-trail/v1 — routed, all checks pass
+#         → the explorer's "verify anything" panel does the same
+#           routing in-page for pasted artifacts
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).

@@ -3060,6 +3060,68 @@ export async function trailVerify(file: string, json = false) {
   return { pass: r.pass, fail: r.fail };
 }
 
+/** `chain artifact <file|dir>` — the universal verifier: read any file this
+ *  system emits, detect its sealed-X/v1 kind, and route it to the right
+ *  keyless replay. One command verifies everything — a judge never has to
+ *  know which flag goes with which artifact. A directory verifies every
+ *  artifact inside it (mixed kinds welcome). */
+export async function artifactVerify(target: string, json = false) {
+  const { statSync, readdirSync } = await import("node:fs");
+  const kindOf = (f: string): string | null => {
+    const raw = readFileSync(f, "utf8");
+    try { return JSON.parse(raw).kind ?? null; }
+    catch { return raw.includes("sealed-report/v1") ? "sealed-report/v1" : null; }
+  };
+  const ROUTES: Record<string, (f: string) => Promise<any>> = {
+    "sealed-claim/v1": (f) => chainProveVerify(f, undefined, json),
+    "sealed-policy/v1": (f) => gateCertVerify(f, json),
+    "sealed-match/v1": (f) => matchVerify(f, json),
+    "sealed-trail/v1": (f) => trailVerify(f, json),
+  };
+  if (statSync(target).isDirectory()) {
+    const files = readdirSync(target).filter((f) => f.endsWith(".json") && f !== "index.json" && f !== "SHA256SUMS").sort();
+    if (!files.length) throw new Error(`no artifacts (*.json) in ${target}`);
+    let okAll = true;
+    const results: any[] = [];
+    if (!json) console.log(`verifying ${files.length} artifact(s) in ${target}/`);
+    const orig = console.log;
+    for (const f of files) {
+      const full = `${target}/${f}`;
+      try {
+        const kind = kindOf(full);
+        const route = kind ? ROUTES[kind] : null;
+        if (!route) { results.push({ file: f, kind: kind ?? null, ok: true, skipped: true });
+          if (!json) console.log(`  SKIP ${f} — ${kind ? `unrecognized kind ${kind}` : "not a sealed artifact"}`); continue; }
+        console.log = () => {};
+        const r = await route(full).finally(() => { console.log = orig; });
+        const ok = (r.ok ?? (r.fail === 0)) === true;
+        results.push({ file: f, kind, ok, pass: r.pass, fail: r.fail });
+        if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${f.padEnd(46)} ${(kind ?? "?").padEnd(17)} — ${r.pass} checks`);
+        okAll &&= ok;
+      } catch (e: any) {
+        console.log = orig;
+        okAll = false; results.push({ file: f, ok: false, error: String(e?.message ?? e) });
+        if (!json) console.log(`  FAIL ${f} — ${e?.message ?? e}`);
+      }
+    }
+    if (json) console.log(JSON.stringify({ dir: target, artifacts: results, ok: okAll }));
+    else console.log(`${okAll ? "ALL ARTIFACTS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} file(s), ${target}`);
+    if (!okAll) process.exitCode = 1;
+    return { ok: okAll, artifacts: results };
+  }
+  const kind = kindOf(target);
+  if (kind === "sealed-report/v1") {
+    console.log("sealed-report/v1 — a report is a rendered document, not self-contained evidence. " +
+      "Verify it by re-minting `chain report <model>` and comparing the canonical claim-card sha256 it prints, " +
+      "then `chain artifact <the-card>.json` on the card itself.");
+    return { ok: true, kind };
+  }
+  const route = kind ? ROUTES[kind] : null;
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail/v1)`);
+  if (!json) console.log(`detected ${kind} — routing to its verifier`);
+  return route(target);
+}
+
 /** `chain bounties [--snapshot f] [--json]` — the runner-facing index: every
  *  capability bounty (open / claimed / expired), threshold, pot, deadline.
  *  Board serves keepers; this answers "where can my model earn?" */
@@ -6137,6 +6199,12 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "status") {
     await status(new PublicKey(String(args.benchmark)), undefined,
       args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    return;
+  }
+  if (sub === "artifact") {
+    const target = cmd[1] ?? args.file;
+    if (!target) throw new Error("usage: chain artifact <file|dir> [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless");
+    await artifactVerify(String(target), Boolean(args.json));
     return;
   }
   if (sub === "attest") {

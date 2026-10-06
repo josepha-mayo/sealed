@@ -173,6 +173,17 @@ const trailTamperTxt = (els.get("trailres")?.innerHTML ?? "").replace(/<[^>]+>/g
 const trailTamperOk = /TRAIL FAILED/.test(trailTamperTxt) && /pool accounting/.test(trailTamperTxt);
 console.log(`in-page trail-card tamper case — mutated pool ${trailTamperOk ? "rejected PASS" : "MISSED FAIL"}`);
 if (!trailTamperOk) fails++;
+// universal artifact router: a match card pasted into the drop zone must be
+// detected, routed to the match textarea, and verified in place.
+els.get("matchjson").value = els.get("matchjson").value.replace('"a": 1,', '"a": 2,');
+documentStub.getElementById("artifactjson").value = els.get("matchjson").value;
+vm.runInContext("verifyAnyArtifact()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+const anyTxt = (els.get("matchres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const noteTxt = els.get("artifactnote")?.innerHTML ?? "";
+const anyOk = /MATCH VERIFIED/.test(anyTxt) && /detected/.test(noteTxt) && /sealed-match\/v1/.test(noteTxt);
+console.log(`in-page universal verifier — match card routed + verified ${anyOk ? "PASS" : "FAIL"}`);
+if (!anyOk) fails++;
 // policy sweep — the frontier grid renders all records; test/sweep-run's
 // perfect record must survive the strictest line.
 vm.runInContext("runSweep()", ctx);

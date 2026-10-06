@@ -1276,3 +1276,44 @@ test("sealed-trail/v1 — mint, verify, and a mutated pool fails", async () => {
     assert.equal(batch.cards.length, 4);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("chain artifact — the universal verifier routes every kind", async () => {
+  const { artifactVerify } = await import("../src/chain.js");
+  const { writeFileSync, mkdtempSync, copyFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  const origExit = process.exitCode;
+  try {
+    // single file — kind detected, routed, verified
+    const r1 = (await artifactVerify(join(new URL("../../../docs/evidence/trails", import.meta.url).pathname, "qwen3b-ladder-deadheat.json"))) as any;
+    assert.equal(r1.fail, 0);
+    const r2 = (await artifactVerify(join(new URL("../../../docs/evidence/claims", import.meta.url).pathname, "qwen2.5-3b-instruct.json"))) as any;
+    assert.equal(r2.fail, 0);
+    // mixed-kind directory — every artifact verified in one pass
+    const dir = mkdtempSync(join(tmpdir(), "sealed-art-"));
+    copyFileSync(join(new URL("../../../docs/evidence/trails", import.meta.url).pathname, "qwen3b-private-duel.json"), join(dir, "t.json"));
+    copyFileSync(join(new URL("../../../docs/evidence/claims", import.meta.url).pathname, "qwen2.5-3b-instruct.json"), join(dir, "c.json"));
+    copyFileSync(join(new URL("../../../docs/evidence/policies", import.meta.url).pathname, "min60-3runs.json"), join(dir, "p.json"));
+    const batch = (await artifactVerify(dir)) as any;
+    assert.equal(batch.ok, true);
+    assert.equal(batch.artifacts.length, 3);
+    assert.deepEqual(batch.artifacts.map((a: any) => a.kind).sort(),
+      ["sealed-claim/v1", "sealed-policy/v1", "sealed-trail/v1"]);
+    // unknown-kind files are skipped (a future artifact version), not failed;
+    // a real artifact that FAILS its replay still flips the batch verdict
+    writeFileSync(join(dir, "mystery.json"), JSON.stringify({ kind: "bogus/v9" }));
+    const batch2 = (await artifactVerify(dir)) as any;
+    assert.equal(batch2.ok, true);
+    assert.equal(batch2.artifacts.find((a: any) => a.file === "mystery.json").skipped, true);
+    const tampered = JSON.parse((await import("node:fs")).readFileSync(join(dir, "t.json"), "utf8"));
+    tampered.verdict.poolsLamports += 1;
+    process.exitCode = 0;
+    writeFileSync(join(dir, "t.json"), JSON.stringify(tampered));
+    const batch3 = (await artifactVerify(dir)) as any;
+    assert.equal(batch3.ok, false);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = origExit;
+  } finally { console.log = origLog; process.exitCode = origExit; }
+});
