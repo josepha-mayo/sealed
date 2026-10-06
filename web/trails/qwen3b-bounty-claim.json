@@ -1,0 +1,59 @@
+{
+  "kind": "sealed-trail/v1",
+  "generatedAt": "2026-10-06T16:59:35.311Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "run": {
+    "pk": "ucwXeKwU5yAnmREhVTQjawCSKrgVC2gjnkd1VDGo7MS",
+    "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+    "index": 0,
+    "modelId": "qwen2.5-3b-instruct",
+    "status": 1,
+    "correct": 7,
+    "chunkCount": 1,
+    "postReveal": false,
+    "runner": "CTjqTWai3C4XF4WpEMuQpZ4v5pxNJxhwQfiTKnUSVTnM",
+    "createdAt": 1790886943
+  },
+  "bank": {
+    "pk": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+    "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+    "id": 88123,
+    "name": "sealed-gen-v88123",
+    "kind": 1,
+    "itemsRoot": "111a7ccd003e8b6854c95e318cc0e9db59ccdc1bc1f8d68773acd8aa3835ffdb"
+  },
+  "receipt": {
+    "pk": "FAqvtSdYQpzjwW3jN1CiQSFdEPACY5rfwC66PwQXSkfV",
+    "run": "ucwXeKwU5yAnmREhVTQjawCSKrgVC2gjnkd1VDGo7MS",
+    "recordedBy": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+    "recordedAt": 1790974326,
+    "vouchedAtRecord": false,
+    "postReveal": false
+  },
+  "venues": [
+    {
+      "kind": "bounty",
+      "pk": "rXKda9QJYHhBoVEjAv25UYJCSycbp2VkzUq58bbSQ79",
+      "seeds": {
+        "bank": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+        "sponsor": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+        "salt": 0
+      },
+      "status": 1,
+      "winnerRun": "ucwXeKwU5yAnmREhVTQjawCSKrgVC2gjnkd1VDGo7MS",
+      "winningScore": 7,
+      "threshold": 6,
+      "amount": 0
+    }
+  ],
+  "verdict": {
+    "venuesTotal": 1,
+    "resolvedVenues": 1,
+    "scoreMismatches": 0,
+    "poolsLamports": 0
+  }
+}

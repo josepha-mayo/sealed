@@ -78,7 +78,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -136,6 +136,16 @@
   <div><textarea id="matchjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-match/v1", &#8230;}'></textarea></div>
   <button onclick="verifyMatch()">verify match</button>
   <div id="matchres"></div>
+</div>
+<h2 id="sec-trail">verify a trail card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the portable money-trail — a <code>sealed-trail/v1</code> card (<code>chain trail &lt;run&gt; --prove</code> mints them) binds one run's full lifecycle: the bank's commitment, the MPC-written score, and every venue that priced it. Every PDA re-derives in-page and every settlement replays against <code>Run.correct</code> — proof the money followed the MPC score. Same checks as <code>chain trail --verify</code>.</div>
+  <div><select id="trailpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed trail card —</option></select>
+  <button onclick="loadTrail(document.getElementById('trailpick').value || 'qwen3b-ladder-deadheat.json')">load trail</button>
+  <span class="kv">sha256-pinned in this bundle&#8217;s MANIFEST</span></div>
+  <div><textarea id="trailjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-trail/v1", &#8230;}'></textarea></div>
+  <button onclick="verifyTrail()">verify trail</button>
+  <div id="trailres"></div>
 </div>
 <div class="footer">benchmark items are committed by a sequential commitment fold at mint (replayable in-browser — see "verify commitment"); model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
 
@@ -2228,6 +2238,103 @@ function verifyMatch() {
       : fail("verdict replay", `recomputed ${winner} ${pctA.toFixed(2)}/${pctB.toFixed(2)} ≠ stored ${c.verdict.winner} ${c.verdict.pctA}/${c.verdict.pctB}`);
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "MATCH VERIFIED" : "MATCH FAILED"}</b> — ${esc(c.a.id)} vs ${esc(c.b.id)} · ${c.banks.length} shared banks · ${wins.a}-${wins.tie}-${wins.b}</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
+async function loadTrail(file) {
+  const ta = document.getElementById("trailjson");
+  try {
+    const r = await fetch(`trails/${file || "qwen3b-ladder-deadheat.json"}`);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text();
+  } catch (e) { ta.value = ""; document.getElementById("trailres").innerHTML = `<div class="kv">committed trail card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+async function loadTrailIndex() {
+  const sel = document.getElementById("trailpick");
+  if (!sel) return;
+  try {
+    const r = await fetch("trails/index.json");
+    if (!r.ok) throw new Error(String(r.status));
+    for (const f of await r.json()) {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = f.replace(/\.json$/, "");
+      sel.appendChild(o);
+    }
+  } catch (e) { /* picker stays on the default option */ }
+}
+loadTrailIndex();
+// sealed-trail/v1 verifier — mirrors `chain trail --verify`: the run/bank/
+// receipt PDAs re-derive, every venue PDA re-derives under the market
+// program, each resolved settlement replays against Run.correct, ladder
+// argmax masks re-derive from embedded legs, and pool accounting recomputes.
+function verifyTrail() {
+  const res = document.getElementById("trailres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("trailjson").value);
+    if (c.kind !== "sealed-trail/v1") throw new Error(`not a sealed-trail/v1 card (kind=${c.kind})`);
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    const spid = new PK(c.programs.sealed), mpid = new PK(c.programs.market);
+    pdaB([utf8("run"), pkB(c.run.benchmark), u64le(c.run.index)], spid) === c.run.pk
+      ? pass("run PDA", `${c.run.pk.slice(0, 12)}… = [run, bank, u64le(${c.run.index})]`)
+      : fail("run PDA", `${c.run.pk.slice(0, 12)}… ≠ [run, bank, u64le(${c.run.index})]`);
+    if (c.bank)
+      pdaB([utf8("benchmark"), pkB(c.bank.authority), u32le(c.bank.id)], spid) === c.bank.pk
+        ? pass("bank PDA", `${c.bank.pk.slice(0, 12)}… = [benchmark, authority, u32le(${c.bank.id})]`)
+        : fail("bank PDA", `${c.bank.pk.slice(0, 12)}… ≠ [benchmark, authority, u32le(${c.bank.id})]`);
+    if (c.receipt)
+      pdaB([utf8("scorelog"), pkB(c.run.pk)], spid) === c.receipt.pk
+        ? pass("receipt PDA", `${c.receipt.pk.slice(0, 12)}… = [scorelog, run]`)
+        : fail("receipt PDA", `${c.receipt.pk.slice(0, 12)}… ≠ [scorelog, run]`);
+    const vOk = c.venues.filter(v => {
+      const seeds = v.kind === "band" ? [utf8("market"), pkB(v.seeds.run), u64le(v.seeds.salt)]
+        : v.kind === "duel" ? [utf8("duel"), pkB(v.seeds.runA), pkB(v.seeds.runB), u64le(v.seeds.salt)]
+        : v.kind === "dark" ? [utf8("dark"), pkB(v.seeds.run), u64le(v.seeds.salt)]
+        : v.kind === "ladder" ? [utf8("ladder"), pkB(v.seeds.firstLeg), u64le(v.seeds.salt)]
+        : [utf8("bounty"), pkB(v.seeds.bank), pkB(v.seeds.sponsor), u64le(v.seeds.salt)];
+      return pdaB(seeds, mpid) === v.pk;
+    }).length;
+    vOk === c.venues.length ? pass("venue PDAs", `${vOk}/${c.venues.length} re-derived`)
+      : fail("venue PDAs", `${vOk}/${c.venues.length} re-derived`);
+    const resolved = c.venues.filter(v => v.status === 1);
+    const sOk = resolved.filter(v =>
+      v.kind === "band" ? v.resolvedScore === c.run.correct
+      : v.kind === "duel" ? (v.side === "a" ? v.resolvedScore >> 16 : v.resolvedScore & 0xffff) === c.run.correct
+      : v.kind === "dark" ? v.resolvedScore === c.run.correct
+      : v.kind === "bounty" ? v.winningScore === c.run.correct
+      : v.legs[v.legIndex]?.correct === c.run.correct).length;
+    sOk === resolved.length ? pass("settlements from Run.correct", `${sOk}/${resolved.length} resolved venue(s) replayed against the MPC-written score`)
+      : fail("settlements from Run.correct", `${sOk}/${resolved.length} replayed`);
+    let legOk = 0, legN = 0;
+    for (const v of c.venues.filter(x => x.kind === "ladder")) {
+      for (const l of v.legs) {
+        legN++;
+        if (l.benchmark != null && pdaB([utf8("run"), pkB(l.benchmark), u64le(l.index)], spid) === l.pk) legOk++;
+      }
+      if (v.status === 1) {
+        legN++;
+        const scores = v.legs.map(l => (l.status === 1 ? l.correct : 0));
+        const best = Math.max(...scores);
+        const mask = scores.reduce((m, s, i) => m | (s === best ? 1 << i : 0), 0);
+        if (mask === v.resultMask) legOk++;
+      }
+    }
+    if (legN) legOk === legN ? pass("ladder legs + argmax", `${legOk}/${legN} leg PDAs + result mask re-derived`)
+      : fail("ladder legs + argmax", `${legOk}/${legN} re-derived`);
+    const pools = c.venues.reduce((s, v) => s + (v.totals ? v.totals.reduce((x, t) => x + t, 0) : (v.poolTotal ?? 0)), 0);
+    pools === c.verdict.poolsLamports ? pass("pool accounting", `${pools} lamports recomputed = stored`)
+      : fail("pool accounting", `${pools} recomputed ≠ ${c.verdict.poolsLamports} stored`);
+    const vd = c.verdict;
+    (vd.venuesTotal === c.venues.length && vd.resolvedVenues === resolved.length && vd.scoreMismatches === resolved.length - sOk)
+      ? pass("verdict summary", `${vd.venuesTotal} venues · ${vd.resolvedVenues} resolved · ${vd.scoreMismatches} mismatch stored = recomputed`)
+      : fail("verdict summary", "stored counts ≠ recomputed");
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "TRAIL VERIFIED" : "TRAIL FAILED"}</b> — ${esc(c.run.modelId)} ${c.run.correct}/${c.run.chunkCount * 32} · ${c.venues.length} venue(s) priced this score</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;

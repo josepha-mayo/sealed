@@ -2841,6 +2841,225 @@ export async function chainTrail(runPkStr: string, json = false, snapPath?: stri
   return out;
 }
 
+/** `chain trail <run> --prove <file>` — mint a `sealed-trail/v1` card: the
+ *  money-trail as portable evidence. One run's full lifecycle — the bank's
+ *  commitment, the MPC-written score, the registry receipt, and every venue
+ *  that priced it — bound with PDA seeds so a verifier replays the whole
+ *  chain offline: every address re-derives, every settlement re-checks
+ *  against Run.correct. "The money followed the MPC score" as a document. */
+export async function trailProve(runPkStr: string, out: string, snapPath?: string) {
+  const runPk = new PublicKey(runPkStr);
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const sealedAcct = () => (sealedProgram().program.account as any);
+  const marketAcct = () => (marketProgram().market.account as any);
+  const [runs, banks, logs, markets, darks, ladders, bounties]: SnapAccount[][] = ss
+    ? [snapOf(ss, "Run"), snapOf(ss, "Benchmark"), snapOf(ss, "ScoreLog"),
+       snapOf(sm!, "Market"), snapOf(sm!, "DarkMarket"), snapOf(sm!, "Ladder"), snapOf(sm!, "Bounty")]
+    : await Promise.all([
+        sealedAcct().run.all(), sealedAcct().benchmark.all(), sealedAcct().scoreLog.all(),
+        marketAcct().market.all(), marketAcct().darkMarket.all(), marketAcct().ladder.all(), marketAcct().bounty.all()]);
+  const run = runs.find((r) => r.publicKey.equals(runPk));
+  if (!run) throw new Error(`no run at ${runPkStr}`);
+  const R = run.account as any;
+  const b58 = (v: any) => v?.toBase58 ? v.toBase58() : String(v);
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const bank = banks.find((b) => b.publicKey.equals(R.benchmark));
+  const B = bank?.account as any;
+  const receipt = logs.find((l) => (l.account.run as PublicKey).equals(runPk));
+  const venues: any[] = [];
+  for (const m of markets) {
+    const M = m.account as any;
+    const isA = (M.run as PublicKey).equals(runPk);
+    const isB = M.runB && !(M.runB as PublicKey).equals(PublicKey.default) && (M.runB as PublicKey).equals(runPk);
+    if (!isA && !isB) continue;
+    const duel = isB || (M.runB && !(M.runB as PublicKey).equals(PublicKey.default));
+    venues.push({ kind: duel ? "duel" : "band", pk: m.publicKey.toBase58(),
+      seeds: duel ? { runA: b58(M.run), runB: b58(M.runB), salt: num(M.salt) } : { run: b58(M.run), salt: num(M.salt) },
+      status: num(M.status), side: duel ? (isA ? "a" : "b") : null,
+      resolvedScore: num(M.resolvedScore), outcome: num(M.outcome),
+      nOutcomes: num(M.nOutcomes), edges: (M.edges as any[]).map(Number),
+      totals: (M.totals as any[]).map(Number) });
+  }
+  for (const d of darks) {
+    const D = d.account as any;
+    if (!(D.run as PublicKey).equals(runPk)) continue;
+    venues.push({ kind: "dark", pk: d.publicKey.toBase58(),
+      seeds: { run: b58(D.run), salt: num(D.salt) },
+      status: num(D.status), resolvedScore: num(D.resolvedScore), tallied: !!D.tallied,
+      poolTotal: num(D.poolTotal), revealedCount: num(D.revealedCount), forfeitTotal: num(D.forfeitTotal) });
+  }
+  for (const l of ladders) {
+    const L = l.account as any;
+    const legs = (L.legs as PublicKey[]).slice(0, Number(L.legCount));
+    const legIx = legs.findIndex((p) => p.equals(runPk));
+    if (legIx < 0) continue;
+    venues.push({ kind: "ladder", pk: l.publicKey.toBase58(),
+      seeds: { firstLeg: b58(legs[0]), salt: num(L.salt) },
+      status: num(L.status), legIndex: legIx, legCount: Number(L.legCount),
+      resultMask: num(L.resultMask), totals: (L.totals as any[]).map(Number),
+      legs: legs.map((lp) => {
+        const lr = runs.find((r) => r.publicKey.equals(lp))?.account as any;
+        return { pk: lp.toBase58(), benchmark: lr ? b58(lr.benchmark) : null,
+          index: lr ? num(lr.index) : null, status: lr ? num(lr.status) : null,
+          correct: lr ? num(lr.correct) : null };
+      }) });
+  }
+  for (const b of bounties) {
+    const Bo = b.account as any;
+    if (!(Bo.winnerRun as PublicKey).equals(runPk)) continue;
+    venues.push({ kind: "bounty", pk: b.publicKey.toBase58(),
+      seeds: { bank: b58(Bo.bank), sponsor: b58(Bo.sponsor), salt: num(Bo.salt) },
+      status: num(Bo.status), winnerRun: b58(Bo.winnerRun), winningScore: num(Bo.winningScore),
+      threshold: num(Bo.threshold), amount: num(Bo.amount) });
+  }
+  const resolved = venues.filter((v) => v.status === 1);
+  const mismatch = resolved.filter((v) => {
+    if (v.kind === "band") return v.resolvedScore !== num(R.correct);
+    if (v.kind === "duel") return (v.side === "a" ? v.resolvedScore >> 16 : v.resolvedScore & 0xffff) !== num(R.correct);
+    if (v.kind === "dark") return v.resolvedScore !== num(R.correct);
+    if (v.kind === "bounty") return v.winningScore !== num(R.correct);
+    if (v.kind === "ladder") return v.legs[v.legIndex]?.correct !== num(R.correct);
+    return false;
+  });
+  const pools = venues.reduce((s, v) => s + (v.totals ? v.totals.reduce((x: number, t: number) => x + t, 0) : (v.poolTotal ?? 0)), 0);
+  const card = {
+    kind: "sealed-trail/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+    programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
+    run: { pk: runPkStr, benchmark: b58(R.benchmark), index: num(R.index), modelId: String(R.modelId),
+      status: num(R.status), correct: num(R.correct), chunkCount: num(R.chunkCount),
+      postReveal: !!R.postReveal, runner: b58(R.runner), createdAt: num(R.createdAt) },
+    bank: bank ? { pk: bank.publicKey.toBase58(), authority: b58(B.authority), id: num(B.id),
+      name: String(B.name), kind: num(B.kind), itemsRoot: Buffer.from(B.itemsRoot as number[]).toString("hex") } : null,
+    receipt: receipt ? { pk: receipt.publicKey.toBase58(), run: b58(receipt.account.run),
+      recordedBy: b58(receipt.account.recordedBy), recordedAt: num(receipt.account.recordedAt),
+      vouchedAtRecord: !!receipt.account.vouchedAtRecord, postReveal: !!receipt.account.postReveal } : null,
+    venues,
+    verdict: { venuesTotal: venues.length, resolvedVenues: resolved.length,
+      scoreMismatches: mismatch.length, poolsLamports: pools },
+  };
+  writeFileSync(out, JSON.stringify(card, null, 2) + "\n");
+  console.log(`wrote ${out} — sealed-trail/v1 card: ${card.run.modelId} ${card.run.correct}/${card.run.chunkCount * 32} · ` +
+    `${venues.length} venue(s) priced it (${resolved.length} resolved, ${mismatch.length} mismatch, ${(pools / 1e9).toFixed(3)}◎ pooled)` +
+    ` (verify: chain trail --verify ${out})`);
+  return card;
+}
+
+/** The per-card trail verifier shared by single-file and directory modes. */
+function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void) {
+  const sealedId = new PublicKey(card.programs.sealed);
+  const marketId = new PublicKey(card.programs.market);
+  const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
+  const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const pk = (s: string) => new PublicKey(s);
+  const dv = (seeds: Buffer[]) => PublicKey.findProgramAddressSync(seeds, sealedId)[0].toBase58();
+  const dm = (seeds: Buffer[]) => PublicKey.findProgramAddressSync(seeds, marketId)[0].toBase58();
+  let pass = 0, fail = 0;
+  const fails: string[] = [];
+  const rows: { what: string; ok: boolean; detail: string }[] = [];
+  const check = (what: string, ok: boolean, detail = "") => {
+    rows.push({ what, ok, detail });
+    emit?.(what, ok, detail);
+    if (!ok) fails.push(what);
+    ok ? pass++ : fail++;
+  };
+  check("run PDA", dv([Buffer.from("run"), pk(card.run.benchmark).toBuffer(), u64le(card.run.index)]) === card.run.pk,
+    `${card.run.pk.slice(0, 12)}… = [run, bank, u64le(${card.run.index})]`);
+  if (card.bank)
+    check("bank PDA", dv([Buffer.from("benchmark"), pk(card.bank.authority).toBuffer(), u32le(card.bank.id)]) === card.bank.pk,
+      `${card.bank.pk.slice(0, 12)}… = [benchmark, authority, u32le(${card.bank.id})]`);
+  if (card.receipt)
+    check("receipt PDA", dv([Buffer.from("scorelog"), pk(card.run.pk).toBuffer()]) === card.receipt.pk,
+      `${card.receipt.pk.slice(0, 12)}… = [scorelog, run]`);
+  let vOk = 0;
+  for (const v of card.venues) {
+    const seeds: Buffer[] = v.kind === "band" ? [Buffer.from("market"), pk(v.seeds.run).toBuffer(), u64le(v.seeds.salt)]
+      : v.kind === "duel" ? [Buffer.from("duel"), pk(v.seeds.runA).toBuffer(), pk(v.seeds.runB).toBuffer(), u64le(v.seeds.salt)]
+      : v.kind === "dark" ? [Buffer.from("dark"), pk(v.seeds.run).toBuffer(), u64le(v.seeds.salt)]
+      : v.kind === "ladder" ? [Buffer.from("ladder"), pk(v.seeds.firstLeg).toBuffer(), u64le(v.seeds.salt)]
+      : [Buffer.from("bounty"), pk(v.seeds.bank).toBuffer(), pk(v.seeds.sponsor).toBuffer(), u64le(v.seeds.salt)];
+    if (dm(seeds) === v.pk) vOk++;
+    else rows.push({ what: `venue ${v.pk.slice(0, 8)}`, ok: false, detail: `${v.kind} PDA mismatch` });
+  }
+  check("venue PDAs", vOk === card.venues.length, `${vOk}/${card.venues.length} re-derived`);
+  const resolved = card.venues.filter((v: any) => v.status === 1);
+  let sOk = 0;
+  for (const v of resolved) {
+    const ok = v.kind === "band" ? v.resolvedScore === card.run.correct
+      : v.kind === "duel" ? (v.side === "a" ? v.resolvedScore >> 16 : v.resolvedScore & 0xffff) === card.run.correct
+      : v.kind === "dark" ? v.resolvedScore === card.run.correct
+      : v.kind === "bounty" ? v.winningScore === card.run.correct
+      : v.legs[v.legIndex]?.correct === card.run.correct;
+    if (ok) sOk++;
+    else rows.push({ what: `settlement ${v.pk.slice(0, 8)}`, ok: false, detail: `${v.kind} score ≠ Run.correct=${card.run.correct}` });
+  }
+  check("settlements from Run.correct", sOk === resolved.length,
+    `${sOk}/${resolved.length} resolved venue(s) replayed against the MPC-written score`);
+  let legOk = 0, legN = 0;
+  for (const v of card.venues.filter((x: any) => x.kind === "ladder")) {
+    for (const l of v.legs) {
+      legN++;
+      if (l.benchmark != null && dv([Buffer.from("run"), pk(l.benchmark).toBuffer(), u64le(l.index)]) === l.pk) legOk++;
+    }
+    if (v.status === 1) {
+      const scores = v.legs.map((l: any) => (l.status === 1 ? l.correct : 0));
+      const best = Math.max(...scores);
+      const mask = scores.reduce((m: number, s: number, i: number) => m | (s === best ? 1 << i : 0), 0);
+      mask === v.resultMask ? legOk++ : rows.push({ what: `ladder ${v.pk.slice(0, 8)}`, ok: false, detail: `argmax mask ${mask} ≠ stored ${v.resultMask}` });
+      legN++;
+    }
+  }
+  if (legN) check("ladder legs + argmax", legOk === legN, `${legOk}/${legN} leg PDAs + result mask re-derived`);
+  const pools = card.venues.reduce((s: number, v: any) => s + (v.totals ? v.totals.reduce((x: number, t: number) => x + t, 0) : (v.poolTotal ?? 0)), 0);
+  check("pool accounting", pools === card.verdict.poolsLamports,
+    `${pools} lamports (${(pools / 1e9).toFixed(4)}◎) recomputed = ${card.verdict.poolsLamports} stored`);
+  const vd = card.verdict;
+  check("verdict summary", vd.venuesTotal === card.venues.length && vd.resolvedVenues === resolved.length &&
+    vd.scoreMismatches === resolved.length - sOk,
+    `${vd.venuesTotal} venues · ${vd.resolvedVenues} resolved · ${vd.scoreMismatches} mismatch stored = recomputed`);
+  return { ok: fail === 0, pass, fail, fails, rows };
+}
+
+/** `chain trail --verify <file|dir>` — replay a sealed-trail/v1 card keyless.
+ *  A directory batch-verifies every *.json card in it (index.json skipped). */
+export async function trailVerify(file: string, json = false) {
+  const { statSync, readdirSync } = await import("node:fs");
+  if (statSync(file).isDirectory()) {
+    const files = readdirSync(file).filter((f) => f.endsWith(".json") && f !== "index.json").sort();
+    if (!files.length) throw new Error(`no trail cards (*.json) in ${file}`);
+    let okAll = true;
+    const results: any[] = [];
+    if (!json) console.log(`verifying ${files.length} trail card(s) in ${file}/`);
+    for (const f of files) {
+      try {
+        const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
+        if (card.kind !== "sealed-trail/v1") throw new Error(`kind=${card.kind}`);
+        const r = verifyTrailCard(card);
+        results.push({ file: f, model: card.run?.modelId ?? null, ok: r.ok, pass: r.pass, fail: r.fail, fails: r.fails });
+        if (!json) console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(36)} ${card.run?.modelId ?? "?"} ${card.run?.correct}/${(card.run?.chunkCount ?? 0) * 32} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
+        okAll &&= r.ok;
+      } catch (e: any) { okAll = false; results.push({ file: f, ok: false, error: String(e?.message ?? e) }); if (!json) console.log(`  FAIL ${f} — ${e?.message ?? e}`); }
+    }
+    if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
+    else console.log(`${okAll ? "ALL TRAILS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
+    if (!okAll) process.exit(1);
+    return { ok: okAll, cards: results };
+  }
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-trail/v1") throw new Error(`not a sealed-trail/v1 file (kind=${card.kind})`);
+  const r = verifyTrailCard(card, (what, ok, detail) => { if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); });
+  const verdict = r.fail === 0 ? "TRAIL VERIFIED" : "TRAIL FAILED";
+  if (json) console.log(JSON.stringify({ file, kind: card.kind, run: card.run.pk, model: card.run.modelId,
+    verified: r.fail === 0, checks: r.rows, pass: r.pass, fail: r.fail, verdict: card.verdict }));
+  else console.log(`${verdict} — ${card.run.modelId} ${card.run.correct}/${card.run.chunkCount * 32}: ${r.pass} checks pass, ${r.fail} fail · ` +
+    `${card.verdict.venuesTotal} venue(s) priced this score`);
+  if (r.fail) process.exitCode = 1;
+  return { pass: r.pass, fail: r.fail };
+}
+
 /** `chain bounties [--snapshot f] [--json]` — the runner-facing index: every
  *  capability bounty (open / claimed / expired), threshold, pot, deadline.
  *  Board serves keepers; this answers "where can my model earn?" */
@@ -6132,8 +6351,16 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "trail") {
+    if (args.verify || cmd[1] === "--verify") {
+      await trailVerify(String(args.verify ?? cmd[2]), Boolean(args.json));
+      return;
+    }
     const run = cmd[1] ?? args.run;
-    if (!run) throw new Error("usage: chain trail <run-pk> [--json] [--snapshot f]");
+    if (!run) throw new Error("usage: chain trail <run-pk> [--prove <file>] [--json] [--snapshot f] · chain trail --verify <file>");
+    if (args.prove) {
+      await trailProve(String(run), String(args.prove), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
     await chainTrail(String(run), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }

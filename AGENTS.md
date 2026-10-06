@@ -98,7 +98,11 @@ parimutuel markets resolved from `Run.correct`.
   and the paired-evidence leaderboard against the committed file.
 - `chain trail <run>` re-verifies each resolved venue against
   `Run.correct` — duels unpack `resolved_score = (a << 16) | b` (a is the
-  `run` field's score; bands store `correct` directly).
+  `run` field's score; bands store `correct` directly). `--prove <file>`
+  mints `sealed-trail/v1` (the money-trail as a portable card — every
+  PDA seed + settlement field); `trail --verify <file|dir>` replays it
+  keyless. 4 committed cards in docs/evidence/trails/ + web/trails/
+  cover every venue kind.
 
 ## Localnet
 

@@ -48,6 +48,14 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   pairs are committed (`chain compare --match-verify matches` batch-
   replays them). Headline: two real open-weights models, two shared
   exams, MPC-scored — qwen2.5-3b beat qwen2.5-1.5b 2-0-0.
+- `trails/` — **`sealed-trail/v1` money-trail cards** — one run's full
+  lifecycle as portable evidence: bank commitment, MPC-written score,
+  registry receipt, and every venue that priced it. The verifier
+  re-derives every PDA and replays each settlement against
+  `Run.correct` — "the money followed the MPC score" as a document
+  (`chain trail --verify trails` batch-replays all four). Covers every
+  venue kind: the 4-model ladder dead-heat (+ dark market on the same
+  run), a bounty claim, a private-bank duel, and a receipt-only run.
 - `reports/` — **`sealed-report/v1` printable capability reports** —
   the dossier as a document: registry record, four ranking lenses, the
   receipt ledger, venue settlements, honesty flags, and a canonical

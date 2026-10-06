@@ -34,6 +34,8 @@ yarn --cwd packages/harness -s cli chain gate --certify-verify \
   ../../docs/evidence/policies/sealed-test-60pct.json
 yarn --cwd packages/harness -s cli chain compare --match-verify \
   ../../docs/evidence/matches
+yarn --cwd packages/harness -s cli chain trail --verify \
+  ../../docs/evidence/trails
 
 say "6/8 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
 scripts/evidence-manifest.sh check

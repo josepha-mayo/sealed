@@ -1,0 +1,44 @@
+{
+  "kind": "sealed-trail/v1",
+  "generatedAt": "2026-10-06T16:59:38.087Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "run": {
+    "pk": "GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi",
+    "benchmark": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
+    "index": 0,
+    "modelId": "qwen2.5-3b-instruct",
+    "status": 1,
+    "correct": 7,
+    "chunkCount": 1,
+    "postReveal": false,
+    "runner": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+    "createdAt": 1791026066
+  },
+  "bank": {
+    "pk": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
+    "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+    "id": 77007,
+    "name": "sealed-v77007",
+    "kind": 0,
+    "itemsRoot": "578c091dfb63c996f7069c91e2f293be007eacac1b47ca6bd86a431c5289bc70"
+  },
+  "receipt": {
+    "pk": "2YncpZ3Fib8pCAmwUpnD4B3rDtGisjm2RAsqoWePD77d",
+    "run": "GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi",
+    "recordedBy": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+    "recordedAt": 1791026278,
+    "vouchedAtRecord": false,
+    "postReveal": false
+  },
+  "venues": [],
+  "verdict": {
+    "venuesTotal": 0,
+    "resolvedVenues": 0,
+    "scoreMismatches": 0,
+    "poolsLamports": 0
+  }
+}

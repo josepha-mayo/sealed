@@ -1243,3 +1243,36 @@ test("sealed-match/v1 — mint, verify, and a flipped verdict fails", async () =
     assert.equal(batch.cards.every((c: any) => c.ok && c.pass === 9), true);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("sealed-trail/v1 — mint, verify, and a mutated pool fails", async () => {
+  const { trailProve, trailVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "sealed-trail-"));
+    // qwen2.5-3b's ladder leg: 6/32 settled a dark market AND a 4-model ladder
+    const good = join(dir, "t.json");
+    const card = (await trailProve("5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw", good, snapPath)) as any;
+    assert.equal(card.kind, "sealed-trail/v1");
+    assert.equal(card.venues.length, 2);
+    assert.deepEqual(card.venues.map((v: any) => v.kind).sort(), ["dark", "ladder"]);
+    assert.equal(card.verdict.resolvedVenues, 2);
+    const ok = (await trailVerify(good)) as any;
+    assert.equal(ok.fail, 0);
+    card.verdict.poolsLamports += 1;
+    const bad = join(dir, "bad.json");
+    writeFileSync(bad, JSON.stringify(card));
+    process.exitCode = 0;
+    await trailVerify(bad);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+    // dir batch mode
+    const batch = (await trailVerify(new URL("../../../docs/evidence/trails", import.meta.url).pathname)) as any;
+    assert.equal(batch.ok, true);
+    assert.equal(batch.cards.length, 4);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

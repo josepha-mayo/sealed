@@ -208,6 +208,15 @@ receipt, and every venue that priced it — and **re-verifies each resolved
 venue's score against `Run.correct`** (duel `resolved_score` unpacked
 `(a << 16) | b`), so a settlement that disagreed with the run would
 print ✗ MISMATCH, not get trusted.
+`chain trail <run-pk> --prove <file>` mints a `sealed-trail/v1` card —
+the money-trail as portable evidence: run/bank/receipt/venue PDA seeds
+plus every settlement field. `chain trail --verify <file|dir> [--json]`
+replays it keyless — every address re-derives, every resolved venue's
+stored score re-checks against `Run.correct`, ladder leg PDAs + argmax
+masks re-derive, pool accounting recomputes. Four committed cards in
+`docs/evidence/trails/` cover every venue kind (mirrored at
+`web/trails/`); the explorer's "verify a trail card" section replays
+the same checks in-page.
 
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,

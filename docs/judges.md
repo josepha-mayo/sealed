@@ -242,6 +242,17 @@ yarn --cwd packages/harness cli chain compare --match-verify ../../docs/evidence
 #         → same replay in the explorer: scroll to "verify a match
 #           card", pick from the 73-card dropdown — 9 checks in-page
 
+# 3k. THE MONEY TRAIL — a sealed-trail/v1 card binds one run's whole
+#     lifecycle: bank commitment → MPC score → receipt → every venue
+#     that priced it. Verification proves the money followed the
+#     MPC-written score, not a client's say-so. Four committed cards
+#     cover every venue kind — the flagship: qwen2.5-3b's 6/32 that
+#     settled a dark market AND won a 4-model ladder dead-heat.
+yarn --cwd packages/harness cli chain trail --verify ../../docs/evidence/trails
+#         → ALL TRAILS VERIFIED — run/bank/receipt/venue PDAs
+#           re-derived, settlements replayed vs Run.correct, ladder
+#           argmax mask + pool accounting recomputed
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).
