@@ -104,5 +104,14 @@ const tamperTxt = (els.get("claimres")?.innerHTML ?? "").replace(/<[^>]+>/g, " "
 const tamperOk = /CLAIM FAILED/.test(tamperTxt) && /FAIL record aggregate|record aggregate/.test(tamperTxt);
 console.log(`in-page claim-card tamper case — mutated aggregate ${tamperOk ? "rejected PASS" : "MISSED FAIL"}`);
 if (!tamperOk) fails++;
+// policy sweep — the frontier grid renders all records; test/sweep-run's
+// perfect record must survive the strictest line.
+vm.runInContext("runSweep()", ctx);
+const sweepTxt = (els.get("sweepOut")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const sweepRows = (els.get("sweepOut")?.innerHTML.match(/<tr>/g) || []).length - 1;
+const sweepOk = sweepRows === 31 && /test\/sweep-run[\s\S]{0,80}≥90%/.test(sweepTxt) &&
+  /never passes/.test(sweepTxt) && /≥80%/.test(sweepTxt);
+console.log(`in-page policy sweep — ${sweepRows} model rows, frontiers ${sweepOk ? "PASS" : "FAIL"}`);
+if (!sweepOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

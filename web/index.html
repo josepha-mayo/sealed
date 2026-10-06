@@ -850,7 +850,9 @@ function renderAll(sealedAccs, marketAccs) {
       <label class="kv"><input type="checkbox" id="gateVouched"> venue-attested runs only</label>
       <label class="kv"><input type="checkbox" id="gateNoPR"> exclude post-reveal</label>
       <button onclick="runGate()">evaluate</button>
-      <div id="gateOut" class="kv" style="margin-top:6px"></div></div>`;
+      <button onclick="runSweep()" title="re-evaluate every model across a 10–90% accuracy grid — same flags apply">sweep</button>
+      <div id="gateOut" class="kv" style="margin-top:6px"></div>
+      <div id="sweepOut" class="kv" style="margin-top:6px"></div></div>`;
     h += `<div class="card"><b>compare</b> — <span class="kv">does A beat B on the SAME benchmarks? receipts joined per-bank, not pooled aggregates:</span><br>
       <span class="mono">chain compare</span>
       <select id="cmpA">${recs.map(m => `<option value="${m.pk}">${esc(m.modelId)}</option>`).join("")}</select> vs
@@ -2365,6 +2367,45 @@ function runGate() {
     ` <span class="kv">[registry: ${all.length} total, ${postRev} post-reveal]</span>` +
     checks.map(c => `<div class="kv">${c.ok ? "ok" : "MISS"} ${c.name}: ${c.act} (needed ${c.need})</div>`).join("") +
     `<div class="kv" style="margin-top:4px">same verdict on the CLI: <span class="mono">sealed chain gate ${name} --min-pct ${minPct ?? "…"}${minWilson !== null ? ` --wilson ${minWilson}` : ""}${vouched ? " --vouched" : ""}${noPR ? " --no-post-reveal" : ""}</span></div>`;
+}
+
+// Policy-sensitivity grid — mirrors `chain gate --sweep` exactly: every
+// record re-evaluated across a min-pct grid so no leaderboard depends on
+// where someone drew one threshold. Frontier = strictest line survived.
+function runSweep() {
+  const out = document.getElementById("sweepOut");
+  const a = window.__audit || {};
+  const grid = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+  const vouched = document.getElementById("gateVouched").checked;
+  const noPR = document.getElementById("gateNoPR").checked;
+  const num = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : Number(v); };
+  const minRuns = num("gateRuns"), minItems = num("gateItems"), minWilson = num("gateWilson");
+  const wilson = (c, n, z = 1.96) => n <= 0 ? 0 :
+    100 * ((c / n + z * z / (2 * n)) - z * Math.sqrt((c / n * (1 - c / n) + z * z / (4 * n)) / n)) / (1 + z * z / n);
+  const rows = (a.modelRecords || []).map(rec => {
+    const all = (a.scoreLogs || []).filter(l => l.modelRecord === rec.pk);
+    let sel = vouched ? all.filter(l => l.vouched) : all;
+    if (noPR) sel = sel.filter(l => !l.postReveal);
+    const runs = sel.length, correct = sel.reduce((s, l) => s + l.correct, 0),
+      items = sel.reduce((s, l) => s + l.items, 0), pct = items ? 100 * correct / items : 0;
+    const cells = grid.map(minPct => {
+      if (!runs) return "noev";
+      let ok = pct >= minPct;
+      if (minRuns !== null) ok &&= runs >= minRuns;
+      if (minItems !== null) ok &&= items >= minItems;
+      if (minWilson !== null) ok &&= wilson(correct, items) >= minWilson;
+      return ok ? "pass" : "fail";
+    });
+    return { modelId: rec.modelId, pct, cells,
+      frontier: cells.reduce((f, c, i) => (c === "pass" ? grid[i] : f), null) };
+  }).sort((x, y) => (y.frontier ?? -1) - (x.frontier ?? -1) || y.pct - x.pct);
+  const glyph = c => (c === "pass" ? `<td style="color:var(--ok)">●</td>` : c === "noev" ? `<td class="kv">—</td>` : `<td class="kv">·</td>`);
+  out.innerHTML = `<b>policy sweep</b> — who is <i>robustly</i> good, not just above one line` +
+    `<span class="kv"> (${vouched ? "vouched-only" : "all runs"}${noPR ? ", no post-reveal" : ""}${minRuns !== null ? `, runs≥${minRuns}` : ""}${minItems !== null ? `, items≥${minItems}` : ""}${minWilson !== null ? `, wilson≥${minWilson}` : ""})` +
+    ` — same grid on the CLI: <span class="mono">sealed chain gate --sweep</span></span>` +
+    `<table><tr><th>model</th><th style="text-align:right">pct</th>${grid.map(g => `<th style="text-align:center">≥${g}</th>`).join("")}<th>frontier</th></tr>` +
+    rows.map(r => `<tr><td class="mono">${esc(r.modelId)}</td><td style="text-align:right">${r.pct.toFixed(1)}%</td>${r.cells.map(glyph).join("")}<td>${r.frontier === null ? "never passes" : `≥${r.frontier}%`}</td></tr>`).join("") +
+    `</table>`;
 }
 
 // Receipt-scoped head-to-head — mirrors `chain compare` in chain.ts exactly:
