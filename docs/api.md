@@ -419,6 +419,13 @@ runs. `score_chunk` reveals a count, never per-item results.
 
 Measured per-instruction compute-unit costs live in [costs.md](costs.md)
 (queue-side MPC ixs ~110-150k CU, callbacks ~130-160k, market ops ~4-16k).
+### `chain gate <model> --why [<policy flags>]`
+The policy autopsy: under each evidence scope (all / vouched-only /
+no-post-reveal / both) print the survivable policy ceiling — the maximum
+min-pct / min-runs / min-items / wilson the record survives — and, when a
+policy is supplied, name the binding constraint that kills it. The answer
+to "is the evidence thin, or just below the line?"
+
 ### `chain report <model> [--out file.md]`
 `sealed-report/v1` — the whole dossier as a printable document: registry
 record, four lenses, the receipt ledger, the venue settlement record,

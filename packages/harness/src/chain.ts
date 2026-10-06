@@ -49,7 +49,7 @@ import {
 } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
-import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type ScoreReceipt } from "./gate.js";
+import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type GateCheck, type ScoreReceipt } from "./gate.js";
 import { classifyBoard, proven, type BoardRun } from "./board.js";
 import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount } from "./snapshot.js";
 import { ed25519 } from "@noble/curves/ed25519";
@@ -4256,6 +4256,70 @@ export async function gateAll(policy: GatePolicy, json = false, snapPath?: strin
  *  Cell: ● pass · fail — no-evidence. `frontier` = strictest threshold
  *  cleared; models whose pass-set is contiguous-from-below are stable,
  *  a model that only clears low bars with gaps is threshold-fragile. */
+/** `chain gate <model> --why [--policy flags]` — the policy autopsy: not
+ *  just pass/fail but the envelope. Under each evidence scope (all /
+ *  vouched-only / no-post-reveal / both) report the maximum threshold the
+ *  record survives on every dimension, and — when a policy is given —
+ *  name the binding constraint that kills it. */
+export async function gateWhy(modelStr: string, policy: GatePolicy | undefined, json = false, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  const acct = () => (sealedProgram().program.account as any);
+  const [records, logs]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ModelRecord"), snapOf(ss, "ScoreLog")]
+    : await Promise.all([acct().modelRecord.all(), acct().scoreLog.all()]);
+  const rec = records.find((r) => r.publicKey.toBase58() === modelStr)
+    ?? records.find((r) => String(r.account.modelId) === modelStr)
+    ?? records.find((r) => r.publicKey.equals(PublicKey.findProgramAddressSync(
+        [Buffer.from("modelrec"), createHash("sha256").update(Buffer.from(modelStr, "utf8")).digest()], sealedProgramId())[0]));
+  if (!rec) throw new Error(`no ModelRecord for ${modelStr}`);
+  const receipts: ScoreReceipt[] = logs
+    .filter((l) => (l.account.modelRecord as PublicKey).equals(rec.publicKey))
+    .map((l: any) => ({ correct: l.account.correct, items: l.account.items,
+      vouchedAtRecord: l.account.vouchedAtRecord, postReveal: l.account.postReveal }));
+  const envelope = (scope: GatePolicy) => {
+    const sel = scope.vouchedOnly ? receipts.filter((r) => !!r.vouchedAtRecord) : receipts;
+    const sel2 = scope.noPostReveal ? sel.filter((r) => !r.postReveal) : sel;
+    const runs = sel2.length, correct = sel2.reduce((s, r) => s + Number(r.correct), 0),
+      items = sel2.reduce((s, r) => s + Number(r.items), 0),
+      pct = items > 0 ? (100 * correct) / items : 0,
+      lcb = wilsonLowerBoundPct(correct, items);
+    return { runs, items, correct, pct, lcb,
+      maxMinPct: Math.floor(pct * 100) / 100, maxMinRuns: runs, maxMinItems: items,
+      maxWilson: Math.floor(lcb * 100) / 100 };
+  };
+  const scopes = [
+    { name: "all evidence", p: {} },
+    { name: "vouched-only", p: { vouchedOnly: true } },
+    { name: "no-post-reveal", p: { noPostReveal: true } },
+    { name: "vouched + no-post-reveal", p: { vouchedOnly: true, noPostReveal: true } },
+  ] as { name: string; p: GatePolicy }[];
+  const envs = scopes.map((s) => ({ name: s.name, e: envelope(s.p) }));
+  let verdict: any = null, binding: string | null = null;
+  if (policy) {
+    verdict = evalGate(receipts, policy, receipts.length > 0);
+    if (!verdict.pass && verdict.reason === "policy")
+      binding = verdict.checks.find((c: GateCheck) => !c.pass)?.name ?? null;
+  }
+  const out = { model: rec.account.modelId, envelope: envs, verdict, binding };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`gate --why ${rec.account.modelId} — the policy envelope, scope by scope:`);
+  console.log(`  ${"scope".padEnd(26)} ${"runs".padStart(4)} ${"items".padStart(6)} ${"pct".padStart(7)}  ${"lcb95".padStart(6)}  survivable policy ceiling`);
+  for (const { name, e } of envs) {
+    const ceil = e.runs === 0 ? "no evidence survives — any criterion fails"
+      : `minPct≤${e.maxMinPct}% · minRuns≤${e.maxMinRuns} · minItems≤${e.maxMinItems} · wilson≤${e.maxWilson}%`;
+    console.log(`  ${name.padEnd(26)} ${String(e.runs).padStart(4)} ${String(e.items).padStart(6)} ${e.pct.toFixed(2).padStart(6)}% ${e.lcb.toFixed(1).padStart(6)}  ${ceil}`);
+  }
+  if (verdict) {
+    const parts = [policy!.minPct !== undefined && `pct≥${policy!.minPct}`, policy!.minRuns !== undefined && `runs≥${policy!.minRuns}`,
+      policy!.minItems !== undefined && `items≥${policy!.minItems}`, policy!.minWilsonPct !== undefined && `wilson≥${policy!.minWilsonPct}`,
+      policy!.vouchedOnly && "vouched", policy!.noPostReveal && "no-post-reveal"].filter(Boolean).join(" ");
+    console.log(`  verdict [${parts}] — ${verdict.pass ? "PASS" : `FAIL (${verdict.reason})`}` +
+      (binding ? ` · binding constraint: ${binding}` : ""));
+    for (const c of verdict.checks) console.log(`    ${c.pass ? "ok  " : "MISS"} ${c.name}: ${c.actual} (needed ${c.needed})`);
+  }
+  return out;
+}
+
 export async function gateSweep(base: GatePolicy, json = false, snapPath?: string, bank?: string, grid = [10, 20, 30, 40, 50, 60, 70, 80, 90]) {
   const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
   const acct = () => (sealedProgram().program.account as any);
@@ -5643,7 +5707,19 @@ export async function chainMain(cmd: string[], args: Args) {
       return;
     }
     const target = String(cmd[1] ?? args.model ?? args.run ?? "");
-    if (!target) throw new Error("usage: chain gate <model_id|record-pk> [--min-pct N] [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--json]");
+    if (!target) throw new Error("usage: chain gate <model_id|record-pk> [--min-pct N] [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--why] [--json]");
+    if (args.why) {
+      const p: GatePolicy = {
+        minPct: numF("min-pct"), minRuns: numF("min-runs"), minItems: numF("min-items"),
+        minWilsonPct: numF("wilson"), vouchedOnly: Boolean(args.vouched),
+        noPostReveal: Boolean(args["no-post-reveal"]),
+      };
+      const hasPolicy = p.minPct !== undefined || p.minRuns !== undefined ||
+        p.minItems !== undefined || p.minWilsonPct !== undefined;
+      await gateWhy(target, hasPolicy ? p : undefined, Boolean(args.json),
+        args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
     const num = (k: string) => {
       const v = args[k];
       if (v === undefined) return undefined;

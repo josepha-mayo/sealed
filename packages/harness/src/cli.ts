@@ -188,6 +188,7 @@ async function main() {
   sealed chain market venue <pk>                           one venue's dossier — pools, positions, keeper state, re-verified resolution
   sealed chain gate <model_id|record-pk> --min-pct N [--min-runs N] [--min-items N] [--wilson N] [--vouched] [--no-post-reveal] [--bank b] [--json]
   sealed chain gate --all <same policy flags> [--prove <dir>]          the gate as a leaderboard — passers get claim cards minted
+  sealed chain gate <model> --why [<policy flags>] [--snapshot f]      the policy autopsy — survivable ceiling per scope, binding constraint
   sealed chain gate --sweep [--min-runs N] [--wilson N] [--vouched] [--no-post-reveal] [--bank b] [--grid a,b,c]
                                                                      # the policy-sensitivity grid — who is robustly good, frontier per model
   sealed chain gate --all <policy flags> --cert <file>                 mint a sealed-policy/v1 certificate — policy + every verdict + receipt evidence

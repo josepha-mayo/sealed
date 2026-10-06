@@ -1040,3 +1040,25 @@ test("marketUnclaimed — the owed-money ledger names who can collect", async ()
     assert.equal(out.bettors[0].payableSol, 0.1); // largest claim first
   } finally { console.log = origLog; }
 });
+
+test("gateWhy — the policy envelope names the binding constraint", async () => {
+  const { gateWhy } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const out = (await gateWhy("qwen2.5-3b-instruct", undefined, true, snapPath)) as any;
+    const all = out.envelope.find((e: any) => e.name === "all evidence").e;
+    assert.equal(all.runs, 3);
+    assert.equal(all.items, 96);
+    assert.equal(all.maxMinRuns, 3);
+    assert.ok(Math.abs(all.maxMinPct - 23.95) < 0.01);
+    // under a failing policy the binding constraint is named
+    const v = (await gateWhy("qwen2.5-3b-instruct", { minPct: 50, minRuns: 4 }, true, snapPath)) as any;
+    assert.equal(v.verdict.pass, false);
+    assert.equal(v.binding, "accuracy");
+    // a model whose sample is thin: test/sweep-run fails runs>=20 — binding is runs
+    const v2 = (await gateWhy("test/sweep-run", { minPct: 95, minRuns: 20 }, true, snapPath)) as any;
+    assert.equal(v2.binding, "runs");
+  } finally { console.log = origLog; }
+});
