@@ -3646,7 +3646,7 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
  *  replay every verdict keyless. This is the product's deliverable: a
  *  model provider hands the card to anyone and the claims check out
  *  with nothing but the program IDs. */
-export async function chainProve(modelStr: string, out: string | undefined, snapPath?: string) {
+export async function chainProve(modelStr: string | undefined, out: string | undefined, snapPath?: string, all = false) {
   const snap = snapPath ? loadSnapshotJson(snapPath) : null;
   const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
   const sm = snap ? decodeSnapshotSection(snap, "market") : null;
@@ -3661,15 +3661,15 @@ export async function chainProve(modelStr: string, out: string | undefined, snap
        : await Promise.all(["market", "darkMarket", "ladder", "bounty"].map((n) => tolerantAll(mAcct(), n)));
 
   const modelHash = (id: string) => createHash("sha256").update(Buffer.from(id, "utf8")).digest();
-  const rec = records.find((x) => x.publicKey.toBase58() === modelStr)
-    ?? records.find((x) => String(x.account.modelId) === modelStr);
-  if (!rec) throw new Error(`no ModelRecord for ${modelStr} (try chain records for the list)`);
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const u64le = (n: any) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(num(n))); return b; };
+  const isDuel = (m: any) => m.account.runB && m.account.runB.toBase58() !== PublicKey.default.toBase58();
+  const buildCard = (rec: Acct) => {
   const modelId = String(rec.account.modelId);
   const recPk = rec.publicKey.toBase58();
   const myLogs = logs.filter((l) => l.account.modelRecord.toBase58() === recPk);
   const myRuns = runs.filter((r) => String(r.account.modelId) === modelId);
   const runSet = new Set(myRuns.map((r) => r.publicKey.toBase58()));
-  const isDuel = (m: any) => m.account.runB && m.account.runB.toBase58() !== PublicKey.default.toBase58();
   const myMarkets = markets.filter((m) => runSet.has(m.account.run.toBase58()) || (isDuel(m) && runSet.has(m.account.runB.toBase58())));
   const myDarks = darks.filter((d) => runSet.has(d.account.run.toBase58()));
   const myLadders = ladders.filter((l) => (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).some((p) => runSet.has(p.toBase58())));
@@ -3686,8 +3686,6 @@ export async function chainProve(modelStr: string, out: string | undefined, snap
   const myBanks = banks.filter((b) => bankSet.has(b.publicKey.toBase58()));
   const myBounties = bounties.filter((b) => bankSet.has(b.account.bank.toBase58()) || (b.account.winnerRun && runSet.has(b.account.winnerRun.toBase58())));
 
-  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
-  const u64le = (n: any) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(num(n))); return b; };
   const claim = {
     kind: "sealed-claim/v1",
     generatedAt: new Date().toISOString(),
@@ -3734,9 +3732,32 @@ export async function chainProve(modelStr: string, out: string | undefined, snap
     venuesPriced: claim.venues.length,
     venuesResolved: claim.venues.filter((v: any) => v.status === 1).length,
   };
-  const card = { ...claim, verdicts };
+  return { ...claim, verdicts };
+  };
+
+  if (all) {
+    const dir = out ?? "claims";
+    mkdirSync(dir, { recursive: true });
+    let postReveal = 0;
+    console.log(`minting claim cards for ${records.length} records → ${dir}/`);
+    for (const rec of records) {
+      const card = buildCard(rec);
+      const fname = `${String(rec.account.modelId).replace(/[^a-zA-Z0-9._-]+/g, "_")}.json`;
+      writeFileSync(`${dir}/${fname}`, JSON.stringify(card, null, 2) + "\n");
+      postReveal += card.verdicts.postRevealRuns > 0 ? 1 : 0;
+      console.log(`  ${card.model.id.padEnd(36)} ${String(card.model.totalCorrect).padStart(3)}/${card.model.totalItems} · ${card.receipts.length} receipts · ${card.venues.length} venues → ${dir}/${fname}`);
+    }
+    console.log(`${records.length} claim cards minted — ${postReveal} carry post-reveal-run flags · verify all: chain prove --verify ${dir}`);
+    return;
+  }
+
+  const rec = records.find((x) => x.publicKey.toBase58() === modelStr)
+    ?? records.find((x) => String(x.account.modelId) === modelStr);
+  if (!rec) throw new Error(`no ModelRecord for ${modelStr} (try chain records for the list)`);
+  const card = buildCard(rec);
+  const modelId = card.model.id;
   const text = JSON.stringify(card, null, 2) + "\n";
-  if (out) { writeFileSync(out, text); console.log(`wrote ${out} — claim card for ${modelId}: ${myLogs.length} receipts, ${myRuns.length} runs, ${myBanks.length} banks, ${claim.venues.length} venues`); }
+  if (out) { writeFileSync(out, text); console.log(`wrote ${out} — claim card for ${modelId}: ${card.receipts.length} receipts, ${card.runs.filter((r: any) => r.role === "subject").length} runs, ${card.banks.length} banks, ${card.venues.length} venues`); }
   else console.log(text);
   return card;
 }
@@ -3747,8 +3768,37 @@ export async function chainProve(modelStr: string, out: string | undefined, snap
  *  run scores match their receipts, and venue resolutions re-derive from
  *  the runs they priced. Exit 1 on any violation. */
 export async function chainProveVerify(file: string) {
+  const { statSync, readdirSync } = await import("node:fs");
+  if (statSync(file).isDirectory()) {
+    const files = readdirSync(file).filter((f) => f.endsWith(".json")).sort();
+    if (!files.length) throw new Error(`no claim cards (*.json) in ${file}`);
+    let okAll = true;
+    console.log(`verifying ${files.length} claim card(s) in ${file}/`);
+    for (const f of files) {
+      try {
+        const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
+        const r = await verifyClaimCard(card);
+        console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(40)} ${card.model?.id ?? "?"} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
+        okAll &&= r.ok;
+      } catch (e: any) { okAll = false; console.log(`  FAIL ${f} — ${e?.message ?? e}`); }
+    }
+    console.log(`${okAll ? "ALL CARDS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
+    if (!okAll) process.exit(1);
+    return;
+  }
   const card = JSON.parse(readFileSync(file, "utf8"));
   if (card.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 file (kind=${card.kind})`);
+  const r = verifyClaimCard(card, (what, ok, detail) => console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`));
+  console.log(`${r.ok ? "CLAIM VERIFIED" : "CLAIM FAILED"} — ${card.model.id}: ${r.pass} checks pass, ${r.fail} fail · ` +
+    `${card.model.totalCorrect}/${card.model.totalItems} across ${card.model.runsScored} run(s)` +
+    (card.verdicts?.postRevealRuns ? ` · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""));
+  if (r.fail) process.exitCode = 1;
+  return { pass: r.pass, fail: r.fail };
+}
+
+/** Run the sealed-claim/v1 checks against a parsed card. `emit` receives
+ *  each (check, ok, detail) row; returns aggregate verdict. */
+export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void) {
   const sealedId = new PublicKey(card.programs.sealed);
   const marketId = new PublicKey(card.programs.market);
   const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
@@ -3756,9 +3806,10 @@ export async function chainProveVerify(file: string) {
   const pk = (s: string) => new PublicKey(s);
   const derive = (seeds: Buffer[], program: PublicKey) => PublicKey.findProgramAddressSync(seeds, program)[0].toBase58();
   let pass = 0, fail = 0;
+  const fails: string[] = [];
   const check = (what: string, ok: boolean, detail = "") => {
-    console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
-    ok ? pass++ : fail++;
+    emit?.(what, ok, detail);
+    if (ok) pass++; else { fail++; fails.push(what); }
   };
 
   // 1. every PDA re-derives — identity is cryptographic, not claimed
@@ -3843,11 +3894,7 @@ export async function chainProveVerify(file: string) {
   }
   check("venue resolutions", resOk === resChecked, `${resOk}/${resChecked} re-derived from Run.correct`);
 
-  console.log(`${fail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"} — ${card.model.id}: ${pass} checks pass, ${fail} fail · ` +
-    `${card.model.totalCorrect}/${card.model.totalItems} across ${card.model.runsScored} run(s)` +
-    (card.verdicts?.postRevealRuns ? ` · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""));
-  if (fail) process.exitCode = 1;
-  return { pass, fail };
+  return { ok: fail === 0, pass, fail, fails };
 }
 
 /** `chain feed [--limit N] [--type a,b] [--since ts] [--json]` — the
@@ -5134,6 +5181,7 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "prove") {
     if (args.verify) { await chainProveVerify(String(args.verify)); return; }
+    if (args.all) { await chainProve(undefined, args.out ? String(args.out) : "claims", args.snapshot ? String(args.snapshot) : undefined, true); return; }
     await chainProve(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
     return;
   }

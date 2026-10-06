@@ -1,0 +1,96 @@
+{
+  "kind": "sealed-claim/v1",
+  "generatedAt": "2026-10-06T11:17:32.196Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "test/post-reveal-35953",
+    "recordPk": "Ag85QM2yhLMhHbW6sx9AmV7gcA8t5AVwds8Dd5pun812",
+    "runsScored": 1,
+    "totalCorrect": 8,
+    "totalItems": 64
+  },
+  "record": {
+    "pk": "Ag85QM2yhLMhHbW6sx9AmV7gcA8t5AVwds8Dd5pun812",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "cd4f555165eeeede3b2e11ed4b5e9ff361b48bd6bfb570e01fa2bcf1648a5d77"
+    }
+  },
+  "receipts": [
+    {
+      "pk": "AKAoaZncSUD9rMd19EeuLpoFLWARi6JZtuqPPcAYGVtN",
+      "run": "7PotU4bHxkJiLgHEVF6Tvu2xnGF7qqLkoHLuSWFjdhyW",
+      "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "correct": 8,
+      "items": 64,
+      "recordedAt": 1791027636,
+      "vouched": false,
+      "postReveal": true
+    }
+  ],
+  "runs": [
+    {
+      "pk": "7PotU4bHxkJiLgHEVF6Tvu2xnGF7qqLkoHLuSWFjdhyW",
+      "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "index": 11,
+      "role": "subject",
+      "status": 1,
+      "correct": 8,
+      "chunkCount": 2,
+      "createdAt": 1791027628,
+      "finalizedAt": 1791027636,
+      "runner": "64S3iKTE8UtfuWd2CoX2XRYNUXmk6Nsj9DUFHtBvybkY",
+      "attested": false,
+      "postReveal": true
+    }
+  ],
+  "banks": [
+    {
+      "pk": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "name": "sealed-test",
+      "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "id": 36953,
+      "kind": 0,
+      "chunkCount": 2,
+      "itemsRoot": "e5e88e06ecd472fac883d9e3a71e92bdc0a268e88dc58b8ae74e67a446cd2332"
+    }
+  ],
+  "venues": [
+    {
+      "pk": "7D8dyQxwFzKLLrucv2kf2bjioVknoY1fa4XcVo5ELnCx",
+      "kind": "bounty",
+      "bank": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "sponsor": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "salt": 3,
+      "status": 1,
+      "threshold": 32,
+      "amount": 0,
+      "winnerRun": "AxWdoibyy7v7y9R9ar9mPF2F8AHZQqHKpXE14pnK8NH6",
+      "winningScore": 40
+    },
+    {
+      "pk": "EyJaFNb2Ycp4a2UCp1xVPxtSdqirRstoBLZWZV8vPVj4",
+      "kind": "bounty",
+      "bank": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "sponsor": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "salt": 1,
+      "status": 1,
+      "threshold": 32,
+      "amount": 0,
+      "winnerRun": "CSW1jrE811n35pBhfJqdN8JGdCCr1NvyYoVBmG2AJvaM",
+      "winningScore": 40
+    }
+  ],
+  "verdicts": {
+    "recordBitExact": true,
+    "postRevealRuns": 1,
+    "coParticipantRuns": 0,
+    "postRevealReceipts": 1,
+    "venuesPriced": 2,
+    "venuesResolved": 2
+  }
+}

@@ -23,9 +23,9 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
   --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
   --snapshot web/snapshot.json
 
-say "5/8 committed claim card — every PDA re-derived, every verdict replayed"
+say "5/8 committed claim cards — the whole registry, every PDA re-derived, every verdict replayed"
 yarn --cwd packages/harness -s cli chain prove --verify \
-  ../../docs/evidence/claims/qwen2.5-3b-instruct.json
+  ../../docs/evidence/claims
 
 say "6/8 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
 scripts/evidence-manifest.sh check

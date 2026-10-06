@@ -270,6 +270,8 @@ sealed chain market escrow                                           # the lampo
 sealed chain anomalies                                               # the skeptic's checklist — the bundle's own soft spots, enumerated
 sealed chain prove <model> --out claim.json && sealed chain prove --verify claim.json
                                                                      # the deliverable — a portable, cryptographically verifiable claim card
+sealed chain prove --all --out claims/ && sealed chain prove --verify claims/
+                                                                     # the whole registry as verifiable artifacts — 31 cards, all replayed
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
 sealed chain market champions                                        # the settlement record — duel W-D-L · ladder leg wins · bounty claims

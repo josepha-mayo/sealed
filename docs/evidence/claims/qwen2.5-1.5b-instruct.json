@@ -1,63 +1,175 @@
 {
   "kind": "sealed-claim/v1",
-  "generatedAt": "2026-10-06T11:17:31.058Z",
+  "generatedAt": "2026-10-06T11:17:31.099Z",
   "source": "../../web/snapshot.json",
   "programs": {
     "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
     "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
   },
   "model": {
-    "id": "qwen2.5-3b-instruct",
-    "recordPk": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB",
+    "id": "qwen2.5-1.5b-instruct",
+    "recordPk": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j",
     "runsScored": 3,
-    "totalCorrect": 23,
+    "totalCorrect": 9,
     "totalItems": 96
   },
   "record": {
-    "pk": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB",
+    "pk": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j",
     "seeds": {
       "prefix": "modelrec",
-      "modelHash": "e70dab371f91877d74453534d726f1449b53e660fee4549ae219cc0b05f7a102"
+      "modelHash": "3b86b10a1040f263db098b2486b54a85466e7876fa1805c618ceb9c2709aa02a"
     }
   },
   "receipts": [
     {
-      "pk": "2WjFpDxcd6akHodS2ToeHR2v9MZVk8cm41vJQGBAyExv",
-      "run": "4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2",
-      "benchmark": "BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z",
-      "correct": 9,
+      "pk": "7R4uYNUyJZWw4A9c9BE3QKnX7C3BnoGuexWZppA9zoH6",
+      "run": "55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk",
+      "benchmark": "GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N",
+      "correct": 5,
       "items": 32,
-      "recordedAt": 1790962105,
+      "recordedAt": 1790962325,
       "vouched": false,
       "postReveal": false
     },
     {
-      "pk": "FAqvtSdYQpzjwW3jN1CiQSFdEPACY5rfwC66PwQXSkfV",
-      "run": "ucwXeKwU5yAnmREhVTQjawCSKrgVC2gjnkd1VDGo7MS",
+      "pk": "6qagtXjcQbji93wYH2ANAZoj4jdiJ9BQ5KFjgPt2iPnu",
+      "run": "CjatpBGz5MTRqQ85vHsFuaRr16wkE6nfQavzTXGsLvAM",
       "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
-      "correct": 7,
+      "correct": 2,
       "items": 32,
-      "recordedAt": 1790974326,
+      "recordedAt": 1790974405,
       "vouched": false,
       "postReveal": false
     },
     {
-      "pk": "2YncpZ3Fib8pCAmwUpnD4B3rDtGisjm2RAsqoWePD77d",
-      "run": "GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi",
+      "pk": "D7EWMfdFv4ZWiEFerPR9rg7gi9M4vqgY7rJgQ9i5ZETE",
+      "run": "Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7",
       "benchmark": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
-      "correct": 7,
+      "correct": 2,
       "items": 32,
-      "recordedAt": 1791026278,
+      "recordedAt": 1791037751,
       "vouched": false,
-      "postReveal": false
+      "postReveal": true
     }
   ],
   "runs": [
     {
+      "pk": "2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J",
+      "benchmark": "2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW",
+      "index": 0,
+      "role": "subject",
+      "status": 1,
+      "correct": 3,
+      "chunkCount": 1,
+      "createdAt": 1790758559,
+      "finalizedAt": 1790759295,
+      "runner": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "attested": false,
+      "postReveal": false
+    },
+    {
+      "pk": "7S9ZmxrTvcR6jD4pm4qhBoqyL8Kz6rChFNXPsqjLfKHK",
+      "benchmark": "F1owH6zEGppgjSwCB9VzYvYDSeqUAgbYp8ANSGWx8u3T",
+      "index": 0,
+      "role": "subject",
+      "status": 1,
+      "correct": 8,
+      "chunkCount": 1,
+      "createdAt": 1790760311,
+      "finalizedAt": 1790760316,
+      "runner": "DpAwcVHukzocsmnSDBTLHKgPozCzprP9Qe1rtdWhyKZH",
+      "attested": false,
+      "postReveal": false
+    },
+    {
+      "pk": "9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS",
+      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
+      "index": 5,
+      "role": "subject",
+      "status": 1,
+      "correct": 4,
+      "chunkCount": 1,
+      "createdAt": 1790791662,
+      "finalizedAt": 1790791694,
+      "runner": "DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh",
+      "attested": false,
+      "postReveal": false
+    },
+    {
+      "pk": "G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt",
+      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
+      "index": 1,
+      "role": "subject",
+      "status": 1,
+      "correct": 4,
+      "chunkCount": 1,
+      "createdAt": 1790772988,
+      "finalizedAt": 1790773030,
+      "runner": "N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B",
+      "attested": false,
+      "postReveal": false
+    },
+    {
+      "pk": "VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL",
+      "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+      "index": 1,
+      "role": "subject",
+      "status": 1,
+      "correct": 6,
+      "chunkCount": 1,
+      "createdAt": 1790767281,
+      "finalizedAt": 1790767357,
+      "runner": "jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY",
+      "attested": false,
+      "postReveal": false
+    },
+    {
+      "pk": "CjatpBGz5MTRqQ85vHsFuaRr16wkE6nfQavzTXGsLvAM",
+      "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+      "index": 1,
+      "role": "subject",
+      "status": 1,
+      "correct": 2,
+      "chunkCount": 1,
+      "createdAt": 1790886975,
+      "finalizedAt": 1790886984,
+      "runner": "CTjqTWai3C4XF4WpEMuQpZ4v5pxNJxhwQfiTKnUSVTnM",
+      "attested": false,
+      "postReveal": false
+    },
+    {
+      "pk": "55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk",
+      "benchmark": "GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N",
+      "index": 0,
+      "role": "subject",
+      "status": 1,
+      "correct": 5,
+      "chunkCount": 1,
+      "createdAt": 1790962316,
+      "finalizedAt": 1790962320,
+      "runner": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "attested": true,
+      "postReveal": false
+    },
+    {
+      "pk": "Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7",
+      "benchmark": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
+      "index": 1,
+      "role": "subject",
+      "status": 1,
+      "correct": 2,
+      "chunkCount": 1,
+      "createdAt": 1791037736,
+      "finalizedAt": 1791037739,
+      "runner": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "attested": false,
+      "postReveal": true
+    },
+    {
       "pk": "5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw",
       "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
       "index": 0,
-      "role": "subject",
+      "role": "co-participant",
       "status": 1,
       "correct": 6,
       "chunkCount": 1,
@@ -71,83 +183,13 @@
       "pk": "76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ",
       "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
       "index": 4,
-      "role": "subject",
+      "role": "co-participant",
       "status": 1,
       "correct": 5,
       "chunkCount": 1,
       "createdAt": 1790791659,
       "finalizedAt": 1790791686,
       "runner": "N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B",
-      "attested": false,
-      "postReveal": false
-    },
-    {
-      "pk": "EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw",
-      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
-      "index": 0,
-      "role": "subject",
-      "status": 1,
-      "correct": 5,
-      "chunkCount": 1,
-      "createdAt": 1790771809,
-      "finalizedAt": 1790771848,
-      "runner": "N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B",
-      "attested": false,
-      "postReveal": false
-    },
-    {
-      "pk": "FahQLBzSmXZHmsgjUZz1N8xjXn7dn6nUJSaEAbH4Dxzg",
-      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
-      "index": 3,
-      "role": "subject",
-      "status": 1,
-      "correct": 6,
-      "chunkCount": 1,
-      "createdAt": 1790789929,
-      "finalizedAt": 1790789994,
-      "runner": "N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B",
-      "attested": false,
-      "postReveal": false
-    },
-    {
-      "pk": "ucwXeKwU5yAnmREhVTQjawCSKrgVC2gjnkd1VDGo7MS",
-      "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
-      "index": 0,
-      "role": "subject",
-      "status": 1,
-      "correct": 7,
-      "chunkCount": 1,
-      "createdAt": 1790886943,
-      "finalizedAt": 1790886951,
-      "runner": "CTjqTWai3C4XF4WpEMuQpZ4v5pxNJxhwQfiTKnUSVTnM",
-      "attested": false,
-      "postReveal": false
-    },
-    {
-      "pk": "4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2",
-      "benchmark": "BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z",
-      "index": 0,
-      "role": "subject",
-      "status": 1,
-      "correct": 9,
-      "chunkCount": 1,
-      "createdAt": 1790962096,
-      "finalizedAt": 1790962101,
-      "runner": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
-      "attested": true,
-      "postReveal": false
-    },
-    {
-      "pk": "GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi",
-      "benchmark": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
-      "index": 0,
-      "role": "subject",
-      "status": 1,
-      "correct": 7,
-      "chunkCount": 1,
-      "createdAt": 1791026066,
-      "finalizedAt": 1791026070,
-      "runner": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
       "attested": false,
       "postReveal": false
     },
@@ -166,20 +208,6 @@
       "postReveal": false
     },
     {
-      "pk": "9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS",
-      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
-      "index": 5,
-      "role": "co-participant",
-      "status": 1,
-      "correct": 4,
-      "chunkCount": 1,
-      "createdAt": 1790791662,
-      "finalizedAt": 1790791694,
-      "runner": "DfdHLK14hu4MiqH4jg2peiR1gmcrndioi4nkPCjtbjxh",
-      "attested": false,
-      "postReveal": false
-    },
-    {
       "pk": "BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7",
       "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
       "index": 3,
@@ -194,21 +222,30 @@
       "postReveal": false
     },
     {
-      "pk": "VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL",
-      "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+      "pk": "E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4",
+      "benchmark": "2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW",
       "index": 1,
       "role": "co-participant",
       "status": 1,
-      "correct": 6,
+      "correct": 1,
       "chunkCount": 1,
-      "createdAt": 1790767281,
-      "finalizedAt": 1790767357,
-      "runner": "jxUtVDvxTJjtwpspMZgRq7mVNHLMoedASwbd5dWgfnY",
+      "createdAt": 1790759268,
+      "finalizedAt": 1790759303,
+      "runner": "kQ4JzqnLiqHmDnNgCSw9JfYSeE4ruDybTAieb1qMnMq",
       "attested": false,
       "postReveal": false
     }
   ],
   "banks": [
+    {
+      "pk": "2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW",
+      "name": "sealed-gen-v33297",
+      "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "id": 33297,
+      "kind": 1,
+      "chunkCount": 1,
+      "itemsRoot": "7ba36716dd2e34d9fc4ec1f5e2771f1b7104675ef6ef06a166a0b33dc50bac84"
+    },
     {
       "pk": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
       "name": "sealed-pgen-v10019",
@@ -228,6 +265,15 @@
       "itemsRoot": "6c823331dafe10e108c5e1d1c6f75fb34e9f76e7692bffd857b2b530b154e933"
     },
     {
+      "pk": "F1owH6zEGppgjSwCB9VzYvYDSeqUAgbYp8ANSGWx8u3T",
+      "name": "sealed-pgen-v88001",
+      "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "id": 88001,
+      "kind": 2,
+      "chunkCount": 1,
+      "itemsRoot": "7e3c797b66f890be93514ed9a7234c6d2cc8c569010ff08f08dc145d9659e59e"
+    },
+    {
       "pk": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
       "name": "sealed-gen-v88123",
       "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
@@ -237,13 +283,13 @@
       "itemsRoot": "111a7ccd003e8b6854c95e318cc0e9db59ccdc1bc1f8d68773acd8aa3835ffdb"
     },
     {
-      "pk": "BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z",
-      "name": "sealed-gen-v97970",
+      "pk": "GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N",
+      "name": "sealed-gen-v88593",
       "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
-      "id": 97970,
+      "id": 88593,
       "kind": 1,
       "chunkCount": 1,
-      "itemsRoot": "3052974d7e796a3ecdbbd453002288157aafd7efd0b80389c29d87f8824dfd83"
+      "itemsRoot": "d294f9dea3c2c76bcdf8c18fb85297fb15bee1e8c0d16f042d3a8ff257c46c10"
     },
     {
       "pk": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
@@ -257,6 +303,17 @@
   ],
   "venues": [
     {
+      "pk": "7p32UT6sT8DGs8LsgpWAWPko7f5NgRfe4FGwPE5piYSs",
+      "kind": "duel",
+      "run": "2sacf38JshMqyDixCuZ49hB8L2RPmA969LrAzt7PKY8J",
+      "runB": "E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4",
+      "salt": 0,
+      "status": 1,
+      "outcome": 0,
+      "resolvedScore": 196609,
+      "pot": 400000000
+    },
+    {
       "pk": "EHiTUjmP6EijVoyGd4qoj6Qggjtoawk5xMLJ3MXrTdzW",
       "kind": "duel",
       "run": "76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ",
@@ -268,26 +325,15 @@
       "pot": 290000000
     },
     {
-      "pk": "7TVjSaFDnQknFvcw9LRNiGd2iEGRe5bLnvtJom4JjSyG",
-      "kind": "dark",
-      "run": "EQkXCFGSJNZS8U2rH1jWqd9sFcazSnUWue7WT4xD6dCw",
-      "salt": 418,
-      "status": 1,
-      "outcome": 1,
-      "resolvedScore": 5,
-      "tallied": true,
-      "pool": 200000000
-    },
-    {
-      "pk": "BrFdXAxYgqNHnkGzDJfRsnteDfYRTUD7T9pZMmoD6v3v",
-      "kind": "dark",
-      "run": "5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw",
-      "salt": 636,
-      "status": 1,
-      "outcome": 1,
-      "resolvedScore": 6,
-      "tallied": true,
-      "pool": 180000000
+      "pk": "H3RGMd3No1fqHBJQ27FKTYmhEwdJwYti1Ron43aXTcES",
+      "kind": "band",
+      "run": "G7UY7Espi7noA4WuaqgQW6vQKh75dWm3bp2MEzmhTvXt",
+      "runB": null,
+      "salt": 97,
+      "status": 2,
+      "outcome": 255,
+      "resolvedScore": 0,
+      "pot": 160000000
     },
     {
       "pk": "A4fMA7eKKC6gJ7pDJAaGJcmgYfWiA64mWxu4aUZmHMHw",
@@ -319,10 +365,10 @@
   ],
   "verdicts": {
     "recordBitExact": true,
-    "postRevealRuns": 0,
-    "coParticipantRuns": 4,
-    "postRevealReceipts": 0,
+    "postRevealRuns": 1,
+    "coParticipantRuns": 5,
+    "postRevealReceipts": 1,
     "venuesPriced": 5,
-    "venuesResolved": 5
+    "venuesResolved": 4
   }
 }

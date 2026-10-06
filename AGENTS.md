@@ -72,11 +72,14 @@ parimutuel markets resolved from `Run.correct`.
   score≥threshold). Tamper fails exactly at the replay check.
   `runsScored` counts RECEIPTED runs ([scorelog,run] singleton) — never
   equate it with finalized-run count (runs may finalize unrecorded).
-  The explorer runs the same verifier in-page (`#sec-claim`): the
-  committed qwen card is served from `web/claims/` (sha256-pinned in
-  `web/MANIFEST`), `loadExampleClaim()`/`verifyClaim()` replay all 9
-  checks — PDA derivation needs the web3.js CDN, everything else is
-  keyless; the headless audit pins verify + tamper-reject.
+  `chain prove --all [--out dir]` mints one card per record — the whole
+  registry as verifiable artifacts (`docs/evidence/claims/` ships all 31,
+  `--verify <dir>` batch-checks every card). The explorer runs the same
+  verifier in-page (`#sec-claim`): all 31 committed cards served from
+  `web/claims/` (each sha256-pinned in `web/MANIFEST`, `index.json` feeds
+  the picker), `loadExampleClaim()`/`verifyClaim()` replay all 9 checks —
+  PDA derivation needs the web3.js CDN, everything else is keyless; the
+  headless audit pins verify + tamper-reject.
 - Pure logic lives in `board.ts` (keeper classification mirroring the
   on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
   (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and

@@ -98,8 +98,10 @@
 
 <h2 id="sec-claim">verify a claim card</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">the portable deliverable — paste a <code>sealed-claim/v1</code> card (<code>chain prove &lt;model&gt;</code> mints them) and every account address re-derives in-page, the record replays bit-exact, and every venue resolution re-derives from <code>Run.correct</code>. Same checks as <code>chain prove --verify</code>.
-    <span class="verlink" onclick="loadExampleClaim()">load the committed qwen2.5-3b card</span></div>
+  <div class="kv" style="margin-bottom:8px">the portable deliverable — paste a <code>sealed-claim/v1</code> card (<code>chain prove &lt;model&gt;</code> mints them) and every account address re-derives in-page, the record replays bit-exact, and every venue resolution re-derives from <code>Run.correct</code>. Same checks as <code>chain prove --verify</code> — and the whole registry ships as committed cards.</div>
+  <div><select id="claimpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick one of 31 committed cards —</option></select>
+  <button onclick="loadExampleClaim(document.getElementById('claimpick').value || 'qwen2.5-3b-instruct.json')">load card</button>
+  <span class="kv">every card is sha256-pinned in this bundle's MANIFEST</span></div>
   <div><textarea id="claimjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-claim/v1", …}'></textarea></div>
   <button onclick="verifyClaim()">verify claim</button>
   <div id="claimres"></div>
@@ -1803,14 +1805,28 @@ const short0x = (n) => "0x" + n.toString(16).slice(0, 10) + "…";
 // --verify` runs: every PDA re-derives from declared seeds, the record
 // replays bit-exact, receipts agree with Run.correct, venue resolutions
 // re-derive. Tamper fails exactly where it should.
-async function loadExampleClaim() {
+async function loadExampleClaim(file) {
   const ta = document.getElementById("claimjson");
   try {
-    const r = await fetch("claims/qwen2.5-3b-instruct.json");
+    const r = await fetch(`claims/${file || "qwen2.5-3b-instruct.json"}`);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text();
   } catch (e) { ta.value = ""; document.getElementById("claimres").innerHTML = `<div class="kv">committed claim card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
+async function loadClaimIndex() {
+  const sel = document.getElementById("claimpick");
+  if (!sel) return;
+  try {
+    const r = await fetch("claims/index.json");
+    if (!r.ok) throw new Error(String(r.status));
+    for (const f of await r.json()) {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = f.replace(/\.json$/, "").replace(/_/g, " ");
+      sel.appendChild(o);
+    }
+  } catch (e) { /* picker stays on the default option — cards still pasteable */ }
+}
+loadClaimIndex();
 function verifyClaim() {
   const res = document.getElementById("claimres");
   const rows = [];

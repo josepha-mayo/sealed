@@ -214,9 +214,15 @@ bit-exact from receipts, receipts agree with `Run.correct`, and venue
 resolutions re-derive (duels unpack `(a<<16)|b`, ladders re-argmax the
 result mask, bounties check winner score ≥ threshold). A tampered card
 fails exactly where it should. `chain prove` works keyless on the
-snapshot, so the committed bundle already contains a verifiable claim
-for every registered model — `qwen2.5-3b-instruct`'s card, for example,
-is a public audit trail no one had to ask permission for.
+snapshot. `chain prove --all [--out dir]` mints one card per record —
+the whole registry as verifiable artifacts — and `chain prove --verify
+<dir>` batch-checks every card in a directory (`ALL CARDS VERIFIED`,
+exit 1 on any failure). The committed bundle ships all 31 registry cards
+in `docs/evidence/claims/` (mirrored at `web/claims/`, each
+sha256-pinned in `web/MANIFEST`), and the explorer's "verify a claim
+card" section replays the same 9 checks in-page for any of them —
+`qwen2.5-3b-instruct`'s card, for example, is a public audit trail no
+one had to ask permission for.
 
 `chain diff <a.json> <b.json>` compares two bundles — per-type account
 deltas (added/removed, and MUTATED: same PDA, different bytes), both
