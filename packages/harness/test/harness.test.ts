@@ -1138,3 +1138,20 @@ test("runs --post-reveal isolates the flagged substrate honestly", async () => {
     assert.ok(pr.some(r => r.model === "qwen2.5-1.5b-instruct"));
   } finally { console.log = origLog; }
 });
+
+test("chainTour — the ledger narrates itself: all 7 stops + anomaly epilogue", async () => {
+  const { chainTour } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const lines: string[] = [];
+  const origLog = console.log;
+  console.log = (...a: any[]) => lines.push(a.join(" "));
+  try {
+    await chainTour(snapPath);
+  } finally { console.log = origLog; }
+  const txt = lines.join("\n");
+  for (const stop of ["1/7", "2/7", "3/7", "4/7", "5/7", "6/7", "7/7"])
+    assert.ok(txt.includes(stop), `missing tour stop ${stop}`);
+  assert.ok(/chain anomalies/.test(txt), "the anti-fragility epilogue prints");
+  assert.ok(/portable artifacts/.test(txt), "the artifact epilogue prints");
+  assert.ok(/chain prove/.test(txt) && /sealed-policy\/v1/.test(txt));
+});
