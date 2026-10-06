@@ -19,6 +19,7 @@ disclosure — 30 reveals · 145 reshare grants · 41+29 item chunks
 money — 76.075◎ escrowed · 0.0000◎ protocol fees collected
 integrity — registry 31/31 bit-exact · resolutions 201/201 match Run.correct
 mpc — scoring latency p50 4s / p95 9s (406 timed runs)
+actors — 470 runner wallets · 140 bettor wallets (3 sealed) · 1 bounty sponsors · 55 grant viewers
 keeper — 36 actionable now · 246 settled · 24 in play
 activity — ▂█▇▁ (2004 events over 4 day(s), 2026-09-30 → 2026-10-03 · peak 967/day)
 exams — 39 bank(s) with ≥4 models run · median spread 62.5pp · hardest sealed-gen-v88123 (median 0%)
@@ -379,7 +380,7 @@ open venues — 28 accepting positions, soonest-close first
     book 0.600◎ · bets close in 25.0d · expires in 25.0d
     sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
   ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
-    book 0.300◎ · bets close in 25.4d · expires in 25.4d
+    book 0.300◎ · bets close in 25.3d · expires in 25.3d
     sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
   ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
     book 0.600◎ · bets close in 25.4d · expires in 25.4d
@@ -423,6 +424,7 @@ bank A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1
   items_root — 37ee302840e6ef31381de038…  (chain items --benchmark A6UkXHYN… regenerates the exam offline)
   runs — 12 total · 8 finalized · 4 pending · 2 post-reveal · best 64/64 (100%)
   difficulty — scores across models: min 12.5% · p25 15.6% · median 62.5% · p75 70.3% · max 100% (spread 87.5pp — discriminating exam)
+  leaderboard — 7 model(s) raced this exam: test/sweep-run 64/64 (100%) · test/registry-model-87070 48/64 (75%) ×2 · test/oracle 45/64 (70.3%) · test/bounty-claimant 40/64 (62.5%) · test/bounty-wrong-payee 40/64 (62.5%) · test/market-run 10/64 (15.6%) · +1 more
   receipts — 3 minted · 1 vouched · 1 post-reveal
   reveal — 3ofPpbY1RtMe… chunk 0 part 0 @ 2026-10-02 22:23
   grants — 0 reshare grant(s) · chunks stored: 0 public + 0 private
