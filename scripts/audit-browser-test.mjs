@@ -150,5 +150,13 @@ els.get("feedType").value = "";
 vm.runInContext("runFeedFilter()", ctx);
 console.log(`in-page activity feed — ${feedAll} events shown, resolution filter ${feedOk ? "narrows PASS" : "FAIL"}`);
 if (!feedOk) fails++;
+// tournament grid — top-12 table renders with signed cells + dead-heat zeros
+vm.runInContext("runH2HGrid(true)", ctx);
+const gridHtml = els.get("h2hGridOut")?.innerHTML ?? "";
+const gridRows = (gridHtml.match(/<tr>/g) || []).length - 1;
+const gridOk = gridRows === 12 && /qwen2\.5-3b-instruct/.test(gridHtml) &&
+  (gridHtml.match(/>\+\d+<\/td>/) ?? []).length > 0 && /—/.test(gridHtml);
+console.log(`in-page tournament grid — ${gridRows}×12 cells, signed deltas ${gridOk ? "PASS" : "FAIL"}`);
+if (!gridOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

@@ -927,7 +927,7 @@ function renderAll(sealedAccs, marketAccs) {
       byBank.set(l.modelRecord, m);
     }
     const table = recs.map(m => ({ id: m.modelId, w: 0, l: 0, t: 0, pp: 0, shared: 0 }));
-    const ix = new Map(recs.map((m, i) => [m.pk, i]));
+    const cell = new Map();
     let unranked = 0;
     for (let i = 0; i < recs.length; i++) for (let j = i + 1; j < recs.length; j++) {
       const a = byBank.get(recs[i].pk) ?? new Map(), b = byBank.get(recs[j].pk) ?? new Map();
@@ -936,15 +936,19 @@ function renderAll(sealedAccs, marketAccs) {
       const pa = shared.reduce((s, k) => s + a.get(k).correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k).items, 0));
       const pb = shared.reduce((s, k) => s + b.get(k).correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k).items, 0));
       const d = 100 * (pa - pb);
+      cell.set(`${i}:${j}`, d); cell.set(`${j}:${i}`, -d);
       table[i].shared += shared.length; table[j].shared += shared.length;
       table[i].pp += d; table[j].pp -= d;
       if (pa > pb) { table[i].w++; table[j].l++; } else if (pa < pb) { table[j].w++; table[i].l++; } else { table[i].t++; table[j].t++; }
     }
     const totalPairs = recs.length * (recs.length - 1) / 2;
     window.__h2hTable = table;
+    window.__h2hCell = cell;
     h += `<div class="card"><b>paired-evidence leaderboard</b> — <span class="kv">W-L-T over shared benchmarks only (<span class="mono">chain compare --all</span>): ${totalPairs - unranked}/${totalPairs} pairs rankable, <b>${unranked} disjoint — an aggregate table would still rank them</b></span>
-      <div class="kv" style="margin-top:4px"><label><input type="checkbox" id="h2hWilson" onclick="sortH2H(this.checked)"> rank by Wilson 95% LCB of win-rate (<span class="mono">--wilson</span>) — thin records stop outranking proven ones</label></div>
-      <table style="margin-top:6px"><thead><tr><th>#</th><th>model</th><th>W–L–T</th><th>ΣΔpp</th><th>95% LCB</th><th>shared-bank results</th></tr></thead><tbody id="h2hBody"></tbody></table></div>`;
+      <div class="kv" style="margin-top:4px"><label><input type="checkbox" id="h2hWilson" onclick="sortH2H(this.checked)"> rank by Wilson 95% LCB of win-rate (<span class="mono">--wilson</span>) — thin records stop outranking proven ones</label>
+      · <label><input type="checkbox" id="h2hGrid" onclick="runH2HGrid(this.checked)"> tournament grid (<span class="mono">compare --matrix</span>) — who beat whom, cell = row−col Δpp</label></div>
+      <table style="margin-top:6px"><thead><tr><th>#</th><th>model</th><th>W–L–T</th><th>ΣΔpp</th><th>95% LCB</th><th>shared-bank results</th></tr></thead><tbody id="h2hBody"></tbody></table>
+      <div id="h2hGridOut"></div></div>`;
   }
 
   // ---- head-to-head: pairwise model records derived from resolved duels
@@ -2475,6 +2479,28 @@ function sortH2H(byWilson) {
   body.innerHTML = rows.map((r, i) => `<tr><td>${i + 1}</td><td class="mono">${esc(r.id)}</td>` +
     `<td class="score">${r.w}–${r.l}–${r.t}</td><td class="score">${r.pp >= 0 ? "+" : ""}${r.pp.toFixed(0)}</td>` +
     `<td class="${byWilson ? "score" : "kv"}">${r.lcb.toFixed(1)}%</td><td>${r.shared}</td></tr>`).join("");
+}
+
+// Tournament grid — `chain compare --matrix` in-page: top-12 by W-L,
+// cell = row−col pp delta on shared banks, "—" = disjoint coverage.
+function runH2HGrid(on) {
+  const box = document.getElementById("h2hGridOut");
+  if (!box) return;
+  if (!on) { box.innerHTML = ""; return; }
+  const t = window.__h2hTable || [], cell = window.__h2hCell;
+  const order = t.map((r, i) => ({ ...r, i }))
+    .sort((a, b) => b.w - a.w || a.l - b.l || b.pp - a.pp).slice(0, 12);
+  const abc = n => String.fromCharCode(97 + n);
+  box.innerHTML = `<table style="margin-top:8px"><tr><th></th>${order.map((_, k) => `<th style="text-align:center">${abc(k)}</th>`).join("")}<th></th></tr>` +
+    order.map((r, k) => `<tr><td class="mono" style="text-align:right">${abc(k)}</td>` +
+      order.map(c => {
+        if (c.i === r.i) return `<td class="kv" style="text-align:center">·</td>`;
+        const v = cell.get(`${r.i}:${c.i}`);
+        if (v === undefined) return `<td class="kv" style="text-align:center">—</td>`;
+        const col = v > 0 ? "var(--ok)" : v < 0 ? "var(--err)" : "inherit";
+        return `<td style="text-align:center;color:${col}">${v >= 0 ? "+" : ""}${v.toFixed(0)}</td>`;
+      }).join("") + `<td class="mono">${esc(r.id)}</td></tr>`).join("") + `</table>` +
+    `<div class="kv" style="margin-top:4px">who beat whom — cell = row−col pp delta on shared benchmarks, "—" = disjoint coverage (unranked, not assumed)</div>`;
 }
 
 // Activity-stream filter — `chain feed --type/--model/--bank` in-page:
