@@ -215,6 +215,8 @@ yarn --cwd packages/harness cli chain gate --certify-verify ../../docs/evidence/
 #         → CERT VERIFIED — 31 records, PDAs re-derived, every verdict
 #           recomputed bit-exact from embedded receipts
 yarn --cwd packages/harness cli chain gate --all --min-pct 60 --min-runs 3 --cert /tmp/mypolicy.json --snapshot ../../web/snapshot.json
+#         → same replay in the explorer: scroll to "verify a policy
+#           certificate", load min60-3runs — 3 checks run in-page
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh

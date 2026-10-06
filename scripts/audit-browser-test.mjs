@@ -104,6 +104,24 @@ const tamperTxt = (els.get("claimres")?.innerHTML ?? "").replace(/<[^>]+>/g, " "
 const tamperOk = /CLAIM FAILED/.test(tamperTxt) && /FAIL record aggregate|record aggregate/.test(tamperTxt);
 console.log(`in-page claim-card tamper case — mutated aggregate ${tamperOk ? "rejected PASS" : "MISSED FAIL"}`);
 if (!tamperOk) fails++;
+// in-page policy-certificate verifier: load the committed cert through the
+// page's fetch path and run verifyCert() — every record PDA re-derives and
+// all 31 verdicts replay bit-exact. A flipped verdict must fail.
+await vm.runInContext("loadCert()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+vm.runInContext("verifyCert()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+const certTxt = (els.get("certres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const certOk = /CERT VERIFIED/.test(certTxt) && /31\/31/.test(certTxt);
+console.log(`in-page policy-cert verifier — committed min60-3runs cert ${certOk ? "PASS" : "FAIL"}`);
+if (!certOk) fails++;
+els.get("certjson").value = els.get("certjson").value.replace('"pass": true', '"pass": false');
+vm.runInContext("verifyCert()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+const certTamperTxt = (els.get("certres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const certTamperOk = /CERT FAILED/.test(certTamperTxt) && /verdict replay/.test(certTamperTxt);
+console.log(`in-page policy-cert tamper case — flipped verdict ${certTamperOk ? "rejected PASS" : "MISSED FAIL"}`);
+if (!certTamperOk) fails++;
 // policy sweep — the frontier grid renders all records; test/sweep-run's
 // perfect record must survive the strictest line.
 vm.runInContext("runSweep()", ctx);
