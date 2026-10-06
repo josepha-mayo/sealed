@@ -267,6 +267,7 @@ sealed chain market quote <venue> --outcome <i> --lamports <n>        # bet simu
 sealed chain market live                                             # the bettor's board — venues still taking positions, soonest-close first
 sealed chain market sharps [--min n]                                 # bettor track records — W-L, LCB rank, realized P&L, anonymity set
 sealed chain market escrow                                           # the lamport ledger — every stake reconciled, ledger balances exactly
+sealed chain anomalies                                               # the skeptic's checklist — the bundle's own soft spots, enumerated
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
 sealed chain market champions                                        # the settlement record — duel W-D-L · ladder leg wins · bounty claims

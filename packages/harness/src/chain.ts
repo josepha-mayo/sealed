@@ -3250,6 +3250,17 @@ export async function chainTour(snapPath?: string) {
         console.log(`    ${r.model.padEnd(28)} evidence #${r.evidence.rank} vs conviction #${r.belief.rank} — priced ${r.gap > 0 ? "ABOVE" : "below"} its receipts by ${Math.abs(r.gap)} place(s)`);
     }
   }
+  {
+    const origLog = console.log; console.log = () => {};
+    let anoms: any;
+    try { anoms = await chainAnomalies(true, snapPath); } finally { console.log = origLog; }
+    if (anoms) {
+      console.log(`\n  and because evidence you can't attack isn't evidence — chain anomalies:`);
+      for (const x of anoms.findings.filter((f: any) => f.sev !== "ok").slice(0, 4))
+        console.log(`    [${x.sev}] ${x.what} — ${x.count ? x.count : "none"} · drill → ${x.drill}`);
+      console.log(`    ${anoms.clean} of ${anoms.findings.length} hostile checks come back clean`);
+    }
+  }
   console.log(`\nnext: sealed chain export --snapshot <file>  → the portable digest`);
   console.log(`      sealed chain diff <a> <b>              → bundle-vs-live reproducibility`);
   console.log(`      https://josepha-mayo.github.io/sealed/?pk=<key>  → the same resolver in the browser`);
@@ -4185,6 +4196,158 @@ export async function marketEscrow(json = false, snapPath?: string) {
   return out;
 }
 
+/** `chain anomalies` — the skeptic's checklist: every weakness a hostile
+ *  auditor could raise against THIS evidence bundle, enumerated with the
+ *  drill-in command. Findings get a severity and, where the answer is
+ *  "clean", the check still prints — absence of anomalies is itself
+ *  evidence. An anti-fragile surface: the project's strongest claim is
+ *  that it can list its own soft spots. */
+export async function chainAnomalies(json = false, snapPath?: string) {
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sm = snap ? decodeSnapshotSection(snap, "market") : null;
+  const [banks, runs, logs, records, reveals]: SnapAccount[][] =
+    ss ? ["Benchmark", "Run", "ScoreLog", "ModelRecord", "Reveal"].map((n) => snapOf(ss, n))
+       : await Promise.all(["benchmark", "run", "scoreLog", "modelRecord", "reveal"]
+          .map((n) => (sealedProgram().program.account as any)[n].all()));
+  const [markets, darks, ladders, bounties, positions, darkPositions]: SnapAccount[][] =
+    sm ? ["Market", "DarkMarket", "Ladder", "Bounty", "Position", "DarkPosition"].map((n) => snapOf(sm, n))
+       : await Promise.all(["market", "darkMarket", "ladder", "bounty", "position", "darkPosition"]
+          .map((n) => (marketProgram().market.account as any)[n].all()));
+  const now = Math.floor(Date.now() / 1000);
+  type Finding = { sev: "warn" | "info" | "ok"; what: string; count: number; detail: string; drill: string };
+  const f: Finding[] = [];
+
+  // 1. post-reveal evidence — runs scored after their bank's answers went public
+  const postRuns = runs.filter((r) => r.account.postReveal);
+  const postLogs = logs.filter((l) => l.account.postReveal);
+  f.push({ sev: postRuns.length ? "warn" : "ok", what: "post-reveal evidence",
+    count: postRuns.length,
+    detail: postRuns.length
+      ? `${postRuns.length} run(s) scored after fingerprint reveals — flagged on-chain, refused by markets, excludable via gate --no-post-reveal`
+      : "no run was scored after its answers were public",
+    drill: "chain runs --bank <bank> · flags show on every row" });
+
+  // 2. stuck-pending runs — queued, never finalized (callback-outage casualties)
+  const stuck = runs.filter((r) => Number(r.account.status) === 0 && num(r.account.createdAt) > 0 && now - num(r.account.createdAt) > 7 * 86400);
+  f.push({ sev: stuck.length ? "info" : "ok", what: "stuck-pending runs",
+    count: stuck.length,
+    detail: stuck.length
+      ? `${stuck.length} run(s) queued >7d without finalizing — honest scar tissue of the Arcium callback outage; pending forever, never claimed as evidence`
+      : "no run has sat pending over a week",
+    drill: "chain runs --status pending" });
+
+  // 3. thin records — high pct on few runs (the registry's own honesty)
+  const thin = records.filter((r) => {
+    const a = r.account;
+    const n = num(a.totalItems), c = num(a.totalCorrect);
+    return n > 0 && n < 64 && c / n > 0.85;
+  });
+  f.push({ sev: "info", what: "thin records (>85% on <64 items)",
+    count: thin.length,
+    detail: thin.length
+      ? `${thin.length} record(s) look strong on little evidence — Wilson LCB ranking exists precisely for this (records --wilson)`
+      : "every high-accuracy record carries ≥64 scored items",
+    drill: "chain records --wilson" });
+
+  // 4. dead money — resolved venues whose winning bucket went unbacked
+  const { rows: posRows } = classifyPositions(positions, darkPositions, venueMapsOf(markets, ladders, darks), null);
+  let dead = 0n;
+  for (const v of [...markets, ...ladders]) {
+    const a = v.account;
+    if (Number(a.status) !== 1) continue;
+    const totals = (a.totals as any[]).map((t) => BigInt(t.toString()));
+    const wt = a.resultMask !== undefined
+      ? totals.reduce((s, t, i) => s + ((num(a.resultMask) & (1 << i)) ? t : 0n), 0n)
+      : totals[num(a.outcome)] ?? 0n;
+    if (wt === 0n) dead += totals.reduce((s, t) => s + t, 0n);
+  }
+  for (const d of darks) if (Number(d.account.status) === 1 && d.account.tallied && BigInt(d.account.winTotal.toString()) === 0n) dead += BigInt(d.account.poolTotal.toString());
+  f.push({ sev: dead > 0n ? "warn" : "ok", what: "dead money (unbacked winning buckets)",
+    count: Number(dead),
+    detail: dead > 0n
+      ? `${(Number(dead) / LAMPORTS_PER_SOL).toFixed(4)}◎ stranded in venues no instruction can drain`
+      : "every resolved venue's winning bucket was backed — zero stranded pots",
+    drill: "chain market escrow" });
+
+  // 5. forfeited dark stakes — never revealed, burned into the pool
+  const forfeits = posRows.filter((r) => r.state === "forfeit");
+  f.push({ sev: forfeits.length ? "info" : "ok", what: "forfeited dark positions",
+    count: forfeits.length,
+    detail: forfeits.length
+      ? `${forfeits.length} sealed position(s) never revealed — stakes burned into the pot (the commit-reveal tax, by design)`
+      : "every sealed position revealed in its window",
+    drill: "chain market positions --viewer <pk>" });
+
+  // 6. expired-but-open bounties — sponsor money asleep past deadline
+  const expB = bounties.filter((b) => Number(b.account.status) === 0 && num(b.account.deadline) > 0 && num(b.account.deadline) <= now);
+  f.push({ sev: expB.length ? "info" : "ok", what: "past-deadline bounties awaiting expire",
+    count: expB.length,
+    detail: expB.length
+      ? `${expB.length} bounty pot(s) past deadline — sponsor-refundable via permissionless expire_bounty`
+      : "no bounty sits past its deadline",
+    drill: "chain market board" });
+
+  // 7. duplicate bank names — identity ambiguity a skeptic could exploit
+  const names = new Map<string, number>();
+  for (const b of banks) names.set(String(b.account.name), (names.get(String(b.account.name)) ?? 0) + 1);
+  const dupes = [...names.values()].filter((n) => n > 1).reduce((s, n) => s + n, 0);
+  f.push({ sev: "info", what: "duplicate bank names",
+    count: dupes,
+    detail: dupes
+      ? `${dupes} banks share names — resolvers fan out to ALL matches and matrix columns disambiguate by on-chain id`
+      : "every bank name is unique",
+    drill: "chain banks --name <name>" });
+
+  // 8. markets on post-reveal runs — must be ZERO (program enforces)
+  const postSet = new Set(postRuns.map((r) => r.publicKey.toBase58()));
+  const badVenues = [...markets, ...darks].filter((m) => postSet.has(m.account.run.toBase58())).length
+    + ladders.filter((l) => (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).some((p) => postSet.has(p.toBase58()))).length;
+  f.push({ sev: badVenues ? "warn" : "ok", what: "venues on post-reveal runs",
+    count: badVenues,
+    detail: badVenues ? `${badVenues} venue(s) priced post-reveal evidence — PostRevealRun gate violated!` : "program-level refusal holds — zero venues touch post-reveal runs",
+    drill: "chain feed --bank <bank>" });
+
+  // 9. single-runner banks — one key wrote every score (self-attestation)
+  const byBank = new Map<string, Set<string>>();
+  for (const r of runs) {
+    const k = r.account.benchmark.toBase58();
+    (byBank.get(k) ?? byBank.set(k, new Set()).get(k)!).add(r.account.runner.toBase58());
+  }
+  const bankByPk = new Map(banks.map((b) => [b.publicKey.toBase58(), b.account]));
+  const solo = [...byBank.entries()].filter(([pk, s]) => s.size === 1 && num((bankByPk.get(pk) as any)?.runs) >= 3);
+  f.push({ sev: "info", what: "single-runner banks (≥3 runs, one key)",
+    count: solo.length,
+    detail: solo.length
+      ? `${solo.length} bank(s) were scored entirely by one runner key — receipt-level honesty holds, runner diversity does not`
+      : "every multi-run bank has runner diversity",
+    drill: "chain bank <pk>" });
+
+  // 10. empty resolved books — venues that settled with zero stake (meaningless)
+  const empty = [...markets, ...ladders].filter((v) => Number(v.account.status) === 1
+    && (v.account.totals as any[]).every((t) => BigInt(t.toString()) === 0n));
+  f.push({ sev: "info", what: "resolved venues with empty books",
+    count: empty.length,
+    detail: empty.length
+      ? `${empty.length} venue(s) resolved holding zero stake — settlement still re-verifies, but they priced nothing`
+      : "every resolved venue carried real stake",
+    drill: "chain market calibration" });
+
+  const order = { warn: 0, info: 1, ok: 2 } as const;
+  f.sort((a, b) => order[a.sev] - order[b.sev]);
+  const out = { findings: f, warn: f.filter((x) => x.sev === "warn").length, info: f.filter((x) => x.sev === "info").length, clean: f.filter((x) => x.sev === "ok").length };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`anomalies — the skeptic's checklist · ${out.warn} warn · ${out.info} info · ${out.clean} clean`);
+  for (const x of f) {
+    const tag = x.sev === "warn" ? "WARN" : x.sev === "info" ? "note" : " ok ";
+    console.log(`  [${tag}] ${x.what} — ${x.count ? x.count : "none"}`);
+    console.log(`         ${x.detail}`);
+    console.log(`         drill → ${x.drill}`);
+  }
+  return out;
+}
+
 /** The no-operator design made executable: scan the board, then EXECUTE
  *  every permissionless action it lists — bounty claims (the pot pays the
  *  winning run's operator on-chain, not the sweeper — pure public good),
@@ -4724,6 +4887,10 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "stats") {
     await chainStats(args.snapshot ? String(args.snapshot) : undefined, Boolean(args.json));
+    return;
+  }
+  if (sub === "anomalies") {
+    await chainAnomalies(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "feed") {

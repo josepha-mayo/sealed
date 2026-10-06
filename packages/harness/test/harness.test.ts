@@ -877,3 +877,27 @@ test("marketEscrow reconciles every lamport to an obligation bucket", async () =
     assert.ok(B("settledOut") >= B("claimedWinnerPots"));
   } finally { console.log = origLog; }
 });
+
+test("chainAnomalies enumerates the bundle's own soft spots", async () => {
+  const { chainAnomalies } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const out = (await chainAnomalies(true, snapPath)) as any;
+    const byWhat = new Map(out.findings.map((f: any) => [f.what, f]));
+    // the disclosed warn: 29 post-reveal runs, honestly reported
+    const post = byWhat.get("post-reveal evidence") as any;
+    assert.equal(post.sev, "warn");
+    assert.equal(post.count, 29);
+    // the hard invariant: zero venues may touch post-reveal evidence
+    const gate = byWhat.get("venues on post-reveal runs") as any;
+    assert.equal(gate.count, 0);
+    assert.equal(gate.sev, "ok");
+    // escrow agrees: no dead money on this bundle
+    const dead = byWhat.get("dead money (unbacked winning buckets)") as any;
+    assert.equal(dead.sev, "ok");
+    // every check returns a drill-in command — the surface is actionable
+    for (const x of out.findings) assert.ok(x.drill.length > 0);
+  } finally { console.log = origLog; }
+});

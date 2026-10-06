@@ -133,6 +133,17 @@ ledger is forced to sum exactly to cumulative stakes — on the bundle,
 72.7◎ of 76.1◎ already left escrow (68.1◎ of it winner payouts), with
 zero dead money: every resolved venue's winning bucket was backed.
 
+`chain anomalies [--json]` is the skeptic's checklist — ten hostile
+audits run against the bundle itself: post-reveal runs, stuck-pending
+runs, thin high-pct records, dead money, forfeited dark stakes,
+past-deadline bounties, duplicate bank names, venues on post-reveal
+runs (must be zero — the program refuses them), single-runner banks,
+and empty resolved books. Each finding carries a severity and the
+drill-in command; clean checks still print because the absence of an
+anomaly is evidence too. On the bundle: 1 disclosed warn (29 post-reveal
+runs — flagged on-chain, refused by markets, excludable from gates),
+6 informational notes, 3 clean bills.
+
 `chain history <model_id|record-pk> [--json]` lists a model's ScoreLog
 receipts oldest-first with running accuracy after each — the capability
 trajectory ("did it regress after the fine-tune?") answered from
@@ -170,7 +181,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `market sharps`, `market escrow`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `market sharps`, `market escrow`, `anomalies`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity
