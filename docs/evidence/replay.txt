@@ -11,6 +11,7 @@ or `export SEALED_SNAPSHOT=<path>` once and drop the flag everywhere).
 The loader sha256-checks snapshot.json against web/MANIFEST first and
 warns loudly if the bytes are not the committed ones.
 
+
 $ sealed chain stats --snapshot web/snapshot.json
 ledger — 120 banks · 503 runs (406 MPC-finalized) · 340 venues (208 band/duel, 47 dark, 48 ladder, 37 bounty) · 140 positions
 registry — 31 records · 292 receipts (20/292 vouched, 4 post-reveal)
@@ -19,6 +20,48 @@ money — 76.075◎ escrowed · 0.0000◎ protocol fees collected
 integrity — registry 31/31 bit-exact · resolutions 201/201 match Run.correct
 mpc — scoring latency p50 4s / p95 9s (406 timed runs)
 keeper — 36 actionable now · 246 settled · 24 in play
+activity — ▂█▇▁ (2004 events over 4 day(s), 2026-09-30 → 2026-10-03 · peak 967/day)
+exams — 39 bank(s) with ≥4 models run · median spread 62.5pp · hardest sealed-gen-v88123 (median 0%)
+  most discriminating — sealed-test: 87.5pp spread over 8 runs (chain bank A6UkXHYN…)
+
+$ sealed chain anomalies --snapshot web/snapshot.json
+anomalies — the skeptic's checklist · 2 warn · 7 info · 3 clean
+  [WARN] post-reveal evidence — 29
+         29 run(s) scored after fingerprint reveals — flagged on-chain, refused by markets, excludable via gate --no-post-reveal
+         drill → chain runs --post-reveal · flags show on every row
+  [WARN] records that collapse under --no-post-reveal — 3
+         3 record(s) lose EVERY receipt under a strict pre-reveal policy (test/post-reveal-scored, test/post-reveal-87070, test/post-reveal-35953) — their entire evidence postdates answer exposure
+         drill → chain gate --all --no-post-reveal --min-runs 1 · chain runs --post-reveal
+  [note] thin records (>85% on <64 items) — none
+         every high-accuracy record carries ≥64 scored items
+         drill → chain records --wilson
+  [note] unclaimed payouts — 17
+         17 winning position(s) hold 0.5800 SOL in unexercised claims — open PDAs are the claim
+         drill → chain market unclaimed
+  [note] forfeited dark positions — 2
+         2 sealed position(s) never revealed — stakes burned into the pot (the commit-reveal tax, by design)
+         drill → chain market positions --viewer <pk>
+  [note] past-deadline bounties awaiting expire — 3
+         3 bounty pot(s) past deadline — sponsor-refundable via permissionless expire_bounty
+         drill → chain market board
+  [note] duplicate bank names — 98
+         98 banks share names — resolvers fan out to ALL matches and matrix columns disambiguate by on-chain id
+         drill → chain banks --name <name>
+  [note] single-runner banks (≥3 runs, one key) — none
+         every multi-run bank has runner diversity
+         drill → chain bank <pk>
+  [note] resolved venues with empty books — none
+         every resolved venue carried real stake
+         drill → chain market calibration
+  [ ok ] stuck-pending runs — none
+         no run has sat pending over a week
+         drill → chain runs --status pending
+  [ ok ] dead money (unbacked winning buckets) — none
+         every resolved venue's winning bucket was backed — zero stranded pots
+         drill → chain market escrow
+  [ ok ] venues on post-reveal runs — none
+         program-level refusal holds — zero venues touch post-reveal runs
+         drill → chain feed --bank <bank>
 
 $ sealed chain gate --all --min-pct 70 --min-runs 2 --snapshot web/snapshot.json
 gate --all [pct≥70 runs≥2] — 8/31 model(s) clear:
@@ -33,9 +76,83 @@ gate --all [pct≥70 runs≥2] — 8/31 model(s) clear:
   FAIL  test/priv-oracle                      65.6% (378/576) 18 all run(s)  ← accuracy: 65.6% (378/576) < >= 70%
   FAIL  ladder/model-b                        62.5% (340/544) 17 all run(s)  ← accuracy: 62.5% (340/544) < >= 70%
   FAIL  test/bounty-wrong-payee               62.5% (160/256) 4 all run(s)  ← accuracy: 62.5% (160/256) < >= 70%
-  …
+  FAIL  test/bounty-claimant                  62.5% (720/1152) 18 all run(s)  ← accuracy: 62.5% (720/1152) < >= 70%
+  FAIL  duel/model-b                          59.4% (304/512) 16 all run(s)  ← accuracy: 59.4% (304/512) < >= 70%
+  FAIL  delegate/runner-1                     59.4% (342/576) 18 all run(s)  ← accuracy: 59.4% (342/576) < >= 70%
+  FAIL  test/registry-model                   58.3% (112/192) 3 all run(s)  ← accuracy: 58.3% (112/192) < >= 70%
+  FAIL  test/gen-oracle                       53.1% (306/576) 18 all run(s)  ← accuracy: 53.1% (306/576) < >= 70%
+  FAIL  mock/oracle-0.50                      50.0% (32/64) 1 all run(s)  ← accuracy: 50.0% (32/64) < >= 70%
+  FAIL  mock/oracle-0.5                       50.0% (32/64) 2 all run(s)  ← accuracy: 50.0% (32/64) < >= 70%
+  FAIL  test/registry-model-87070             50.0% (64/128) 2 all run(s)  ← accuracy: 50.0% (64/128) < >= 70%
+  FAIL  test/registry-model-35953             50.0% (64/128) 2 all run(s)  ← accuracy: 50.0% (64/128) < >= 70%
+  FAIL  ladder/tie-c                          31.3% (160/512) 16 all run(s)  ← accuracy: 31.3% (160/512) < >= 70%
+  FAIL  ladder/model-c                        31.3% (170/544) 17 all run(s)  ← accuracy: 31.3% (170/544) < >= 70%
+  FAIL  qwen2.5-3b-instruct                   24.0% (23/96) 3 all run(s)  ← accuracy: 24.0% (23/96) < >= 70%
+  FAIL  mock/oracle-0.25                      23.4% (15/64) 1 all run(s)  ← accuracy: 23.4% (15/64) < >= 70%
+  FAIL  test/market-run                       15.6% (100/640) 10 all run(s)  ← accuracy: 15.6% (100/640) < >= 70%
+  FAIL  test/post-reveal-scored               12.5% (8/64) 1 all run(s)  ← accuracy: 12.5% (8/64) < >= 70%
+  FAIL  test/post-reveal-87070                12.5% (8/64) 1 all run(s)  ← accuracy: 12.5% (8/64) < >= 70%
+  FAIL  test/post-reveal-35953                12.5% (8/64) 1 all run(s)  ← accuracy: 12.5% (8/64) < >= 70%
+  FAIL  qwen2.5-1.5b-instruct                  9.4% (9/96) 3 all run(s)  ← accuracy: 9.4% (9/96) < >= 70%
+  FAIL  qwen2.5-0.5b-instruct                  0.0% (0/32) 1 all run(s)  ← accuracy: 0.0% (0/32) < >= 70%
+  FAIL  llama-3.2-1b-instruct                  0.0% (0/32) 1 all run(s)  ← accuracy: 0.0% (0/32) < >= 70%
 
-$ sealed chain compare --all --snapshot web/snapshot.json
+$ sealed chain gate --sweep --snapshot web/snapshot.json   (head -24)
+gate --sweep — who is robustly good, not just above one line:
+  model                                   pct   10 20 30 40 50 60 70 80 90  frontier
+  test/sweep-run                       100.0%  ●  ●  ●  ●  ●  ●  ●  ●  ●   ≥90%
+  dark/model-a                          93.8%  ●  ●  ●  ●  ●  ●  ●  ●  ●   ≥90%
+  ladder/model-a                        93.8%  ●  ●  ●  ●  ●  ●  ●  ●  ●   ≥90%
+  mock/oracle-0.75                      80.2%  ●  ●  ●  ●  ●  ●  ●  ●  ·   ≥80%
+  ladder/tie-a                          78.1%  ●  ●  ●  ●  ●  ●  ●  ·  ·   ≥70%
+  ladder/tie-b                          78.1%  ●  ●  ●  ●  ●  ●  ●  ·  ·   ≥70%
+  duel/model-a                          78.1%  ●  ●  ●  ●  ●  ●  ●  ·  ·   ≥70%
+  test/oracle                           70.3%  ●  ●  ●  ●  ●  ●  ●  ·  ·   ≥70%
+  test/priv-oracle                      65.6%  ●  ●  ●  ●  ●  ●  ·  ·  ·   ≥60%
+  ladder/model-b                        62.5%  ●  ●  ●  ●  ●  ●  ·  ·  ·   ≥60%
+  test/bounty-wrong-payee               62.5%  ●  ●  ●  ●  ●  ●  ·  ·  ·   ≥60%
+  test/bounty-claimant                  62.5%  ●  ●  ●  ●  ●  ●  ·  ·  ·   ≥60%
+  duel/model-b                          59.4%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  delegate/runner-1                     59.4%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  test/registry-model                   58.3%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  test/gen-oracle                       53.1%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  mock/oracle-0.50                      50.0%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  mock/oracle-0.5                       50.0%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  test/registry-model-87070             50.0%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  test/registry-model-35953             50.0%  ●  ●  ●  ●  ●  ·  ·  ·  ·   ≥50%
+  ladder/tie-c                          31.3%  ●  ●  ●  ·  ·  ·  ·  ·  ·   ≥30%
+  ladder/model-c                        31.3%  ●  ●  ●  ·  ·  ·  ·  ·  ·   ≥30%
+
+$ sealed chain gate qwen2.5-3b-instruct --why --snapshot web/snapshot.json
+gate --why qwen2.5-3b-instruct — the policy envelope, scope by scope:
+  scope                      runs  items     pct   lcb95  survivable policy ceiling
+  all evidence                  3     96  23.96%   16.5  minPct≤23.95% · minRuns≤3 · minItems≤96 · wilson≤16.52%
+  vouched-only                  0      0   0.00%    0.0  no evidence survives — any criterion fails
+  no-post-reveal                3     96  23.96%   16.5  minPct≤23.95% · minRuns≤3 · minItems≤96 · wilson≤16.52%
+  vouched + no-post-reveal      0      0   0.00%    0.0  no evidence survives — any criterion fails
+
+$ sealed chain records --wilson --snapshot web/snapshot.json   (head -12)
+31 model record(s) — cumulative MPC-scored performance — ranked by Wilson 95% LCB:
+  test/sweep-run                       runs=16  agg=100.0%  LCB=99.6%  best=64/64 (100.0%)  vouched=1024/1024  rec=Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6
+  ladder/model-a                       runs=17  agg=93.8%  LCB=91.4%  best=30/32 (93.8%)  rec=A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3
+  dark/model-a                         runs=16  agg=93.8%  LCB=91.3%  best=30/32 (93.8%)  rec=9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt
+  ladder/tie-a                         runs=17  agg=78.1%  LCB=74.5%  best=25/32 (78.1%)  rec=9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL
+  ladder/tie-b                         runs=16  agg=78.1%  LCB=74.3%  best=25/32 (78.1%)  rec=EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi
+  duel/model-a                         runs=16  agg=78.1%  LCB=74.3%  best=25/32 (78.1%)  rec=J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B
+  mock/oracle-0.75                     runs=2  agg=80.2%  LCB=71.1%  best=53/64 (82.8%)  rec=HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ
+  test/oracle                          runs=18  agg=70.3%  LCB=67.6%  best=45/64 (70.3%)  rec=HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn
+  test/priv-oracle                     runs=18  agg=65.6%  LCB=61.7%  best=21/32 (65.6%)  rec=5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx
+  test/bounty-claimant                 runs=18  agg=62.5%  LCB=59.7%  best=40/64 (62.5%)  rec=HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt
+  ladder/model-b                       runs=17  agg=62.5%  LCB=58.4%  best=20/32 (62.5%)  rec=2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s
+
+$ sealed chain records --vouched --snapshot web/snapshot.json
+4 model record(s) — cumulative MPC-scored performance — venue-attested receipts only:
+  test/sweep-run                       runs=16  agg=100.0%  best=64/64 (100.0%)  vouched=1024/1024  rec=Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6
+  test/registry-model                  runs=3  agg=58.3%  best=48/64 (75.0%)  vouched=96/128  rec=BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK
+  test/registry-model-87070            runs=2  agg=50.0%  best=48/64 (75.0%)  vouched=48/64  rec=GEuHM2EuDwjAKt3wiGNUv7xo8WpPfhw5HsmNg2nne4Xd
+  test/registry-model-35953            runs=2  agg=50.0%  best=48/64 (75.0%)  vouched=48/64  rec=8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ
+
+$ sealed chain compare --all --snapshot web/snapshot.json   (head -16)
 paired-evidence leaderboard — 31 models, 465 pairs (73 rankable, 392 disjoint)
   dark/model-a                 W 8-L 0-T 1  ΣΔ+278pp  over 137 shared-bank result(s)
   ladder/model-a               W 8-L 0-T 1  ΣΔ+278pp  over 142 shared-bank result(s)
@@ -46,7 +163,29 @@ paired-evidence leaderboard — 31 models, 465 pairs (73 rankable, 392 disjoint)
   test/oracle                  W 4-L 1-T 0  ΣΔ+61pp  over 49 shared-bank result(s)
   ladder/model-b               W 4-L 5-T 0  ΣΔ-34pp  over 142 shared-bank result(s)
   qwen2.5-3b-instruct          W 3-L 0-T 0  ΣΔ+59pp  over 4 shared-bank result(s)
-  …
+  duel/model-b                 W 3-L 6-T 0  ΣΔ-66pp  over 134 shared-bank result(s)
+  mock/oracle-0.75             W 2-L 0-T 0  ΣΔ+92pp  over 2 shared-bank result(s)
+  qwen2.5-1.5b-instruct        W 2-L 1-T 0  ΣΔ-3pp  over 4 shared-bank result(s)
+  test/bounty-wrong-payee      W 2-L 2-T 1  ΣΔ+14pp  over 17 shared-bank result(s)
+  test/bounty-claimant         W 2-L 2-T 1  ΣΔ+14pp  over 49 shared-bank result(s)
+  test/registry-model          W 2-L 4-T 0  ΣΔ+2pp  over 6 shared-bank result(s)
+
+$ sealed chain compare --matrix --snapshot web/snapshot.json   (head -20)
+paired-evidence grid — top 12 by W-L, cell = row−col pp delta on shared banks:
+          a    b    c    d    e    f    g    h    i    j    k    l
+   a     ·   +0    —  +16  +16  +16    —  +31    —  +34    —    —  dark/model-a
+   b    +0    ·    —  +16  +16  +16    —  +31    —  +34    —    —  ladder/model-a
+   c     —    —    ·    —    —    —  +30    —    —    —    —    —  test/sweep-run
+   d   -16  -16    —    ·   +0   +0    —  +16    —  +19    —    —  ladder/tie-a
+   e   -16  -16    —   +0    ·   +0    —  +16    —  +19    —    —  ladder/tie-b
+   f   -16  -16    —   +0   +0    ·    —  +16    —  +19    —    —  duel/model-a
+   g     —    —  -30    —    —    —    ·    —    —    —    —    —  test/oracle
+   h   -31  -31    —  -16  -16  -16    —    ·    —   +3    —    —  ladder/model-b
+   i     —    —    —    —    —    —    —    —    ·    —    —  +16  qwen2.5-3b-instruct
+   j   -34  -34    —  -19  -19  -19    —   -3    —    ·    —    —  duel/model-b
+   k     —    —    —    —    —    —    —    —    —    —    ·    —  mock/oracle-0.75
+   l     —    —    —    —    —    —    —    —  -16    —    —    ·  qwen2.5-1.5b-instruct
+  392 pair(s) ledger-wide share <1 bank(s) — "—" is honest absence, not a loss.
 
 $ sealed chain compare ladder/model-a ladder/model-b --snapshot web/snapshot.json
 ladder/model-a vs ladder/model-b — 17 shared benchmark(s)
@@ -61,6 +200,55 @@ ladder/model-a vs ladder/model-b — 17 shared benchmark(s)
   zWBQE1aaJ4ME… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
   zgjCLgtCN9vG… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
   B5dHZzxyzY7w… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  9YrYzAJFfHU7… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  62RrhYXPNE3s… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  ELka8otjbPTG… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  D4bgMZUKYcWn… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  6vWq6XnE7m2C… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+  HmAtFrceCGKE… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
+pooled shared items: ladder/model-a 510/544 (93.8%)  ladder/model-b 340/544 (62.5%)
+bank wins: ladder/model-a 17 — tie 0 — ladder/model-b 0  | unshared: 0 bank(s) only ladder/model-a ran, 0 only ladder/model-b
+VERDICT: ladder/model-a +31.3pp on shared evidence
+
+$ sealed chain matrix --snapshot web/snapshot.json   (head -18)
+capability matrix — 10 models × top 10 banks (best finalized score%, * = post-reveal)
+                             sealed-gen·2778  sealed-gen·19176  sealed-gen·92412  sealed-gen·37323  sealed-gen·75540  sealed-gen·72456   sealed-gen·6821  sealed-gen·97223  sealed-gen·50810  sealed-gen·96975
+  dark/model-a                           94%               94%               94%               94%               94%               94%               94%               94%               94%               94%
+  ladder/model-a                         94%               94%               94%               94%               94%               94%               94%               94%               94%               94%
+  ladder/tie-b                           78%               78%               78%               78%               78%               78%               78%               78%               78%               78%
+  duel/model-a                           78%               78%               78%               78%               78%               78%               78%               78%               78%               78%
+  ladder/tie-a                           78%               78%               78%               78%               78%               78%               78%               78%               78%               78%
+  ladder/model-b                         63%               63%               63%               63%               63%               63%               63%               63%               63%               63%
+  duel/model-b                           59%               59%               59%               59%               59%               59%               59%               59%               59%               59%
+  test/gen-oracle                        53%               53%               53%               53%               53%               53%               53%               53%               53%               53%
+  ladder/tie-c                           31%               31%               31%               31%               31%               31%               31%               31%               31%               31%
+  ladder/model-c                         31%               31%               31%               31%               31%               31%               31%               31%               31%               31%
+coverage matters: a model absent on a bank can't be compared there — "—" is unproven, not zero
+
+$ sealed chain model qwen2.5-3b-instruct --snapshot web/snapshot.json
+model qwen2.5-3b-instruct — the four lenses on one page
+  registry    — 3 receipts · 23/96 items (23.96%) · best 9/32
+  trajectory  — ▂▂▂▂▂▃▂ (7 runs, 2026-09-30 → 2026-10-03 · rising)
+  evidence    — paired rank #9 · 3W-0L-0T · ΣΔ+59.38pp over 4 shared-bank result(s)
+  settlement  — 1W-0D-0L (100%) · legs 1/1 · bounties 1
+  belief      — no open book prices it
+  coverage    — 0/8 most-run banks — absent from the most-run suite
+  runs        — 7 submitted · 7 finalized
+    4biuMVncBjFZ… 9/32 on sealed-gen-v97970 (status 1)
+    GnrRt5GUu6pU… 7/32 on sealed-v77007 (status 1)
+    ucwXeKwU5yAn… 7/32 on sealed-gen-v88123 (status 1)
+    FahQLBzSmXZH… 6/32 on sealed-pgen-v10019 (status 1)
+    5YKpcbn5UF87… 6/32 on sealed-gen-v87635 (status 1)
+    76kDLfXmJrWH… 5/32 on sealed-pgen-v10019 (status 1)
+    EQkXCFGSJNZS… 5/32 on sealed-pgen-v10019 (status 1)
+
+$ sealed chain modelrec qwen2.5-3b-instruct --snapshot web/snapshot.json
+model record 7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
+  model_id=qwen2.5-3b-instruct  hash=e70dab371f91877d…
+  runs=3  aggregate=23/96 (24.0%)
+  replayed 3 receipt(s) — stored aggregate verified bit-exact
+  best=9/32 on run 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 (bank BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z)
+  last=GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi  first_seen=1790962105  last_scored=1791026278
 
 $ sealed chain market board --snapshot web/snapshot.json
 venue board — 37 bounties, 208 markets, 47 dark, 48 ladders over 503 runs
@@ -83,22 +271,164 @@ RESOLVABLE — run finalized / no leg still moving:
   band DCvbvpz1jbGiB2fjwCtnmPNiJiGiG4HXQFGydaCajHjm → sealed chain market resolve --market DCvbvpz1jbGiB2fjwCtnmPNiJiGiG4HXQFGydaCajHjm
   band tAHvEUpjp8npkjaddC27bB4j36C9f7bHMh3BXuQYw8B → sealed chain market resolve --market tAHvEUpjp8npkjaddC27bB4j36C9f7bHMh3BXuQYw8B
   band FkcdbZhBWdbGXzRK52fSjmxVn5Hevf84bt3Xm4FmRx4x → sealed chain market resolve --market FkcdbZhBWdbGXzRK52fSjmxVn5Hevf84bt3Xm4FmRx4x
-  …
+  ladder 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV → sealed chain market ladder resolve --market 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV
+  ladder 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN → sealed chain market ladder resolve --market 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN
+  ladder EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR → sealed chain market ladder resolve --market EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR
 
-$ sealed chain modelrec qwen2.5-3b-instruct --snapshot web/snapshot.json
-model record 7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
-  model_id=qwen2.5-3b-instruct  hash=e70dab371f91877d…
-  runs=3  aggregate=23/96 (24.0%)
-  replayed 3 receipt(s) — stored aggregate verified bit-exact
-  best=9/32 on run 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 (bank BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z)
-  last=GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi  first_seen=1790962105  last_scored=1791026278
+TALLYABLE — reveal window closed, tally open:
+  dark 5ZMThRGWGnQwfzZBKv7PtyaeCCMyvAq76y2cPRLRB5By → sealed chain market dark finalize --market 5ZMThRGWGnQwfzZBKv7PtyaeCCMyvAq76y2cPRLRB5By
 
-$ sealed chain compare ladder/model-a ladder/model-b --snapshot web/snapshot.json   (tail)
-  6vWq6XnE7m2C… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
-  HmAtFrceCGKE… sealed-gen     93.8% vs 62.5%  Δ+31.3  (30/32 vs 20/32, 1v1 runs)
-pooled shared items: ladder/model-a 510/544 (93.8%)  ladder/model-b 340/544 (62.5%)
-bank wins: ladder/model-a 17 — tie 0 — ladder/model-b 0  | unshared: 0 bank(s) only ladder/model-a ran, 0 only ladder/model-b
-VERDICT: ladder/model-a +31.3pp on shared evidence
+SWEEPABLE — past deadline (permissionless):
+  bounty 3HJAbfiSssekNRR6qkjzhHS3XHmTpTjCdk97FQfk6Xjp pot=0.100 SOL → sealed chain market bounty expire --bounty 3HJAbfiSssekNRR6qkjzhHS3XHmTpTjCdk97FQfk6Xjp
+  bounty EkpxZpe7vSn3ASvbMmeKiVWhERwpESbJbyjJrS5qH5Cj pot=0.100 SOL → sealed chain market bounty expire --bounty EkpxZpe7vSn3ASvbMmeKiVWhERwpESbJbyjJrS5qH5Cj
+  bounty DLMkwgSQecbJFrZxe5EpUEzMSHpTzhWrK3my4eyPFhRe pot=0.050 SOL → sealed chain market bounty expire --bounty DLMkwgSQecbJFrZxe5EpUEzMSHpTzhWrK3my4eyPFhRe
+  band 2SoK4Qf8Lc7k5ee7bjY1Pu8aoeSurBsGvAFJbHi2E2TU (refunds) → sealed chain market expire --market 2SoK4Qf8Lc7k5ee7bjY1Pu8aoeSurBsGvAFJbHi2E2TU
+  band 39Z5VsHcZ1BerCkbgUpYuX7Cy6uQPzTWjqoXT6gYSF86 (refunds) → sealed chain market expire --market 39Z5VsHcZ1BerCkbgUpYuX7Cy6uQPzTWjqoXT6gYSF86
+  band 5kxhq7XjqiVwLtCvk9KibF2hD7UnAgrGm22nMf62DWv (refunds) → sealed chain market expire --market 5kxhq7XjqiVwLtCvk9KibF2hD7UnAgrGm22nMf62DWv
+  band 5YAdaNDGo6CidiNH1TpkhKJGqVSCNZs6gHaFr9wngUjy (refunds) → sealed chain market expire --market 5YAdaNDGo6CidiNH1TpkhKJGqVSCNZs6gHaFr9wngUjy
+  band 6TuPfh9iSD8kLv2UQDszb9shQkQDCvenvvo7nqifx4vX (refunds) → sealed chain market expire --market 6TuPfh9iSD8kLv2UQDszb9shQkQDCvenvvo7nqifx4vX
+  band Drpapa51t6VLt5CyP2XZn1G6H1UAkSoomRomYT1f34kq (refunds) → sealed chain market expire --market Drpapa51t6VLt5CyP2XZn1G6H1UAkSoomRomYT1f34kq
+  band DzPAA9hWjy88LrPtLF4g4cgrHzJjHBKemEFsLji4QSb4 (refunds) → sealed chain market expire --market DzPAA9hWjy88LrPtLF4g4cgrHzJjHBKemEFsLji4QSb4
+  band FBksaL6F1pGCKmxoSGQQgxrQVTTEt8YdoXfG3HaZS6Zk (refunds) → sealed chain market expire --market FBksaL6F1pGCKmxoSGQQgxrQVTTEt8YdoXfG3HaZS6Zk
+  band FK7muV4i2eMwpbgvxNjcq1xCBVEdAy4PEEC5NConAbit (refunds) → sealed chain market expire --market FK7muV4i2eMwpbgvxNjcq1xCBVEdAy4PEEC5NConAbit
+  band Fm9JzaqMHs2NmKSmjvgEcpPumgNWZbeZ85nwduEycrLu (refunds) → sealed chain market expire --market Fm9JzaqMHs2NmKSmjvgEcpPumgNWZbeZ85nwduEycrLu
+  band GYP84QEo6C2cvdQ6ukdPUWm6Fmq88HMqa27FtcZQekDW (refunds) → sealed chain market expire --market GYP84QEo6C2cvdQ6ukdPUWm6Fmq88HMqa27FtcZQekDW
+  band HSvaSFt6fg35AcjMy3Mvuc28PYB1bW3W1psyRk5mWiYc (refunds) → sealed chain market expire --market HSvaSFt6fg35AcjMy3Mvuc28PYB1bW3W1psyRk5mWiYc
+
+still live: 1 bounties, 24 venues in play, 0 darks revealing — settled: 246 venues, 33 claimed bounties
+
+$ sealed chain market divergence --snapshot web/snapshot.json
+market divergence — evidence rank vs conviction rank (+gap = money prices it ABOVE the receipts; − = below)
+  ladder/model-c               evidence #31 (0W-8L-1T)         conviction #3 (1.2000 ◎)          gap  +28
+  test/market-run              evidence #29 (0W-5L-0T)         conviction #6 (0.3000 ◎)          gap  +23
+  ladder/tie-c                 evidence #30 (0W-8L-1T)         conviction #9 (0.3000 ◎)          gap  +21
+  ladder/model-b               evidence #8 (4W-5L-0T)          conviction #2 (1.2000 ◎)          gap   +6
+  duel/model-b                 evidence #10 (3W-6L-0T)         conviction #5 (0.5500 ◎)          gap   +5
+  ladder/tie-a                 evidence #4 (5W-2L-2T)          conviction #7 (0.3000 ◎)          gap   -3
+  ladder/tie-b                 evidence #5 (5W-2L-2T)          conviction #8 (0.3000 ◎)          gap   -3
+  duel/model-a                 evidence #6 (5W-2L-2T)          conviction #4 (0.5500 ◎)          gap   +2
+  dark/model-a                 evidence #1 (8W-0L-1T)          conviction unpriced               gap   — 
+  ladder/model-a               evidence #2 (8W-0L-1T)          conviction #1 (1.2000 ◎)          gap   +1
+  test/sweep-run               evidence #3 (5W-0L-0T)          conviction unpriced               gap   — 
+  test/oracle                  evidence #7 (4W-1L-0T)          conviction unpriced               gap   — 
+  qwen2.5-3b-instruct          evidence #9 (3W-0L-0T)          conviction unpriced               gap   — 
+  mock/oracle-0.75             evidence #11 (2W-0L-0T)         conviction unpriced               gap   — 
+  qwen2.5-1.5b-instruct        evidence #12 (2W-1L-0T)         conviction unpriced               gap   — 
+  test/bounty-wrong-payee      evidence #13 (2W-2L-1T)         conviction unpriced               gap   — 
+  test/bounty-claimant         evidence #14 (2W-2L-1T)         conviction unpriced               gap   — 
+  test/registry-model          evidence #15 (2W-4L-0T)         conviction unpriced               gap   — 
+  test/gen-oracle              evidence #16 (2W-7L-0T)         conviction unpriced               gap   — 
+  test/registry-model-87070    evidence #17 (1W-0L-0T)         conviction unpriced               gap   — 
+  test/registry-model-35953    evidence #18 (1W-0L-0T)         conviction unpriced               gap   — 
+  test/priv-oracle             evidence #19 (1W-0L-0T)         conviction unpriced               gap   — 
+  mock/oracle-0.50             evidence #20 (1W-1L-0T)         conviction unpriced               gap   — 
+  mock/oracle-0.5              evidence #21 (0W-0L-0T)         conviction unpriced               gap   — 
+  delegate/runner-1            evidence #22 (0W-1L-0T)         conviction unpriced               gap   — 
+  test/post-reveal-87070       evidence #23 (0W-1L-0T)         conviction unpriced               gap   — 
+  test/post-reveal-35953       evidence #24 (0W-1L-0T)         conviction unpriced               gap   — 
+  test/post-reveal-scored      evidence #25 (0W-1L-0T)         conviction unpriced               gap   — 
+  qwen2.5-0.5b-instruct        evidence #26 (0W-2L-1T)         conviction unpriced               gap   — 
+  llama-3.2-1b-instruct        evidence #27 (0W-2L-1T)         conviction unpriced               gap   — 
+  mock/oracle-0.25             evidence #28 (0W-2L-0T)         conviction unpriced               gap   — 
+a model with no shared-bank evidence is unranked; a model with no funded book is unpriced — both absences are signal
+
+$ sealed chain market calibration --snapshot web/snapshot.json
+market calibration — 143 resolved venues with books, vs what Run.correct landed
+  favorites hit 87% · winners carried 55.18% implied at close (uniform baseline 39.57%)
+  Brier 0.502 vs uniform 0.6043 — lower is sharper
+  favorite misses (winner's closing share):
+    band   7Lt4RooJSmDg… winner carried 33.33% across 3 outcome(s)
+    band   GhR2M3B3ohTP… winner carried 33.33% across 3 outcome(s)
+    band   DxS9aQBfaQs5… winner carried 33.33% across 3 outcome(s)
+    band   3GmkRhRQ7Fua… winner carried 33.33% across 3 outcome(s)
+    band   BbXKKzfkF7Mb… winner carried 33.33% across 3 outcome(s)
+    band   2VFUBYTHsGtq… winner carried 33.33% across 3 outcome(s)
+    band   6feJoNiBB9MX… winner carried 33.33% across 3 outcome(s)
+    band   9hXnW8fJ1Cqe… winner carried 33.33% across 3 outcome(s)
+
+$ sealed chain market sharps --snapshot web/snapshot.json
+sharps — 139 bettor(s) · 140 surviving position account(s) (126 resolved) · 13.480◎ staked → 0.580◎ payable
+  scope — only unclaimed positions exist as accounts; exercised claims close their PDAs (see `market escrow` for the outflow)
+  every resolved position sits in a DISTINCT wallet — a 125-bettor anonymity set
+  zero observable track records: per-position keys are the book's real privacy posture
+  biggest payouts:
+    0.100◎ paid — 4RUW4pDm38… (0.100◎ at risk → pnl 0.000)
+    0.030◎ paid — B5rBjujEKa… (0.030◎ at risk → pnl 0.000)
+    0.030◎ paid — 7sUcqahMdB… (0.030◎ at risk → pnl 0.000)
+  net verdict — 0 of 126 surviving resolved bettor(s) stand positive (winners claim and close; losers' rent-return claims linger — the survivor bias is the finding)
+  deepest red:
+    -0.200◎ — 5EZzGUoShe… (0W-1L)
+    -0.200◎ — DvTQ5bY18D… (0W-1L)
+    -0.200◎ — D2EowpZMXN… (0W-1L)
+
+$ sealed chain market escrow --snapshot web/snapshot.json
+market escrow — 76.0750◎ cumulative stakes tracked across 303 venues + 37 bounties
+  in play        2.3500◎ — open venues, positions live or sealed
+  owed winners   0.5800◎ — resolved, claims unexercised (position PDAs still open)
+  refunds owed   0.0000◎ — cancelled venues, gross refunds unclaimed
+  fees accrued   0.0000◎ — resolved venues, authority fee unclaimed
+  contingent     0.0200◎ — dark pools mid reveal-window, tally pending
+  bounty escrow  0.4500◎ — 1 live pots · 3 past deadline (sponsor-refundable)
+  dead money     0.0000◎ — resolved pots whose winning bucket went unbacked; no instruction can move them
+  settled out    72.6750◎ — exercised claims + collected fees + refunds paid (of which 68.0610◎ winner pots)
+  check          76.0750◎ = cumulative — ledger balances exactly
+
+$ sealed chain market live --snapshot web/snapshot.json   (head -14)
+open venues — 28 accepting positions, soonest-close first
+  ladder  4gx1VhwgTK9b… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
+    book 0.600◎ · bets close in 25.0d · expires in 25.0d
+    sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
+  ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
+    book 0.300◎ · bets close in 25.4d · expires in 25.4d
+    sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
+  ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
+    book 0.600◎ · bets close in 25.4d · expires in 25.4d
+    sealed chain market quote 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN <outcome> <lamports>
+  duel    GL4yEgmZPa5k… duel/model-a vs duel/model-b — who scores higher?
+    book 0.550◎ · bets close — · expires in 25.1d
+    sealed chain market quote GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv <outcome> <lamports>
+  band    32B8aRsiEjhV… test/market-run — which of 2 band(s)?
+
+$ sealed chain market bounties --snapshot web/snapshot.json   (head -10)
+37 bounties — 1 open (0 claimable right now):
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 600h  best-on-bank=64 (predates bounty — retroactivity wall)
+  3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
+  EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
+  DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
+  51z6CJUDgE7M… claimed      sealed-gen-v24703 ≥4/32  pot=0.000◎  won 20 by DMyCmrS3t2pe…
+  EJzXf3q4pRdd… claimed      sealed-gen-v91465 ≥4/32  pot=0.000◎  won 19 by 4yiXg1ryaA8n…
+  6EqmVxLMEmkD… claimed      sealed-gen-v5633 ≥4/32  pot=0.000◎  won 17 by oJf5Zhi6sEcL…
+  AQaQaxvLick5… claimed      sealed-test      ≥32/64  pot=0.000◎  won 40 by 6rSVR5bYXgJb…
+  BuogJzbUscv3… claimed      sealed-test      ≥32/64  pot=0.000◎  won 40 by 8K2MuxaXUkbq…
+
+$ sealed chain banks --depth --snapshot web/snapshot.json   (head -14)
+120 benchmarks — market depth first:
+  2cwT4xY7e6UDFePX7tB5PoiihJDfFT2kEqefayVtMVxZ  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  3AZG8LzDa1rULxiobLc69jWZHP1YMjsjCcc5E7CxorN8  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  GbtMPLPCw4QLchoPaX4Z3VL3pge1cAAugb3JwmGFP5VQ  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+  D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF  sealed-gen           generated items= 32 runs= 11 finalized= 10 best=93.8% depth=3.900◎
+
+$ sealed chain bank A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1 --snapshot web/snapshot.json
+bank A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1
+  spec — "sealed-test" authored · authority 4RUW4pDm38PE… · status=1 · 2/2 chunks sealed (64 items) · fee 0.0100◎ · created 2026-10-02 22:14
+  items_root — 37ee302840e6ef31381de038…  (chain items --benchmark A6UkXHYN… regenerates the exam offline)
+  runs — 12 total · 8 finalized · 4 pending · 2 post-reveal · best 64/64 (100%)
+  difficulty — scores across models: min 12.5% · p25 15.6% · median 62.5% · p75 70.3% · max 100% (spread 87.5pp — discriminating exam)
+  receipts — 3 minted · 1 vouched · 1 post-reveal
+  reveal — 3ofPpbY1RtMe… chunk 0 part 0 @ 2026-10-02 22:23
+  grants — 0 reshare grant(s) · chunks stored: 0 public + 0 private
+  venues — band/duel: 8 (3 expired, 4 resolved, 1 open)
+  venues — bounty: 2 (2 claimed)
+  depth — 10 venue(s) moved 1.530◎ through this exam's runs (1.380◎ resolved · 0.150◎ still in play)
 
 $ sealed chain trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi --snapshot web/snapshot.json
 trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
@@ -107,17 +437,6 @@ trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
   bank  — CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp
   receipt — 2YncpZ3Fib8pCAmwUpnD4B3rDtGisjm2RAsqoWePD77d recorded by 4RUW4pDm38PE… @ 1791026278
   venues — none priced this run
-
-$ sealed chain market bounties --snapshot web/snapshot.json   (head)
-37 bounties — 1 open (0 claimable right now):
-  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 638h  best-on-bank=64 (predates bounty — retroactivity wall)
-  3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
-  EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
-  DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
-  51z6CJUDgE7M… claimed      sealed-gen-v24703 ≥4/32  pot=0.000◎  won 20 by DMyCmrS3t2pe…
-  EJzXf3q4pRdd… claimed      sealed-gen-v91465 ≥4/32  pot=0.000◎  won 19 by 4yiXg1ryaA8n…
-  6EqmVxLMEmkD… claimed      sealed-gen-v5633 ≥4/32  pot=0.000◎  won 17 by oJf5Zhi6sEcL…
-  …
 
 $ sealed chain feed --limit 14 --snapshot web/snapshot.json
 feed — 14 event(s) newest first
@@ -136,15 +455,75 @@ feed — 14 event(s) newest first
   2026-10-03 11:40  score      67PexoYKbp99…  MPC finalized — test/registry-model-35953 scored 48/64 on sealed-test (authored)
   2026-10-03 11:40  run        67PexoYKbp99…  run queued — test/registry-model-35953 on sealed-test (authored)
 
+$ sealed chain feed --model qwen2.5-3b-instruct --limit 8 --snapshot web/snapshot.json
+feed — 8 event(s) [model qwen2.5-3b-instruct] newest first
+  2026-10-03 11:17  receipt    2YncpZ3Fib8p…  receipt minted — qwen2.5-3b-instruct 7/32
+  2026-10-03 11:14  score      GnrRt5GUu6pU…  MPC finalized — qwen2.5-3b-instruct scored 7/32 on sealed-v77007 (authored)
+  2026-10-03 11:14  run        GnrRt5GUu6pU…  run queued — qwen2.5-3b-instruct on sealed-v77007 (authored)
+  2026-10-02 20:52  receipt    FAqvtSdYQpzj…  receipt minted — qwen2.5-3b-instruct 7/32
+  2026-10-02 17:28  receipt    2WjFpDxcd6ak…  receipt minted — qwen2.5-3b-instruct 9/32
+  2026-10-02 17:28  score      4biuMVncBjFZ…  MPC finalized — qwen2.5-3b-instruct scored 9/32 on sealed-gen-v97970 (generated)
+  2026-10-02 17:28  run        4biuMVncBjFZ…  run queued — qwen2.5-3b-instruct on sealed-gen-v97970 (generated)
+  2026-10-01 20:35  score      ucwXeKwU5yAn…  MPC finalized — qwen2.5-3b-instruct scored 7/32 on sealed-gen-v88123 (generated)
+
 $ sealed chain search 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm --snapshot web/snapshot.json
 search 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
   venue          band/duel market — status 1
                  → sealed chain market venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
 
-$ sealed chain search B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg --snapshot web/snapshot.json
-search B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg
-  actor          wallet — signs 1 account(s)
-                 → sealed chain wallet B5rBjujEKaujKpVf214YguWJ55iL8n1F77hrxmbgHfqg
+$ sealed chain search sealed-test --snapshot web/snapshot.json   (bank-name fallback)
+bank-name — bank "sealed-test" → 4XUcqetzqjWVL7ZFbwuMmdbu225YW7ch4iXx4TN6EbBh
+  → sealed chain bank 4XUcqetzqjWVL7ZFbwuMmdbu225YW7ch4iXx4TN6EbBh
+bank-name — bank "sealed-test" → Bp8iFPoHqp15bJL3E5frQHPcxJiBToJpeg68q7UR42ic
+  → sealed chain bank Bp8iFPoHqp15bJL3E5frQHPcxJiBToJpeg68q7UR42ic
+bank-name — bank "sealed-test" → DxENDH8hmF9YhbhKAJMAbpAr5UBGmZsksG8AtiB73EH4
+  → sealed chain bank DxENDH8hmF9YhbhKAJMAbpAr5UBGmZsksG8AtiB73EH4
+bank-name — bank "sealed-test" → CTF7g4FPZBT9FqW6mr7ztKNzDSKPfT3sexTneUX7K8dJ
+  → sealed chain bank CTF7g4FPZBT9FqW6mr7ztKNzDSKPfT3sexTneUX7K8dJ
+bank-name — bank "sealed-test" → A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr
+  → sealed chain bank A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr
+bank-name — bank "sealed-test" → ErBrCuKMSqzSmfecqvNqfDJpFtoEvGWWDYbi28zXDYkz
+  → sealed chain bank ErBrCuKMSqzSmfecqvNqfDJpFtoEvGWWDYbi28zXDYkz
+bank-name — bank "sealed-test" → 3C1dCBh4Qg7Uf3jHshq5vHAARAEcGGTEsNwqDMHKHLuV
+  → sealed chain bank 3C1dCBh4Qg7Uf3jHshq5vHAARAEcGGTEsNwqDMHKHLuV
+bank-name — bank "sealed-test" → 9juDu5ZsjgGEDZ23psNksAENkf5rwAyixTrebvpCS7Uo
+  → sealed chain bank 9juDu5ZsjgGEDZ23psNksAENkf5rwAyixTrebvpCS7Uo
+bank-name — bank "sealed-test" → 1RsmwbTNxP5SBS8MXwBPJkHbktdsMSMYGCBteXk7U75
+  → sealed chain bank 1RsmwbTNxP5SBS8MXwBPJkHbktdsMSMYGCBteXk7U75
+bank-name — bank "sealed-test" → 272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u
+  → sealed chain bank 272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u
+bank-name — bank "sealed-test" → 28ogPX26aH6DGqnhiUDPSqAVeyCXfcmNbnyMBzJeBPS5
+  → sealed chain bank 28ogPX26aH6DGqnhiUDPSqAVeyCXfcmNbnyMBzJeBPS5
+bank-name — bank "sealed-test" → 2ARmVtk7qHgaogGPRaLyHim3amkJu2DFqW2QVJSZnED6
+  → sealed chain bank 2ARmVtk7qHgaogGPRaLyHim3amkJu2DFqW2QVJSZnED6
+bank-name — bank "sealed-test" → 4mGzzTZMrbwxw5VBdBvrRgeU2sfgB7sojjQDFGngQWRj
+  → sealed chain bank 4mGzzTZMrbwxw5VBdBvrRgeU2sfgB7sojjQDFGngQWRj
+bank-name — bank "sealed-test" → 4pPHx9eVBpAhjo94WW2oLLXYo547jmQSq1QJW2PELyom
+  → sealed chain bank 4pPHx9eVBpAhjo94WW2oLLXYo547jmQSq1QJW2PELyom
+bank-name — bank "sealed-test" → 7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY
+  → sealed chain bank 7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY
+bank-name — bank "sealed-test" → 8KG9gFRsYwtTv9xPhwU92ymeK4V3wKpgSMYH8w6TiM19
+  → sealed chain bank 8KG9gFRsYwtTv9xPhwU92ymeK4V3wKpgSMYH8w6TiM19
+bank-name — bank "sealed-test" → 8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY
+  → sealed chain bank 8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY
+bank-name — bank "sealed-test" → 9VByiNFNGyaVBTv65jP1P4EBxsPLM29GQL75EvmPvW4U
+  → sealed chain bank 9VByiNFNGyaVBTv65jP1P4EBxsPLM29GQL75EvmPvW4U
+bank-name — bank "sealed-test" → B1kWPVm1o861mPV5VAApaCdwrxXLwfo7AwZPJhC5JYUi
+  → sealed chain bank B1kWPVm1o861mPV5VAApaCdwrxXLwfo7AwZPJhC5JYUi
+bank-name — bank "sealed-test" → BDnWoJsVNHAa2Fb9jCfaUBeXKx74bPCqoSBRJsqrJX5c
+  → sealed chain bank BDnWoJsVNHAa2Fb9jCfaUBeXKx74bPCqoSBRJsqrJX5c
+bank-name — bank "sealed-test" → f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D
+  → sealed chain bank f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D
+bank-name — bank "sealed-test" → HtnrezGoFZFgCsq6dv2QFsafRtKx1NQzGkMumjKgTkMQ
+  → sealed chain bank HtnrezGoFZFgCsq6dv2QFsafRtKx1NQzGkMumjKgTkMQ
+bank-name — bank "sealed-test" → A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1
+  → sealed chain bank A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1
+bank-name — bank "sealed-test" → pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci
+  → sealed chain bank pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci
+bank-name — bank "sealed-test" → 4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM
+  → sealed chain bank 4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM
+bank-name — bank "sealed-test" → yvBcKijewXNwQgRqZFT4NRzBB1K5dRpYw2JqAQgBMyM
+  → sealed chain bank yvBcKijewXNwQgRqZFT4NRzBB1K5dRpYw2JqAQgBMyM
 
 $ sealed chain feed --pk Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7 --snapshot web/snapshot.json
 feed — 3 event(s) touching Hn21uoPQYi8x… newest first
@@ -163,7 +542,7 @@ position 14AQTPw2KjckgvkTWbyVVpKp2mcfZgQuNaRFpdt6gnd6
 
 claim: sealed chain market claim --market 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
 
-$ sealed chain market venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm --snapshot web/snapshot.json   (head)
+$ sealed chain market venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm --snapshot web/snapshot.json   (head -20)
 venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
   kind — band · status resolved
   pool — 0.0100 / 0.0100 / 0.0100 / 0.0000 / 0.0000 / 0.0000 / 0.0000 / 0.0000 ◎
@@ -171,199 +550,37 @@ venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
   run A — test/market-run scored 10
   resolution — 10 outcome 1  ✓ matches Run.correct
   positions — 1 held
+    B5rBjujEKauj…  0.0100◎ → ~0.0300◎ payable  · position 14AQTPw2Kjck…
 
-$ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
-diff ../../web/snapshot.json → ../../web/snapshot.json
-  A — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
-  B — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
-  delta — +0 accounts · -0 removed
+$ sealed chain runs --post-reveal --snapshot web/snapshot.json   (head -10)
+29 run(s) — score first:
+  3aEgjoabejFsRtsSTE89jvsPbFfnMZnqTytsTCCvGUe9  test/oracle              sealed-test         45/64 (70.3%) post-reveal
+  7PotU4bHxkJiLgHEVF6Tvu2xnGF7qqLkoHLuSWFjdhyW  test/post-reveal-35953   sealed-test          8/64 (12.5%) post-reveal
+  5hoTAUTGkiouRujgoujnGk5nWdTexaJCHPG66N17kHgv  test/post-reveal-87070   sealed-test          8/64 (12.5%) post-reveal
+  6WEA81JtJrY8A44V9xXakQ42SWw8B5CBGn1RPeDnfo12  test/post-reveal-scored  sealed-test          8/64 (12.5%) post-reveal
+  Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7  qwen2.5-1.5b-instruct    sealed-v77007        2/32 (6.3%) post-reveal
+  A7UVJSUB48d7E41wTNmggvZ4v7rWQCD2jn33bSsjhpkW  test/post-reveal-check   sealed-test        PENDING post-reveal
+  AjCAt7rw3HtDdfsLpQa7UpcWRJhosvdCGS9D722eie5J  test/post-reveal         sealed-test        PENDING post-reveal
+  8qzHcBKbuT5iAXJ6dicpcRNA1vWP5VtCvo3vEyLauChP  test/post-reveal         sealed-test        PENDING post-reveal
+  3UhdQBGgoXa9qNcvD1WEQQNPW9Z7HtGqEWoH8aefqoUp  test/post-reveal         sealed-test        PENDING post-reveal
 
-$ yarn --cwd packages/harness cli chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV --outcome 0 --lamports 50000000 --snapshot web/snapshot.json
-quote — 4gx1VhwgTK9b… (ladder)
-  stake 0.0500 ◎ on ladder leg 0 → ~0.0929 ◎ back if it wins (+85.71% ROI)
-  book implies 53.84% on that side — pool 0.6500 ◎ → winning side splits 0.6500 ◎ post-fee; your share 0.0500/0.3500 of that side
+$ sealed chain runs --attested --snapshot web/snapshot.json   (head -8)
+28 run(s) — score first:
+  7qDBPs86F74Z5CE5QGBNs2MGRTviLyHso8yhbtPqXPHD  test/sweep-run           sealed-test         64/64 (100.0%) attested
+  FBsRm2QkAqD1AZnZ4hBMWz5pxHCe5MhDJkwYjmPYt2ZA  test/sweep-run           sealed-test         64/64 (100.0%) attested
+  ATo8VP4VpGUBNEtcoj9PWSurThoKS3QcYHsvxDPotmKf  test/sweep-run           sealed-test         64/64 (100.0%) attested
+  HZkFZWJf6nDzZrUFYBg65zJAfeV6hf3M8QmC9sANGUCG  test/sweep-run           sealed-test         64/64 (100.0%) attested
+  2vpyUQfnbVD4wmoyG4t3tTeXrrHK1XVHj5e9kJGa5QXo  test/sweep-run           sealed-test         64/64 (100.0%) attested
+  DnDKzjxyH8Yi3Z3VtFfos2ddYx7e2GcXeYYrSV8ahbnV  test/sweep-run           sealed-test         64/64 (100.0%) attested
+  8XsUR1NyvZgRweUVgk6mCJEgvRfhsFLwpjFEwi8v4b9H  test/sweep-run           sealed-test         64/64 (100.0%) attested
 
-$ yarn --cwd packages/harness cli chain market quote Ftw6cvBE381ftyFtSGTb2CSAoDNsqBfLyf39iHLeK7B3 --outcome 0 --lamports 50000000 --snapshot web/snapshot.json
-venue is resolved — quotes only apply while open
+$ sealed chain gate --certify-verify docs/evidence/policies/min60-3runs.json
+  PASS record PDAs — 31/31 re-derived from [modelrec, sha256(model_id)]
+  PASS verdict replay — 31/31 verdicts recomputed bit-exact from embedded receipts
+  PASS summary consistent — 11/20/0 stored = 11/20/0 recomputed
+CERT VERIFIED — 31 records, 3 checks pass, 0 fail
 
-$ yarn --cwd packages/harness cli chain market odds --snapshot web/snapshot.json
-market odds — 56 open venue(s), implied by the books themselves
-  ladder 4gx1VhwgTK9b… pool 0.6000 ◎ — book's pick: leg 0 · ladder/model-a @ 50%
-      leg 0 · ladder/model-a                 50%   2.00x
-      leg 1 · ladder/model-b              33.33%   3.00x
-      leg 2 · ladder/model-c              16.66%   6.00x
-  ladder 7rMpsk7jGDPr… pool 0.6000 ◎ — book's pick: leg 0 · ladder/model-a @ 50%
-      leg 0 · ladder/model-a                 50%   2.00x
-      leg 1 · ladder/model-b              33.33%   3.00x
-      leg 2 · ladder/model-c              16.66%   6.00x
-  duel   GL4yEgmZPa5k… pool 0.5500 ◎ — book's pick: A wins · duel/model-a @ 54.54%
-      A wins · duel/model-a               54.54%   1.83x
-      B wins · duel/model-b               36.36%   2.75x
-      tie                                  9.09%   11.00x
-  band   6oE2pRN1w2Mf… pool 0.3000 ◎ — book's pick: [1] >= 30 @ 100%
-      [0] < 30                                0%   0.00x
-      [1] >= 30                             100%   1.00x
-  ladder EhMWpTjSC2f8… pool 0.3000 ◎ — book's pick: leg 0 · ladder/tie-a @ 50%
-      leg 0 · ladder/tie-a                   50%   2.00x
-      leg 1 · ladder/tie-b                16.66%   6.00x
-      leg 2 · ladder/tie-c                33.33%   3.00x
-  … and 51 venue(s) with empty books — open but nothing staked yet
-
-$ yarn --cwd packages/harness cli chain market sentiment --snapshot web/snapshot.json
-market sentiment — stake-weighted belief per model (9 model(s) priced)
-  ladder/model-a               wins     50%    (1.2000 ◎ across 2 venue(s))
-  ladder/model-b               wins  33.33%    (1.2000 ◎ across 2 venue(s))
-  ladder/model-c               wins  16.67%    (1.2000 ◎ across 2 venue(s))
-  duel/model-a                 wins  59.09%    (0.5500 ◎ across 1 venue(s))
-  duel/model-b                 wins  40.91%    (0.5500 ◎ across 1 venue(s))
-  test/market-run                       —  scores ~30  (0.3000 ◎ across 1 venue(s))
-  ladder/tie-a                 wins     50%    (0.3000 ◎ across 1 venue(s))
-  ladder/tie-b                 wins  16.67%    (0.3000 ◎ across 1 venue(s))
-  ladder/tie-c                 wins  33.33%    (0.3000 ◎ across 1 venue(s))
-
-$ yarn --cwd packages/harness cli chain market champions --snapshot web/snapshot.json
-market champions — the settlement record (18 model(s) with resolved venues)
-  duel/model-a                 duels 21W-0D-0L (100%) · legs 0/0 · bounties 0
-  test/bounty-claimant         duels 0W-0D-0L · legs 0/0 · bounties 21
-  ladder/tie-a                 duels 0W-0D-0L · legs 22/22 (100%) · bounties 0
-  ladder/tie-b                 duels 0W-0D-0L · legs 22/22 (100%) · bounties 0
-  ladder/model-a               duels 0W-0D-0L · legs 21/21 (100%) · bounties 0
-  test/bounty-wrong-payee      duels 0W-0D-0L · legs 0/0 · bounties 7
-  mock/oracle-0.5              duels 0W-0D-0L · legs 0/0 · bounties 4
-  qwen2.5-3b-instruct          duels 1W-0D-0L (100%) · legs 1/1 (100%) · bounties 1
-  qwen2.5-1.5b-instruct        duels 1W-0D-1L (50%) · legs 1/1 (100%) · bounties 0
-  mock/oracle-0.75             duels 1W-0D-0L (100%) · legs 1/1 (100%) · bounties 0
-  qwen2.5-0.5b-instruct        duels 0W-0D-1L (0%) · legs 0/1 (0%) · bounties 0
-  duel/model-b                 duels 0W-0D-21L (0%) · legs 0/0 · bounties 0
-  mock/oracle-0.50             duels 0W-0D-1L (0%) · legs 0/1 (0%) · bounties 0
-  ladder/tie-c                 duels 0W-0D-0L · legs 0/22 (0%) · bounties 0
-  ladder/model-b               duels 0W-0D-0L · legs 0/21 (0%) · bounties 0
-  ladder/model-c               duels 0W-0D-0L · legs 0/21 (0%) · bounties 0
-  llama-3.2-1b-instruct        duels 0W-0D-0L · legs 0/1 (0%) · bounties 0
-  mock/oracle-0.25             duels 0W-0D-0L · legs 0/1 (0%) · bounties 0
-
-$ yarn --cwd packages/harness cli chain model ladder/model-a --snapshot web/snapshot.json
-model ladder/model-a — the four lenses on one page
-  registry    — 17 receipts · 510/544 items (93.75%) · best 30/32
-  evidence    — paired rank #2 · 8W-0L-1T · ΣΔ+278.13pp over 142 shared-bank result(s)
-  settlement  — 0W-0D-0L (—%) · legs 21/21 · bounties 0
-  belief      — wins 50% (1.2000 ◎ staked)
-  runs        — 23 submitted · 23 finalized
-    43FqbiRwr6qX… 30/32 on sealed-gen (status 1)
-    GchNYVeQuqNu… 30/32 on sealed-gen (status 1)
-    Cng6K5jyPE3k… 30/32 on sealed-gen (status 1)
-    28Sf43UKH6ka… 30/32 on sealed-gen (status 1)
-    GE3drjQnrGns… 30/32 on sealed-gen (status 1)
-    9e48s2fqf9gu… 30/32 on sealed-gen (status 1)
-    3bRwwPMc6RMU… 30/32 on sealed-gen (status 1)
-    7grBtdWPnb9Z… 30/32 on sealed-gen (status 1)
-$ yarn --cwd packages/harness cli chain market divergence --snapshot web/snapshot.json   (head -12)
-market divergence — evidence rank vs conviction rank (+gap = money prices it ABOVE the receipts; − = below)
-  ladder/model-c               evidence #31 (0W-8L-1T)         conviction #3 (1.2000 ◎)          gap  +28
-  test/market-run              evidence #29 (0W-5L-0T)         conviction #6 (0.3000 ◎)          gap  +23
-  ladder/tie-c                 evidence #30 (0W-8L-1T)         conviction #9 (0.3000 ◎)          gap  +21
-  ladder/model-b               evidence #8 (4W-5L-0T)          conviction #2 (1.2000 ◎)          gap   +6
-  duel/model-b                 evidence #10 (3W-6L-0T)         conviction #5 (0.5500 ◎)          gap   +5
-  ladder/tie-a                 evidence #4 (5W-2L-2T)          conviction #7 (0.3000 ◎)          gap   -3
-  ladder/tie-b                 evidence #5 (5W-2L-2T)          conviction #8 (0.3000 ◎)          gap   -3
-  duel/model-a                 evidence #6 (5W-2L-2T)          conviction #4 (0.5500 ◎)          gap   +2
-  dark/model-a                 evidence #1 (8W-0L-1T)          conviction unpriced               gap   — 
-  ladder/model-a               evidence #2 (8W-0L-1T)          conviction #1 (1.2000 ◎)          gap   +1
-  test/sweep-run               evidence #3 (5W-0L-0T)          conviction unpriced               gap   — 
-  test/oracle                  evidence #7 (4W-1L-0T)          conviction unpriced               gap   — 
-
-$ yarn --cwd packages/harness cli chain market calibration --snapshot web/snapshot.json   (head -8)
-market calibration — 143 resolved venues with books, vs what Run.correct landed
-  favorites hit 87% · winners carried 55.18% implied at close (uniform baseline 39.57%)
-  Brier 0.502 vs uniform 0.6043 — lower is sharper
-  favorite misses (winner's closing share):
-    band   7Lt4RooJSmDg… winner carried 33.33% across 3 outcome(s)
-    band   GhR2M3B3ohTP… winner carried 33.33% across 3 outcome(s)
-    band   DxS9aQBfaQs5… winner carried 33.33% across 3 outcome(s)
-    band   3GmkRhRQ7Fua… winner carried 33.33% across 3 outcome(s)
-
-$ yarn --cwd packages/harness cli chain feed --model qwen2.5-3b-instruct --limit 6 --snapshot web/snapshot.json
-feed — 6 event(s) [model qwen2.5-3b-instruct] newest first
-  2026-10-03 11:17  receipt    2YncpZ3Fib8p…  receipt minted — qwen2.5-3b-instruct 7/32
-  2026-10-03 11:14  score      GnrRt5GUu6pU…  MPC finalized — qwen2.5-3b-instruct scored 7/32 on sealed-v77007 (authored)
-  2026-10-03 11:14  run        GnrRt5GUu6pU…  run queued — qwen2.5-3b-instruct on sealed-v77007 (authored)
-  2026-10-02 20:52  receipt    FAqvtSdYQpzj…  receipt minted — qwen2.5-3b-instruct 7/32
-  2026-10-02 17:28  receipt    2WjFpDxcd6ak…  receipt minted — qwen2.5-3b-instruct 9/32
-  2026-10-02 17:28  score      4biuMVncBjFZ…  MPC finalized — qwen2.5-3b-instruct scored 9/32 on sealed-gen-v97970 (generated)
-
-$ yarn --cwd packages/harness cli chain bank sealed-gen-v88123 --snapshot web/snapshot.json   (difficulty line)
-bank BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw
-  spec — "sealed-gen-v88123" generated · authority 4RUW4pDm38PE… · status=1 · 1/1 chunks sealed (32 items) · fee 0.0000◎ · created 2026-10-01 20:29
-  items_root — 111a7ccd003e8b6854c95e31…  (chain items --benchmark BqC4fmNq… regenerates the exam offline)
-  runs — 4 total · 4 finalized · 0 pending · 0 post-reveal · best 7/32 (21.9%)
-  difficulty — scores across models: min 0% · p25 0% · median 0% · p75 6.3% · max 21.9% (spread 21.9pp — moderate exam)
-  receipts — 4 minted · 0 vouched · 0 post-reveal
-
-$ yarn --cwd packages/harness cli chain stats --snapshot web/snapshot.json   (exams line)
-keeper — 36 actionable now · 246 settled · 24 in play
-exams — 39 bank(s) with ≥4 models run · median spread 62.5pp · hardest sealed-gen-v88123 (median 0%)
-  most discriminating — sealed-test: 87.5pp spread over 8 runs (chain bank A6UkXHYN…)
-
-$ yarn --cwd packages/harness cli chain model ladder/model-c --snapshot web/snapshot.json   (the divergence row)
-model ladder/model-c — the four lenses on one page
-  registry    — 17 receipts · 170/544 items (31.25%) · best 10/32
-  evidence    — paired rank #31 · 0W-8L-1T · ΣΔ-346.87pp over 142 shared-bank result(s)
-  settlement  — 0W-0D-0L (—%) · legs 0/21 · bounties 0
-  belief      — wins 16.67% (1.2000 ◎ staked · conviction #3)
-  divergence  — evidence #31 vs conviction #3 → gap +28 (priced above the receipts)
-  runs        — 23 submitted · 23 finalized
-
-$ yarn --cwd packages/harness cli chain market sharps --snapshot web/snapshot.json   (bettor track records + the anonymity set)
-sharps — 139 bettor(s) · 140 surviving position account(s) (126 resolved) · 13.480◎ staked → 0.580◎ payable
-  scope — only unclaimed positions exist as accounts; exercised claims close their PDAs (see `market escrow` for the outflow)
-  every resolved position sits in a DISTINCT wallet — a 125-bettor anonymity set
-  zero observable track records: per-position keys are the book's real privacy posture
-  biggest payouts:
-    0.100◎ paid — 4RUW4pDm38… (0.100◎ at risk → pnl 0.000)
-    0.030◎ paid — B5rBjujEKa… (0.030◎ at risk → pnl 0.000)
-    0.030◎ paid — 7sUcqahMdB… (0.030◎ at risk → pnl 0.000)
-  net verdict — 0 of 126 surviving resolved bettor(s) stand positive (winners claim and close; losers' rent-return claims linger — the survivor bias is the finding)
-  deepest red:
-    -0.200◎ — 5EZzGUoShe… (0W-1L)
-    -0.200◎ — DvTQ5bY18D… (0W-1L)
-
-$ yarn --cwd packages/harness cli chain market escrow --snapshot web/snapshot.json   (the lamport ledger)
-market escrow — 76.0750◎ cumulative stakes tracked across 303 venues + 37 bounties
-  in play        2.3500◎ — open venues, positions live or sealed
-  owed winners   0.5800◎ — resolved, claims unexercised (position PDAs still open)
-  refunds owed   0.0000◎ — cancelled venues, gross refunds unclaimed
-  fees accrued   0.0000◎ — resolved venues, authority fee unclaimed
-  contingent     0.0200◎ — dark pools mid reveal-window, tally pending
-  bounty escrow  0.4500◎ — 1 live pots · 3 past deadline (sponsor-refundable)
-  dead money     0.0000◎ — resolved pots whose winning bucket went unbacked; no instruction can move them
-  settled out    72.6750◎ — exercised claims + collected fees + refunds paid (of which 68.0610◎ winner pots)
-  check          76.0750◎ = cumulative — ledger balances exactly
-
-$ yarn --cwd packages/harness cli chain anomalies --snapshot web/snapshot.json   (the skeptic's checklist)
-anomalies — the skeptic's checklist · 1 warn · 6 info · 3 clean
-  [WARN] post-reveal evidence — 29
-         29 run(s) scored after fingerprint reveals — flagged on-chain, refused by markets, excludable via gate --no-post-reveal
-         drill → chain runs --bank <bank> · flags show on every row
-  [note] thin records (>85% on <64 items) — none
-         every high-accuracy record carries ≥64 scored items
-         drill → chain records --wilson
-  [note] forfeited dark positions — 2
-         2 sealed position(s) never revealed — stakes burned into the pot (the commit-reveal tax, by design)
-         drill → chain market positions --viewer <pk>
-  [note] past-deadline bounties awaiting expire — 3
-         3 bounty pot(s) past deadline — sponsor-refundable via permissionless expire_bounty
-         drill → chain market board
-  [note] duplicate bank names — 98
-         98 banks share names — resolvers fan out to ALL matches and matrix columns disambiguate by on-chain id
-         drill → chain banks --name <name>
-  [note] single-runner banks (≥3 runs, one key) — none
-         every multi-run bank has runner diversity
-         drill → chain bank <pk>
-  [note] resolved venues with empty books — none
-         every resolved venue carried real stake
-         drill → chain market calibration
-
-$ yarn --cwd packages/harness cli chain prove --verify docs/evidence/claims/qwen2.5-3b-instruct.json   (the portable claim card)
+$ sealed chain prove --verify docs/evidence/claims/qwen2.5-3b-instruct.json
   PASS record PDA — 7mAKsLaBqXcL… = [modelrec, sha256(qwen2.5-3b-instruct)]
   PASS run PDAs — 11/11 re-derived
   PASS bank PDAs — 5/5 re-derived
@@ -374,3 +591,23 @@ $ yarn --cwd packages/harness cli chain prove --verify docs/evidence/claims/qwen
   PASS receipt=run score — 3/3 receipts agree with Run.correct
   PASS venue resolutions — 5/5 re-derived from Run.correct
 CLAIM VERIFIED — qwen2.5-3b-instruct: 9 checks pass, 0 fail · 23/96 across 3 run(s)
+
+$ sealed chain prove --verify docs/evidence/claims/ladder_model-a.json --min-pct 20
+  PASS record PDA — A5Yj2wU1kYat… = [modelrec, sha256(ladder/model-a)]
+  PASS run PDAs — 69/69 re-derived
+  PASS bank PDAs — 23/23 re-derived
+  PASS receipt PDAs — 17/17 re-derived
+  PASS venue PDAs — 23/23 re-derived
+  PASS record aggregate — 510/544 = stored 510/544
+  PASS runsScored=receipts — 17 receipt(s) = stored 17
+  PASS receipt=run score — 17/17 receipts agree with Run.correct
+  PASS venue resolutions — 21/21 re-derived from Run.correct
+CLAIM VERIFIED — ladder/model-a: 9 checks pass, 0 fail · 510/544 across 17 run(s)
+policy verdict — PASS (pass) · 510/544 = 93.8% over 17 run(s)
+  ok   accuracy: 93.8% (510/544) (needed >= 20%)
+
+$ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
+diff ../../web/snapshot.json → ../../web/snapshot.json
+  A — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
+  B — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
+  delta — +0 accounts · -0 removed
