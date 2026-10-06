@@ -17,7 +17,7 @@ const src = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1])
 // --- minimal DOM ---
 const els = new Map();
 const mkEl = (id) => {
-  if (!els.has(id)) els.set(id, { id, innerHTML: "", textContent: "", value: "", scrollIntoView() {}, click() {}, addEventListener() {}, files: [] });
+  if (!els.has(id)) els.set(id, { id, innerHTML: "", textContent: "", value: "", style: {}, scrollIntoView() {}, click() {}, addEventListener() {}, files: [] });
   return els.get(id);
 };
 const documentStub = { getElementById: mkEl };
@@ -47,7 +47,7 @@ const ctx = {
     }
   },
   TextEncoder, TextDecoder, DataView, Uint8Array, BigInt, JSON, Math, Number, Date,
-  crypto, console, setInterval: () => 0, setTimeout, queueMicrotask,
+  crypto, console, setInterval: () => 0, setTimeout, clearTimeout, clearInterval: () => {}, queueMicrotask,
   atob: (s) => Buffer.from(s, "base64").toString("binary"),
 };
 ctx.window.location = ctx.location;
@@ -235,6 +235,18 @@ if (!bundleOk) fails++;
   console.log(`in-page bundle fingerprint — root ${want.slice(0, 16)}… ${fpOk ? "PASS" : "FAIL"}`);
   if (!fpOk) fails++;
 }
+// guided tour — the bar opens on the first stop with its caption, and
+// next() advances through the section walk.
+vm.runInContext("startTour()", ctx);
+const tourCap = els.get("tourcap")?.innerHTML ?? "";
+const tourShown = els.get("tourbar")?.style?.display === "block";
+vm.runInContext("tourNext()", ctx);
+const tourStep2 = els.get("tourstep")?.textContent ?? "";
+vm.runInContext("tourEnd()", ctx);
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/12/.test(tourStep2) &&
+  els.get("tourbar")?.style?.display === "none";
+console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
+if (!tourOk) fails++;
 // policy sweep — the frontier grid renders all records; test/sweep-run's
 // perfect record must survive the strictest line.
 vm.runInContext("runSweep()", ctx);
