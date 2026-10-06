@@ -312,3 +312,65 @@ model ladder/model-c — the four lenses on one page
   belief      — wins 16.67% (1.2000 ◎ staked · conviction #3)
   divergence  — evidence #31 vs conviction #3 → gap +28 (priced above the receipts)
   runs        — 23 submitted · 23 finalized
+
+$ yarn --cwd packages/harness cli chain market sharps --snapshot web/snapshot.json   (bettor track records + the anonymity set)
+sharps — 139 bettor(s) · 140 surviving position account(s) (126 resolved) · 13.480◎ staked → 0.580◎ payable
+  scope — only unclaimed positions exist as accounts; exercised claims close their PDAs (see `market escrow` for the outflow)
+  every resolved position sits in a DISTINCT wallet — a 125-bettor anonymity set
+  zero observable track records: per-position keys are the book's real privacy posture
+  biggest payouts:
+    0.100◎ paid — 4RUW4pDm38… (0.100◎ at risk → pnl 0.000)
+    0.030◎ paid — B5rBjujEKa… (0.030◎ at risk → pnl 0.000)
+    0.030◎ paid — 7sUcqahMdB… (0.030◎ at risk → pnl 0.000)
+  net verdict — 0 of 126 surviving resolved bettor(s) stand positive (winners claim and close; losers' rent-return claims linger — the survivor bias is the finding)
+  deepest red:
+    -0.200◎ — 5EZzGUoShe… (0W-1L)
+    -0.200◎ — DvTQ5bY18D… (0W-1L)
+
+$ yarn --cwd packages/harness cli chain market escrow --snapshot web/snapshot.json   (the lamport ledger)
+market escrow — 76.0750◎ cumulative stakes tracked across 303 venues + 37 bounties
+  in play        2.3500◎ — open venues, positions live or sealed
+  owed winners   0.5800◎ — resolved, claims unexercised (position PDAs still open)
+  refunds owed   0.0000◎ — cancelled venues, gross refunds unclaimed
+  fees accrued   0.0000◎ — resolved venues, authority fee unclaimed
+  contingent     0.0200◎ — dark pools mid reveal-window, tally pending
+  bounty escrow  0.4500◎ — 1 live pots · 3 past deadline (sponsor-refundable)
+  dead money     0.0000◎ — resolved pots whose winning bucket went unbacked; no instruction can move them
+  settled out    72.6750◎ — exercised claims + collected fees + refunds paid (of which 68.0610◎ winner pots)
+  check          76.0750◎ = cumulative — ledger balances exactly
+
+$ yarn --cwd packages/harness cli chain anomalies --snapshot web/snapshot.json   (the skeptic's checklist)
+anomalies — the skeptic's checklist · 1 warn · 6 info · 3 clean
+  [WARN] post-reveal evidence — 29
+         29 run(s) scored after fingerprint reveals — flagged on-chain, refused by markets, excludable via gate --no-post-reveal
+         drill → chain runs --bank <bank> · flags show on every row
+  [note] thin records (>85% on <64 items) — none
+         every high-accuracy record carries ≥64 scored items
+         drill → chain records --wilson
+  [note] forfeited dark positions — 2
+         2 sealed position(s) never revealed — stakes burned into the pot (the commit-reveal tax, by design)
+         drill → chain market positions --viewer <pk>
+  [note] past-deadline bounties awaiting expire — 3
+         3 bounty pot(s) past deadline — sponsor-refundable via permissionless expire_bounty
+         drill → chain market board
+  [note] duplicate bank names — 98
+         98 banks share names — resolvers fan out to ALL matches and matrix columns disambiguate by on-chain id
+         drill → chain banks --name <name>
+  [note] single-runner banks (≥3 runs, one key) — none
+         every multi-run bank has runner diversity
+         drill → chain bank <pk>
+  [note] resolved venues with empty books — none
+         every resolved venue carried real stake
+         drill → chain market calibration
+
+$ yarn --cwd packages/harness cli chain prove --verify docs/evidence/claims/qwen2.5-3b-instruct.json   (the portable claim card)
+  PASS record PDA — 7mAKsLaBqXcL… = [modelrec, sha256(qwen2.5-3b-instruct)]
+  PASS run PDAs — 11/11 re-derived
+  PASS bank PDAs — 5/5 re-derived
+  PASS receipt PDAs — 3/3 re-derived
+  PASS venue PDAs — 5/5 re-derived
+  PASS record aggregate — 23/96 = stored 23/96
+  PASS runsScored=receipts — 3 receipt(s) = stored 3
+  PASS receipt=run score — 3/3 receipts agree with Run.correct
+  PASS venue resolutions — 5/5 re-derived from Run.correct
+CLAIM VERIFIED — qwen2.5-3b-instruct: 9 checks pass, 0 fail · 23/96 across 3 run(s)

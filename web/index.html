@@ -75,7 +75,7 @@
 </div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-verify">verify</a><a href="#sec-claim">claim</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -94,6 +94,15 @@
   <button onclick="loadExampleProof()" title="load a real committed proof">load example</button>
   <div><textarea id="vproof" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"itemIndex":0,"chunkIndex":0,"outputHash":"…","chunkOutputs":["…×32"],"proof":["…"],"outputsRoot":"…"}'></textarea></div>
   <div id="vres"></div>
+</div>
+
+<h2 id="sec-claim">verify a claim card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the portable deliverable — paste a <code>sealed-claim/v1</code> card (<code>chain prove &lt;model&gt;</code> mints them) and every account address re-derives in-page, the record replays bit-exact, and every venue resolution re-derives from <code>Run.correct</code>. Same checks as <code>chain prove --verify</code>.
+    <span class="verlink" onclick="loadExampleClaim()">load the committed qwen2.5-3b card</span></div>
+  <div><textarea id="claimjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-claim/v1", …}'></textarea></div>
+  <button onclick="verifyClaim()">verify claim</button>
+  <div id="claimres"></div>
 </div>
 <div class="footer">benchmark items are committed by a sequential commitment fold at mint (replayable in-browser — see "verify commitment"); model outputs are committed by hash root at run creation; the MPC cluster compares them inside the encryption boundary and reveals only a count.</div>
 
@@ -1789,6 +1798,95 @@ async function loadCalibrationSpecimen() {
   }
 }
 const short0x = (n) => "0x" + n.toString(16).slice(0, 10) + "…";
+
+// sealed-claim/v1 in-browser verifier — the same checks `chain prove
+// --verify` runs: every PDA re-derives from declared seeds, the record
+// replays bit-exact, receipts agree with Run.correct, venue resolutions
+// re-derive. Tamper fails exactly where it should.
+async function loadExampleClaim() {
+  const ta = document.getElementById("claimjson");
+  try {
+    const r = await fetch("claims/qwen2.5-3b-instruct.json");
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text();
+  } catch (e) { ta.value = ""; document.getElementById("claimres").innerHTML = `<div class="kv">committed claim card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+function verifyClaim() {
+  const res = document.getElementById("claimres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("claimjson").value);
+    if (c.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 card (kind=${c.kind})`);
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    const spid = new PK(c.programs.sealed), mpid = new PK(c.programs.market);
+    const drv = (seeds, pid) => pdaB(seeds, pid);
+    // [1] identity: every PDA re-derives
+    const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
+    drv([utf8("modelrec"), hex2u8(c.record.seeds.modelHash)], spid) === c.record.pk
+      ? pass("record PDA", `${short(c.record.pk)} = [modelrec, sha256(${esc(c.model.id)})]`)
+      : fail("record PDA", `declared ${short(c.record.pk)} — re-derived different address`);
+    const runByPk = new Map(c.runs.map(r => [r.pk, r]));
+    const runOk = c.runs.filter(r => drv([utf8("run"), pkB(r.benchmark), u64le(r.index)], spid) === r.pk).length;
+    runOk === c.runs.length ? pass("run PDAs", `${runOk}/${c.runs.length} re-derived`) : fail("run PDAs", `${runOk}/${c.runs.length} re-derived`);
+    const bankOk = c.banks.filter(b => drv([utf8("benchmark"), pkB(b.authority), u32le(b.id)], spid) === b.pk).length;
+    bankOk === c.banks.length ? pass("bank PDAs", `${bankOk}/${c.banks.length} re-derived`) : fail("bank PDAs", `${bankOk}/${c.banks.length} re-derived`);
+    const logOk = c.receipts.filter(l => drv([utf8("scorelog"), pkB(l.run)], spid) === l.pk).length;
+    logOk === c.receipts.length ? pass("receipt PDAs", `${logOk}/${c.receipts.length} re-derived`) : fail("receipt PDAs", `${logOk}/${c.receipts.length} re-derived`);
+    let venueOk = 0;
+    for (const v of c.venues) {
+      let s = null;
+      if (v.kind === "band") s = [utf8("market"), pkB(v.run), u64le(v.salt)];
+      else if (v.kind === "duel") s = [utf8("duel"), pkB(v.run), pkB(v.runB), u64le(v.salt)];
+      else if (v.kind === "dark") s = [utf8("dark"), pkB(v.run), u64le(v.salt)];
+      else if (v.kind === "ladder") s = [utf8("ladder"), pkB(v.legs[0]), u64le(v.salt)];
+      else if (v.kind === "bounty") s = [utf8("bounty"), pkB(v.bank), pkB(v.sponsor), u64le(v.salt)];
+      if (s && drv(s, mpid) === v.pk) venueOk++;
+    }
+    venueOk === c.venues.length ? pass("venue PDAs", `${venueOk}/${c.venues.length} re-derived`) : fail("venue PDAs", `${venueOk}/${c.venues.length} re-derived`);
+    // [2] the record replays bit-exact from receipts
+    const tC = c.receipts.reduce((s, l) => s + l.correct, 0), tI = c.receipts.reduce((s, l) => s + l.items, 0);
+    (tC === c.model.totalCorrect && tI === c.model.totalItems)
+      ? pass("record aggregate", `${tC}/${tI} = stored ${c.model.totalCorrect}/${c.model.totalItems}`)
+      : fail("record aggregate", `receipts ${tC}/${tI} ≠ stored ${c.model.totalCorrect}/${c.model.totalItems}`);
+    c.receipts.length === c.model.runsScored
+      ? pass("runsScored=receipts", `${c.receipts.length} receipt(s) = stored ${c.model.runsScored}`)
+      : fail("runsScored=receipts", `${c.receipts.length} receipts ≠ stored ${c.model.runsScored}`);
+    // [3] receipts' scores match their runs' Run.correct
+    let sOk = 0, sN = 0;
+    for (const l of c.receipts) { const r = runByPk.get(l.run); if (!r || r.status !== 1) continue; sN++; if (r.correct === l.correct) sOk++; }
+    sOk === sN ? pass("receipt=run score", `${sOk}/${sN} agree with Run.correct`) : fail("receipt=run score", `${sOk}/${sN} agree`);
+    // [4] venue resolutions re-derive from the runs they priced
+    let rOk = 0, rN = 0;
+    for (const v of c.venues) {
+      if (v.status !== 1) continue;
+      if (v.kind === "duel") {
+        const a = runByPk.get(v.run), b = runByPk.get(v.runB);
+        if (!a || !b || a.status !== 1 || b.status !== 1) continue; rN++;
+        if (v.resolvedScore === ((a.correct << 16) | b.correct) && v.outcome === (a.correct > b.correct ? 0 : a.correct < b.correct ? 1 : 2)) rOk++;
+      } else if (v.kind === "ladder") {
+        const legs = v.legs.map(p => runByPk.get(p));
+        if (legs.some(r => !r || r.status !== 1)) continue; rN++;
+        const best = Math.max(...legs.map(r => r.correct));
+        if (v.resolvedScore === best && v.resultMask === legs.reduce((s, r, i) => s + (r.correct === best ? 1 << i : 0), 0)) rOk++;
+      } else if (v.kind === "bounty") {
+        if (!v.winnerRun) continue;
+        const w = runByPk.get(v.winnerRun); if (!w || w.status !== 1) continue; rN++;
+        if (w.correct === v.winningScore && w.correct >= v.threshold) rOk++;
+      } else {
+        const r = runByPk.get(v.run); if (!r || r.status !== 1) continue; rN++;
+        if (v.resolvedScore === r.correct) rOk++;
+      }
+    }
+    rOk === rN ? pass("venue resolutions", `${rOk}/${rN} re-derived from Run.correct`) : fail("venue resolutions", `${rOk}/${rN} re-derived`);
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"}</b> — ${esc(c.model.id)}: ${c.model.totalCorrect}/${c.model.totalItems} across ${c.model.runsScored} run(s)${c.verdicts?.postRevealRuns ? ` · ${c.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""}</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
 
 async function verify() {
   const res = document.getElementById("vres");

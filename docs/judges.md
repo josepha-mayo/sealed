@@ -190,6 +190,10 @@ yarn --cwd packages/harness cli chain prove --verify /tmp/claim.json
 yarn --cwd packages/harness cli chain prove --verify ../../docs/evidence/claims/qwen2.5-3b-instruct.json
 #         → a REAL open-weights model's claim: 23/96 across 3 MPC-scored
 #           runs — every address re-derives, every verdict replays
+#         → or verify it IN THE EXPLORER: open the hosted page, scroll to
+#           "verify a claim card", click "load the committed qwen2.5-3b
+#           card", verify — the same 9 checks run in-page (PDA checks need
+#           the web3.js CDN; the card itself is sha256-pinned in MANIFEST)
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh

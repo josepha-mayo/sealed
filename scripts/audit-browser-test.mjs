@@ -85,5 +85,24 @@ const discOk = /both right:\s*2\b/.test(discTxt)
   && /2\/32/.test(discTxt);
 console.log(`item discrimination matrix — two-model counts ${discOk ? "PASS" : "FAIL"}`);
 if (!discOk) fails++;
+// in-page claim-card verifier: load the committed card through the page's
+// fetch path and run verifyClaim() — the same sealed-claim/v1 checks as the
+// CLI. A tampered aggregate must flip the verdict to FAILED.
+await vm.runInContext("loadExampleClaim()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+vm.runInContext("verifyClaim()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+const claimTxt = (els.get("claimres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const claimOk = /CLAIM VERIFIED/.test(claimTxt) && (claimTxt.match(/pill cancelled/g) ?? "").length === 0;
+console.log(`in-page claim-card verifier — committed qwen2.5-3b card ${claimOk ? "PASS" : "FAIL"}`);
+if (!claimOk) fails++;
+// tamper case: mutating the stored aggregate must flip the verdict.
+els.get("claimjson").value = els.get("claimjson").value.replace('"totalCorrect": 23', '"totalCorrect": 24');
+vm.runInContext("verifyClaim()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+const tamperTxt = (els.get("claimres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const tamperOk = /CLAIM FAILED/.test(tamperTxt) && /FAIL record aggregate|record aggregate/.test(tamperTxt);
+console.log(`in-page claim-card tamper case — mutated aggregate ${tamperOk ? "rejected PASS" : "MISSED FAIL"}`);
+if (!tamperOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);
