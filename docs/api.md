@@ -161,7 +161,9 @@ sides' sha256 and integrity verdicts recomputed. Pair it with
 `snapshot.mjs --rpc <url>` to prove the committed bundle reproduces
 from live chain state instead of trusting the committed file.
 `chain stats` is the executive dashboard — ledger counts, escrow, fees,
-MPC latency p50/p95, the keeper surface, and two verdicts recomputed
+MPC latency p50/p95, the keeper surface, an activity heartbeat
+(per-UTC-day event sparkline — the same timestamps `feed` orders by),
+and two verdicts recomputed
 on the spot: every `ModelRecord`'s stored aggregate replayed bit-exact
 from its `ScoreLog` receipts, and every resolved venue's stored score
 checked against `Run.correct` (exit 1 on any violation). When the

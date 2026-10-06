@@ -3479,6 +3479,28 @@ export async function chainStats(snapPath?: string, json = false) {
     },
     mpcLatency: { samples: lats.length, p50s: pct(50), p95s: pct(95) },
     keeper: (await loadBoard(snapPath)).board,
+    activity: (() => {
+      // the ledger's heartbeat — every timestamped event bucketed per UTC
+      // day. Same timestamps chainFeed orders by; the dashboard shows the
+      // whole history's shape at a glance.
+      const days = new Map<string, number>();
+      const bump = (t: any) => { const n = Number(t ?? 0); if (n > 0) { const d = new Date(n * 1000).toISOString().slice(0, 10); days.set(d, (days.get(d) ?? 0) + 1); } };
+      for (const b of banks) bump(b.account.createdAt);
+      for (const r of runs) { bump(r.account.createdAt); bump(r.account.finalizedAt); }
+      for (const l of logs) bump(l.account.recordedAt);
+      for (const rv of reveals) bump(rv.account.revealedAt);
+      for (const g of grants) bump(g.account.sharedAt);
+      for (const m of markets) { bump(m.account.createdAt); bump(m.account.resolvedAt); }
+      for (const d of darks) { bump(d.account.createdAt); bump(d.account.resolvedAt); }
+      for (const l of ladders) { bump(l.account.createdAt); bump(l.account.resolvedAt); }
+      for (const b of bounties) bump(b.account.createdAt);
+      const keys = [...days.keys()].sort();
+      const TICKS = "▁▂▃▄▅▆▇█";
+      const max = Math.max(1, ...days.values());
+      const spark = keys.map((k) => TICKS[Math.min(7, Math.floor((days.get(k)! / max) * 7.999))]);
+      return { days: keys.length, first: keys[0] ?? null, last: keys.at(-1) ?? null,
+        peak: max, total: [...days.values()].reduce((s, x) => s + x, 0), spark: spark.join(""), perDay: keys.map((k) => [k, days.get(k)]) };
+    })(),
     discrimination: (() => {
       // which exams separate models — per-bank score spread (pct of
       // capacity), on banks with enough finalized runs to mean anything.
@@ -3515,6 +3537,8 @@ export async function chainStats(snapPath?: string, json = false) {
   console.log(`integrity — registry ${out.integrity.registryReplay} · resolutions ${out.integrity.resolutionsVerified}`);
   console.log(`mpc — scoring latency p50 ${out.mpcLatency.p50s}s / p95 ${out.mpcLatency.p95s}s (${lats.length} timed runs)`);
   console.log(`keeper — ${actionable} actionable now · ${out.keeper.settled} settled · ${out.keeper.filling} in play`);
+  const A = out.activity;
+  console.log(`activity — ${A.spark} (${A.total} events over ${A.days} day(s), ${A.first} → ${A.last} · peak ${A.peak}/day)`);
   const D = out.discrimination;
   if (D.banksMeasured) {
     console.log(`exams — ${D.banksMeasured} bank(s) with ≥4 models run · median spread ${D.medianSpreadPp}pp` +
