@@ -3400,9 +3400,12 @@ export async function chainTour(snapPath?: string) {
       console.log(`    ${anoms.clean} of ${anoms.findings.length} hostile checks come back clean`);
     }
   }
-  console.log(`\nnext: sealed chain export --snapshot <file>  → the portable digest`);
-  console.log(`      sealed chain diff <a> <b>              → bundle-vs-live reproducibility`);
-  console.log(`      https://josepha-mayo.github.io/sealed/?pk=<key>  → the same resolver in the browser`);
+  console.log(`\nportable artifacts — what you hand a consumer:`);
+  console.log(`      sealed chain prove <model> --out c.json     → claim card (verify: --verify c.json [--min-pct N])`);
+  console.log(`      sealed chain report <model>                 → sealed-report/v1 printable document`);
+  console.log(`      sealed chain gate --all <policy> --cert p.json → sealed-policy/v1 governance certificate`);
+  console.log(`      sealed chain export --snapshot <file>       → the portable digest · diff <a> <b> reproducibility`);
+  console.log(`      https://josepha-mayo.github.io/sealed/?pk=<key>  → every one of these verifiable in the browser`);
 }
 
 /** `chain search <pk>` — the universal resolver (CLI mirror of the
@@ -4979,6 +4982,16 @@ export async function chainAnomalies(json = false, snapPath?: string) {
       ? `${(Number(dead) / LAMPORTS_PER_SOL).toFixed(4)}◎ stranded in venues no instruction can drain`
       : "every resolved venue's winning bucket was backed — zero stranded pots",
     drill: "chain market escrow" });
+
+  // 5b. unclaimed payouts — winners who haven't collected (money asleep)
+  const unclaimed = posRows.filter((r) => r.state === "payable");
+  const unclaimedLam = unclaimed.reduce((s, r) => s + r.est, 0n);
+  f.push({ sev: "info", what: "unclaimed payouts",
+    count: unclaimed.length,
+    detail: unclaimed.length
+      ? `${unclaimed.length} winning position(s) hold ${solAmt(unclaimedLam)} SOL in unexercised claims — open PDAs are the claim`
+      : "every owed position has been collected",
+    drill: "chain market unclaimed" });
 
   // 5. forfeited dark stakes — never revealed, burned into the pool
   const forfeits = posRows.filter((r) => r.state === "forfeit");

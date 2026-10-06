@@ -2254,6 +2254,32 @@ function renderAnomalies() {
   const forfeits = A.darkPositions.filter(p => { const d = darkByPk.get(p.market); return d && d.status === 1 && p.revealed === null; });
   f.push({ sev: forfeits.length ? "note" : "ok", what: "forfeited dark positions", count: forfeits.length,
     detail: forfeits.length ? `${forfeits.length} sealed position(s) never revealed — stakes burned into the pot (the commit-reveal tax, by design)` : "every sealed position revealed in its window" });
+  // 5b. unclaimed payouts — winners who haven't collected (money asleep)
+  const mByPk = new Map([...A.markets, ...A.ladders].map(m => [m.pk, m]));
+  let uncl = 0, unclLam = 0n;
+  for (const p of A.positions) {
+    const m = mByPk.get(p.market);
+    if (!m || m.status !== 1) continue;
+    const won = m.resultMask !== undefined
+      ? p.amounts.reduce((s, a, i) => s + ((m.resultMask & (1 << i)) ? BigInt(a) : 0n), 0n)
+      : BigInt(p.amounts[m.outcome] ?? 0n);
+    if (won <= 0n) continue;
+    const wt = m.resultMask !== undefined
+      ? m.totals.reduce((s, t, i) => s + ((m.resultMask & (1 << i)) ? BigInt(t) : 0n), 0n)
+      : BigInt(m.totals[m.outcome] ?? 0n);
+    if (wt <= 0n) continue;
+    const pot = m.totals.reduce((s, t) => s + BigInt(t), 0n);
+    const net = pot - (pot * BigInt(m.feeBps)) / 10000n;
+    uncl++; unclLam += won * net / wt;
+  }
+  for (const p of A.darkPositions) {
+    const d = darkByPk.get(p.market);
+    if (!d || d.status !== 1 || !d.tallied || p.revealed === null || p.revealed !== d.outcome || d.winTotal === 0n) continue;
+    const net = d.poolTotal - (d.poolTotal * BigInt(d.feeBps)) / 10000n;
+    uncl++; unclLam += BigInt(p.amount) * net / d.winTotal;
+  }
+  f.push({ sev: uncl ? "note" : "ok", what: "unclaimed payouts", count: uncl,
+    detail: uncl ? `${uncl} winning position(s) hold ${(Number(unclLam) / 1e9).toFixed(4)}◎ in unexercised claims — an open PDA is the claim (chain market unclaimed)` : "every owed position has been collected" });
   // 6. expired-but-open bounties
   const expB = A.bounties.filter(b => b.status === 0 && b.deadline > 0 && b.deadline <= now);
   f.push({ sev: expB.length ? "note" : "ok", what: "past-deadline bounties awaiting expire", count: expB.length,
