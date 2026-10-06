@@ -1,0 +1,601 @@
+{
+  "kind": "sealed-policy/v1",
+  "generatedAt": "2026-10-06T13:46:01.519Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ"
+  },
+  "policy": {
+    "minPct": 60,
+    "minRuns": 1,
+    "vouchedOnly": false,
+    "noPostReveal": false,
+    "bank": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1"
+  },
+  "models": [
+    {
+      "modelId": "test/registry-model",
+      "recordPk": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "13df86ebdff45c9dcb250d88cf4d7af05e680390ccdd0c0d8cc074be7adfe7a0"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "qwen2.5-3b-instruct",
+      "recordPk": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "e70dab371f91877d74453534d726f1449b53e660fee4549ae219cc0b05f7a102"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "qwen2.5-1.5b-instruct",
+      "recordPk": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "3b86b10a1040f263db098b2486b54a85466e7876fa1805c618ceb9c2709aa02a"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "ladder/model-b",
+      "recordPk": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "2026a8da2195592bb8b47895874355721d15a6189f6b7789143afaf68cccf80a"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/gen-oracle",
+      "recordPk": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "e8d396576d8c08b26d7ec26a9fca1d826b9c0837b7f32f19a41c2f5f64a508c8"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "ladder/tie-c",
+      "recordPk": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "bc7fe84833ba1acc5574e78fedd68ad576c7af28ab231d191be556d9c94d84a7"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/priv-oracle",
+      "recordPk": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "96e41fae41c051e32fea740f40813396a54336d8836bd4a5b67ca11566cc291c"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "mock/oracle-0.25",
+      "recordPk": "81ETbEzdd1jeeuoohuEVgkmG6hQc9g4KJZF1hbnvcVMe",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "cf85546b08e280812a7481410085e02e2675acf4c564102a0edf60ea12ca27fe"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "ladder/tie-a",
+      "recordPk": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "e06b2b681512a63a57682753bcb6100a5c464c7d4d78123b1b74e4b8db2186a8"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "ladder/model-c",
+      "recordPk": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "5aa0dc30466cc16e52dfe3ad6c2202e4af28374d6311c83e72b09dd7a6d70f0a"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "dark/model-a",
+      "recordPk": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "f5d5fca13af8af43119005bc9e732afeefdc7ed6a756585a1e598d100cfd7d8a"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "mock/oracle-0.50",
+      "recordPk": "A121sfjRJm9xYknMCJfoApjbcLnfNEbt6neFYVL8fGM8",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "c4c3eb2af60a5c55d11c4c59c23c66a08c2baafb87688e3c992b6dbec9c52444"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "ladder/model-a",
+      "recordPk": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "79ccc74f053fb757f3d196bc2082942b6a1f60d833fbb98c2b71f5563181121e"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "qwen2.5-0.5b-instruct",
+      "recordPk": "CXt66U71eShBAX3k7ATCzcU6MokgTobVvKwBtmvTZ4Js",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "77ec8b2565cd4ff90d33956ecf41bb84c611df53059372f3a67ae696582f3572"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "duel/model-b",
+      "recordPk": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "c7b79a37a2ec9c645c22a85cf8ec7e5cb94e6fe4042515af72d41a3f1f7e86a7"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "ladder/tie-b",
+      "recordPk": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "b3c00612b264452a9829bcf3c761312a90008d031877f3af90f0f34c75c179a7"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/bounty-wrong-payee",
+      "recordPk": "EPdpCzZ1VEp9U3NfwS6fWCQccuegnGknwTGE8V2hMpxc",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "d648a5400d544f3271cf5b896ed5a0c27eb9cd532d81d982714f0bfdd7be6d2c"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "delegate/runner-1",
+      "recordPk": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "99ad6e204e623491d46256ad44e42f5e9f0993cecc10e569d2f2a72c2a6fd610"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/sweep-run",
+      "recordPk": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "24c66aa9de34cf300e8150ceb9bc65b75b9f0e88a9e17559bc459ce9d199095d"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/market-run",
+      "recordPk": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "9ad6c940dc8b303133251abea759fbf60a91dce334c0d5fd150e4edcdeea6ebf"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/oracle",
+      "recordPk": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "e59e599a88a99fcd579b00ba8701253c8c264d05e796c334d21796f7456d0bb7"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/bounty-claimant",
+      "recordPk": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "e0c00fcf69baa0fb8e297aada4871aa8ea7c2a48c36a5063284fefe9f48c82d9"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "llama-3.2-1b-instruct",
+      "recordPk": "HT5SbpWXhi9mUgQDn6Y8TiuBu29qFT9WsGPbt4cwKf1c",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "07b96f33ffe7e931fd8413f52a535bb8b4bea05e012ab1a47f94228f19a07ff8"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "mock/oracle-0.75",
+      "recordPk": "HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "c98a734437002ddff92f9ccefa56c60f220d62b32be21c74d6ea89163f21d444"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "duel/model-a",
+      "recordPk": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "7df377d2ebf823fd58c5d543a7f159a4260658cb40d3b8c6886542e0c7bc3a35"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "mock/oracle-0.5",
+      "recordPk": "uGbfq9L7DZATq7RFfG1JfsGopEuWSc4Xc4GzZe3tEfA",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "e1d06fe57227d851b48e1ec757b593cf73e50c58b5e3e6dbc2ce93fcb0e6fa3b"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/post-reveal-scored",
+      "recordPk": "FR8zRAjyvY5Lc9PxKRQYoDjJyHjm4awVTTtVBWgEpbLq",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "a8ca90bc3641731579d30894d834afc06510ae006e91c52e993f51831759b6e0"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/registry-model-87070",
+      "recordPk": "GEuHM2EuDwjAKt3wiGNUv7xo8WpPfhw5HsmNg2nne4Xd",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "db0527ae75f1b019976ca774edc689ca8a3ab41fdb72395513f086d780f54908"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "policy",
+        "pct": 50,
+        "runs": 2,
+        "items": 128,
+        "correct": 64,
+        "postRevealRuns": 0
+      },
+      "receipts": [
+        {
+          "correct": 48,
+          "items": 64,
+          "vouchedAtRecord": true,
+          "postReveal": false
+        },
+        {
+          "correct": 16,
+          "items": 64,
+          "vouchedAtRecord": false,
+          "postReveal": false
+        }
+      ]
+    },
+    {
+      "modelId": "test/post-reveal-87070",
+      "recordPk": "7irQFc6oMCSua79XajcGFSty9mn1ifxWR9rETf5T1pJo",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "dffcec96d2396b3ad9ca91da1b2f0aa365f9100e9141510cef2fe9ef9fc54ef2"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "policy",
+        "pct": 12.5,
+        "runs": 1,
+        "items": 64,
+        "correct": 8,
+        "postRevealRuns": 1
+      },
+      "receipts": [
+        {
+          "correct": 8,
+          "items": 64,
+          "vouchedAtRecord": false,
+          "postReveal": true
+        }
+      ]
+    },
+    {
+      "modelId": "test/registry-model-35953",
+      "recordPk": "8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "2938369c3fb42f6d4b81472efa25317576c76e529acf26761ec5aff32d6564aa"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    },
+    {
+      "modelId": "test/post-reveal-35953",
+      "recordPk": "Ag85QM2yhLMhHbW6sx9AmV7gcA8t5AVwds8Dd5pun812",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "cd4f555165eeeede3b2e11ed4b5e9ff361b48bd6bfb570e01fa2bcf1648a5d77"
+      },
+      "verdict": {
+        "pass": false,
+        "reason": "no-evidence",
+        "pct": 0,
+        "runs": 0,
+        "items": 0,
+        "correct": 0,
+        "postRevealRuns": 0
+      },
+      "receipts": []
+    }
+  ],
+  "summary": {
+    "records": 31,
+    "pass": 0,
+    "noEvidence": 29,
+    "fail": 2
+  }
+}

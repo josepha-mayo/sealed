@@ -4263,7 +4263,7 @@ export async function gateAll(policy: GatePolicy, json = false, snapPath?: strin
       correct: a.correct as number, items: a.items as number,
       vouchedAtRecord: a.vouchedAtRecord, postReveal: a.postReveal,
     }));
-    return { record: r.publicKey.toBase58(), modelId: r.account.modelId as string, verdict: evalGate(receipts, policy, receipts.length > 0) };
+    return { record: r.publicKey.toBase58(), modelId: r.account.modelId as string, verdict: evalGate(receipts, policy, true) };
   }).sort((a, b) => Number(b.verdict.pass) - Number(a.verdict.pass) || b.verdict.pct - a.verdict.pct);
   const passes = rows.filter((r) => r.verdict.pass).length;
   if (json) { console.log(JSON.stringify(rows.map((r) => ({ record: r.record, ...r.verdict, modelId: r.modelId })))); return rows; }
@@ -4349,7 +4349,7 @@ export async function gateWhy(modelStr: string, policy: GatePolicy | undefined, 
   const envs = scopes.map((s) => ({ name: s.name, e: envelope(s.p) }));
   let verdict: any = null, binding: string | null = null;
   if (policy) {
-    verdict = evalGate(receipts, policy, receipts.length > 0);
+    verdict = evalGate(receipts, policy, true);
     if (!verdict.pass && verdict.reason === "policy")
       binding = verdict.checks.find((c: GateCheck) => !c.pass)?.name ?? null;
   }
@@ -4398,7 +4398,7 @@ export async function gateSweep(base: GatePolicy, json = false, snapPath?: strin
       correct: a.correct as number, items: a.items as number,
       vouchedAtRecord: a.vouchedAtRecord, postReveal: a.postReveal,
     }));
-    const cells = grid.map((minPct) => evalGate(receipts, { ...base, minPct }, receipts.length > 0));
+    const cells = grid.map((minPct) => evalGate(receipts, { ...base, minPct }, true));
     const frontier = cells.reduce((f, v, i) => (v.pass ? grid[i] : f), null as number | null);
     return {
       record: r.publicKey.toBase58(), modelId: r.account.modelId as string,
@@ -4461,7 +4461,7 @@ export async function gateCert(policy: GatePolicy, out: string, snapPath?: strin
       correct: num(a.correct), items: num(a.items),
       vouchedAtRecord: !!a.vouchedAtRecord, postReveal: !!a.postReveal,
     }));
-    const v = evalGate(receipts, policy, receipts.length > 0);
+    const v = evalGate(receipts, policy, true);
     return {
       modelId: String(r.account.modelId), recordPk: r.publicKey.toBase58(),
       seeds: { prefix: "modelrec", modelHash: modelHash(String(r.account.modelId)) },
@@ -4518,7 +4518,7 @@ export async function gateCertVerify(file: string) {
     const receipts: ScoreReceipt[] = (m.receipts as any[]).map((x) => ({
       correct: x.correct, items: x.items, vouchedAtRecord: x.vouchedAtRecord, postReveal: x.postReveal,
     }));
-    const v = evalGate(receipts, policy, receipts.length > 0);
+    const v = evalGate(receipts, policy, true);
     const w = m.verdict;
     if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) < 0.01 &&
         v.runs === w.runs && v.items === w.items && v.correct === w.correct && v.postRevealRuns === w.postRevealRuns)

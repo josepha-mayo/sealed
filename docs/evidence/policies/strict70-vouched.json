@@ -1,6 +1,6 @@
 {
   "kind": "sealed-policy/v1",
-  "generatedAt": "2026-10-06T13:33:31.909Z",
+  "generatedAt": "2026-10-06T13:46:12.884Z",
   "source": "../../web/snapshot.json",
   "programs": {
     "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ"
