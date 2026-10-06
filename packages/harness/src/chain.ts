@@ -2362,6 +2362,77 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
   return out;
 }
 
+/** `chain report <model> [--out file]` — the dossier as a document: a
+ *  sealed-report/v1 markdown you can hand a consumer — every lens, the
+ *  receipt ledger, the venue settlement record, and the sha256 of the
+ *  model's claim card so the report's claims re-verify against the card. */
+export async function chainReport(modelStr: string, out?: string, snapPath?: string) {
+  const origLog = console.log; console.log = () => {};
+  let dossier: any, card: any;
+  try {
+    dossier = await chainModel(modelStr, true, snapPath);
+    card = await chainProve(modelStr, undefined, snapPath);
+  } finally { console.log = origLog; }
+  if (!dossier || !card) { console.log(`no model record for ${modelStr}`); process.exitCode = 2; return; }
+  // canonical content hash — generatedAt + source excluded so the digest is
+  // stable: the same evidence fingerprints identically live or replayed.
+  const canon = (v: any): string => JSON.stringify(v, (_k, x) => {
+    if (x && typeof x === "object" && !Array.isArray(x))
+      return Object.keys(x).sort().reduce((o: any, k) => (o[k] = x[k], o), {});
+    return x;
+  });
+  const { generatedAt: _drop, source: _drop2, ...cardBody } = card;
+  const cardHash = createHash("sha256").update(canon(cardBody)).digest("hex");
+  const d = dossier;
+  const L: string[] = [];
+  L.push(`# Capability report — ${d.model}`, "",
+    `> sealed-report/v1 · generated ${new Date().toISOString()} · source ${snapPath ?? "live"}`,
+    `> programs: sealed \`${card.programs.sealed}\` · market \`${card.programs.market}\``,
+    `> record PDA \`${d.record}\` · claim-card content sha256 \`${cardHash}\` (canonical JSON, \`generatedAt\`/\`source\` excluded)`, "",
+    "Every number below is replayable. Re-mint the card and compare fingerprints:",
+    "```",
+    `sealed chain prove "${d.model}" --out card.json --snapshot web/snapshot.json`,
+    "sealed chain prove --verify card.json",
+    "python3 -c 'import json,hashlib; c=json.load(open(\"card.json\")); c.pop(\"generatedAt\",None); c.pop(\"source\",None); print(hashlib.sha256(json.dumps(c,sort_keys=True,separators=(\",\",\":\")).encode()).hexdigest())'",
+    "```", "");
+  const r = d.registry;
+  L.push("## Registry record", "",
+    "| metric | value |", "|---|---|",
+    `| receipts | ${r.runs} |`,
+    `| aggregate | ${r.correct}/${r.items} items (${r.accuracyPct}%) |`,
+    `| best run | ${r.bestScore} |`, "");
+  L.push("## The four lenses", "",
+    "| lens | reading |", "|---|---|");
+  const e = d.pairedEvidence;
+  L.push(`| paired evidence | ${e.rank ? `rank #${e.rank} · ${e.wins}W-${e.losses}L-${e.ties}T · ΣΔ${e.ppDelta >= 0 ? "+" : ""}${e.ppDelta}pp over ${e.sharedBankResults} shared-bank results` : e.note} |`);
+  L.push(`| settlement | ${d.settlement ? `duels ${d.settlement.duels} (${d.settlement.duelWinPct ?? "—"}%) · ladder legs ${d.settlement.ladderLegs} · bounties ${d.settlement.bounties}` : "no resolved venues"} |`);
+  L.push(`| market belief | ${d.marketBelief ? `${d.marketBelief.impliedWinPct !== null ? `wins ${d.marketBelief.impliedWinPct}%` : ""}${d.marketBelief.impliedScore !== null ? ` scores ~${d.marketBelief.impliedScore}` : ""} · ${d.marketBelief.stakeWeighed} staked · conviction #${d.marketBelief.convictionRank}` : "no open book prices it"} |`);
+  if (d.divergence?.gap !== null && d.divergence?.gap !== undefined)
+    L.push(`| divergence | evidence #${d.divergence.evidenceRank} vs conviction #${d.divergence.convictionRank} → ${d.divergence.gap > 0 ? "+" : ""}${d.divergence.gap} (${d.divergence.gap > 0 ? "priced above" : "priced below"} the receipts) |`);
+  L.push(`| coverage | ${d.coverage ? `${d.coverage.banksCovered}/${d.coverage.ofBanks} most-run banks · mean best ${d.coverage.meanPct}%` : "absent from the most-run suite"} |`, "");
+  L.push("## Score receipts", "",
+    "| run | score | items | attested | post-reveal | recorded |", "|---|---|---|---|---|---|");
+  for (const l of card.receipts)
+    L.push(`| \`${l.run.slice(0, 12)}…\` | ${l.correct} | ${l.items} | ${l.vouched ? "yes" : "—"} | ${l.postReveal ? "YES" : "—"} | ${new Date(l.recordedAt * 1000).toISOString().slice(0, 10)} |`);
+  L.push("", `_${card.receipts.length} receipts · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged — post-reveal scores do not measure the same thing._`, "");
+  const resolved = card.venues.filter((v: any) => v.status === 1);
+  if (resolved.length) {
+    L.push("## Settlement record", "",
+      "| venue | kind | pot (lamports) | outcome |", "|---|---|---|---|");
+    for (const v of resolved)
+      L.push(`| \`${v.pk.slice(0, 12)}…\` | ${v.kind} | ${v.pot ?? v.pool ?? "—"} | ${v.outcome !== undefined ? v.outcome : v.resultMask ?? "—"} |`);
+    L.push("", `_${resolved.length} resolved venues — every stored score re-derives from Run.correct._`, "");
+  }
+  L.push("## Honesty flags", "",
+    `- post-reveal runs: ${card.verdicts.postRevealRuns}`,
+    `- post-reveal receipts: ${card.verdicts.postRevealReceipts}`,
+    `- co-participant runs embedded for venue replay: ${card.verdicts.coParticipantRuns}`, "");
+  const md = L.join("\n") + "\n";
+  if (out) { writeFileSync(out, md); console.log(`wrote ${out} — capability report for ${d.model} (${card.receipts.length} receipts, ${resolved.length} resolved venues)`); }
+  else console.log(md);
+  return { model: d.model, cardHash };
+}
+
 /** `chain trail <run-pk> [--json]` — one run's custody chain: bank → receipt
  *  → every venue that priced it → resolution re-verified. The explorer's
  *  custody row as a portable report: each resolved venue's `resolvedScore`
@@ -5443,6 +5514,11 @@ export async function chainMain(cmd: string[], args: Args) {
     }
     if (args.all) { await chainProve(undefined, args.out ? String(args.out) : "claims", args.snapshot ? String(args.snapshot) : undefined, true); return; }
     await chainProve(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "report") {
+    await chainReport(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined,
+      args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "search") {

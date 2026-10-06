@@ -1003,3 +1003,25 @@ test("gateCert — a policy certificate verifies, and a flipped verdict fails", 
     process.exitCode = 0;
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("chainReport — the dossier as a document, card-hash pinned", async () => {
+  const { chainReport } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { mkdtempSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "sealed-report-"));
+    const file = join(dir, "r.md");
+    const r = (await chainReport("qwen2.5-3b-instruct", file, snapPath)) as any;
+    assert.equal(r.model, "qwen2.5-3b-instruct");
+    const md = readFileSync(file, "utf8");
+    assert.match(md, /sealed-report\/v1/);
+    assert.match(md, /claim-card content sha256 `945c3c2b/); // stable canonical digest
+    assert.match(md, /23\/96 items \(23\.96%\)/);
+    assert.match(md, /Score receipts[\s\S]*3 receipts/);
+    assert.match(md, /post-reveal runs: 0/);
+  } finally { console.log = origLog; }
+});

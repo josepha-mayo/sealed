@@ -218,6 +218,12 @@ yarn --cwd packages/harness cli chain gate --all --min-pct 60 --min-runs 3 --cer
 #         → same replay in the explorer: scroll to "verify a policy
 #           certificate", load min60-3runs — 3 checks run in-page
 
+# 3i. THE PRINTABLE DELIVERABLE — a capability report. `chain report` fuses
+#     the dossier + claim card into sealed-report/v1 markdown with a stable
+#     canonical card hash you can re-mint and compare. A committed example:
+cat docs/evidence/reports/qwen2.5-3b-instruct.md
+yarn --cwd packages/harness cli chain report qwen2.5-3b-instruct --snapshot ../../web/snapshot.json
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).

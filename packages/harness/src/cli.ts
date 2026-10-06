@@ -174,6 +174,7 @@ async function main() {
   sealed chain prove --verify <file|dir>                   verify a claim card (or every card in a directory) offline — every PDA re-derived, verdicts replayed
                                                            + your policy: --min-pct/--min-runs/--min-items/--wilson/--vouched/--no-post-reveal
                                                            re-grade the card's receipts against YOUR thresholds (authentic AND sufficient)
+  sealed chain report <model> [--out file.md] [--snapshot f]   sealed-report/v1 — the dossier as a printable document, card-hash pinned
   sealed chain diff <a.json> <b.json>                      two bundles — account deltas + both integrity verdicts
   sealed chain feed [--limit N] [--type a,b] [--since t] [--pk k] [--model id] [--bank b]  the activity stream — runs, venues, resolutions in time order
   sealed chain bank <pk|name>                              one benchmark's dossier — spec, runs, venues, reveals

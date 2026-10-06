@@ -413,6 +413,13 @@ runs. `score_chunk` reveals a count, never per-item results.
 
 Measured per-instruction compute-unit costs live in [costs.md](costs.md)
 (queue-side MPC ixs ~110-150k CU, callbacks ~130-160k, market ops ~4-16k).
+### `chain report <model> [--out file.md]`
+`sealed-report/v1` — the whole dossier as a printable document: registry
+record, four lenses, the receipt ledger, the venue settlement record,
+honesty flags, and a canonical claim-card sha256 (`generatedAt`/`source`
+excluded) that re-mints identically. Committed example:
+`docs/evidence/reports/qwen2.5-3b-instruct.md`.
+
 ### `chain prove --verify <card> --min-pct N [--min-runs N --min-items N --wilson N --vouched --no-post-reveal]`
 Verifier-composable evidence: after the card's authenticity checks pass, the
 embedded receipts are re-graded against the CALLER's policy — "authentic AND
