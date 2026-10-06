@@ -3835,7 +3835,7 @@ export async function chainProve(modelStr: string | undefined, out: string | und
  *  identity), the record aggregate replays bit-exact from its receipts,
  *  run scores match their receipts, and venue resolutions re-derive from
  *  the runs they priced. Exit 1 on any violation. */
-export async function chainProveVerify(file: string) {
+export async function chainProveVerify(file: string, policy?: GatePolicy) {
   const { statSync, readdirSync } = await import("node:fs");
   if (statSync(file).isDirectory()) {
     const files = readdirSync(file).filter((f) => f.endsWith(".json")).sort();
@@ -3861,6 +3861,14 @@ export async function chainProveVerify(file: string) {
     `${card.model.totalCorrect}/${card.model.totalItems} across ${card.model.runsScored} run(s)` +
     (card.verdicts?.postRevealRuns ? ` · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""));
   if (r.fail) process.exitCode = 1;
+  if (policy) {
+    const v = evalGate(card.receipts as ScoreReceipt[], policy, true);
+    const checks = v.checks.map((c) => `  ${c.pass ? "ok  " : "MISS"} ${c.name}: ${c.actual} (needed ${c.needed})`);
+    console.log(`policy verdict — ${v.pass ? "PASS" : "FAIL"} (${v.reason}) · ${v.correct}/${v.items} = ${v.pct.toFixed(1)}% over ${v.runs} run(s)` +
+      (v.postRevealRuns ? ` · ${v.postRevealRuns} post-reveal` : "") + (checks.length ? "\n" + checks.join("\n") : ""));
+    if (!v.pass) process.exitCode = v.reason === "no-evidence" ? 2 : 1;
+    return { pass: r.pass, fail: r.fail, policy: v.pass };
+  }
   return { pass: r.pass, fail: r.fail };
 }
 
@@ -5420,7 +5428,19 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "prove") {
-    if (args.verify) { await chainProveVerify(String(args.verify)); return; }
+    if (args.verify) {
+      // Verifier-composable: policy flags turn "is this card authentic?"
+      // into "is this card authentic AND does it pass MY policy?".
+      const numF = (k: string) => args[k] === undefined ? undefined : Number(args[k]);
+      const policy: GatePolicy = {
+        minPct: numF("min-pct"), minRuns: numF("min-runs"), minItems: numF("min-items"),
+        minWilsonPct: numF("wilson"), vouchedOnly: Boolean(args.vouched),
+        noPostReveal: Boolean(args["no-post-reveal"]),
+      };
+      const hasPolicy = Object.values(policy).some((v) => v !== undefined && v !== false);
+      await chainProveVerify(String(args.verify), hasPolicy ? policy : undefined);
+      return;
+    }
     if (args.all) { await chainProve(undefined, args.out ? String(args.out) : "claims", args.snapshot ? String(args.snapshot) : undefined, true); return; }
     await chainProve(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
     return;

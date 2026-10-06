@@ -104,6 +104,21 @@ const tamperTxt = (els.get("claimres")?.innerHTML ?? "").replace(/<[^>]+>/g, " "
 const tamperOk = /CLAIM FAILED/.test(tamperTxt) && /FAIL record aggregate|record aggregate/.test(tamperTxt);
 console.log(`in-page claim-card tamper case — mutated aggregate ${tamperOk ? "rejected PASS" : "MISSED FAIL"}`);
 if (!tamperOk) fails++;
+// caller-policy overlay on the claim verifier: --min-pct 20 passes, 50 fails
+els.get("claimjson").value = els.get("claimjson").value.replace('"totalCorrect": 24', '"totalCorrect": 23');
+els.get("claimPct").value = "20";
+vm.runInContext("verifyClaim()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+let polyTxt = (els.get("claimres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const polyOk = /policy verdict/.test(polyTxt) && /PASS/.test(polyTxt);
+els.get("claimPct").value = "50";
+vm.runInContext("verifyClaim()", ctx);
+await new Promise((r) => setTimeout(r, 50));
+polyTxt = (els.get("claimres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const polyFail = /policy verdict/.test(polyTxt) && /MISS accuracy/.test(polyTxt);
+els.get("claimPct").value = "";
+console.log(`in-page claim policy overlay — pct20 ${polyOk ? "passes" : "FAIL"}, pct50 ${polyFail ? "rejected PASS" : "MISSED FAIL"}`);
+if (!polyOk || !polyFail) fails++;
 // in-page policy-certificate verifier: load the committed cert through the
 // page's fetch path and run verifyCert() — every record PDA re-derives and
 // all 31 verdicts replay bit-exact. A flipped verdict must fail.

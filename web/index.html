@@ -113,6 +113,8 @@
   <span class="kv">every card is sha256-pinned in this bundle's MANIFEST</span></div>
   <div><textarea id="claimjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-claim/v1", …}'></textarea></div>
   <button onclick="verifyClaim()">verify claim</button>
+  <span class="kv">+ your policy:</span> min-pct <input id="claimPct" size="4"> min-runs <input id="claimRuns" size="3"> min-items <input id="claimItems" size="4">
+  <span class="kv">— authenticity AND sufficiency, in one verdict</span>
   <div id="claimres"></div>
 </div>
 <h2 id="sec-policy">verify a policy certificate</h2>
@@ -1982,6 +1984,26 @@ function verifyClaim() {
     rOk === rN ? pass("venue resolutions", `${rOk}/${rN} re-derived from Run.correct`) : fail("venue resolutions", `${rOk}/${rN} re-derived`);
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"}</b> — ${esc(c.model.id)}: ${c.model.totalCorrect}/${c.model.totalItems} across ${c.model.runsScored} run(s)${c.verdicts?.postRevealRuns ? ` · ${c.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""}</div>`);
+    // caller's policy overlay — evalGate over the embedded receipts, like
+    // `chain prove --verify <card> --min-pct N` — authentic AND sufficient.
+    const numv = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : Number(v); };
+    const pMinPct = numv("claimPct"), pMinRuns = numv("claimRuns"), pMinItems = numv("claimItems");
+    if (pMinPct !== null || pMinRuns !== null || pMinItems !== null) {
+      const receipts = c.receipts || [];
+      const runs = receipts.length, correct = receipts.reduce((s, l) => s + l.correct, 0),
+        items = receipts.reduce((s, l) => s + l.items, 0), pct = items ? 100 * correct / items : 0;
+      if (!runs) {
+        rows.push(`<div class="proof"><span class="pill cancelled">NO EVIDENCE</span> policy verdict — no receipts in this card</div>`);
+      } else {
+        const pchecks = [];
+        if (pMinPct !== null) pchecks.push({ name: "accuracy", ok: pct >= pMinPct, act: `${pct.toFixed(1)}% (${correct}/${items})`, need: `≥ ${pMinPct}%` });
+        if (pMinRuns !== null) pchecks.push({ name: "runs", ok: runs >= pMinRuns, act: `${runs} receipt(s)`, need: `≥ ${pMinRuns}` });
+        if (pMinItems !== null) pchecks.push({ name: "items", ok: items >= pMinItems, act: `${items} scored items`, need: `≥ ${pMinItems}` });
+        const pPass = pchecks.every(x => x.ok);
+        rows.push(`<div class="proof"><span class="pill ${pPass ? "resolved" : "cancelled"}">${pPass ? "PASS" : "FAIL"}</span> policy verdict — ${correct}/${items} = ${pct.toFixed(1)}% over ${runs} run(s)` +
+          pchecks.map(x => `<div class="kv">&nbsp;&nbsp;${x.ok ? "ok" : "MISS"} ${x.name}: ${x.act} (needed ${x.need})</div>`).join("") + `</div>`);
+      }
+    }
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;

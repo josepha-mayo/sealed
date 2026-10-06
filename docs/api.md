@@ -413,6 +413,12 @@ runs. `score_chunk` reveals a count, never per-item results.
 
 Measured per-instruction compute-unit costs live in [costs.md](costs.md)
 (queue-side MPC ixs ~110-150k CU, callbacks ~130-160k, market ops ~4-16k).
+### `chain prove --verify <card> --min-pct N [--min-runs N --min-items N --wilson N --vouched --no-post-reveal]`
+Verifier-composable evidence: after the card's authenticity checks pass, the
+embedded receipts are re-graded against the CALLER's policy — "authentic AND
+sufficient" in one verdict. Exit 1 on policy fail, 2 on no-evidence. The
+explorer's claim-card panel offers the same overlay.
+
 ### `chain gate --all --cert <file>` / `gate --certify-verify <file>`
 `--cert` emits a `sealed-policy/v1` certificate: the policy, every
 record's verdict, AND the embedded score receipts each verdict was
