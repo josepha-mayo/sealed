@@ -151,18 +151,17 @@ inference (Arcium Blackthorn) matures, the runner's outputs can be sealed
 end-to-end: questions, answers, and model replies all inside the encryption
 boundary.
 
-## teamBackground (fill before submitting — judges score it)
-
-Colosseum scores founder-market fit; this field is machine-read by Cerebro
-first. Fill in the bracketed bits — 2-3 lines per member, concrete ships
-over adjectives:
+## teamBackground (DRAFT — review the facts before submitting)
 
 ```
-[Name] — [role]. Shipped [protocol/product + chain + scale metric, e.g.
-"a Solana program with $X TVL" / "infra used by N teams"]. [Domain
-credibility: security audit background, applied crypto, ML eval work,
-prior hackathon wins]. Built Sealed because [one line: the trusted-eval
-problem you hit firsthand].
+Joseph Mayo — solo build, end to end: two Anchor programs (sealed +
+market, both upgradeable, both deployed and byte-verified on devnet),
+the Arcium MPC circuits, the TypeScript harness and judge tooling, and
+the hosted explorer. Built Sealed after watching model evaluations
+collapses into "trust our numbers" — every benchmark that matters runs
+behind closed weights, closed sets, or closed ledgers. The thesis this
+project tests: the ledger itself can be the evaluator, so the evidence
+outlives the pitch.
 ```
 
 If solo, keep the same shape for yourself — one tight paragraph beats a
