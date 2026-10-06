@@ -143,7 +143,7 @@ yarn --cwd packages/harness cli chain tour --snapshot ../../web/snapshot.json
 #       stakes believe — and the top divergences where money disagrees
 #       with receipts. Objects picked live (the most-venue'd run, the
 #       biggest book), nothing hardcoded. Read nothing else, read this.
-yarn --cwd packages/harness cli chain stats --snapshot ../../web/snapshot.json   # dashboard: 35/35 records + 201/201 resolutions re-verified
+yarn --cwd packages/harness cli chain stats --snapshot ../../web/snapshot.json   # dashboard: 31/31 records + 201/201 resolutions re-verified
 yarn --cwd packages/harness cli chain banks --snapshot ../../web/snapshot.json   # index → pick a benchmark pk
 yarn --cwd packages/harness cli chain market board --snapshot ../../web/snapshot.json
 yarn --cwd packages/harness cli chain gate dark/model-a --min-pct 80 --min-runs 5 --snapshot ../../web/snapshot.json

@@ -3970,6 +3970,106 @@ export async function marketLive(json = false, snapPath?: string) {
   return out;
 }
 
+/** `chain market sharps` — the bettor track record nobody else can show:
+ *  aggregate every position across every venue kind, per wallet. Resolved
+ *  positions only — a win is `payable`, a loss is `lost`/`forfeit`; refunds,
+ *  live, and sealed positions are reported but never counted as results.
+ *  Ranked two ways: Wilson 95% LCB on win-rate (a 1-0 can't outrank a 12-3)
+ *  and realized P&L (est payout − staked, on resolved positions only —
+ *  claimable ≠ realized but est is the settlement the account itself
+ *  encodes, so it's the honest measure of what the bet would pay). */
+export async function marketSharps(minResolved = 1, json = false, snapPath?: string) {
+  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
+      positions: SnapAccount[], darkPositions: SnapAccount[];
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
+  } else {
+    const { market } = marketProgram();
+    const mAcct = market.account as any;
+    [markets, ladders, darks, positions, darkPositions] = await Promise.all([
+      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
+      mAcct.position.all(), mAcct.darkPosition.all(),
+    ]);
+  }
+  const { rows } = classifyPositions(positions, darkPositions, venueMapsOf(markets, ladders, darks), null);
+  const agg = new Map<string, {
+    w: number; l: number; refund: number; live: number; sealed: number; forfeit: number;
+    staked: bigint; payable: bigint; liveStaked: bigint;
+  }>();
+  const acc = (b: string) => {
+    let a = agg.get(b);
+    if (!a) { a = { w: 0, l: 0, refund: 0, live: 0, sealed: 0, forfeit: 0, staked: 0n, payable: 0n, liveStaked: 0n }; agg.set(b, a); }
+    return a;
+  };
+  for (const r of rows) {
+    const a = acc(r.bettor);
+    if (r.state === "payable") { a.w++; a.staked += r.risked ?? r.staked; a.payable += r.est; }
+    else if (r.state === "lost") { a.l++; a.staked += r.risked ?? r.staked; }
+    else if (r.state === "forfeit") { a.l++; a.forfeit++; a.staked += r.risked ?? r.staked; }
+    else if (r.state === "refund") a.refund++;
+    else if (r.state === "sealed") { a.sealed++; a.liveStaked += r.staked; }
+    else { a.live++; a.liveStaked += r.staked; }
+  }
+  const all = [...agg.entries()].map(([bettor, a]) => {
+    const resolved = a.w + a.l;
+    const pnl = a.payable - a.staked;
+    return { bettor, resolved, wins: a.w, losses: a.l, forfeits: a.forfeit,
+      refunds: a.refund, live: a.live + a.sealed,
+      staked: a.staked, payable: a.payable, pnl,
+      liveStaked: a.liveStaked,
+      lcb: resolved ? wilsonLowerBoundPct(a.w, resolved) : 0 };
+  });
+  const sharps = all.filter((s) => s.resolved >= minResolved);
+  const bySkill = [...sharps].sort((a, b) => b.lcb - a.lcb || Number(b.pnl - a.pnl));
+  const byMoney = [...sharps].sort((a, b) => Number(b.pnl - a.pnl));
+  const book = {
+    bettors: all.length,
+    positions: rows.length,
+    resolved: all.reduce((s, a) => s + a.resolved, 0),
+    staked: all.reduce((s, a) => s + a.staked, 0n),
+    payable: all.reduce((s, a) => s + a.payable, 0n),
+    oneShot: all.filter((a) => a.resolved === 1 && !a.live).length,
+    maxResolved: Math.max(0, ...all.map((a) => a.resolved)),
+  };
+  const out = { ...book, staked: book.staked.toString(), payable: book.payable.toString(), minResolved,
+    byWinRate: bySkill.map((s) => ({ ...s, staked: s.staked.toString(), payable: s.payable.toString(), pnl: s.pnl.toString(), liveStaked: s.liveStaked.toString() })),
+    byPnl: byMoney.map((s) => s.bettor) };
+  if (json) { console.log(JSON.stringify(out)); return out; }
+  console.log(`sharps — ${book.bettors} bettor(s) · ${book.positions} position(s) (${book.resolved} resolved) · ` +
+    `${(Number(book.staked) / LAMPORTS_PER_SOL).toFixed(3)}◎ staked → ${(Number(book.payable) / LAMPORTS_PER_SOL).toFixed(3)}◎ payable`);
+  if (book.maxResolved <= 1 && book.resolved > 0) {
+    console.log(`  every resolved position sits in a DISTINCT wallet — a ${book.oneShot}-bettor anonymity set`);
+    console.log(`  zero observable track records: per-position keys are the book's real privacy posture`);
+  }
+  const fmt = (s: typeof sharps[number], i: number) =>
+    `  ${String(i + 1).padStart(2)}. ${s.bettor.slice(0, 10)}… ${String(s.wins).padStart(2)}W-${String(s.losses).padEnd(2)}L` +
+    `  LCB ${s.lcb.toFixed(0).padStart(3)}%  pnl ${(Number(s.pnl) / LAMPORTS_PER_SOL).toFixed(3).padStart(8)}◎` +
+    `  (staked ${(Number(s.staked) / LAMPORTS_PER_SOL).toFixed(3)} → ${(Number(s.payable) / LAMPORTS_PER_SOL).toFixed(3)})` +
+    `${s.forfeits ? ` · ${s.forfeits} forfeited` : ""}${s.live ? ` · ${s.live} live` : ""}${s.refunds ? ` · ${s.refunds} refunded` : ""}`;
+  if (book.maxResolved > 1) {
+    console.log(`  repeat bettors (≥${Math.max(2, minResolved)} resolved) — ranked by Wilson 95% LCB:`);
+    const top = bySkill.slice(0, 15);
+    top.forEach((s, i) => console.log(fmt(s, i)));
+    if (bySkill.length > top.length) console.log(`  … ${bySkill.length - top.length} more (use --json for the full table)`);
+  }
+  const winners = [...sharps].filter((s) => s.payable > 0n).sort((a, b) => Number(b.payable - a.payable)).slice(0, 3);
+  const losers = byMoney.filter((s) => s.pnl < 0n).slice(-3).reverse();
+  const netPos = sharps.filter((s) => s.pnl > 0n).length;
+  if (winners.length) {
+    console.log(`  biggest payouts:`);
+    winners.forEach((s) => console.log(`    ${(Number(s.payable) / LAMPORTS_PER_SOL).toFixed(3)}◎ paid — ${s.bettor.slice(0, 10)}… (${(Number(s.staked) / LAMPORTS_PER_SOL).toFixed(3)}◎ at risk → pnl ${(Number(s.pnl) / LAMPORTS_PER_SOL).toFixed(3)})`));
+  }
+  console.log(`  net verdict — ${netPos} of ${sharps.filter((s) => s.resolved > 0).length} resolved bettor(s) finished positive; ` +
+    `unbacked winning buckets keep pots in venue escrow (losers reclaim rent only)`);
+  if (losers.length) {
+    console.log(`  deepest red:`);
+    losers.forEach((s) => console.log(`    ${(Number(s.pnl) / LAMPORTS_PER_SOL).toFixed(3)}◎ — ${s.bettor.slice(0, 10)}… (${s.wins}W-${s.losses}L)`));
+  }
+  return out;
+}
+
 /** The no-operator design made executable: scan the board, then EXECUTE
  *  every permissionless action it lists — bounty claims (the pot pays the
  *  winning run's operator on-chain, not the sweeper — pure public good),
@@ -4022,7 +4122,7 @@ async function sweepOnce(kpPath?: string) {
 const numField = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
 const solAmt = (l: bigint | number) => (Number(l) / LAMPORTS_PER_SOL).toFixed(4);
 type VenueMaps = { mk: Map<string, any>; lk: Map<string, any>; dk: Map<string, any> };
-export type PosRow = { pk: string; kind: string; state: "payable" | "refund" | "lost" | "live" | "sealed" | "forfeit"; staked: bigint; est: bigint; note: string; posPk?: string; bettor?: string };
+export type PosRow = { pk: string; kind: string; state: "payable" | "refund" | "lost" | "live" | "sealed" | "forfeit"; staked: bigint; est: bigint; note: string; posPk?: string; bettor: string; risked?: bigint };
 
 function venueMapsOf(markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[]): VenueMaps {
   const num = numField;
@@ -4058,12 +4158,12 @@ function classifyPositions(positions: SnapAccount[], darkPositions: SnapAccount[
       const won = amounts.reduce((s, a, i) => s + ((mask & (1 << i)) ? a : 0n), 0n);
       const winTotal = (v as any).totals.reduce((s: bigint, t: bigint, i: number) => s + ((mask & (1 << i)) ? t : 0n), 0n);
       const est = won > 0n && winTotal > 0n ? (won * netOf((v as any).totals, v.feeBps)) / winTotal : 0n;
-      rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "ladder", state: won > 0n ? "payable" : "lost", staked: won > 0n ? won : staked, est, note: won > 0n ? `mask 0b${mask.toString(2)} — pro-rata` : "resolved against you — claim returns rent" });
+      rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "ladder", state: won > 0n ? "payable" : "lost", staked: won > 0n ? won : staked, risked: staked, est, note: won > 0n ? `mask 0b${mask.toString(2)} — pro-rata` : "resolved against you — claim returns rent" });
     } else {
       const won = amounts[(v as any).outcome] ?? 0n;
       const winTotal = (v as any).totals[(v as any).outcome] ?? 0n;
       const est = won > 0n && winTotal > 0n ? (won * netOf((v as any).totals, v.feeBps)) / winTotal : 0n;
-      rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: v.kind, state: won > 0n ? "payable" : "lost", staked: won > 0n ? won : staked, est, note: won > 0n ? `outcome ${(v as any).outcome} — pro-rata` : "resolved against you — claim returns rent" });
+      rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: v.kind, state: won > 0n ? "payable" : "lost", staked: won > 0n ? won : staked, risked: staked, est, note: won > 0n ? `outcome ${(v as any).outcome} — pro-rata` : "resolved against you — claim returns rent" });
     }
   }
   for (const p of darkPositions) {
@@ -4076,10 +4176,10 @@ function classifyPositions(positions: SnapAccount[], darkPositions: SnapAccount[
     if (v.status === 2) { rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "refund", staked: amount, est: amount, note: "cancelled — gross refund" }); continue; }
     if (v.status === 0) { rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "sealed", staked: amount, est: 0n, note: "position still sealed" }); continue; }
     if (!v.tallied) { rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "live", staked: amount, est: 0n, note: revealed === 255 ? "resolved — reveal or forfeit" : "resolved — awaiting tally" }); continue; }
-    if (revealed === 255) { rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "forfeit", staked: amount, est: 0n, note: "never revealed — forfeited into the pot" }); continue; }
-    if (revealed !== v.outcome || v.winTotal === 0n) { rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "lost", staked: amount, est: 0n, note: `revealed ${revealed}, outcome ${v.outcome} — claim returns rent` }); continue; }
+    if (revealed === 255) { rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "forfeit", staked: amount, risked: amount, est: 0n, note: "never revealed — forfeited into the pot" }); continue; }
+    if (revealed !== v.outcome || v.winTotal === 0n) { rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "lost", staked: amount, risked: amount, est: 0n, note: `revealed ${revealed}, outcome ${v.outcome} — claim returns rent` }); continue; }
     const est = (amount * (v.poolTotal - (v.poolTotal * BigInt(v.feeBps)) / 10000n)) / v.winTotal;
-    rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "payable", staked: amount, est, note: `revealed winner — pro-rata of ${solAmt(v.poolTotal)} SOL pool` });
+    rows.push({ pk: venuePk, posPk: p.publicKey.toBase58(), bettor: p.account.bettor.toBase58(), kind: "dark", state: "payable", staked: amount, risked: amount, est, note: `revealed winner — pro-rata of ${solAmt(v.poolTotal)} SOL pool` });
   }
   return { rows };
 }
@@ -4650,6 +4750,8 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketCalibration(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "live") {
       await marketLive(Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+    } else if (m0 === "sharps") {
+      await marketSharps(Number(args.min ?? 1), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "open") {
       const run = new PublicKey(String(args.run));
       // --edges "40,55" = 3-way buckets; --threshold n = binary >= n.

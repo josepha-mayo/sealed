@@ -66,8 +66,8 @@ to *every* ModelRecord and prints the ranked pass/fail table — the
 capability registry as a filterable leaderboard, not a list.
 `chain records [--wilson]` lists the same registry accuracy-first; the
 flag re-ranks on the Wilson lower bound of cumulative accuracy — the
-claim each record can defend (80% on 2 runs correctly sits below 78%
-on 17 runs).
+claim each record can defend (80% on a thin record correctly sits below
+78% on a proven one).
 
 `chain market positions [--bettor kp.json] [--json]` — the bettor-side
 mirror: every position the wallet holds across bands/duels/ladders/darks,
@@ -106,6 +106,20 @@ the live book, countdown, and a prefilled `market quote` command. The
 keeper board asks "what needs a transaction"; this asks "where can I
 still get one down".
 
+`chain market sharps [--min n] [--json]` is the bettor track record —
+every position across every venue kind aggregated per wallet. Wins are
+`payable` classifications, losses are `lost`/`forfeit`; refunds, live,
+and sealed positions are reported but never counted as results (the
+same honesty rule as coverage — unresolved ≠ zero). Repeat bettors
+(≥`--min` resolved, default 1) rank by Wilson 95% LCB of win-rate so a
+1–0 can't outrank a proven record; P&L uses full position stake
+(`risked` — every bucket's lamports, not just the winning share) so a
+hedged winner doesn't inflate its return. On the committed bundle the
+headline is the anonymity set: 139 bettors hold 140 positions and every
+resolved position sits in a distinct wallet — zero observable track
+records. That is the market layer's real privacy posture, measurable
+from chain state alone.
+
 `chain history <model_id|record-pk> [--json]` lists a model's ScoreLog
 receipts oldest-first with running accuracy after each — the capability
 trajectory ("did it regress after the fine-tune?") answered from
@@ -143,7 +157,7 @@ print ✗ MISMATCH, not get trusted.
 Every read command also takes `--snapshot <file>` — `records`,
 `modelrec`, `gate`, `history`, `compare`, `trail`, `status`, `banks`, `stats`,
 `runs`, `feed`, `bank`, `wallet`, `verify`, `grants`, `reveals`, `market board`, `market bounties`, `market venue`,
-`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
+`market positions`, `market position`, `market quote`, `market odds`, `market sentiment`, `market champions`, `market divergence`, `market calibration`, `market live`, `market sharps`, `model`, `matrix`, `search`, `watch`, `items` (rebuilds a generated bank's item specs from
 raw ItemChunk bytes and re-verifies the items_root fold — an exam
 regenerated from chain state alone, offline). `chain export --snapshot
 web/snapshot.json [--out digest.json]` emits the portable integrity

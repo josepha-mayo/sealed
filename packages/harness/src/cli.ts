@@ -186,6 +186,7 @@ async function main() {
                                      (all read commands take --snapshot web/snapshot.json to replay the committed evidence bundle offline, keyless)
   sealed chain market board   [--json] [--snapshot file]                   keeper surface: claimable bounties, resolvable + sweepable venues
   sealed chain market live    [--json] [--snapshot file]                   the bettor's board — venues still taking positions, soonest-close first
+  sealed chain market sharps  [--min n] [--json] [--snapshot file]          bettor track records — W-L, Wilson LCB rank, realized P&L, anonymity set
   sealed chain market sweep   [--bettor kp.json] [--watch secs]            execute every permissionless action the board lists (loop = keeper daemon)
   sealed chain market positions [--bettor kp.json|--viewer <pk>] [--json] [--snapshot file]
                                                                           your book: payable/refundable/live positions across all venues

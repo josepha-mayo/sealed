@@ -836,3 +836,22 @@ test("chainMatrix ranks coverage over the most-run banks", async () => {
     assert.deepEqual(covs, [...covs].sort((a, b) => b - a));
   } finally { console.log = origLog; }
 });
+
+test("marketSharps measures the book's anonymity set and honest P&L", async () => {
+  const { marketSharps } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const out = (await marketSharps(1, true, snapPath)) as any;
+    // the bundle's book is one-position-per-wallet by construction —
+    // every resolved bettor is a distinct key, so maxResolved stays 1
+    assert.equal(out.maxResolved, 1);
+    assert.ok(out.bettors > 100);
+    assert.equal(out.resolved, out.byWinRate.reduce((s: number, r: any) => s + r.resolved, 0));
+    // honesty: payable is bounded by staked — no bettor finished positive
+    // because hedge buckets burn against the winning share
+    assert.ok(BigInt(out.staked) > BigInt(out.payable));
+    assert.ok(out.byWinRate.every((s: any) => s.pnl === "0" || s.pnl.startsWith("-")));
+  } finally { console.log = origLog; }
+});

@@ -131,10 +131,17 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > seven stops through live-picked exhibits, ending on what the stakes
 > believe: `chain market odds`/`sentiment`/`champions` pool the books
 > into per-model implied probabilities, expected scores, and settlement
-> records, `chain market quote` simulates a stake before it exists
-> (the program's own parimutuel math), `chain search` resolves any
-> pasted pubkey to its dossier, `chain model` fuses all four model
-> lenses into one page, and `chain watch` ticks the ledger live.
+> records, `chain market divergence` shows where the money disagrees
+> with the receipts (the flagship: a model 0W-8L on evidence still
+> priced #3), `chain market calibration` grades the closing books
+> (87% favorite hit-rate, Brier better than uniform), `chain matrix`
+> renders the capability grid — models × most-run banks — `chain market
+> live` is the bettor's board of venues still taking positions, `chain
+> market quote` simulates a stake before it exists (the program's own
+> parimutuel math), `chain search` resolves any pasted pubkey to its
+> dossier, `chain model` fuses all four model lenses plus matrix
+> coverage into one page, `compare --all --wilson` ranks by 95% lower
+> bound instead of raw wins, and `chain watch` ticks the ledger live.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201
