@@ -165,11 +165,13 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > `chain gate <model> --why` autopsies the binding constraint,
 > `chain market unclaimed` names every owed claimant, and
 > `chain banks --depth` sorts exams by lamports moved. The capper:
-> `chain artifact docs/evidence --recursive` replays all 120 committed
-> artifacts in one pass (claims, matches, policies, trails, reports —
-> five portable kinds, one universal verifier), and `chain fingerprint`
-> folds every manifest-pinned byte into a single `BUNDLE ROOT` sha256
-> the terminal and the explorer agree on.
+> `chain artifact docs/evidence --recursive` replays all 138 committed
+> artifacts in one pass (claims, matches, policies, trails, reports,
+> positions, bounties, grants, banks, the board, the digest, the catalog,
+> and the committed forgeries — thirteen portable kinds, one universal
+> verifier), and `chain fingerprint` folds every manifest-pinned byte
+> into a single `BUNDLE ROOT` sha256 the terminal and the explorer agree
+> on.
 >
 > Verify it yourself in three minutes: the hosted explorer replays the
 > entire ledger in your browser — PDA derivation, Merkle folds, all 201

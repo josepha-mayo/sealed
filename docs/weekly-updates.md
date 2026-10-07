@@ -91,7 +91,7 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 127 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  all 138 committed artifacts: 31 claim cards, 73 match cards, 3 policy
   certificates, 4 custody trails, 4 capability reports, the ledger
   digest, the leaderboard card, 3 exam cards (one per commitment
   regime — authored, generated, private), 2 bettor-position cards
@@ -151,7 +151,7 @@ deadline.
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
-  audit, all 127 artifact replays, and the full forgery sweep to
+  audit, all 138 artifact replays, and the full forgery sweep to
   EVERYTHING VERIFIED in ~5s, live in the judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256 — timestamped on Solana itself."

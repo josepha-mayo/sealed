@@ -55,8 +55,22 @@ const claims = [
   [/(\d+)\s+grants\b/g, truth.grants],
   [/(\d+)\s+reveals?\b/g, truth.reveals],
   [/(\d+)\s+resolutions/g, truth.resolutions],
+  // bundle-wide totals: "138 committed artifacts" / "replay all 138
+  // artifacts" / "351 manifest-pinned files" — the catalog's own
+  // "137 artifact(s)" count uses the artifact\(s\) phrasing and is
+  // intentionally NOT matched (it excludes the catalog itself).
+  [/all\s+(\d+)\s+(?:committed\s+)?artifacts?\b|(\d+)\s+committed\s+artifacts?\b/g, 138],
+  [/(\d+)\s+(?:manifest-)?pinned\s+files?\b/g, 351],
+  // spelled-out guided-tour stop count ("twenty-four captioned stops"
+  // in the hero; "all twenty-four stops" in judges.md)
+  [/(twenty-\w+|thirty-\w+|\d+)\s+stops\b/g, 24],
 ];
 
+const WORDS = {
+  "twenty-one": 21, "twenty-two": 22, "twenty-three": 23, "twenty-four": 24,
+  "twenty-five": 25, "twenty-six": 26, "twenty-seven": 27, "twenty-eight": 28,
+  "twenty-nine": 29,
+};
 const files = ["README.md", ...readdirSync("docs").filter((f) => f.endsWith(".md")).map((f) => `docs/${f}`)];
 let bad = 0;
 for (const f of files) {
@@ -64,7 +78,8 @@ for (const f of files) {
   try { text = readFileSync(f, "utf8"); } catch { continue; }
   for (const [re, expected] of claims) {
     for (const m of text.matchAll(re)) {
-      const n = Number(m[1] ?? m[2] ?? m[3]);
+      const raw = m[1] ?? m[2] ?? m[3];
+      const n = raw != null && WORDS[raw.toLowerCase()] != null ? WORDS[raw.toLowerCase()] : Number(raw);
       if (Number.isFinite(n) && n !== expected) {
         console.log(`DRIFT ${f}: "${m[0]}" — doc claims ${n}, evidence bundle has ${expected}`);
         bad++;
