@@ -34,6 +34,7 @@ Checks:
 """
 
 import base64
+import copy
 import hashlib
 import json
 import struct
@@ -384,5 +385,59 @@ def decode_dark_position(d):
     }
 
 
+def tamper_demo():
+    """--tamper: forge each committed card, run the real checks, show the catch.
+
+    Inverted assertions — every forgery MUST fail a named check, or the
+    demo itself fails (the verifier would have accepted its own lie).
+    """
+    global SNAP
+    SNAP = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    msec = SNAP["market"]
+    all_ok = True
+    print("sealed-fingerprint/v1 — forgery lab (the verifier catches its own lies)")
+
+    # 1. bounty theft — rewrite the winning score below the payout's reality
+    card = json.loads((ROOT / "docs/evidence/bounties/claimed-20of32.json").read_text())
+    forged = copy.deepcopy(card)
+    forged["bounty"]["winningScore"] = 4  # real account says 20
+    raw = find_account(msec, forged["bounty"]["pk"], DISC["bounty"])
+    dec = decode_bounty(raw) if raw else None
+    caught = dec is None or dec["winningScore"] != forged["bounty"]["winningScore"]
+    all_ok &= check("bounty theft (winningScore 20→4)", caught,
+                    'forgery dies at "account binding"' if caught else "FORGERY PASSED")
+
+    # 2. stake inflation — double a dark position's bet
+    card = json.loads((ROOT / "docs/evidence/positions/sealed-dark.json").read_text())
+    forged = copy.deepcopy(card)
+    forged["stake"]["amount"] = str(int(forged["stake"]["amount"]) * 2)
+    raw = find_account(msec, forged["position"]["pk"], DISC["darkPosition"])
+    dec = decode_dark_position(raw) if raw else None
+    caught = dec is None or str(dec["amount"]) != forged["stake"]["amount"]
+    all_ok &= check("stake inflation (amount ×2)", caught,
+                    'forgery dies at "account binding"' if caught else "FORGERY PASSED")
+
+    # 3. grant redirect — point the disclosure at a different viewer
+    card = json.loads((ROOT / "docs/evidence/grants/sealed-priv-first.json").read_text())
+    forged = copy.deepcopy(card)
+    g = forged["grant"]["seeds"]
+    forged["grant"]["seeds"] = dict(g)
+    forged["grant"]["seeds"]["viewer"] = b58encode(bytes([7] * 32))  # someone else
+    s = forged["grant"]["seeds"]
+    derived = pda([b"grant", b58decode(s["bank"]),
+                   struct.pack("<H", int(s["chunkIndex"])),
+                   bytes([int(s["part"])]), b58decode(s["viewer"])],
+                  forged["programs"]["sealed"])
+    caught = derived is None or derived != b58decode(forged["grant"]["pk"])
+    all_ok &= check("viewer redirect (regrant to [7;32])", caught,
+                    'forgery dies at "grant PDA"' if caught else "FORGERY PASSED")
+
+    print("\n" + ("ALL FORGERIES CAUGHT — the Python verifier rejects its own lies"
+                  if all_ok else "FORGERY LAB FAILED — a forged card verified"))
+    return all_ok
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--tamper":
+        sys.exit(0 if tamper_demo() else 1)
     main()

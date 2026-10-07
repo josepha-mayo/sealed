@@ -32,7 +32,7 @@ scripts/evidence-manifest.sh check
 scripts/web-manifest.sh check
 
 say "6b. second-language verdict — Python (stdlib-only) recomputes the root + re-derives PDAs"
-python3 scripts/verify.py
+python3 scripts/verify.py && python3 scripts/verify.py --tamper
 
 say "6c. the capsule — standalone.html is a byte-fresh mirror of the pinned bundle"
 node scripts/gen-standalone.mjs --check

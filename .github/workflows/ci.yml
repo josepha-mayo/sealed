@@ -47,7 +47,7 @@ jobs:
       - name: bundle fingerprint — every manifest-pinned byte re-hashed
         run: yarn --cwd packages/harness -s cli chain fingerprint
       - name: second-language verdict — stdlib Python recomputes the root + re-derives PDAs
-        run: python3 scripts/verify.py
+        run: python3 scripts/verify.py && python3 scripts/verify.py --tamper
       - name: capsule freshness — standalone.html is a byte-current mirror of the pinned bundle
         run: node scripts/gen-standalone.mjs --check
       - name: submission pre-flight

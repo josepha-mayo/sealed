@@ -401,6 +401,12 @@ python3 scripts/verify.py
 #         → BUNDLE ROOT be4087dc… (same as the TypeScript — or the
 #           bundle is dirty) · all six committed cards' PDAs +
 #           account fields verified in Python · anchor carries root PASS
+#
+#     …and watch the verifier catch its own lie — --tamper forges each
+#     card kind (bounty theft, stake inflation, viewer redirect) and
+#     asserts every forgery dies at a named check:
+python3 scripts/verify.py --tamper
+#         → ALL FORGERIES CAUGHT — the Python verifier rejects its own lies
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     5.8MB file: the page, the snapshot, all 125 artifacts, both
