@@ -273,7 +273,7 @@ console.log(`in-page bank verifier — private-bank ciphertext fold ${bankPrivOk
 if (!bankPrivOk) console.log(`  bankres: ${bankPrivTxt.slice(0, 900)}`);
 if (!bankPrivOk) fails++;
 // the forgery lab — every canned attack must die at a named check.
-for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun"]) {
+for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun", "toc"]) {
   await vm.runInContext(`forge(${JSON.stringify(k)})`, ctx);
   await new Promise((r) => setTimeout(r, 400));
   const r = await vm.runInContext(`__forgeOut[${JSON.stringify(k)}]`, ctx);
@@ -286,11 +286,11 @@ for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /120\/120 artifacts replayed in-page/.test(bundleTxt) &&
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /121\/121 artifacts replayed in-page/.test(bundleTxt) &&
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
   /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt) &&
-  /sealed-bank\/v1 — 3\/3/.test(bundleTxt);
-console.log(`in-page bundle replay — 120 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+  /sealed-bank\/v1 — 3\/3/.test(bundleTxt) && /sealed-catalog\/v1 — 1\/1/.test(bundleTxt);
+console.log(`in-page bundle replay — 121 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // the hero stat: SOL settled by MPC-written scores — must render a real
 // lamports total, not a blank cell.
@@ -346,13 +346,24 @@ if (!statOk) fails++;
   if (!cardOk) fails++;
   ctx.location.search = "?snapshot=bundled";
 }
-// the evidence catalog — all 120 artifacts listed as ?card= links.
+// the evidence catalog — all 120 artifacts listed as ?card= links, plus the
+// index's own self-verifying link (121 total).
 {
   const catTxt = (els.get("catalog")?.innerHTML ?? "");
   const catLinks = (catTxt.match(/\?card=/g) || []).length;
-  const catOk = /120 artifacts/.test(catTxt) && catLinks === 120 && /sealed-bank\/v1/.test(catTxt);
+  const catOk = /120 artifacts/.test(catTxt) && catLinks === 121 && /sealed-bank\/v1/.test(catTxt);
   console.log(`in-page evidence catalog — ${catLinks} ?card= links across 8 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
+}
+// the catalog verifies ITSELF — sealed-catalog/v1 replayed in-page against the
+// per-dir indexes + SHA256SUMS (completeness, kind honesty, hash pinning).
+{
+  els.get("catalogjson").value = readFileSync(join(ROOT, "web", "artifacts.json"), "utf8");
+  await vm.runInContext("verifyCatalog()", ctx);
+  const cv = (els.get("catres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+  const cvOk = /CATALOG VERIFIED/.test(cv) && /120 listed \/ 120 found/.test(cv) && /120\/120 paths pinned/.test(cv);
+  console.log(`in-page catalog verifier — the index proves itself ${cvOk ? "PASS" : "FAIL — " + cv.slice(0, 300)}`);
+  if (!cvOk) fails++;
 }
 // the ?forge= deep link — a URL that runs the attack itself.
 {

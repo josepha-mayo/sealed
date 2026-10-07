@@ -1,4 +1,5 @@
-f03e33c227890cd01a28d1fa6134feddcef55a34ee80cace8d5a670f09bc7c97  ./SHA256SUMS
+77e8d907d89a91c01773ff4294c3f334f186ccb8d61fcda66488d6ede9eb3758  ./SHA256SUMS
+ee368b547e0d63e81af41ccff92b147121471ef85d0b63e4c2db83430b4af553  ./artifacts.json
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
 0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json
 db7c424be2ec98137a1dfd38fe7377d61fa4b0166cb813e3c29f87d250c42eb2  ./banks/sealed-priv.json
@@ -41,7 +42,7 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
 fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
-afb6b4729d76ad21e18d1239f13e4be21a63a6e7983c0cf7edd0dad93d479879  ./index.html
+e87377791d803fabb95ba8677c8995b6238b1ecb299b4770482ed4fc270ee52f  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json

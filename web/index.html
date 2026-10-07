@@ -126,8 +126,10 @@
 
 <h2 id="sec-catalog">the evidence catalog</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every committed artifact, browsable — eight kinds, each a shareable <code>?card=</code> link that re-verifies on open. This is the table of contents for the whole evidence base; nothing here is a screenshot.</div>
+  <div class="kv" style="margin-bottom:8px">every committed artifact, browsable — eight families of evidence plus the index itself, each a shareable <code>?card=</code> link that re-verifies on open. This is the table of contents for the whole evidence base; nothing here is a screenshot. The index itself is a <code>sealed-catalog/v1</code> artifact — <a href="?card=artifacts.json">verify it</a> (completeness + hash-binding, CLI parity via <code>chain catalog --check</code>).</div>
   <div id="catalog"><div class="kv">loading indexes…</div></div>
+  <textarea id="catalogjson" style="display:none"></textarea>
+  <div id="catres"></div>
 </div>
 
 <h2 id="sec-claim">verify a claim card</h2>
@@ -226,6 +228,7 @@
     <button onclick="forge('pool')">inflate a settled pool</button>
     <button onclick="forge('counts')">re-age the ledger</button>
     <button onclick="forge('phanrun')">mint a phantom run</button>
+    <button onclick="forge('toc')">erase an artifact from the index</button>
   </div>
   <div id="forgeres"></div>
 </div>
@@ -2420,36 +2423,75 @@ loadBankIndex();
 async function renderCatalog() {
   const el = document.getElementById("catalog");
   if (!el) return;
-  const GROUPS = [
-    ["claims", "sealed-claim/v1", "a model's whole evidentiary record"],
-    ["policies", "sealed-policy/v1", "a governance decision + its receipts"],
-    ["matches", "sealed-match/v1", "a portable head-to-head"],
-    ["trails", "sealed-trail/v1", "proof the money followed the MPC score"],
-    ["reports", "sealed-report/v1", "the printable dossier, hash-bound"],
-    ["banks", "sealed-bank/v1", "the exam itself — commitment re-folded"],
-  ];
+  const BLURB = {
+    "sealed-claim/v1": "a model's whole evidentiary record",
+    "sealed-policy/v1": "a governance decision + its receipts",
+    "sealed-match/v1": "a portable head-to-head",
+    "sealed-trail/v1": "proof the money followed the MPC score",
+    "sealed-report/v1": "the printable dossier, hash-bound",
+    "sealed-evidence-digest/v1": "the whole ledger as one document",
+    "sealed-board/v1": "the leaderboard itself, replayed",
+    "sealed-bank/v1": "the exam itself — commitment re-folded",
+  };
   const out = [];
-  let total = 0;
-  for (const [dir, kind, blurb] of GROUPS) {
-    try {
-      const files = await (await fetch(`${dir}/index.json`)).json();
-      total += files.length;
-      out.push(`<div style="margin-top:10px"><b>${esc(kind)}</b> <span class="kv">× ${files.length} — ${esc(blurb)}</span></div>`);
+  try {
+    // the catalog is itself a sealed-catalog/v1 artifact — committed, hash-pinned,
+    // and completeness-verified (verify this very index via its ?card= link).
+    const doc = await (await fetch("artifacts.json")).json();
+    const groups = new Map();
+    for (const a of doc.artifacts) {
+      if (!groups.has(a.kind)) groups.set(a.kind, []);
+      groups.get(a.kind).push(a);
+    }
+    for (const [kind, items] of groups) {
+      out.push(`<div style="margin-top:10px"><b>${esc(kind)}</b> <span class="kv">× ${items.length} — ${esc(BLURB[kind] ?? "")}</span></div>`);
       out.push(`<div class="kv" style="margin:4px 0 0 12px;line-height:1.9">` +
-        files.map(f => `<a href="?card=${encodeURIComponent(dir + "/" + f)}">${esc(f.replace(/\.(json|md)$/, ""))}</a>`).join(" · ") + `</div>`);
-    } catch { out.push(`<div class="kv">${dir}/index.json unreachable</div>`); }
-  }
-  for (const [f, kind, blurb] of [["digest.json", "sealed-evidence-digest/v1", "the whole ledger as one document"], ["board.json", "sealed-board/v1", "the leaderboard itself, replayed"]]) {
+        items.map(a => `<a href="?card=${encodeURIComponent(a.path)}" title="${esc(a.title)}">${esc(a.path.split("/").pop().replace(/\.(json|md)$/, ""))}</a>`).join(" · ") + `</div>`);
+    }
+    // the index proves itself: it must be pinned in SHA256SUMS and list every
+    // pinned artifact path — a missing entry breaks `chain catalog --check`.
+    let bound = 0;
     try {
-      const r = await fetch(f, { method: "HEAD" });
-      if (!r.ok) throw new Error("404");
-      total++;
-      out.push(`<div style="margin-top:10px"><b>${esc(kind)}</b> <span class="kv">× 1 — ${esc(blurb)}</span></div>` +
-        `<div class="kv" style="margin:4px 0 0 12px"><a href="?card=${f}">${esc(f)}</a></div>`);
+      const sums = await (await fetch("SHA256SUMS")).text();
+      const pinned = new Set(sums.trim().split("\n").map(l => l.slice(l.indexOf("  ") + 2).replace(/^\.\//, "")));
+      bound = doc.artifacts.filter(a => pinned.has(a.path)).length;
     } catch {}
-  }
-  out.unshift(`<div class="kv"><b>${total} artifacts</b> across ${GROUPS.length + 2} kinds — every link below re-verifies its card on open</div>`);
+    out.unshift(`<div class="kv"><b>${doc.count} artifacts</b> across ${groups.size} kinds — index: <a href="?card=artifacts.json">artifacts.json</a> (sealed-catalog/v1, ${bound}/${doc.count} paths hash-pinned) — every link re-verifies its card on open</div>`);
+  } catch { out.push(`<div class="kv">artifacts.json unreachable — run \`chain catalog --emit\`</div>`); }
   el.innerHTML = out.join("");
+}
+// sealed-catalog/v1 — verify the table of contents itself: completeness vs the
+// committed per-dir indexes + singletons, and hash-pinning vs SHA256SUMS.
+// (The CLI verifier additionally re-hashes all 120 files; the bundle replay
+// does that per-artifact already.)
+async function verifyCatalog() {
+  const res = document.getElementById("catres");
+  let doc;
+  try { doc = JSON.parse(document.getElementById("catalogjson").value); }
+  catch { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> not JSON</div>`; return; }
+  const rows = [];
+  const ck = (name, ok, detail = "") => rows.push(`<div class="proof"><span class="pill ${ok ? "ok" : "cancelled"}">${ok ? "PASS" : "FAIL"}</span> ${esc(name)}${detail ? ` — ${esc(detail)}` : ""}</div>`);
+  ck("kind", doc.kind === "sealed-catalog/v1");
+  const listed = new Set((doc.artifacts ?? []).map(a => a.path));
+  const expected = new Set();
+  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks"]) {
+    try { for (const f of await (await fetch(`${dir}/index.json`)).json()) expected.add(`${dir}/${f}`); } catch {}
+  }
+  for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); } catch {} }
+  const missing = [...expected].filter(p => !listed.has(p));
+  const extra = [...listed].filter(p => !expected.has(p));
+  ck("completeness", missing.length === 0 && extra.length === 0,
+    `${listed.size} listed / ${expected.size} found${missing.length ? ` — unlisted: ${missing.slice(0, 3).join(", ")}` : ""}${extra.length ? ` — phantom: ${extra.slice(0, 3).join(", ")}` : ""}`);
+  let bound = 0;
+  try {
+    const sums = await (await fetch("SHA256SUMS")).text();
+    const pinned = new Set(sums.trim().split("\n").map(l => l.slice(l.indexOf("  ") + 2).replace(/^\.\//, "")));
+    bound = [...listed].filter(p => pinned.has(p)).length;
+    ck("hash binding", bound === listed.size, `${bound}/${listed.size} paths pinned in SHA256SUMS`);
+  } catch { ck("hash binding", false, "SHA256SUMS unreachable"); }
+  ck("count", doc.count === listed.size, `declares ${doc.count}`);
+  const allOk = !rows.some(r => r.includes("cancelled"));
+  res.innerHTML = rows.join("") + `<div class="kv" style="margin-top:6px"><span class="pill ${allOk ? "ok" : "cancelled"}">${allOk ? "CATALOG VERIFIED" : "CATALOG FAILED"}</span> the table of contents is itself evidence — an artifact omitted from this index would have failed</div>`;
 }
 renderCatalog();
 // universal artifact router — mirrors `chain artifact <file>`: detect the
@@ -2470,9 +2512,10 @@ function verifyAnyArtifact() {
       "sealed-evidence-digest/v1": ["digestjson", "sec-digest", verifyDigest],
       "sealed-board/v1": ["boardjson", "sec-boardcard", verifyBoard],
       "sealed-bank/v1": ["bankjson", "sec-bankcard", verifyBank],
+      "sealed-catalog/v1": ["catalogjson", "sec-catalog", verifyCatalog],
     };
     const r = kind ? ROUTE[kind] : null;
-    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1)`; return; }
+    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/catalog/v1)`; return; }
     document.getElementById(r[0]).value = raw;
     const cardLink = window.__cardSrc && /^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(window.__cardSrc)
       ? ` · shareable verdict: <a href="?card=${encodeURIComponent(window.__cardSrc)}">?card=${esc(window.__cardSrc)}</a>` : "";
@@ -2567,6 +2610,24 @@ async function replayBundle() {
       else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> board.json — ${fails || "verdict"} failed check(s)</div>`);
     } catch (e) {
       rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> board.json — ${esc(e.message ?? String(e))}</div>`);
+    }
+    // the catalog index is itself an artifact — replay it last: completeness
+    // is only meaningful after every other artifact was found and verified.
+    try {
+      total++;
+      const cr = await fetch("artifacts.json");
+      if (!cr.ok) throw new Error(`HTTP ${cr.status}`);
+      const ta = document.getElementById("catalogjson"), sub = document.getElementById("catres");
+      saved.set("catalogjson", { value: ta.value }); saved.set("catres", { html: sub.innerHTML });
+      ta.value = await cr.text();
+      await verifyCatalog();
+      const html = sub.innerHTML;
+      const fails = (html.match(/pill cancelled/g) || []).length;
+      checks += fails + (html.match(/pill resolved/g) || []).length + (html.match(/pill ok/g) || []).length;
+      if (fails === 0 && html.includes("VERIFIED")) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-catalog/v1 — 1/1 artifact(s) replayed</div>`); }
+      else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> artifacts.json — ${fails || "verdict"} failed check(s)</div>`);
+    } catch (e) {
+      rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> artifacts.json — ${esc(e.message ?? String(e))}</div>`);
     }
     // bundle root — the same recipe `chain fingerprint` prints: sha256 over
     // the evidence manifest (served pinned as SHA256SUMS) + the web MANIFEST.
@@ -3133,6 +3194,8 @@ const FORGE_DEFS = {
   phanrun: { label: "mint a phantom run on an exam", file: "banks/sealed-gen.json", ta: "bankjson", res: "bankres", sec: "sec-bankcard", verify: verifyBank,
              mutate: (c) => { const r = JSON.parse(JSON.stringify(c.runs[0]));
                r.index = 999; r.pk = r.pk.slice(0, -1) + (r.pk.endsWith("x") ? "y" : "x"); c.runs.push(r); return c; } },
+  toc:     { label: "erase an artifact from the index", file: "artifacts.json", ta: "catalogjson", res: "catres", sec: "sec-catalog", verify: verifyCatalog,
+             mutate: (c) => { c.artifacts.splice(3, 1); c.count -= 1; return c; } },
 };
 const __forgeOut = {};
 async function forge(k) {

@@ -219,18 +219,27 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 the same checks in-page.
 `chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json]` is
 the universal verifier — auto-detects any
-`sealed-claim|policy|match|trail|report|evidence-digest|board|bank/v1`
+`sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog/v1`
 payload and
 routes it to the right replay. A directory verifies every artifact in
-it, mixing kinds freely; `--recursive` walks the whole tree (120
+it, mixing kinds freely; `--recursive` walks the whole tree (121
 artifacts in `docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any
 failure; non-artifact files are skipped, not failed). Reports need
 `--snapshot` (or live RPC) to re-mint their bound claim card; digests
 and board cards need it to replay against the decoded accounts. The explorer's
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
-in-browser — all 120 committed artifacts driven through their own
+in-browser — all 121 committed artifacts driven through their own
 in-page check lists with live progress, ending in the bundle root.
+`chain catalog [--dir docs/evidence]` prints the evidence table of
+contents — every artifact grouped by kind with a human title;
+`--emit` writes `sealed-catalog/v1` (`docs/evidence/artifacts.json` +
+the served mirror `web/artifacts.json`); `--check` / `--verify <f>`
+proves a committed index COMPLETE — completeness vs a fresh tree scan,
+existence + declared-kind honesty per entry, sha256-binding vs
+SHA256SUMS. An artifact omitted from the index exits 1. The explorer
+consumes the same file for its catalog section (one fetch, one source
+of truth) and `?card=artifacts.json` replays the index in-page.
 `chain board --prove <f> --snapshot <f2>` mints `sealed-board/v1` —
 the paired-evidence leaderboard as a portable card (record identities,
 all embedded receipts, per-bank aggregates, every shared-bank pairwise

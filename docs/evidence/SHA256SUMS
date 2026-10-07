@@ -17,6 +17,7 @@ a8b77ba902c15a996629ee99ae1f17e3a056c86d8de36b386418e0821b2d1987  ./acct-HW5H5bT
 d89d09b043820f3816d2464da8b85e0b92754db67d40db07b2554e46207d83ad  ./acct-HnM9ffHULWHBDAP4E8VaFFKRf7ckJCv9JMTvuGsSYkeL.json
 7a03c2dd181820f95872db7310d4630db4944000dee21fa29b58fcb7ee63ffd8  ./acct-VyAAjrsBiUkMumc8PqpA9nTzMyBsQ7uHMDf1AWQHFk3.json
 0f92df3cc6c204a44a756ab5044be1b2f50e3a018eb28c03ff4668d9e2ce97ed  ./acct-zbgZVGwLLvi9YcUsy3VZTpVLuw2qf6bHcdVsbZjEydj.json
+ee368b547e0d63e81af41ccff92b147121471ef85d0b63e4c2db83430b4af553  ./artifacts.json
 266fa9904a385df504617ea5b818cf9e57003ffee2dd30e1eb786157a87794df  ./band-local-cancelled.txt
 8d778bd2fe275f53687f035d3f7f5a60ed645a2ba849e607db115f20b8bf93d9  ./band-local.txt
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
@@ -150,7 +151,7 @@ f09dd766837ac4b64f7d873a394ba5fa36b8005bd40d6f3305c5dbb826a0bb64  ./prove-gen-it
 c243c5f93d89156d8411c9b9352eef0cf012abdc71760397e12c22dea6cf0d57  ./real-bounty.txt
 5e818edfc0a0efeae88d590a4195b59ddfec0559b1e04a3cf043c1a245bb5ff7  ./record-local.txt
 28f399e71d688092e60e8cd3651b7312a2d9f5cf317fc55531455fd32586bcd2  ./records.txt
-dab3780bfd1bc46f0d6a541e64df2b4ba7ec580cc40f85b49e94e95bc3b81bdb  ./replay.txt
+62e59f7fcaff04f2bbc85cf0391029bf31624c24eb8bfd5af4cb2f01079657cf  ./replay.txt
 cb1812b5d2faf569f782bc78934a1a7e10dea92a7309828b415f5d4bc6aa0666  ./reports/llama-3.2-1b-instruct.md
 0b540b2b152e8743fb3b5f81bc476e16c6dc84b5dd99d285de7b508c635d4559  ./reports/qwen2.5-0.5b-instruct.md
 db76c83e616727758b434190293654f79f81264e09997d0e8ec19a6151cb7689  ./reports/qwen2.5-1.5b-instruct.md

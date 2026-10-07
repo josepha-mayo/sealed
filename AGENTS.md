@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 61/61 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 62/62 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
@@ -81,11 +81,20 @@ parimutuel markets resolved from `Run.correct`.
   Run.correct (duel packs `(a<<16)|b`, ladder re-argmaxs mask, bounty
   score≥threshold). Tamper fails exactly at the replay check.
   `chain artifact <file|dir>` is the universal verifier — detects any
-  sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1
-  payload and routes to the
+  sealed-claim/policy/match/trail/report/evidence-digest/board/bank/
+  catalog/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 120 artifacts in one pass). `chain board --prove <f>
+  replays all 121 artifacts in one pass). `chain catalog` prints the
+  evidence table of contents (every artifact grouped by kind with a
+  title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json
+  + the served mirror web/artifacts.json) and `--check` proves the
+  committed index is COMPLETE — an unlisted artifact exits 1.
+  `catalogVerify` (also reachable via `chain artifact`/`--verify`)
+  replays it: completeness vs a fresh scan, existence + kind honesty
+  per entry, and sha256-binding against SHA256SUMS. The in-page catalog
+  consumes the same file (one fetch) and `?card=artifacts.json` replays
+  it in-browser. `chain board --prove <f>
   --snapshot <f2>` mints `sealed-board/v1` — the leaderboard as a
   portable card: every record identity, all 292 embedded receipts,
   per-bank aggregates, all 73 shared-bank pairwise verdicts, W-L-T
@@ -434,4 +443,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 61/61.
+  `yarn harness:test` → 62/62.

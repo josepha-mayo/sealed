@@ -97,7 +97,7 @@ deadline.
   regime — authored, generated, private). Every PDA
   re-derived, every verdict replayed, every settlement recomputed from
   `Run.correct`. Non-artifacts skipped, tamper fails at the exact check.
-- 15s: the eight artifact kinds — `sealed-claim/v1` (a model's whole
+- 15s: the artifact families — `sealed-claim/v1` (a model's whole
   evidentiary record), `sealed-policy/v1` (a governance decision +
   the receipts behind it), `sealed-match/v1` (a portable head-to-head),
   `sealed-trail/v1` (proof the money followed the MPC score),
@@ -111,13 +111,20 @@ deadline.
   verifies from ciphertext alone, no key needed).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
   304 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 120 artifacts
+  explorer's "replay the whole bundle" button drives all 121 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
   auto-walk through nineteen sections, ending on the forgery lab —
-  "try to break it": eight canned attacks (forge a score, swap a rank,
+  "try to break it": nine canned attacks (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
-  a pool, re-age the ledger) each die at a named check in-browser.
+  a pool, re-age the ledger, plant a phantom run on an exam, erase an
+  artifact from the index itself) each die at a named check in-browser —
+  and `?forge=<attack>` makes any of them a shareable link that runs
+  the attack on open.
+- 10s: the table of contents is evidence too — `artifacts.json` is a
+  `sealed-catalog/v1` card; `chain catalog --check` proves the index
+  lists EVERY artifact (completeness vs a fresh scan + sha256 pinning),
+  so the 120-card set can't be silently edited down.
 - Close: "Other submissions ask you to trust a folder of screenshots.
-  Ours ends in a sha256."
+  Ours ends in a sha256 — timestamped on Solana itself."

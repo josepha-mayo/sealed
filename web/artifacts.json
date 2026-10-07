@@ -1,0 +1,617 @@
+{
+  "kind": "sealed-catalog/v1",
+  "root": "docs/evidence",
+  "count": 120,
+  "byKind": {
+    "sealed-bank/v1": 3,
+    "sealed-board/v1": 1,
+    "sealed-claim/v1": 31,
+    "sealed-evidence-digest/v1": 1,
+    "sealed-match/v1": 73,
+    "sealed-policy/v1": 3,
+    "sealed-report/v1": 4,
+    "sealed-trail/v1": 4
+  },
+  "artifacts": [
+    {
+      "path": "banks/sealed-gen.json",
+      "kind": "sealed-bank/v1",
+      "title": "sealed-gen (generated)"
+    },
+    {
+      "path": "banks/sealed-priv.json",
+      "kind": "sealed-bank/v1",
+      "title": "sealed-priv (private)"
+    },
+    {
+      "path": "banks/sealed-test.json",
+      "kind": "sealed-bank/v1",
+      "title": "sealed-test (authored)"
+    },
+    {
+      "path": "board.json",
+      "kind": "sealed-board/v1",
+      "title": "paired-evidence leaderboard"
+    },
+    {
+      "path": "claims/dark_model-a.json",
+      "kind": "sealed-claim/v1",
+      "title": "dark/model-a"
+    },
+    {
+      "path": "claims/delegate_runner-1.json",
+      "kind": "sealed-claim/v1",
+      "title": "delegate/runner-1"
+    },
+    {
+      "path": "claims/duel_model-a.json",
+      "kind": "sealed-claim/v1",
+      "title": "duel/model-a"
+    },
+    {
+      "path": "claims/duel_model-b.json",
+      "kind": "sealed-claim/v1",
+      "title": "duel/model-b"
+    },
+    {
+      "path": "claims/ladder_model-a.json",
+      "kind": "sealed-claim/v1",
+      "title": "ladder/model-a"
+    },
+    {
+      "path": "claims/ladder_model-b.json",
+      "kind": "sealed-claim/v1",
+      "title": "ladder/model-b"
+    },
+    {
+      "path": "claims/ladder_model-c.json",
+      "kind": "sealed-claim/v1",
+      "title": "ladder/model-c"
+    },
+    {
+      "path": "claims/ladder_tie-a.json",
+      "kind": "sealed-claim/v1",
+      "title": "ladder/tie-a"
+    },
+    {
+      "path": "claims/ladder_tie-b.json",
+      "kind": "sealed-claim/v1",
+      "title": "ladder/tie-b"
+    },
+    {
+      "path": "claims/ladder_tie-c.json",
+      "kind": "sealed-claim/v1",
+      "title": "ladder/tie-c"
+    },
+    {
+      "path": "claims/llama-3.2-1b-instruct.json",
+      "kind": "sealed-claim/v1",
+      "title": "llama-3.2-1b-instruct"
+    },
+    {
+      "path": "claims/mock_oracle-0.25.json",
+      "kind": "sealed-claim/v1",
+      "title": "mock/oracle-0.25"
+    },
+    {
+      "path": "claims/mock_oracle-0.5.json",
+      "kind": "sealed-claim/v1",
+      "title": "mock/oracle-0.5"
+    },
+    {
+      "path": "claims/mock_oracle-0.50.json",
+      "kind": "sealed-claim/v1",
+      "title": "mock/oracle-0.50"
+    },
+    {
+      "path": "claims/mock_oracle-0.75.json",
+      "kind": "sealed-claim/v1",
+      "title": "mock/oracle-0.75"
+    },
+    {
+      "path": "claims/qwen2.5-0.5b-instruct.json",
+      "kind": "sealed-claim/v1",
+      "title": "qwen2.5-0.5b-instruct"
+    },
+    {
+      "path": "claims/qwen2.5-1.5b-instruct.json",
+      "kind": "sealed-claim/v1",
+      "title": "qwen2.5-1.5b-instruct"
+    },
+    {
+      "path": "claims/qwen2.5-3b-instruct.json",
+      "kind": "sealed-claim/v1",
+      "title": "qwen2.5-3b-instruct"
+    },
+    {
+      "path": "claims/test_bounty-claimant.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/bounty-claimant"
+    },
+    {
+      "path": "claims/test_bounty-wrong-payee.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/bounty-wrong-payee"
+    },
+    {
+      "path": "claims/test_gen-oracle.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/gen-oracle"
+    },
+    {
+      "path": "claims/test_market-run.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/market-run"
+    },
+    {
+      "path": "claims/test_oracle.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/oracle"
+    },
+    {
+      "path": "claims/test_post-reveal-35953.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/post-reveal-35953"
+    },
+    {
+      "path": "claims/test_post-reveal-87070.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/post-reveal-87070"
+    },
+    {
+      "path": "claims/test_post-reveal-scored.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/post-reveal-scored"
+    },
+    {
+      "path": "claims/test_priv-oracle.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/priv-oracle"
+    },
+    {
+      "path": "claims/test_registry-model-35953.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/registry-model-35953"
+    },
+    {
+      "path": "claims/test_registry-model-87070.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/registry-model-87070"
+    },
+    {
+      "path": "claims/test_registry-model.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/registry-model"
+    },
+    {
+      "path": "claims/test_sweep-run.json",
+      "kind": "sealed-claim/v1",
+      "title": "test/sweep-run"
+    },
+    {
+      "path": "digest.json",
+      "kind": "sealed-evidence-digest/v1",
+      "title": "whole-ledger digest"
+    },
+    {
+      "path": "matches/dark_model-a-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "dark/model-a vs duel/model-a"
+    },
+    {
+      "path": "matches/dark_model-a-vs-duel_model-b.json",
+      "kind": "sealed-match/v1",
+      "title": "dark/model-a vs duel/model-b"
+    },
+    {
+      "path": "matches/dark_model-a-vs-ladder_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "dark/model-a vs ladder/model-a"
+    },
+    {
+      "path": "matches/dark_model-a-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "dark/model-a vs ladder/tie-b"
+    },
+    {
+      "path": "matches/duel_model-b-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "duel/model-b vs duel/model-a"
+    },
+    {
+      "path": "matches/duel_model-b-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "duel/model-b vs ladder/tie-b"
+    },
+    {
+      "path": "matches/ladder_model-a-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-a vs duel/model-a"
+    },
+    {
+      "path": "matches/ladder_model-a-vs-duel_model-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-a vs duel/model-b"
+    },
+    {
+      "path": "matches/ladder_model-a-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-a vs ladder/tie-b"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-dark_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs dark/model-a"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs duel/model-a"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-duel_model-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs duel/model-b"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-ladder_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs ladder/model-a"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-ladder_model-c.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs ladder/model-c"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-ladder_tie-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs ladder/tie-a"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs ladder/tie-b"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-ladder_tie-c.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs ladder/tie-c"
+    },
+    {
+      "path": "matches/ladder_model-b-vs-test_gen-oracle.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-b vs test/gen-oracle"
+    },
+    {
+      "path": "matches/ladder_model-c-vs-dark_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-c vs dark/model-a"
+    },
+    {
+      "path": "matches/ladder_model-c-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-c vs duel/model-a"
+    },
+    {
+      "path": "matches/ladder_model-c-vs-duel_model-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-c vs duel/model-b"
+    },
+    {
+      "path": "matches/ladder_model-c-vs-ladder_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-c vs ladder/model-a"
+    },
+    {
+      "path": "matches/ladder_model-c-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/model-c vs ladder/tie-b"
+    },
+    {
+      "path": "matches/ladder_tie-a-vs-dark_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-a vs dark/model-a"
+    },
+    {
+      "path": "matches/ladder_tie-a-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-a vs duel/model-a"
+    },
+    {
+      "path": "matches/ladder_tie-a-vs-duel_model-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-a vs duel/model-b"
+    },
+    {
+      "path": "matches/ladder_tie-a-vs-ladder_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-a vs ladder/model-a"
+    },
+    {
+      "path": "matches/ladder_tie-a-vs-ladder_model-c.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-a vs ladder/model-c"
+    },
+    {
+      "path": "matches/ladder_tie-a-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-a vs ladder/tie-b"
+    },
+    {
+      "path": "matches/ladder_tie-b-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-b vs duel/model-a"
+    },
+    {
+      "path": "matches/ladder_tie-c-vs-dark_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-c vs dark/model-a"
+    },
+    {
+      "path": "matches/ladder_tie-c-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-c vs duel/model-a"
+    },
+    {
+      "path": "matches/ladder_tie-c-vs-duel_model-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-c vs duel/model-b"
+    },
+    {
+      "path": "matches/ladder_tie-c-vs-ladder_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-c vs ladder/model-a"
+    },
+    {
+      "path": "matches/ladder_tie-c-vs-ladder_model-c.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-c vs ladder/model-c"
+    },
+    {
+      "path": "matches/ladder_tie-c-vs-ladder_tie-a.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-c vs ladder/tie-a"
+    },
+    {
+      "path": "matches/ladder_tie-c-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "ladder/tie-c vs ladder/tie-b"
+    },
+    {
+      "path": "matches/mock_oracle-0.25-vs-mock_oracle-0.50.json",
+      "kind": "sealed-match/v1",
+      "title": "mock/oracle-0.25 vs mock/oracle-0.50"
+    },
+    {
+      "path": "matches/mock_oracle-0.25-vs-mock_oracle-0.75.json",
+      "kind": "sealed-match/v1",
+      "title": "mock/oracle-0.25 vs mock/oracle-0.75"
+    },
+    {
+      "path": "matches/mock_oracle-0.50-vs-mock_oracle-0.75.json",
+      "kind": "sealed-match/v1",
+      "title": "mock/oracle-0.50 vs mock/oracle-0.75"
+    },
+    {
+      "path": "matches/qwen2.5-0.5b-instruct-vs-llama-3.2-1b-instruct.json",
+      "kind": "sealed-match/v1",
+      "title": "qwen2.5-0.5b-instruct vs llama-3.2-1b-instruct"
+    },
+    {
+      "path": "matches/qwen2.5-1.5b-instruct-vs-llama-3.2-1b-instruct.json",
+      "kind": "sealed-match/v1",
+      "title": "qwen2.5-1.5b-instruct vs llama-3.2-1b-instruct"
+    },
+    {
+      "path": "matches/qwen2.5-1.5b-instruct-vs-qwen2.5-0.5b-instruct.json",
+      "kind": "sealed-match/v1",
+      "title": "qwen2.5-1.5b-instruct vs qwen2.5-0.5b-instruct"
+    },
+    {
+      "path": "matches/qwen2.5-3b-instruct-vs-llama-3.2-1b-instruct.json",
+      "kind": "sealed-match/v1",
+      "title": "qwen2.5-3b-instruct vs llama-3.2-1b-instruct"
+    },
+    {
+      "path": "matches/qwen2.5-3b-instruct-vs-qwen2.5-0.5b-instruct.json",
+      "kind": "sealed-match/v1",
+      "title": "qwen2.5-3b-instruct vs qwen2.5-0.5b-instruct"
+    },
+    {
+      "path": "matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json",
+      "kind": "sealed-match/v1",
+      "title": "qwen2.5-3b-instruct vs qwen2.5-1.5b-instruct"
+    },
+    {
+      "path": "matches/test_bounty-wrong-payee-vs-test_bounty-claimant.json",
+      "kind": "sealed-match/v1",
+      "title": "test/bounty-wrong-payee vs test/bounty-claimant"
+    },
+    {
+      "path": "matches/test_bounty-wrong-payee-vs-test_market-run.json",
+      "kind": "sealed-match/v1",
+      "title": "test/bounty-wrong-payee vs test/market-run"
+    },
+    {
+      "path": "matches/test_bounty-wrong-payee-vs-test_oracle.json",
+      "kind": "sealed-match/v1",
+      "title": "test/bounty-wrong-payee vs test/oracle"
+    },
+    {
+      "path": "matches/test_bounty-wrong-payee-vs-test_sweep-run.json",
+      "kind": "sealed-match/v1",
+      "title": "test/bounty-wrong-payee vs test/sweep-run"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-dark_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs dark/model-a"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-duel_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs duel/model-a"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-duel_model-b.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs duel/model-b"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-ladder_model-a.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs ladder/model-a"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-ladder_model-c.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs ladder/model-c"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-ladder_tie-a.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs ladder/tie-a"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-ladder_tie-b.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs ladder/tie-b"
+    },
+    {
+      "path": "matches/test_gen-oracle-vs-ladder_tie-c.json",
+      "kind": "sealed-match/v1",
+      "title": "test/gen-oracle vs ladder/tie-c"
+    },
+    {
+      "path": "matches/test_market-run-vs-test_bounty-claimant.json",
+      "kind": "sealed-match/v1",
+      "title": "test/market-run vs test/bounty-claimant"
+    },
+    {
+      "path": "matches/test_market-run-vs-test_oracle.json",
+      "kind": "sealed-match/v1",
+      "title": "test/market-run vs test/oracle"
+    },
+    {
+      "path": "matches/test_oracle-vs-test_bounty-claimant.json",
+      "kind": "sealed-match/v1",
+      "title": "test/oracle vs test/bounty-claimant"
+    },
+    {
+      "path": "matches/test_priv-oracle-vs-delegate_runner-1.json",
+      "kind": "sealed-match/v1",
+      "title": "test/priv-oracle vs delegate/runner-1"
+    },
+    {
+      "path": "matches/test_registry-model-35953-vs-test_post-reveal-35953.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model-35953 vs test/post-reveal-35953"
+    },
+    {
+      "path": "matches/test_registry-model-87070-vs-test_post-reveal-87070.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model-87070 vs test/post-reveal-87070"
+    },
+    {
+      "path": "matches/test_registry-model-vs-test_bounty-claimant.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model vs test/bounty-claimant"
+    },
+    {
+      "path": "matches/test_registry-model-vs-test_bounty-wrong-payee.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model vs test/bounty-wrong-payee"
+    },
+    {
+      "path": "matches/test_registry-model-vs-test_market-run.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model vs test/market-run"
+    },
+    {
+      "path": "matches/test_registry-model-vs-test_oracle.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model vs test/oracle"
+    },
+    {
+      "path": "matches/test_registry-model-vs-test_post-reveal-scored.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model vs test/post-reveal-scored"
+    },
+    {
+      "path": "matches/test_registry-model-vs-test_sweep-run.json",
+      "kind": "sealed-match/v1",
+      "title": "test/registry-model vs test/sweep-run"
+    },
+    {
+      "path": "matches/test_sweep-run-vs-test_bounty-claimant.json",
+      "kind": "sealed-match/v1",
+      "title": "test/sweep-run vs test/bounty-claimant"
+    },
+    {
+      "path": "matches/test_sweep-run-vs-test_market-run.json",
+      "kind": "sealed-match/v1",
+      "title": "test/sweep-run vs test/market-run"
+    },
+    {
+      "path": "matches/test_sweep-run-vs-test_oracle.json",
+      "kind": "sealed-match/v1",
+      "title": "test/sweep-run vs test/oracle"
+    },
+    {
+      "path": "policies/min60-3runs.json",
+      "kind": "sealed-policy/v1",
+      "title": "≥60% · ≥3 runs"
+    },
+    {
+      "path": "policies/sealed-test-60pct.json",
+      "kind": "sealed-policy/v1",
+      "title": "≥60% · ≥1 runs · bank A6UkXHYN…"
+    },
+    {
+      "path": "policies/strict70-vouched.json",
+      "kind": "sealed-policy/v1",
+      "title": "≥70% · ≥5 runs · vouched · no post-reveal"
+    },
+    {
+      "path": "reports/llama-3.2-1b-instruct.md",
+      "kind": "sealed-report/v1",
+      "title": "llama-3.2-1b-instruct"
+    },
+    {
+      "path": "reports/qwen2.5-0.5b-instruct.md",
+      "kind": "sealed-report/v1",
+      "title": "qwen2.5-0.5b-instruct"
+    },
+    {
+      "path": "reports/qwen2.5-1.5b-instruct.md",
+      "kind": "sealed-report/v1",
+      "title": "qwen2.5-1.5b-instruct"
+    },
+    {
+      "path": "reports/qwen2.5-3b-instruct.md",
+      "kind": "sealed-report/v1",
+      "title": "qwen2.5-3b-instruct"
+    },
+    {
+      "path": "trails/qwen3b-bounty-claim.json",
+      "kind": "sealed-trail/v1",
+      "title": "run ucwXeKwU… (qwen3b-bounty-claim)"
+    },
+    {
+      "path": "trails/qwen3b-calibration.json",
+      "kind": "sealed-trail/v1",
+      "title": "run GnrRt5GU… (qwen3b-calibration)"
+    },
+    {
+      "path": "trails/qwen3b-ladder-deadheat.json",
+      "kind": "sealed-trail/v1",
+      "title": "run 5YKpcbn5… (qwen3b-ladder-deadheat)"
+    },
+    {
+      "path": "trails/qwen3b-private-duel.json",
+      "kind": "sealed-trail/v1",
+      "title": "run 76kDLfXm… (qwen3b-private-duel)"
+    }
+  ]
+}

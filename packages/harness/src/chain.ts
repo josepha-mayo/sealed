@@ -3653,6 +3653,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
     "sealed-board/v1": (f) => boardVerify(f, json, snapPath),
     "sealed-bank/v1": (f) => bankVerify(f, json, snapPath),
+    "sealed-catalog/v1": (f) => catalogVerify(f, json),
   };
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
@@ -3706,9 +3707,149 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
+}
+
+/** Walk an evidence tree and list every sealed artifact with a
+ *  human title. Shared by `chain catalog` (print/emit) and
+ *  `catalogVerify` (completeness replay) — one scan, three uses. */
+async function scanArtifacts(dir: string) {
+  const { statSync, readdirSync } = await import("node:fs");
+  const files: string[] = [];
+  const walk = (d: string, depth: number) => {
+    for (const f of readdirSync(d).sort()) {
+      const full = `${d}/${f}`;
+      if (statSync(full).isDirectory()) { if (depth < 3) walk(full, depth + 1); continue; }
+      if (!(f.endsWith(".json") || f.endsWith(".md"))) continue;
+      if (["index.json", "artifacts.json", "SHA256SUMS", "README.md"].includes(f)) continue;
+      files.push(full);
+    }
+  };
+  walk(dir, 0);
+  const titleOf = (raw: any, file: string): string => {
+    const base = file.split("/").pop()!.replace(/\.(json|md)$/, "");
+    switch (raw?.kind) {
+      case "sealed-claim/v1": return raw.model?.id ?? base;
+      case "sealed-match/v1": return raw.a?.id && raw.b?.id ? `${raw.a.id} vs ${raw.b.id}` : base;
+      case "sealed-policy/v1": {
+        const p = raw.policy ?? {};
+        return [`≥${p.minPct}%`, `≥${p.minRuns} runs`, p.vouchedOnly ? "vouched" : "", p.noPostReveal ? "no post-reveal" : "", p.bank ? `bank ${String(p.bank).slice(0, 8)}…` : ""].filter(Boolean).join(" · ");
+      }
+      case "sealed-bank/v1": return `${raw.bank?.name ?? base} (${["authored", "generated", "private"][raw.bank?.kind] ?? "bank"})`;
+      case "sealed-evidence-digest/v1": return "whole-ledger digest";
+      case "sealed-board/v1": return "paired-evidence leaderboard";
+      case "sealed-trail/v1": return `run ${String(raw.run?.pk ?? base).slice(0, 8)}… (${base})`;
+      default: return base;
+    }
+  };
+  const out: { path: string; kind: string; title: string }[] = [];
+  for (const full of files) {
+    const raw = readFileSync(full, "utf8");
+    let kind: string | null = null, parsed: any = null;
+    try { parsed = JSON.parse(raw); kind = parsed.kind ?? null; }
+    catch { kind = raw.includes("sealed-report/v1") ? "sealed-report/v1" : null; }
+    if (!kind || !kind.startsWith("sealed-")) continue;
+    out.push({ path: full.slice(dir.length + 1), kind, title: titleOf(parsed, full) });
+  }
+  return out.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** `sealed-catalog/v1` — the evidence table of contents, itself verifiable.
+ *  `chain catalog` prints it; `--emit` writes docs/evidence/artifacts.json
+ *  (+ the served copy web/artifacts.json); `--check` proves the committed
+ *  index is complete — an unlisted artifact fails the build. */
+export async function chainCatalog(dir = "docs/evidence", emit = false, check = false, json = false) {
+  const { writeFileSync } = await import("node:fs");
+  const artifacts = await scanArtifacts(dir);
+  const byKind = new Map<string, number>();
+  for (const a of artifacts) byKind.set(a.kind, (byKind.get(a.kind) ?? 0) + 1);
+  const doc = {
+    kind: "sealed-catalog/v1",
+    root: dir,
+    count: artifacts.length,
+    byKind: Object.fromEntries([...byKind].sort()),
+    artifacts,
+  };
+  if (check) {
+    const committed = JSON.parse(readFileSync(`${dir}/artifacts.json`, "utf8"));
+    const same = JSON.stringify(committed.artifacts) === JSON.stringify(artifacts);
+    if (json) console.log(JSON.stringify({ ok: same, count: artifacts.length }));
+    else {
+      if (same) console.log(`CATALOG COMPLETE — ${artifacts.length} artifact(s), every sealed-*/v1 file under ${dir}/ is listed`);
+      else {
+        const have = new Set<string>(committed.artifacts.map((a: any) => String(a.path)));
+        const want = new Set(artifacts.map((a) => a.path));
+        for (const p of artifacts.map((a) => a.path).filter((p) => !have.has(p))) console.log(`  MISSING from index: ${p}`);
+        for (const p of [...have].filter((p) => !want.has(p))) console.log(`  STALE in index: ${p}`);
+        console.log(`CATALOG DRIFT — ${dir}/artifacts.json does not match the tree (run: chain catalog --emit)`);
+      }
+    }
+    if (!same) process.exitCode = 1;
+    return { ok: same };
+  }
+  if (emit) {
+    const { dirname, join } = await import("node:path");
+    const body = JSON.stringify(doc, null, 2) + "\n";
+    writeFileSync(`${dir}/artifacts.json`, body);
+    // mirror the served copy — docs/evidence → <repo>/web; foreign trees skip.
+    const webCopy = join(dirname(dirname(dir)), "web", "artifacts.json");
+    try { const { existsSync } = await import("node:fs"); if (existsSync(dirname(webCopy))) writeFileSync(webCopy, body); } catch { /* web/ absent — fine */ }
+    console.log(`wrote ${dir}/artifacts.json (+ web/ mirror when the tree is docs/evidence) — ${artifacts.length} artifact(s), ${byKind.size} kinds`);
+    return { ok: true, count: artifacts.length };
+  }
+  if (json) console.log(JSON.stringify(doc));
+  else {
+    console.log(`sealed-catalog/v1 — ${artifacts.length} artifact(s) under ${dir}/`);
+    for (const [k, n] of [...byKind].sort()) {
+      console.log(`\n${k} — ${n}`);
+      for (const a of artifacts.filter((x) => x.kind === k)) console.log(`  ${a.path.padEnd(52)} ${a.title}`);
+    }
+  }
+  return { ok: true, count: artifacts.length };
+}
+
+/** Replays a committed `sealed-catalog/v1` index against the tree it covers:
+ *  completeness (scan == index), existence + kind-honesty (every listed file
+ *  parses to its declared kind), and hash-binding (every entry's sha256 is
+ *  the one pinned in SHA256SUMS). The table of contents is itself evidence. */
+export async function catalogVerify(f: string, json = false) {
+  const { dirname } = await import("node:path");
+  const dir = dirname(f);
+  const doc = JSON.parse(readFileSync(f, "utf8"));
+  const pass: string[] = [], fail: string[] = [];
+  const ck = (name: string, ok: boolean, detail = "") => { (ok ? pass : fail).push(name); if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${name}${detail ? ` — ${detail}` : ""}`); };
+  ck("kind", doc.kind === "sealed-catalog/v1");
+  const fresh = await scanArtifacts(dir);
+  ck("completeness", JSON.stringify(fresh) === JSON.stringify(doc.artifacts), `${doc.artifacts?.length ?? 0} listed / ${fresh.length} found`);
+  const declared = new Map<string, string>((doc.artifacts ?? []).map((a: any) => [a.path, a.kind]));
+  let kindOk = true, missing = 0;
+  for (const [p, k] of declared) {
+    try {
+      const raw = readFileSync(`${dir}/${p}`, "utf8");
+      const actual = p.endsWith(".md") ? (raw.includes("sealed-report/v1") ? "sealed-report/v1" : null) : JSON.parse(raw).kind;
+      if (actual !== k) { kindOk = false; if (!json) console.log(`    ${p}: declared ${k}, file says ${actual}`); }
+    } catch { missing++; kindOk = false; }
+  }
+  ck("existence + kind honesty", kindOk, missing ? `${missing} listed file(s) unreadable` : `${declared.size} files parse to their declared kind`);
+  try {
+    const sums = readFileSync(`${dir}/SHA256SUMS`, "utf8");
+    const pinned = new Map(sums.trim().split("\n").map((l) => { const i = l.indexOf("  "); return [l.slice(i + 2).replace(/^\.\//, ""), l.slice(0, i)]; }));
+    let hashOk = true, bound = 0;
+    for (const p of declared.keys()) {
+      const want = pinned.get(p);
+      if (!want) { hashOk = false; if (!json) console.log(`    ${p}: not pinned in SHA256SUMS`); continue; }
+      const got = createHash("sha256").update(readFileSync(`${dir}/${p}`)).digest("hex");
+      if (got !== want) { hashOk = false; if (!json) console.log(`    ${p}: sha256 ${got.slice(0, 12)}… != pinned ${want.slice(0, 12)}…`); }
+      else bound++;
+    }
+    ck("hash binding", hashOk, `${bound}/${declared.size} entries sha256-match SHA256SUMS`);
+  } catch { ck("hash binding", false, "SHA256SUMS unreadable beside the catalog"); }
+  const ok = fail.length === 0;
+  if (!json) console.log(`${ok ? "CATALOG VERIFIED" : "CATALOG FAILED"} — ${pass.length} pass, ${fail.length} fail`);
+  if (!ok) process.exitCode = 1;
+  return { ok, pass: pass.length, fail: fail.length };
 }
 
 /** `sealed-fingerprint/v1` — the whole evidence base as ONE sha256.
@@ -7010,6 +7151,12 @@ export async function chainMain(cmd: string[], args: Args) {
       return;
     }
     await chainFingerprint(evDir, webDir, Boolean(args.json));
+    return;
+  }
+  if (sub === "catalog") {
+    const dir = String(args.dir ?? "docs/evidence");
+    if (args.verify) { await catalogVerify(String(args.verify), Boolean(args.json)); return; }
+    await chainCatalog(dir, Boolean(args.emit), Boolean(args.check), Boolean(args.json));
     return;
   }
   if (sub === "board") {

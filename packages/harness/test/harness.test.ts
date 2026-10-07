@@ -1339,6 +1339,63 @@ test("chain artifact — the universal verifier routes every kind", async () => 
   } finally { console.log = origLog; process.exitCode = origExit; }
 });
 
+test("sealed-catalog/v1 — the index proves itself complete; a phantom or mislabeled entry fails", async () => {
+  const { catalogVerify, chainCatalog } = await import("../src/chain.js");
+  const { writeFileSync, mkdtempSync, copyFileSync, mkdirSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createHash } = await import("node:crypto");
+  const origLog = console.log; console.log = () => {};
+  const origExit = process.exitCode; process.exitCode = 0;
+  const ev = new URL("../../../docs/evidence", import.meta.url).pathname;
+  try {
+    // the committed index verifies against its own tree
+    const r = (await catalogVerify(join(ev, "artifacts.json"))) as any;
+    assert.equal(r.fail, 0);
+    // staged tree: one artifact + a matching SHA256SUMS + a correct index
+    const dir = mkdtempSync(join(tmpdir(), "sealed-cat-"));
+    mkdirSync(join(dir, "claims"));
+    copyFileSync(join(ev, "claims", "qwen2.5-3b-instruct.json"), join(dir, "claims", "c.json"));
+    const h = (p: string) => createHash("sha256").update(readFileSync(join(dir, p))).digest("hex");
+    writeFileSync(join(dir, "SHA256SUMS"), `${h("claims/c.json")}  ./claims/c.json\n`);
+    // the title must match what the scanner derives (model.id) — completeness
+    // compares full entries, not just paths
+    const cat = { kind: "sealed-catalog/v1", root: dir, count: 1, byKind: { "sealed-claim/v1": 1 },
+      artifacts: [{ path: "claims/c.json", kind: "sealed-claim/v1", title: "qwen2.5-3b-instruct" }] };
+    writeFileSync(join(dir, "artifacts.json"), JSON.stringify(cat, null, 2));
+    const ok = (await catalogVerify(join(dir, "artifacts.json"))) as any;
+    assert.equal(ok.fail, 0);
+    // a phantom entry — listed but absent from the tree — fails existence
+    cat.artifacts.push({ path: "claims/ghost.json", kind: "sealed-claim/v1", title: "ghost" });
+    cat.count = 2;
+    writeFileSync(join(dir, "artifacts.json"), JSON.stringify(cat));
+    const bad = (await catalogVerify(join(dir, "artifacts.json"))) as any;
+    assert.equal(bad.fail > 0, true);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+    // a mislabeled kind fails honesty AND completeness
+    cat.artifacts = [{ path: "claims/c.json", kind: "sealed-board/v1", title: "mislabeled" }];
+    cat.count = 1;
+    writeFileSync(join(dir, "artifacts.json"), JSON.stringify(cat));
+    const bad2 = (await catalogVerify(join(dir, "artifacts.json"))) as any;
+    assert.equal(bad2.fail >= 2, true);
+    process.exitCode = 0;
+    // --emit then --check round-trip: a fresh index is drift-free, an
+    // unlisted artifact flips --check to exit 1
+    const emitDir = mkdtempSync(join(tmpdir(), "sealed-cate-"));
+    mkdirSync(join(emitDir, "claims"));
+    copyFileSync(join(ev, "claims", "qwen2.5-3b-instruct.json"), join(emitDir, "claims", "q.json"));
+    await chainCatalog(emitDir, true, false, true);
+    const chk = (await chainCatalog(emitDir, false, true, true)) as any;
+    assert.equal(chk.ok, true);
+    mkdirSync(join(emitDir, "policies"));
+    copyFileSync(join(ev, "policies", "min60-3runs.json"), join(emitDir, "policies", "p.json"));
+    const chk2 = (await chainCatalog(emitDir, false, true, true)) as any;
+    assert.equal(chk2.ok, false);
+    assert.equal(process.exitCode, 1);
+  } finally { console.log = origLog; process.exitCode = origExit; }
+});
+
 test("sealed-report/v1 — the document's card binding verifies, and a forged hash fails", async () => {
   const { reportVerify } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

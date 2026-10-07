@@ -193,6 +193,9 @@ async function main() {
   sealed chain trail <run> --prove <file>               mint a sealed-trail/v1 card — the money-trail as portable evidence
   sealed chain trail --verify <file|dir> [--json]       replay trail card(s) keyless — every PDA + settlement recomputed vs Run.correct
   sealed chain artifact <file|dir> [--recursive] [--json]   THE universal verifier — auto-detects any sealed-*/v1 artifact and replays it keyless; --recursive replays a whole evidence tree
+  sealed chain catalog [--dir docs/evidence]                 the evidence table of contents — every artifact grouped by kind with titles
+  sealed chain catalog --emit                               write sealed-catalog/v1 (docs/evidence/artifacts.json + web/artifacts.json) — the index is itself verifiable
+  sealed chain catalog --check | --verify <f>               prove the committed index is complete — an unlisted artifact fails
   sealed chain fingerprint [--json]                        the whole evidence base as one sha256 — re-hashes every pinned file, prints the bundle root
   sealed chain fingerprint --anchor [file] [--rpc url]     notarize the bundle root on-chain via memo tx (default: docs/evidence-anchor.json)
   sealed chain fingerprint --check-anchor <file>           fetch the notarization tx back and prove the chain carries the claimed root

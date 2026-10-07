@@ -294,7 +294,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 120 committed artifacts
+#           verifier in-browser: all 121 committed artifacts
 #           through their own check lists, live progress
 
 # 2n. THE FORGERY LAB — don't trust the checks, run the attack. The
@@ -320,6 +320,11 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     routes it to its verifier, and lands on the check list. e.g.
 #       https://josepha-mayo.github.io/sealed/?card=banks/sealed-priv.json
 #     lands on the private exam card with the ciphertext fold replayed.
+#     The catalog itself is an artifact: ?card=artifacts.json replays
+#     sealed-catalog/v1 — the index proves it lists EVERY artifact
+#     (completeness + hash-pinning vs SHA256SUMS). CLI parity:
+yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
+#         → CATALOG COMPLETE — 120 artifact(s), every sealed-*/v1 file listed
 yarn --cwd packages/harness cli chain fingerprint
 #         → re-hash check PASS — 292/292 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;

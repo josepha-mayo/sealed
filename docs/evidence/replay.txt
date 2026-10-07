@@ -394,7 +394,7 @@ open venues — 28 accepting positions, soonest-close first
 
 $ sealed chain market bounties --snapshot ../../web/snapshot.json   (head -10)
 37 bounties — 1 open (0 claimable right now):
-  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 579h  best-on-bank=64 (predates bounty — retroactivity wall)
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 578h  best-on-bank=64 (predates bounty — retroactivity wall)
   3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
@@ -637,8 +637,8 @@ sealed-bank/v1 — sealed-priv.json
   ✓ snapshot binding — sha256(snapshot.json) == card.snapshot
 BANK VERIFIED — sealed-priv · 1 chunks · 2 runs · 0 reveals · 5 grants
 
-$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 120 artifacts)
-scanning 148 candidate file(s) in ../../docs/evidence (recursive)
+$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 121 artifacts)
+scanning 149 candidate file(s) in ../../docs/evidence (recursive)
   SKIP acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json — not a sealed artifact
   SKIP acct-3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG.json — not a sealed artifact
   SKIP acct-4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1.json — not a sealed artifact
@@ -657,6 +657,7 @@ scanning 148 candidate file(s) in ../../docs/evidence (recursive)
   SKIP acct-HnM9ffHULWHBDAP4E8VaFFKRf7ckJCv9JMTvuGsSYkeL.json — not a sealed artifact
   SKIP acct-VyAAjrsBiUkMumc8PqpA9nTzMyBsQ7uHMDf1AWQHFk3.json — not a sealed artifact
   SKIP acct-zbgZVGwLLvi9YcUsy3VZTpVLuw2qf6bHcdVsbZjEydj.json — not a sealed artifact
+  PASS artifacts.json                                 sealed-catalog/v1 — 4 checks
   PASS banks/sealed-gen.json                          sealed-bank/v1    — 8 checks
   PASS banks/sealed-priv.json                         sealed-bank/v1    — 8 checks
   PASS banks/sealed-test.json                         sealed-bank/v1    — 8 checks
@@ -787,7 +788,10 @@ scanning 148 candidate file(s) in ../../docs/evidence (recursive)
   PASS trails/qwen3b-calibration.json                 sealed-trail/v1   — 7 checks
   PASS trails/qwen3b-ladder-deadheat.json             sealed-trail/v1   — 7 checks
   PASS trails/qwen3b-private-duel.json                sealed-trail/v1   — 6 checks
-ALL ARTIFACTS VERIFIED — 120 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 3× sealed-bank/v1, 1× sealed-board/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 4× sealed-report/v1, 4× sealed-trail/v1
+ALL ARTIFACTS VERIFIED — 121 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 1× sealed-catalog/v1, 3× sealed-bank/v1, 1× sealed-board/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 4× sealed-report/v1, 4× sealed-trail/v1
+
+$ sealed chain catalog --check   (the index proves itself complete)
+CATALOG COMPLETE — 120 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
 
 $ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
 diff ../../web/snapshot.json → ../../web/snapshot.json
@@ -801,7 +805,7 @@ fingerprint flagging THAT file mid-flight is the feature working.
 The committed copy passes (see scripts/verify-all.sh stage output).
 sealed-fingerprint/v1 — the whole evidence base as one hash
   snapshot.json     ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079
-  docs/evidence     51cfe2407e7e4d795ae746be2e08e2114b663a7455e66170813ef1bacec757d3  (169 pinned file(s))
-  web bundle        effb4bdb8277b9865d9dccd643bcfbd2d536566da461583de5bbdaeaa8963fcb  (135 pinned file(s))
-  re-hash check     FAIL — 302/304 file(s) match · ../../docs/evidence/replay.txt, ../../web/index.html
-  BUNDLE ROOT       3697f750c12443da1972a8a9a963363853f0f006fb3ed8cf91bf6150c674ceff
+  docs/evidence     291845cfb609394a501f009decb67f22b4e0b4e2286c8657c414d00ed95b6fac  (170 pinned file(s))
+  web bundle        36c34391797deddfdcad31078b574f357272a142f7c2cab09d9c8b541f7be1d3  (136 pinned file(s))
+  re-hash check     FAIL — 305/306 file(s) match · ../../docs/evidence/replay.txt
+  BUNDLE ROOT       6e6fb0d86975083adc4b53cb8c091264ce3850540581154091be1aa8bf5598a6
