@@ -217,8 +217,12 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 `docs/evidence/trails/` cover every venue kind (mirrored at
 `web/trails/`); the explorer's "verify a trail card" section replays
 the same checks in-page.
-`chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json]` is
-the universal verifier — auto-detects any
+`chain artifact <file|dir|url> [--recursive] [--snapshot <f>] [--json]` is
+the universal verifier. A hosted `?card=` deep link pastes straight into
+the terminal — `chain artifact "https://josepha-mayo.github.io/sealed/?card=board.json"`
+fetches the card (resolving the path against the page's directory) and
+runs the same replay — the shareable links work both ways. It
+auto-detects any — auto-detects any
 `sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog/v1`
 payload and
 routes it to the right replay. A directory verifies every artifact in

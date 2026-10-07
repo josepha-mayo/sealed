@@ -355,6 +355,19 @@ if (!statOk) fails++;
   console.log(`in-page evidence catalog — ${catLinks} ?card= links across 8 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
 }
+// the 60-second judge path — the three hero buttons must actually work:
+// board verify, a caught forgery, and the bundle replay (pinned separately).
+{
+  await vm.runInContext("quickVerify()", ctx);
+  await new Promise((r) => setTimeout(r, 400));
+  const boardTxt = (els.get("boardres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+  await vm.runInContext("quickForge()", ctx);
+  await new Promise((r) => setTimeout(r, 400));
+  const fq = await vm.runInContext("__forgeOut['score']", ctx);
+  const quickOk = /BOARD VERIFIED/.test(boardTxt) && fq?.state === "caught";
+  console.log(`in-page judge quick path — board verifies, forgery caught ${quickOk ? "PASS" : "FAIL"}`);
+  if (!quickOk) fails++;
+}
 // the catalog verifies ITSELF — sealed-catalog/v1 replayed in-page against the
 // per-dir indexes + SHA256SUMS (completeness, kind honesty, hash pinning).
 {

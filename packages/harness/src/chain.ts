@@ -3639,6 +3639,27 @@ export async function trailVerify(file: string, json = false) {
  *  artifact inside it (mixed kinds welcome). */
 export async function artifactVerify(target: string, json = false, snapPath?: string, recursive = false) {
   const { statSync, readdirSync } = await import("node:fs");
+  // URL targets — the shareable deep links work from the terminal too:
+  // `?card=<path>` resolves to the hosted artifact bytes; a bare .json/.md
+  // URL is fetched directly. The verify path is identical to local files.
+  if (/^https?:\/\//.test(target)) {
+    const u = new URL(target);
+    const card = u.searchParams.get("card");
+    if (card !== null) {
+      if (!/^[a-zA-Z0-9._/-]+\.(json|md)$/.test(card)) throw new Error(`unsafe ?card= path: ${card}`);
+      target = new URL(card, u).href; // resolve against the page's directory
+    }
+    if (!json) console.log(`fetching ${target}`);
+    const r = await fetch(target);
+    if (!r.ok) throw new Error(`HTTP ${r.status} — ${target}`);
+    const raw = await r.text();
+    const { writeFileSync: wf, mkdtempSync: md } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join: jn } = await import("node:path");
+    const tmp = jn(md(jn(tmpdir(), "sealed-url-")), target.split("/").pop() ?? "artifact.json");
+    wf(tmp, raw);
+    return artifactVerify(tmp, json, snapPath, false);
+  }
   const kindOf = (f: string): string | null => {
     const raw = readFileSync(f, "utf8");
     try { return JSON.parse(raw).kind ?? null; }

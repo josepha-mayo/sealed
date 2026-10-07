@@ -90,6 +90,15 @@
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
+<div class="card hero" style="margin-top:10px">
+  <div class="kv" style="margin-bottom:6px"><b>60-second judge path</b> — no wallet, no RPC, nothing trusted:</div>
+  <div>
+    <button onclick="quickVerify()">① verify the leaderboard card</button>
+    <button onclick="quickForge()">② watch a forgery die</button>
+    <button onclick="quickReplay()">③ replay all 121 proofs</button>
+    <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — nineteen captioned stops</span>
+  </div>
+</div>
 <div id="out"></div>
 
 <h2 id="sec-audit">cryptographic audit</h2>
@@ -2494,6 +2503,24 @@ async function verifyCatalog() {
   res.innerHTML = rows.join("") + `<div class="kv" style="margin-top:6px"><span class="pill ${allOk ? "ok" : "cancelled"}">${allOk ? "CATALOG VERIFIED" : "CATALOG FAILED"}</span> the table of contents is itself evidence — an artifact omitted from this index would have failed</div>`;
 }
 renderCatalog();
+// the 60-second judge path — three one-click demos from the hero strip.
+async function quickVerify() {
+  try {
+    const ta = document.getElementById("boardjson");
+    ta.value = await (await fetch("board.json")).text();
+    window.__cardSrc = "board.json";
+    verifyBoard();
+    document.getElementById("sec-boardcard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { /* board.json unreachable — the section will show the empty state */ }
+}
+async function quickForge() {
+  await forge("score");
+  document.getElementById("sec-forge")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function quickReplay() {
+  replayBundle();
+  document.getElementById("sec-artifact")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 // universal artifact router — mirrors `chain artifact <file>`: detect the
 // sealed-*/v1 kind, hand the payload to that kind's verifier + section.
 function verifyAnyArtifact() {
@@ -3367,7 +3394,7 @@ const TOUR_STOPS = [
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
-  ["sec-artifact", "verify anything — then 'replay the whole bundle': 120 committed artifacts"],
+  ["sec-artifact", "verify anything — then 'replay the whole bundle': 121 committed artifacts"],
   ["sec-catalog", "the evidence catalog — every artifact is a link you can forward; each re-verifies on open"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-trail", "the money followed the MPC score — the custody trail, proven"],
