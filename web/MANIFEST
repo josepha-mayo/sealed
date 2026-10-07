@@ -1,4 +1,4 @@
-b94d89eb34ac0756457a447879a359eda8a0bcf31a5026dc6aea0a2c394fe7d4  ./SHA256SUMS
+c80998daafea056f3460119e838469fcfed9b0b07fb9ffb52eebdecc02a36ec3  ./SHA256SUMS
 f7fae73ba65b24dc544ce65ce85bfc6160536562f90e03c9cb05a07b8ce47385  ./artifacts.json
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
 0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json

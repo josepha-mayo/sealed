@@ -382,7 +382,7 @@ open venues — 28 accepting positions, soonest-close first
     book 0.600◎ · bets close in 23.7d · expires in 23.7d
     sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
   ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
-    book 0.300◎ · bets close in 24.1d · expires in 24.1d
+    book 0.300◎ · bets close in 24.0d · expires in 24.0d
     sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
   ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
     book 0.600◎ · bets close in 24.1d · expires in 24.1d
@@ -840,6 +840,19 @@ ALL ARTIFACTS VERIFIED — 138 artifact(s) replayed, 28 non-artifact(s) skipped,
 $ sealed chain catalog --check   (the index proves itself complete)
 CATALOG COMPLETE — 137 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
 
+$ sealed chain artifact docs/evidence/tamper/board.inflate-a-receipt-s-score.json --snapshot ../../web/snapshot.json   (a committed lie — 'verifying' it proves the forgery dies)
+detected sealed-tamper/v1 — routing to its verifier
+  PASS inner forgery rejected — the sealed-board/v1 verifier refused it
+  PASS named check — expected (any rejection)
+TAMPER EXHIBIT VERIFIED — "inflate a receipt's score" on board.json
+
+$ sealed chain artifact docs/evidence/board.json --tamper --snapshot ../../web/snapshot.json   (the forgery lab — attack the leaderboard yourself)
+sealed-tamper/v1 — sealed-board/v1 · 3 canned attack(s)
+  FORGERY CAUGHT — inflate a receipt's score
+  FORGERY CAUGHT — swap the #1 rank
+  FORGERY CAUGHT — un-vouch an attested receipt
+ALL 3 FORGERIES CAUGHT — the verifier rejects its own lies
+
 $ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
 diff ../../web/snapshot.json → ../../web/snapshot.json
   A — sha256 ac4617590680c497… · taken 2026-10-03T14:30:15.224Z · integrity 31/31 records, 201/201 resolutions
@@ -852,7 +865,7 @@ fingerprint flagging THAT file mid-flight is the feature working.
 The committed copy passes (see scripts/verify-all.sh stage output).
 sealed-fingerprint/v1 — the whole evidence base as one hash
   snapshot.json     ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079
-  docs/evidence     721152d97b546ca1e28363d1e185caf0988b073f7aa79294e10ad0ede3edb8bf  (191 pinned file(s))
-  web bundle        e7bf560e36bd57b530a438e86bb8311dc9f41862172fa4dd9b576dabe5162cb4  (160 pinned file(s))
+  docs/evidence     b94d89eb34ac0756457a447879a359eda8a0bcf31a5026dc6aea0a2c394fe7d4  (191 pinned file(s))
+  web bundle        f57d1c47662a8101875ee4ca0901cc507daa9daf6488586d083f6867713a68fe  (160 pinned file(s))
   re-hash check     FAIL — 350/351 file(s) match · ../../docs/evidence/replay.txt
-  BUNDLE ROOT       610d3a41b2743a93f5a265f98536eb02a3cfce99c91c76218c1e73a6ad78cf7a
+  BUNDLE ROOT       782b4dc39c6aa55f67f03ec2c68d1bf2e3a9a0c5520735340c4b1a29cebec797

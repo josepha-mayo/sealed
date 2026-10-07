@@ -80,6 +80,8 @@ emit "market bounty card --verify docs/evidence/bounties/claimed-20of32.json $SN
 emit "grant --verify docs/evidence/grants/sealed-priv-panel.json $SNAP   (the viewer's certificate — questions moved, answers never did)" "grant --verify ../../docs/evidence/grants/sealed-priv-panel.json $SNAP"
 emit "artifact docs/evidence --recursive $SNAP   (the one command — 138 artifacts)" "artifact ../../docs/evidence --recursive $SNAP"
 emit "catalog --check   (the index proves itself complete)" "catalog --dir ../../docs/evidence --check"
+emit "artifact docs/evidence/tamper/board.inflate-a-receipt-s-score.json $SNAP   (a committed lie — 'verifying' it proves the forgery dies)" "artifact ../../docs/evidence/tamper/board.inflate-a-receipt-s-score.json $SNAP"
+emit "artifact docs/evidence/board.json --tamper $SNAP   (the forgery lab — attack the leaderboard yourself)" "artifact ../../docs/evidence/board.json --tamper $SNAP"
 emit "diff web/snapshot.json web/snapshot.json   (integrity self-check)" "diff ../../web/snapshot.json ../../web/snapshot.json"
 {
   printf '\n$ sealed chain fingerprint   (the one hash — every pinned byte re-checked)\n'

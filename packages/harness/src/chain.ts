@@ -5619,7 +5619,8 @@ export async function chainTour(snapPath?: string) {
   console.log(`      sealed chain prove <model> --out c.json     → claim card (verify: --verify c.json [--min-pct N])`);
   console.log(`      sealed chain report <model>                 → sealed-report/v1 printable document`);
   console.log(`      sealed chain gate --all <policy> --cert p.json → sealed-policy/v1 governance certificate`);
-  console.log(`      sealed chain artifact docs/evidence --recursive → replay ALL 115 committed artifacts in one pass`);
+  console.log(`      sealed chain artifact docs/evidence --recursive → replay ALL 138 committed artifacts in one pass`);
+  console.log(`      sealed chain artifact <file> --tamper       → try to break it — forge the card, watch the named check kill it`);
   console.log(`      sealed chain fingerprint                    → the whole evidence base as ONE sha256`);
   console.log(`      sealed chain export --snapshot <file>       → the portable digest · diff <a> <b> reproducibility`);
   console.log(`      https://josepha-mayo.github.io/sealed/?pk=<key>  → every one of these verifiable in the browser`);
