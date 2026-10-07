@@ -1,0 +1,46 @@
+{
+  "kind": "sealed-position/v1",
+  "generatedAt": "2026-10-07T12:41:03.620Z",
+  "source": "web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "position": {
+    "pk": "FoUM95dxDDzgyfdMc1v2tnddXbscw8jbCZcguNiEto88",
+    "account": "dark",
+    "seeds": {
+      "venue": "5ZMThRGWGnQwfzZBKv7PtyaeCCMyvAq76y2cPRLRB5By",
+      "bettor": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "posSalt": "0"
+    }
+  },
+  "stake": {
+    "amount": "20000000",
+    "commitment": "7a894a3ac34233f4ba5debb56a42721a48aeb367139ebad6ef1e814ecaf5d85b",
+    "revealed": 255
+  },
+  "venue": {
+    "pk": "5ZMThRGWGnQwfzZBKv7PtyaeCCMyvAq76y2cPRLRB5By",
+    "kind": "dark",
+    "seeds": {
+      "run": "AvKWFnMW21Y4n6yskK8bPPHBLCoudyh3CRHvC55J1qj1",
+      "salt": "0"
+    },
+    "status": 1,
+    "outcome": 1,
+    "mask": null,
+    "tallied": false,
+    "totals": null,
+    "poolTotal": "20000000",
+    "winTotal": "0",
+    "feeBps": 0
+  },
+  "verdict": {
+    "state": "live",
+    "staked": "20000000",
+    "estPayout": "0",
+    "note": "resolved — reveal or forfeit"
+  }
+}

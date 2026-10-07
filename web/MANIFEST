@@ -1,5 +1,5 @@
-77e8d907d89a91c01773ff4294c3f334f186ccb8d61fcda66488d6ede9eb3758  ./SHA256SUMS
-ee368b547e0d63e81af41ccff92b147121471ef85d0b63e4c2db83430b4af553  ./artifacts.json
+fba671623271b08143a4a52071f0f7c14a0839b8b530b3f0c64114a45b562534  ./SHA256SUMS
+4d4f332786e0aaa53c69d93404c1490e0467fc1492a1fe93a08f234f130bae4f  ./artifacts.json
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
 0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json
 db7c424be2ec98137a1dfd38fe7377d61fa4b0166cb813e3c29f87d250c42eb2  ./banks/sealed-priv.json
@@ -42,7 +42,7 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
 fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
-750bee0274aae23e62e19a45de99e038a2947bd0059d9488a2c2b38e326fbff2  ./index.html
+ba7a2e9f778fe051181f3488e567a534b22b570868b3b3e64b4404562dc982a1  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json
@@ -121,6 +121,9 @@ f726621e9d6dd6428dc67e761a258e79c15ab20b11528c2a2895f5bae4098b19  ./policies/ind
 9ea307c5be3c279e052690bfb143a6d125222255c7ea0ccd0472b698fdf48cd6  ./policies/min60-3runs.json
 d1f53177aa05342bf180cfa3f62584358ee7a6acf6fcaaed19f8e209345c1798  ./policies/sealed-test-60pct.json
 d4dbb0f4fa21d8db13af23b5f57a579bcf4970ad06ebecb4d748f94eda29bc5b  ./policies/strict70-vouched.json
+6806b5fad002fd1519ecc0668836de7e6f81f769530782697cb1ac701055604b  ./positions/index.json
+45f10a0b347cbeef593ade679eb416940468d371c513ba357f4b36f87479cc64  ./positions/sealed-dark.json
+9bbcb770945d7b0e9689629fc5b13ffd4aa0fe9a4bc45d29a52830f9ddd0c04d  ./positions/winning-band.json
 d46dfd70e966f8d815d0d1f4223b67f67cd8bc19e395cad1a30b46e6c213b0d8  ./reports/index.json
 cb1812b5d2faf569f782bc78934a1a7e10dea92a7309828b415f5d4bc6aa0666  ./reports/llama-3.2-1b-instruct.md
 0b540b2b152e8743fb3b5f81bc476e16c6dc84b5dd99d285de7b508c635d4559  ./reports/qwen2.5-0.5b-instruct.md

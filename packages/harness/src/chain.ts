@@ -2970,6 +2970,165 @@ export async function bankVerify(file: string, json = false, snapPath?: string):
   return { ok, pass, fail };
 }
 
+/** `chain market position <pk> --prove <f>` — mints `sealed-position/v1`:
+ *  the bettor's portable receipt. Both PDAs (position [position, venue,
+ *  bettor] and its venue [market|ladder|dark, run|firstLeg, salt]), the
+ *  stake payload (amounts, or dark commitment+nonce state), the venue's
+ *  settlement fields, and the payable/lost/refund verdict — snapshot-bound. */
+export async function positionProve(posPkStr: string, out: string, snapPath?: string) {
+  let markets: SnapAccount[], ladders: SnapAccount[], darks: SnapAccount[],
+      positions: SnapAccount[], darkPositions: SnapAccount[];
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
+  } else {
+    const { market } = marketProgram();
+    const mAcct = market.account as any;
+    [markets, ladders, darks, positions, darkPositions] = await Promise.all([
+      mAcct.market.all(), mAcct.ladder.all(), mAcct.darkMarket.all(),
+      mAcct.position.all(), mAcct.darkPosition.all(),
+    ]);
+  }
+  const pk = new PublicKey(posPkStr);
+  const pos = positions.find((x) => x.publicKey.equals(pk));
+  const dpos = darkPositions.find((x) => x.publicKey.equals(pk));
+  if (!pos && !dpos) throw new Error(`position ${posPkStr} not found (checked Position + DarkPosition)`);
+  const bettor = (pos ?? dpos)!.account.bettor.toBase58();
+  const venuePk = (pos ?? dpos)!.account.market.toBase58();
+  const maps = venueMapsOf(markets, ladders, darks);
+  const venue = maps.mk.get(venuePk) ?? maps.lk.get(venuePk) ?? maps.dk.get(venuePk);
+  if (!venue) throw new Error(`venue ${venuePk} missing — a position card can't claim a phantom venue`);
+  // dark positions carry a bettor-chosen pos_salt seed — not stored on the
+  // account. Recover it by probing the derivation space [0, 256).
+  let posSalt: string | null = null;
+  if (dpos) {
+    for (let s = 0n; s < 256n; s++) {
+      if (darkPosPda(new PublicKey(venuePk), new PublicKey(bettor), s).toBase58() === posPkStr) { posSalt = s.toString(); break; }
+    }
+    if (posSalt === null) throw new Error(`dark position pos_salt not in [0,256) — the seed is bettor-chosen and unrecoverable; this position can't be carded keyless`);
+  }
+  const row = classifyPositions(pos ? [pos] : [], dpos ? [dpos] : [], maps, bettor).rows[0];
+  // the venue's PDA seeds — straight from its account fields.
+  const rawVenue = [...markets, ...ladders, ...darks].find((v) => v.publicKey.toBase58() === venuePk)!.account as any;
+  const seeds: any = venue.kind === "ladder"
+    ? { firstLeg: rawVenue.legs[0].toBase58(), salt: rawVenue.salt.toString() }
+    : { run: rawVenue.run.toBase58(), salt: rawVenue.salt.toString() };
+  const card: any = {
+    kind: "sealed-position/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+    programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
+    snapshotSha256: snapPath ? createHash("sha256").update(readFileSync(snapPath)).digest("hex") : null,
+    position: { pk: posPkStr, account: pos ? "position" : "dark", seeds: { venue: venuePk, bettor, posSalt } },
+    stake: pos
+      ? { amounts: (pos.account.amounts as any[]).map((a) => a.toString()) }
+      : { amount: dpos!.account.amount.toString(), commitment: Buffer.from(dpos!.account.commitment as number[]).toString("hex"), revealed: dpos!.account.revealed },
+    venue: {
+      pk: venuePk, kind: venue.kind, seeds,
+      status: venue.status, outcome: (venue as any).outcome ?? null, mask: (venue as any).mask ?? null,
+      tallied: (venue as any).tallied ?? null,
+      totals: (venue as any).totals?.map((t: bigint) => t.toString()) ?? null,
+      poolTotal: (venue as any).poolTotal?.toString() ?? null,
+      winTotal: (venue as any).winTotal?.toString() ?? null,
+      feeBps: venue.feeBps,
+    },
+    verdict: { state: row.state, staked: row.staked.toString(), estPayout: row.est.toString(), note: row.note },
+  };
+  writeFileSync(out, JSON.stringify(card, null, 2));
+  console.log(`sealed-position/v1 → ${out}`);
+  console.log(`  ${posPkStr} — ${venue.kind} venue, ${row.state}${row.est > 0n ? ` ~${solAmt(row.est)} SOL` : ""}`);
+  console.log(`  verify: sealed chain market position --verify ${out} --snapshot <snapshot.json>`);
+  return card;
+}
+
+/** Replays `sealed-position/v1` keyless — six checks: both PDAs
+ *  (position [position, venue, bettor]; venue per its kind), the stake
+ *  payload field-bound to the snapshot account, the venue's settlement
+ *  fields bound likewise, the payable/lost verdict re-derived by the same
+ *  parimutuel math the dossiers use, and the snapshot sha. */
+export async function positionVerify(file: string, json = false, snapPath?: string): Promise<any> {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-position/v1") throw new Error("not a sealed-position/v1 artifact");
+  let pass = 0, fail = 0;
+  const lines: string[] = [];
+  const note = (ok: boolean, name: string, detail = "") => { ok ? pass++ : fail++; lines.push(`${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}`); };
+  const mpid = new PublicKey(card.programs.market);
+  const venuePk = new PublicKey(card.venue.pk), bettorPk = new PublicKey(card.position.seeds.bettor);
+  // [1] position PDA — dark positions carry the bettor-chosen pos_salt seed
+  const posPda = card.position.account === "dark"
+    ? darkPosPda(venuePk, bettorPk, BigInt(card.position.seeds.posSalt ?? "0"), mpid)
+    : PublicKey.findProgramAddressSync([Buffer.from("position"), venuePk.toBuffer(), bettorPk.toBuffer()], mpid)[0];
+  note(posPda.toBase58() === card.position.pk, "position PDA", card.position.account === "dark" ? `[darkpos, venue, bettor, pos_salt=${card.position.seeds.posSalt}]` : `[position, venue, bettor] @ market program`);
+  // [2] venue PDA
+  const salt = BigInt(card.venue.seeds.salt);
+  const vseeds = card.venue.kind === "ladder"
+    ? [Buffer.from("ladder"), new PublicKey(card.venue.seeds.firstLeg).toBuffer(), u64le(salt)]
+    : card.venue.kind === "dark"
+      ? [Buffer.from("dark"), new PublicKey(card.venue.seeds.run).toBuffer(), u64le(salt)]
+      : [Buffer.from("market"), new PublicKey(card.venue.seeds.run).toBuffer(), u64le(salt)];
+  const [venuePda] = PublicKey.findProgramAddressSync(vseeds, mpid);
+  note(venuePda.toBase58() === card.venue.pk, "venue PDA", `${card.venue.kind} seeds re-derive`);
+  // [3+4] snapshot account bindings
+  let markets: SnapAccount[] = [], ladders: SnapAccount[] = [], darks: SnapAccount[] = [],
+      positions: SnapAccount[] = [], darkPositions: SnapAccount[] = [];
+  let bound = false;
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    [markets, ladders, darks, positions, darkPositions] =
+      [snapOf(sm, "Market"), snapOf(sm, "Ladder"), snapOf(sm, "DarkMarket"), snapOf(sm, "Position"), snapOf(sm, "DarkPosition")];
+    bound = true;
+  }
+  const cmp = (a: any, b: any) => String(a) === String(b);
+  const realPos = positions.find((x) => x.publicKey.toBase58() === card.position.pk)
+    ?? darkPositions.find((x) => x.publicKey.toBase58() === card.position.pk);
+  if (!bound || !realPos) note(false, "position account binding", bound ? "position not in the snapshot" : "no snapshot to bind against");
+  else {
+    let ok = cmp(realPos.account.bettor.toBase58(), card.position.seeds.bettor)
+      && cmp(realPos.account.market.toBase58(), card.position.seeds.venue);
+    if (card.position.account === "dark")
+      ok &&= cmp(realPos.account.amount, card.stake.amount)
+        && Buffer.from(realPos.account.commitment as number[]).toString("hex") === card.stake.commitment
+        && cmp(realPos.account.revealed, card.stake.revealed);
+    else
+      ok &&= JSON.stringify((realPos.account.amounts as any[]).map((a) => a.toString())) === JSON.stringify(card.stake.amounts);
+    note(ok, "stake binding", "bettor/venue/stake fields equal the decoded position account");
+  }
+  const realVenue = [...markets, ...ladders, ...darks].find((v) => v.publicKey.toBase58() === card.venue.pk)?.account as any;
+  if (!bound || !realVenue) note(false, "venue binding", bound ? "venue not in the snapshot" : "no snapshot to bind against");
+  else {
+    const ok = cmp(realVenue.status, card.venue.status) && cmp(realVenue.feeBps, card.venue.feeBps)
+      && (card.venue.outcome === null || cmp(realVenue.outcome, card.venue.outcome))
+      && (card.venue.mask === null || cmp(realVenue.resultMask, card.venue.mask))
+      && (card.venue.totals === null || JSON.stringify((realVenue.totals as any[]).map((t) => t.toString())) === JSON.stringify(card.venue.totals))
+      && (card.venue.poolTotal === null || cmp(realVenue.poolTotal, card.venue.poolTotal))
+      && (card.venue.winTotal === null || cmp(realVenue.winTotal, card.venue.winTotal))
+      && (card.venue.tallied === null || cmp(realVenue.tallied, card.venue.tallied));
+    note(ok, "venue binding", "status · outcome/mask · pools · fee all equal the decoded venue account");
+  }
+  // [5] verdict replay — the same parimutuel math the dossiers print.
+  if (bound && realPos && realVenue) {
+    const maps = venueMapsOf(markets, ladders, darks);
+    const row = classifyPositions(card.position.account === "dark" ? [] : [realPos], card.position.account === "dark" ? [realPos] : [], maps, card.position.seeds.bettor).rows[0];
+    const ok = !!row && row.state === card.verdict.state && row.est.toString() === card.verdict.estPayout && row.staked.toString() === card.verdict.staked;
+    note(ok, "verdict replay", row ? `recomputed ${row.state}${row.est > 0n ? ` ~${solAmt(row.est)} SOL` : ""}` : "position unclassifiable");
+  } else note(false, "verdict replay", "missing account binding — cannot replay");
+  // [6] snapshot binding
+  if (snapPath && card.snapshotSha256)
+    note(createHash("sha256").update(readFileSync(snapPath)).digest("hex") === card.snapshotSha256, "snapshot binding", `sha256 ${card.snapshotSha256.slice(0, 16)}…`);
+  const ok = fail === 0;
+  if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
+  else {
+    console.log(`sealed-position/v1 — ${basename(file)}`);
+    for (const l of lines) console.log(`  ${l}`);
+    console.log(ok
+      ? `POSITION VERIFIED — ${card.verdict.state} · staked ${solAmt(BigInt(card.verdict.staked))} SOL${BigInt(card.verdict.estPayout) > 0n ? ` · pays ~${solAmt(BigInt(card.verdict.estPayout))} SOL` : ""} · ${card.venue.kind} venue`
+      : "POSITION FAILED");
+  }
+  if (!ok) process.exitCode = 1;
+  return { ok, pass, fail };
+}
+
 /** `chain compare --matrix [--top N] [--min-shared K]` — the N×N
  *  tournament table: every pair's shared-bank verdict as a cell.
  *  Leaderboards tell you who's ahead; the grid shows WHO beat WHOM —
@@ -3675,6 +3834,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-board/v1": (f) => boardVerify(f, json, snapPath),
     "sealed-bank/v1": (f) => bankVerify(f, json, snapPath),
     "sealed-catalog/v1": (f) => catalogVerify(f, json),
+    "sealed-position/v1": (f) => positionVerify(f, json, snapPath),
   };
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
@@ -3728,7 +3888,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog|position/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
 }
@@ -3761,6 +3921,7 @@ async function scanArtifacts(dir: string) {
       case "sealed-bank/v1": return `${raw.bank?.name ?? base} (${["authored", "generated", "private"][raw.bank?.kind] ?? "bank"})`;
       case "sealed-evidence-digest/v1": return "whole-ledger digest";
       case "sealed-board/v1": return "paired-evidence leaderboard";
+      case "sealed-position/v1": return `${raw.verdict?.state ?? "?"} · ${raw.venue?.kind ?? "?"} venue — ${String(raw.position?.seeds?.bettor ?? "").slice(0, 8)}…`;
       case "sealed-trail/v1": return `run ${String(raw.run?.pk ?? base).slice(0, 8)}… (${base})`;
       default: return base;
     }
@@ -7476,6 +7637,12 @@ export async function chainMain(cmd: string[], args: Args) {
       await marketPositions(bettor, Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
         args.viewer ? String(args.viewer) : undefined);
     } else if (m0 === "position") {
+      if (args.verify) { await positionVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined); return; }
+      if (args.prove) {
+        if (!args.snapshot) throw new Error("position cards claim a pinned ledger — pass --snapshot <f>");
+        await positionProve(String(cmd[2] ?? ""), String(args.prove), String(args.snapshot));
+        return;
+      }
       await marketPosition(String(cmd[2] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     } else if (m0 === "quote") {
       await marketQuote(String(cmd[2] ?? ""), Number(args.outcome ?? -1), BigInt(String(args.lamports ?? "0")),

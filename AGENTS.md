@@ -13,12 +13,12 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 62/62 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 63/63 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
   closer): offline verify + headless browser audit + grant-decrypt
-  regression + calibration rescore + recursive artifact replay (120
+  regression + calibration rescore + recursive artifact replay (123
   artifacts in one pass) + evidence/web manifests + doc-count freshness
   + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
@@ -82,10 +82,10 @@ parimutuel markets resolved from `Run.correct`.
   score≥threshold). Tamper fails exactly at the replay check.
   `chain artifact <file|dir>` is the universal verifier — detects any
   sealed-claim/policy/match/trail/report/evidence-digest/board/bank/
-  catalog/v1 payload and routes to the
+  position/catalog/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 121 artifacts in one pass). `chain catalog` prints the
+  replays all 123 artifacts in one pass). `chain catalog` prints the
   evidence table of contents (every artifact grouped by kind with a
   title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json
   + the served mirror web/artifacts.json) and `--check` proves the
@@ -110,7 +110,17 @@ parimutuel markets resolved from `Run.correct`.
   verifies WITHOUT the key), and the run/receipt/reveal/grant surfaces
   are completeness-checked against the snapshot (committed examples:
   docs/evidence/banks/ + web/banks/ — one card per commitment regime,
-  served in-page at "verify an exam card"). `chain export --verify <f>
+  served in-page at "verify an exam card"). `chain market position <pda>
+  --prove <f> --snapshot <f2>` mints `sealed-position/v1` — the bettor's
+  receipt: position PDA re-derives (`[position, venue, bettor]` for plain
+  venues; `[darkpos, venue, bettor, pos_salt]` for darks — mint
+  brute-forces the small demo salt), stake/odds bind to the decoded
+  Position account, venue fields bind to the market account, the
+  payout/live verdict replays, snapshot-bound. `--verify <f>` replays it
+  keyless (committed examples: docs/evidence/positions/ +
+  web/positions/ — a payable band position and a sealed dark one,
+  served in-page at "verify a bettor card").
+  `chain export --verify <f>
   --snapshot <f2>` replays a committed `sealed-evidence-digest/v1` —
   snapshot-sha binding + field-equality over counts/integrity/keeper/
   ledgers (committed example: docs/evidence/digest.json, served in-page
@@ -443,4 +453,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 62/62.
+  `yarn harness:test` → 63/63.

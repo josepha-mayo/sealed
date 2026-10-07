@@ -1,7 +1,7 @@
 {
   "kind": "sealed-catalog/v1",
   "root": "docs/evidence",
-  "count": 120,
+  "count": 122,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
@@ -9,6 +9,7 @@
     "sealed-evidence-digest/v1": 1,
     "sealed-match/v1": 73,
     "sealed-policy/v1": 3,
+    "sealed-position/v1": 2,
     "sealed-report/v1": 4,
     "sealed-trail/v1": 4
   },
@@ -572,6 +573,16 @@
       "path": "policies/strict70-vouched.json",
       "kind": "sealed-policy/v1",
       "title": "≥70% · ≥5 runs · vouched · no post-reveal"
+    },
+    {
+      "path": "positions/sealed-dark.json",
+      "kind": "sealed-position/v1",
+      "title": "live · dark venue — 4RUW4pDm…"
+    },
+    {
+      "path": "positions/winning-band.json",
+      "kind": "sealed-position/v1",
+      "title": "payable · band venue — 4RUW4pDm…"
     },
     {
       "path": "reports/llama-3.2-1b-instruct.md",

@@ -264,9 +264,21 @@ cards at `docs/evidence/banks/` — one per commitment regime — served
 at `web/banks/`; the explorer's "verify an exam card" replays the same
 in-page). Snapshot-only by design: a card that can't bind to pinned
 bytes isn't evidence.
+`chain market position <pda> --prove <f> --snapshot <f2>` mints
+`sealed-position/v1` — the bettor's receipt: the position PDA
+re-derives (`[position, venue, bettor]` for plain venues; `[darkpos,
+venue, bettor, pos_salt]` for dark commit-reveal positions — mint
+brute-forces the small demo salt since the salt is bettor-chosen and
+not stored on-chain), stake/odds fields bind to the decoded Position
+account, venue fields bind to the market account, and the
+settled-payout/live verdict replays. `chain market position --verify
+<f>` replays all checks keyless (committed: two cards at
+`docs/evidence/positions/` — a payable band position and a sealed
+dark one — served at `web/positions/`; the explorer's "verify a
+bettor card" replays the same in-page).
 `chain fingerprint` reduces the entire evidence base to one sha256 —
 `BUNDLE ROOT` = sha256 over the evidence + web manifests after
-re-hashing every pinned file (304 entries; exit 1 on any mismatch).
+re-hashing every pinned file (312 entries; exit 1 on any mismatch).
 The in-page replay prints the same root, so the terminal and the
 browser agree on one hash for the whole submission.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`

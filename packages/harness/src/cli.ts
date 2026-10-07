@@ -196,6 +196,8 @@ async function main() {
   sealed chain catalog [--dir docs/evidence]                 the evidence table of contents — every artifact grouped by kind with titles
   sealed chain catalog --emit                               write sealed-catalog/v1 (docs/evidence/artifacts.json + web/artifacts.json) — the index is itself verifiable
   sealed chain catalog --check | --verify <f>               prove the committed index is complete — an unlisted artifact fails
+  sealed chain market position <pk> --prove <f> --snapshot <f2>  mint sealed-position/v1 — the bettor's portable receipt (stake + venue + payout verdict)
+  sealed chain market position --verify <f> [--snapshot <f2>]    replay a bettor card keyless — 6 checks ending on payout recomputation
   sealed chain fingerprint [--json]                        the whole evidence base as one sha256 — re-hashes every pinned file, prints the bundle root
   sealed chain fingerprint --anchor [file] [--rpc url]     notarize the bundle root on-chain via memo tx (default: docs/evidence-anchor.json)
   sealed chain fingerprint --check-anchor <file>           fetch the notarization tx back and prove the chain carries the claimed root

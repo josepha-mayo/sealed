@@ -382,10 +382,10 @@ open venues — 28 accepting positions, soonest-close first
     book 0.600◎ · bets close in 24.1d · expires in 24.1d
     sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
   ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
-    book 0.300◎ · bets close in 24.5d · expires in 24.5d
+    book 0.300◎ · bets close in 24.4d · expires in 24.4d
     sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
   ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 24.5d · expires in 24.5d
+    book 0.600◎ · bets close in 24.4d · expires in 24.4d
     sealed chain market quote 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN <outcome> <lamports>
   duel    GL4yEgmZPa5k… duel/model-a vs duel/model-b — who scores higher?
     book 0.550◎ · bets close — · expires in 24.2d
@@ -637,8 +637,18 @@ sealed-bank/v1 — sealed-priv.json
   ✓ snapshot binding — sha256(snapshot.json) == card.snapshot
 BANK VERIFIED — sealed-priv · 1 chunks · 2 runs · 0 reveals · 5 grants
 
-$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 121 artifacts)
-scanning 149 candidate file(s) in ../../docs/evidence (recursive)
+$ sealed chain market position --verify docs/evidence/positions/winning-band.json --snapshot ../../web/snapshot.json   (the bettor's receipt — payout recomputed)
+sealed-position/v1 — winning-band.json
+  ✓ position PDA — [position, venue, bettor] @ market program
+  ✓ venue PDA — band seeds re-derive
+  ✓ stake binding — bettor/venue/stake fields equal the decoded position account
+  ✓ venue binding — status · outcome/mask · pools · fee all equal the decoded venue account
+  ✓ verdict replay — recomputed payable ~0.1000 SOL
+  ✓ snapshot binding — sha256 ac4617590680c497…
+POSITION VERIFIED — payable · staked 0.0300 SOL · pays ~0.1000 SOL · band venue
+
+$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 123 artifacts)
+scanning 151 candidate file(s) in ../../docs/evidence (recursive)
   SKIP acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json — not a sealed artifact
   SKIP acct-3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG.json — not a sealed artifact
   SKIP acct-4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1.json — not a sealed artifact
@@ -773,6 +783,8 @@ scanning 149 candidate file(s) in ../../docs/evidence (recursive)
   PASS policies/min60-3runs.json                      sealed-policy/v1  — 3 checks
   PASS policies/sealed-test-60pct.json                sealed-policy/v1  — 3 checks
   PASS policies/strict70-vouched.json                 sealed-policy/v1  — 3 checks
+  PASS positions/sealed-dark.json                     sealed-position/v1 — 6 checks
+  PASS positions/winning-band.json                    sealed-position/v1 — 6 checks
   SKIP prove-gen-item0.json — not a sealed artifact
   SKIP prove-item0.json — not a sealed artifact
   PASS reports/llama-3.2-1b-instruct.md               sealed-report/v1  — 3 checks
@@ -788,10 +800,10 @@ scanning 149 candidate file(s) in ../../docs/evidence (recursive)
   PASS trails/qwen3b-calibration.json                 sealed-trail/v1   — 7 checks
   PASS trails/qwen3b-ladder-deadheat.json             sealed-trail/v1   — 7 checks
   PASS trails/qwen3b-private-duel.json                sealed-trail/v1   — 6 checks
-ALL ARTIFACTS VERIFIED — 121 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 1× sealed-catalog/v1, 3× sealed-bank/v1, 1× sealed-board/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 4× sealed-report/v1, 4× sealed-trail/v1
+ALL ARTIFACTS VERIFIED — 123 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 1× sealed-catalog/v1, 3× sealed-bank/v1, 1× sealed-board/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 2× sealed-position/v1, 4× sealed-report/v1, 4× sealed-trail/v1
 
 $ sealed chain catalog --check   (the index proves itself complete)
-CATALOG COMPLETE — 120 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
+CATALOG COMPLETE — 122 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
 
 $ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
 diff ../../web/snapshot.json → ../../web/snapshot.json
@@ -805,7 +817,7 @@ fingerprint flagging THAT file mid-flight is the feature working.
 The committed copy passes (see scripts/verify-all.sh stage output).
 sealed-fingerprint/v1 — the whole evidence base as one hash
   snapshot.json     ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079
-  docs/evidence     291845cfb609394a501f009decb67f22b4e0b4e2286c8657c414d00ed95b6fac  (170 pinned file(s))
-  web bundle        36c34391797deddfdcad31078b574f357272a142f7c2cab09d9c8b541f7be1d3  (136 pinned file(s))
-  re-hash check     FAIL — 305/306 file(s) match · ../../docs/evidence/replay.txt
-  BUNDLE ROOT       6e6fb0d86975083adc4b53cb8c091264ce3850540581154091be1aa8bf5598a6
+  docs/evidence     bd61ab1d97327b9628a75877127cf8c7cf7a90b8f926647f602de04d3b0c692e  (173 pinned file(s))
+  web bundle        78e66839e671d19dd92c4027cd7bad7693463d277f914f9b833703ea894d6bd9  (139 pinned file(s))
+  re-hash check     FAIL — 311/312 file(s) match · ../../docs/evidence/replay.txt
+  BUNDLE ROOT       92e07b40c37aee094f25c70977f8b5d82f2f628202b218edeac0e1b68f635192

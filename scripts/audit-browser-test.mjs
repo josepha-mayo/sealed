@@ -272,8 +272,28 @@ const bankPrivOk = /BANK VERIFIED/.test(bankPrivTxt) && /re-folded in landing or
 console.log(`in-page bank verifier — private-bank ciphertext fold ${bankPrivOk ? "PASS" : "FAIL"}`);
 if (!bankPrivOk) console.log(`  bankres: ${bankPrivTxt.slice(0, 900)}`);
 if (!bankPrivOk) fails++;
+// the bettor's card — both position PDAs re-derive (dark adds pos_salt),
+// stake + venue fields bind to decoded accounts, the verdict replays.
+await vm.runInContext("loadPos('positions/winning-band.json')", ctx);
+await new Promise((r) => setTimeout(r, 60));
+await vm.runInContext("verifyPosition()", ctx);
+await new Promise((r) => setTimeout(r, 150));
+const posTxt = (els.get("posres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const posOk = /POSITION VERIFIED/.test(posTxt) && /position PDA/.test(posTxt) &&
+  /verdict replay/.test(posTxt) && /payable/.test(posTxt);
+console.log(`in-page position verifier — committed payable bettor card ${posOk ? "PASS" : "FAIL"}`);
+if (!posOk) console.log(`  posres: ${posTxt.slice(0, 900)}`);
+if (!posOk) fails++;
+await vm.runInContext("loadPos('positions/sealed-dark.json')", ctx);
+await new Promise((r) => setTimeout(r, 60));
+await vm.runInContext("verifyPosition()", ctx);
+await new Promise((r) => setTimeout(r, 150));
+const posDarkTxt = (els.get("posres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const posDarkOk = /POSITION VERIFIED/.test(posDarkTxt) && /pos_salt/.test(posDarkTxt);
+console.log(`in-page position verifier — sealed dark card (pos_salt seed) ${posDarkOk ? "PASS" : "FAIL"}`);
+if (!posDarkOk) fails++;
 // the forgery lab — every canned attack must die at a named check.
-for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun", "toc"]) {
+for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun", "toc", "payout"]) {
   await vm.runInContext(`forge(${JSON.stringify(k)})`, ctx);
   await new Promise((r) => setTimeout(r, 400));
   const r = await vm.runInContext(`__forgeOut[${JSON.stringify(k)}]`, ctx);
@@ -286,11 +306,12 @@ for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /121\/121 artifacts replayed in-page/.test(bundleTxt) &&
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /123\/123 artifacts replayed in-page/.test(bundleTxt) &&
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
   /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt) &&
-  /sealed-bank\/v1 — 3\/3/.test(bundleTxt) && /sealed-catalog\/v1 — 1\/1/.test(bundleTxt);
-console.log(`in-page bundle replay — 121 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+  /sealed-bank\/v1 — 3\/3/.test(bundleTxt) && /sealed-catalog\/v1 — 1\/1/.test(bundleTxt) &&
+  /sealed-position\/v1 — 2\/2/.test(bundleTxt);
+console.log(`in-page bundle replay — 123 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // the hero stat: SOL settled by MPC-written scores — must render a real
 // lamports total, not a blank cell.
@@ -351,7 +372,7 @@ if (!statOk) fails++;
 {
   const catTxt = (els.get("catalog")?.innerHTML ?? "");
   const catLinks = (catTxt.match(/\?card=/g) || []).length;
-  const catOk = /120 artifacts/.test(catTxt) && catLinks === 121 && /sealed-bank\/v1/.test(catTxt);
+  const catOk = /122 artifacts/.test(catTxt) && catLinks === 123 && /sealed-position\/v1/.test(catTxt);
   console.log(`in-page evidence catalog — ${catLinks} ?card= links across 8 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
 }
@@ -374,7 +395,7 @@ if (!statOk) fails++;
   els.get("catalogjson").value = readFileSync(join(ROOT, "web", "artifacts.json"), "utf8");
   await vm.runInContext("verifyCatalog()", ctx);
   const cv = (els.get("catres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-  const cvOk = /CATALOG VERIFIED/.test(cv) && /120 listed \/ 120 found/.test(cv) && /120\/120 paths pinned/.test(cv);
+  const cvOk = /CATALOG VERIFIED/.test(cv) && /122 listed \/ 122 found/.test(cv) && /122\/122 paths pinned/.test(cv);
   console.log(`in-page catalog verifier — the index proves itself ${cvOk ? "PASS" : "FAIL — " + cv.slice(0, 300)}`);
   if (!cvOk) fails++;
 }
@@ -397,7 +418,7 @@ const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/19/.test(tourStep2) &&
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/20/.test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;

@@ -1396,6 +1396,35 @@ test("sealed-catalog/v1 — the index proves itself complete; a phantom or misla
   } finally { console.log = origLog; process.exitCode = origExit; }
 });
 
+test("sealed-position/v1 — the bettor's card binds stake+venue+verdict; a puffed payout fails", async () => {
+  const { positionVerify } = await import("../src/chain.js");
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const snap = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const pos = new URL("../../../docs/evidence/positions", import.meta.url).pathname;
+  const origLog = console.log; console.log = () => {};
+  const origExit = process.exitCode; process.exitCode = 0;
+  try {
+    // both commitment regimes verify against the committed snapshot:
+    // a settled band position (pays out) and a sealed dark one (pos_salt seed)
+    const band = (await positionVerify(join(pos, "winning-band.json"), false, snap)) as any;
+    assert.equal(band.fail, 0);
+    assert.equal(band.pass, 6);
+    const dark = (await positionVerify(join(pos, "sealed-dark.json"), false, snap)) as any;
+    assert.equal(dark.fail, 0);
+    // a forged payout/stake dies at binding or replay, not silently
+    const c = JSON.parse(readFileSync(join(pos, "winning-band.json"), "utf8"));
+    c.stake.amounts[1] = "900000000"; c.verdict.estPayout = "999000000"; c.verdict.staked = "930000000";
+    const dir = mkdtempSync(join(tmpdir(), "sealed-pos-"));
+    writeFileSync(join(dir, "forged.json"), JSON.stringify(c));
+    const bad = (await positionVerify(join(dir, "forged.json"), false, snap)) as any;
+    assert.equal(bad.fail >= 1, true);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = origExit; }
+});
+
 test("sealed-report/v1 — the document's card binding verifies, and a forged hash fails", async () => {
   const { reportVerify } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

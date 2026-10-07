@@ -91,10 +91,12 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 120 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  all 123 committed artifacts: 31 claim cards, 73 match cards, 3 policy
   certificates, 4 custody trails, 4 capability reports, the ledger
-  digest, the leaderboard card, and 3 exam cards (one per commitment
-  regime — authored, generated, private). Every PDA
+  digest, the leaderboard card, 3 exam cards (one per commitment
+  regime — authored, generated, private), 2 bettor-position cards
+  (a payable band stake + a sealed dark position), and the catalog
+  itself. Every PDA
   re-derived, every verdict replayed, every settlement recomputed from
   `Run.correct`. Non-artifacts skipped, tamper fails at the exact check.
 - 15s: the artifact families — `sealed-claim/v1` (a model's whole
@@ -108,23 +110,27 @@ deadline.
   all 73 pairwise verdicts replayed from one card), and
   `sealed-bank/v1` (the exam itself — the items_root commitment
   re-folded from pinned chunk bytes; the private bank's commitment
-  verifies from ciphertext alone, no key needed).
+  verifies from ciphertext alone, no key needed), and
+  `sealed-position/v1` (the bettor's receipt — stake and settlement
+  proven from the position PDA, dark venues carry a fourth
+  bettor-chosen salt seed).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
   304 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 121 artifacts
+  explorer's "replay the whole bundle" button drives all 123 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
-  auto-walk through nineteen sections, ending on the forgery lab —
-  "try to break it": nine canned attacks (forge a score, swap a rank,
+  auto-walk through twenty sections, ending on the forgery lab —
+  "try to break it": ten canned attacks (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
   a pool, re-age the ledger, plant a phantom run on an exam, erase an
-  artifact from the index itself) each die at a named check in-browser —
+  artifact from the index itself, inflate a winning bettor's stake)
+  each die at a named check in-browser —
   and `?forge=<attack>` makes any of them a shareable link that runs
   the attack on open.
 - 10s: the table of contents is evidence too — `artifacts.json` is a
   `sealed-catalog/v1` card; `chain catalog --check` proves the index
   lists EVERY artifact (completeness vs a fresh scan + sha256 pinning),
-  so the 120-card set can't be silently edited down.
+  so the 122-card set can't be silently edited down.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256 — timestamped on Solana itself."

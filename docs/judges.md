@@ -278,6 +278,18 @@ yarn --cwd packages/harness cli chain bank --verify ../../docs/evidence/banks \
 #           generated (spec fold), private (ciphertext fold)
 #         → same replay in the explorer at "verify an exam card"
 
+# 3n. THE BETTOR'S RECEIPT — sealed-position/v1 proves a stake and its
+#     settlement without trusting the book: the position PDA re-derives
+#     ([position, venue, bettor] — dark venues add a bettor-chosen
+#     pos_salt as a fourth seed), stake binds to the decoded account,
+#     and the payout/live verdict replays from Run.correct.
+yarn --cwd packages/harness cli chain market position --verify \
+  ../../docs/evidence/positions/winning-band.json --snapshot ../../web/snapshot.json
+yarn --cwd packages/harness cli chain market position --verify \
+  ../../docs/evidence/positions/sealed-dark.json --snapshot ../../web/snapshot.json
+#         → POSITION VERIFIED — payable 0.10 SOL card + sealed dark card
+#         → same replay in the explorer at "verify a bettor card"
+
 # 3l. THE ONE COMMAND — `chain artifact` is the universal verifier:
 #     point it at the WHOLE evidence tree and it replays every
 #     artifact in one pass — kind auto-detected, non-artifacts
@@ -285,16 +297,16 @@ yarn --cwd packages/harness cli chain bank --verify ../../docs/evidence/banks \
 #     which artifact.
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
   --snapshot ../../web/snapshot.json
-#         → ALL ARTIFACTS VERIFIED — 120 replayed, 28 skipped ·
+#         → ALL ARTIFACTS VERIFIED — 123 replayed, 28 skipped ·
 #           31× claim, 73× match, 3× policy, 4× report, 4× trail,
-#           3× bank,
-#           1× evidence-digest, 1× board
+#           3× bank, 2× position,
+#           1× evidence-digest, 1× board, 1× catalog
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 121 committed artifacts
+#           verifier in-browser: all 123 committed artifacts
 #           through their own check lists, live progress
 
 # 2n. THE FORGERY LAB — don't trust the checks, run the attack. The

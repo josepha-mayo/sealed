@@ -23,7 +23,7 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
   --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
   --snapshot web/snapshot.json
 
-say "5/8 whole-tree artifact replay — one recursive pass, 121 artifacts, non-artifacts skipped"
+say "5/8 whole-tree artifact replay — one recursive pass, 123 artifacts, non-artifacts skipped"
 yarn --cwd packages/harness -s cli chain artifact \
   ../../docs/evidence --recursive --snapshot ../../web/snapshot.json
 
