@@ -336,9 +336,9 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     sealed-catalog/v1 — the index proves it lists EVERY artifact
 #     (completeness + hash-pinning vs SHA256SUMS). CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
-#         → CATALOG COMPLETE — 120 artifact(s), every sealed-*/v1 file listed
+#         → CATALOG COMPLETE — 122 artifact(s), every sealed-*/v1 file listed
 yarn --cwd packages/harness cli chain fingerprint
-#         → re-hash check PASS — 292/292 · BUNDLE ROOT <64-hex sha256>
+#         → re-hash check PASS — 312/312 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 
@@ -353,6 +353,16 @@ yarn --cwd packages/harness cli chain fingerprint \
 #         → ANCHOR VERIFIED — memo on-chain ✓ root in memo ✓
 #           anchor-vs-current ✓ (a DRIFT note just means evidence moved
 #           after notarization — we re-anchor at freeze)
+
+# 3o. THE SECOND-LANGUAGE VERDICT — don't trust our TypeScript? Re-run
+#     the whole integrity chain in ~150 lines of stdlib-only Python:
+#     re-hash both manifests, recompute the BUNDLE ROOT, match the
+#     devnet anchor doc, AND re-derive the position/venue PDAs with
+#     real ed25519 curve math (bump iteration + off-curve rejection).
+python3 scripts/verify.py
+#         → BUNDLE ROOT c6d0d93e… (same as the TypeScript — or the
+#           bundle is dirty) · both position cards' PDAs re-derived
+#           PASS · anchor doc carries this root PASS
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh

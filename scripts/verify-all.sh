@@ -31,6 +31,9 @@ say "6/8 evidence integrity manifests (sha256sum -c over docs/evidence + web)"
 scripts/evidence-manifest.sh check
 scripts/web-manifest.sh check
 
+say "6b. second-language verdict — Python (stdlib-only) recomputes the root + re-derives PDAs"
+python3 scripts/verify.py
+
 say "7/8 doc-count freshness — every numeric claim must match the bundle"
 node scripts/freshness.mjs
 

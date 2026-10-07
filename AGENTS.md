@@ -29,6 +29,12 @@ parimutuel markets resolved from `Run.correct`.
   Ships with `docs/evidence/calibration/` — authored bank 77007 whose
   plaintext answers are public ON PURPOSE (gitignored `bank/` does not
   apply to the evidence copy); qwen2.5-3b scored 7/32, rescore 7 PASS.
+- `python3 scripts/verify.py` → the SECOND-LANGUAGE verdict: stdlib-only
+  Python re-hashes both manifests, recomputes BUNDLE ROOT (same recipe
+  as `chain fingerprint`), matches it against docs/evidence-anchor.json,
+  and re-derives the committed position/venue PDAs with real ed25519
+  curve math (bump iteration + RFC8032 off-curve rejection). No node,
+  no pip, no RPC — proof the evidence is language-agnostic.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.
