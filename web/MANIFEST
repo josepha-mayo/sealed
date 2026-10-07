@@ -42,7 +42,7 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
 fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
-ba7a2e9f778fe051181f3488e567a534b22b570868b3b3e64b4404562dc982a1  ./index.html
+2e181bb43038afb0e504510ad776969f82267f612483f28e59e770963d9d9395  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json
@@ -136,4 +136,7 @@ ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079  ./snapshot.jso
 3046b93a4a5a5c507aaddb383b1f36cee6ac32d69e22ae2520de9bdc1b3f1f6c  ./trails/qwen3b-calibration.json
 5e4ea1a5f929f259a15248aaebc95b5a300930e028cf47119a9565a017251ad4  ./trails/qwen3b-ladder-deadheat.json
 331cf9c770917806ec5ae0162f7a117554e650564284bcf977e9a75b0020b7cb  ./trails/qwen3b-private-duel.json
+08b3445b4bc170085a26a614edc3b02dbb7ac1909b12ead9fd98d7e028959ceb  ./vendor/noble-ed25519.mjs
+0d55bdd7bfb4d4b37b6c9b4519f0e09f2e8b2f399a84cd8b48948cc0dd7d25b2  ./vendor/rescue.bundle.mjs
 59e90295d975db53e599b9509cf84c9214d00b544c90511fac9b7229fe0ed57c  ./vendor/rescue.mjs
+a759deca1b65df140e8dda5ad8645c19579536bf822e5c0c7e4adb7793a5bd08  ./vendor/web3.iife.min.js

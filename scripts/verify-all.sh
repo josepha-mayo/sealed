@@ -34,6 +34,9 @@ scripts/web-manifest.sh check
 say "6b. second-language verdict — Python (stdlib-only) recomputes the root + re-derives PDAs"
 python3 scripts/verify.py
 
+say "6c. the capsule — standalone.html is a byte-fresh mirror of the pinned bundle"
+node scripts/gen-standalone.mjs --check
+
 say "7/8 doc-count freshness — every numeric claim must match the bundle"
 node scripts/freshness.mjs
 

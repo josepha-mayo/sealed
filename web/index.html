@@ -12,14 +12,7 @@
 <meta name="twitter:title" content="Sealed — benchmark truth without a referee">
 <meta name="twitter:description" content="A benchmark whose answer key was never written down, scored by nobody in particular. Solana + Arcium MPC. Replay the evidence in-browser.">
 <title>Sealed — benchmark oracle &amp; markets</title>
-<script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
-<script type="importmap">
-{"imports":{
-  "@noble/curves/ed25519":"https://esm.sh/@noble/curves@1.9.7/ed25519",
-  "@noble/curves/abstract/modular":"https://esm.sh/@noble/curves@1.9.7/abstract/modular",
-  "@noble/hashes/sha3":"https://esm.sh/@noble/hashes@1.8.0/sha3"
-}}
-</script>
+<script src="vendor/web3.iife.min.js"></script>
 <style>
   :root { --bg:#0a0e0f; --fg:#c8e6d5; --dim:#5f7a6b; --acc:#4ef0a8; --warn:#f0b84e; --err:#f06e5a; --card:#101715; --line:#1d2a24; }
   * { box-sizing: border-box; }
@@ -103,7 +96,7 @@
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a></div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 123 artifacts + its own verifiers as ONE offline file</div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -472,8 +465,8 @@ async function decryptBank(benchPk, btn) {
     btn.disabled = true; btn.textContent = "decrypting…";
     if (!window.__mxeX25519) throw new Error("snapshot has no mxe_x25519 — regenerate snapshot.mjs on a keyed cluster");
     const demo = await (await fetch("demo-delegate.json")).json();
-    const { ed25519, x25519 } = await import("@noble/curves/ed25519");
-    const { RescueCipher } = await import("./vendor/rescue.mjs");
+    const { ed25519, x25519 } = await import("./vendor/noble-ed25519.mjs");
+    const { RescueCipher } = await import("./vendor/rescue.bundle.mjs");
     const secret = Uint8Array.from(demo.secret_key);
     const priv = ed25519.utils.toMontgomerySecret(secret.slice(0, 32));
     const viewerB58 = b58enc(ed25519.utils.toMontgomery(secret.slice(32, 64)));

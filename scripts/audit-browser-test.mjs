@@ -11,7 +11,8 @@ const require = createRequire(import.meta.url);
 const web3 = require("@solana/web3.js");
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const html = readFileSync(join(ROOT, "web", "index.html"), "utf8");
+const PAGE = process.env.SEALED_PAGE ?? "index.html";
+const html = readFileSync(join(ROOT, "web", PAGE), "utf8");
 const src = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]).join("\n");
 
 // --- minimal DOM ---
@@ -47,7 +48,7 @@ const ctx = {
       return { ok: false, json: async () => { throw new Error("404"); }, text: async () => { throw new Error("404"); }, arrayBuffer: async () => { throw new Error("404"); } };
     }
   },
-  TextEncoder, TextDecoder, DataView, Uint8Array, BigInt, JSON, Math, Number, Date,
+  TextEncoder, TextDecoder, DataView, Uint8Array, BigInt, JSON, Math, Number, Date, Response,
   crypto, console, setInterval: () => 0, setTimeout, clearTimeout, clearInterval: () => {}, queueMicrotask,
   atob: (s) => Buffer.from(s, "base64").toString("binary"),
 };
@@ -55,6 +56,19 @@ ctx.window.location = ctx.location;
 ctx.globalThis = ctx;
 vm.createContext(ctx);
 vm.runInContext(src, ctx);
+
+// capsule self-containment — standalone.html must carry every pinned
+// asset in window.__FILES and resolve fetches from it (no network).
+if (PAGE === "standalone.html") {
+  const files = ctx.window.__FILES ?? {};
+  const keys = Object.keys(files).length;
+  let snapOk = false, anchorOk = false;
+  try { snapOk = (await ctx.window.fetch("snapshot.json")).ok; } catch {}
+  try { anchorOk = (await ctx.window.fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/evidence-anchor.json")).ok; } catch {}
+  const capOk = keys >= 139 && !!files["MANIFEST"] && snapOk && anchorOk;
+  console.log(`capsule self-containment — ${keys} embedded files, snapshot + anchor fetch resolve offline ${capOk ? "PASS" : "FAIL"}`);
+  if (!capOk) process.exit(1);
+}
 
 await new Promise((r) => setTimeout(r, 50)); // let applySnapshot + renderAll settle
 // renderAll must COMPLETE — a mid-render throw leaves #out empty and only

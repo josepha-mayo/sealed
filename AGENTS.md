@@ -29,6 +29,15 @@ parimutuel markets resolved from `Run.correct`.
   Ships with `docs/evidence/calibration/` — authored bank 77007 whose
   plaintext answers are public ON PURPOSE (gitignored `bank/` does not
   apply to the evidence copy); qwen2.5-3b scored 7/32, rescore 7 PASS.
+- `node scripts/gen-standalone.mjs` → emits `web/standalone.html` — the
+  evidence capsule: every MANIFEST-pinned asset inlined into a single
+  5.8MB page with a fetch() shim so all verifiers run offline. Excluded
+  from MANIFEST (self-pinning is circular). `--check` = freshness gate
+  (verify-all stage 6c). Vendored deps: web3 iife + noble-ed25519 +
+  rescue.bundle (esbuild flat bundles — the page is CDN-free; a
+  rescue.mjs edit requires re-bundling via
+  `node_modules/esbuild/bin/esbuild web/vendor/rescue.mjs --bundle
+  --format=esm --outfile=web/vendor/rescue.bundle.mjs` + aliases).
 - `python3 scripts/verify.py` → the SECOND-LANGUAGE verdict: stdlib-only
   Python re-hashes both manifests, recomputes BUNDLE ROOT (same recipe
   as `chain fingerprint`), matches it against docs/evidence-anchor.json,

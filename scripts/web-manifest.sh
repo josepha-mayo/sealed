@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../web"
 case "${1:-check}" in
   update)
-    find . -type f ! -name MANIFEST -print0 | sort -z | xargs -0 sha256sum > MANIFEST
+    find . -type f ! -name MANIFEST ! -name standalone.html -print0 | sort -z | xargs -0 sha256sum > MANIFEST
     echo "web/MANIFEST regenerated: $(wc -l < MANIFEST) files"
     ;;
   check)

@@ -364,6 +364,14 @@ python3 scripts/verify.py
 #           bundle is dirty) · both position cards' PDAs re-derived
 #           PASS · anchor doc carries this root PASS
 
+# 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
+#     5.8MB file: the page, the snapshot, all 123 artifacts, both
+#     manifests, the vendored crypto deps, and the devnet anchor doc,
+#     plus a fetch() shim so every in-page verifier runs OFFLINE.
+#     Download it, disconnect, open it in any browser — the audit, the
+#     recursive replay, and the forgery lab all still pass. Regenerate
+#     byte-identically: `node scripts/gen-standalone.mjs` (--check in CI).
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).
