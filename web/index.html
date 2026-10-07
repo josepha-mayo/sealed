@@ -116,7 +116,7 @@
 <h2 id="sec-artifact">verify anything</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
-  <textarea id="artifactjson" rows="6" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}'></textarea>
+  <textarea id="artifactjson" rows="6" oninput="window.__cardSrc=null" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}'></textarea>
   <button onclick="verifyAnyArtifact()">verify artifact</button>
   <span id="artifactnote" class="kv"></span>
   <div class="kv" style="margin-top:10px">…or replay <b>every committed artifact</b> — the in-page mirror of <code>chain artifact docs/evidence --recursive</code>. Each file below runs through its own verifier above: every PDA re-derived, every verdict replayed, nothing trusted.</div>
@@ -2078,9 +2078,10 @@ const short0x = (n) => "0x" + n.toString(16).slice(0, 10) + "…";
 async function loadExampleClaim(file) {
   const ta = document.getElementById("claimjson");
   try {
-    const r = await fetch(`claims/${file || "qwen2.5-3b-instruct.json"}`);
+    const src = `claims/${file || "qwen2.5-3b-instruct.json"}`;
+    const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = src;
   } catch (e) { ta.value = ""; document.getElementById("claimres").innerHTML = `<div class="kv">committed claim card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 async function loadClaimIndex() {
@@ -2197,9 +2198,10 @@ function verifyClaim() {
 async function loadCert(file) {
   const ta = document.getElementById("certjson");
   try {
-    const r = await fetch(`policies/${file || "min60-3runs.json"}`);
+    const src = `policies/${file || "min60-3runs.json"}`;
+    const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = src;
   } catch (e) { ta.value = ""; document.getElementById("certres").innerHTML = `<div class="kv">committed certificate not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 async function loadCertIndex() {
@@ -2278,9 +2280,10 @@ function verifyCert() {
 async function loadMatch(file) {
   const ta = document.getElementById("matchjson");
   try {
-    const r = await fetch(`matches/${file || "qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json"}`);
+    const src = `matches/${file || "qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json"}`;
+    const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = src;
   } catch (e) { ta.value = ""; document.getElementById("matchres").innerHTML = `<div class="kv">committed match card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 async function loadMatchIndex() {
@@ -2371,9 +2374,10 @@ function verifyMatch() {
 async function loadTrail(file) {
   const ta = document.getElementById("trailjson");
   try {
-    const r = await fetch(`trails/${file || "qwen3b-ladder-deadheat.json"}`);
+    const src = `trails/${file || "qwen3b-ladder-deadheat.json"}`;
+    const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = src;
   } catch (e) { ta.value = ""; document.getElementById("trailres").innerHTML = `<div class="kv">committed trail card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 async function loadTrailIndex() {
@@ -2426,7 +2430,9 @@ function verifyAnyArtifact() {
     const r = kind ? ROUTE[kind] : null;
     if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1)`; return; }
     document.getElementById(r[0]).value = raw;
-    note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below`;
+    const cardLink = window.__cardSrc && /^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(window.__cardSrc)
+      ? ` · shareable verdict: <a href="?card=${encodeURIComponent(window.__cardSrc)}">?card=${esc(window.__cardSrc)}</a>` : "";
+    note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below${cardLink}`;
     document.getElementById(r[1]).scrollIntoView({ behavior: "smooth", block: "start" });
     r[2]();
   } catch (e) { note.innerHTML = ` — <span style="color:var(--err)">${esc(e.message ?? String(e))}</span>`; }
@@ -2609,9 +2615,10 @@ function verifyTrail() {
 async function loadReport(file) {
   const ta = document.getElementById("reportjson");
   try {
-    const r = await fetch(`reports/${file || "qwen2.5-3b-instruct.md"}`);
+    const src = `reports/${file || "qwen2.5-3b-instruct.md"}`;
+    const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = src;
   } catch (e) { ta.value = ""; document.getElementById("reportres").innerHTML = `<div class="kv">committed report not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 async function loadReportIndex() {
@@ -2681,7 +2688,7 @@ async function loadDigest() {
   try {
     const r = await fetch("digest.json");
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = "digest.json";
   } catch (e) { ta.value = ""; document.getElementById("digestres").innerHTML = `<div class="kv">committed digest not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 // sealed-evidence-digest/v1 verifier — mirrors `chain export --verify`:
@@ -2750,7 +2757,7 @@ async function loadBoard() {
   try {
     const r = await fetch("board.json");
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = "board.json";
   } catch (e) { ta.value = ""; document.getElementById("boardres").innerHTML = `<div class="kv">committed board not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 // sealed-board/v1 verifier — mirrors `chain board --verify`: record PDAs
@@ -2881,9 +2888,10 @@ async function verifyBoard() {
 async function loadBank(name) {
   const ta = document.getElementById("bankjson");
   try {
-    const r = await fetch(`banks/${name}`);
+    const src = `banks/${name}`;
+    const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
-    ta.value = await r.text();
+    ta.value = await r.text(); window.__cardSrc = src;
   } catch (e) { ta.value = ""; document.getElementById("bankres").innerHTML = `<div class="kv">committed card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
 }
 // sealed-bank/v1 verifier — mirrors `chain bank --verify`: the exam as
@@ -3223,6 +3231,7 @@ async function maybeAudit() {
       const r = await fetch(cardParam);
       if (r.ok) {
         document.getElementById("artifactjson").value = await r.text();
+        window.__cardSrc = cardParam;
         verifyAnyArtifact();
       }
     } catch { /* unreachable card — the link is stale, not broken crypto */ }
