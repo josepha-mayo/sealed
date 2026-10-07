@@ -1,10 +1,13 @@
-fba671623271b08143a4a52071f0f7c14a0839b8b530b3f0c64114a45b562534  ./SHA256SUMS
-4d4f332786e0aaa53c69d93404c1490e0467fc1492a1fe93a08f234f130bae4f  ./artifacts.json
+e2e00e5a981186608d597dc2c257c60f06dcef8d7d2179ecf0cf4b6285de8dee  ./SHA256SUMS
+befd2bb667bf63e46462524e24642104dd170da786232ba94a7fff0612e05ee6  ./artifacts.json
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
 0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json
 db7c424be2ec98137a1dfd38fe7377d61fa4b0166cb813e3c29f87d250c42eb2  ./banks/sealed-priv.json
 cac90190b6e5b1b8933bac468c18efe2e14b35465588bba2ce7e3930279fe3a3  ./banks/sealed-test.json
 debf82b008d50d4f1fca8c37ab1528aeb4e3c4f8d38ffae9bee0e626f4cbca49  ./board.json
+683aa3c96fd3853872fc1d9e36b377e91869c722611e1edf34ea16d207d6938e  ./bounties/claimed-20of32.json
+1c96e106ce92637761802ec38e5c9874611083d6fe7925514febdefbd6060854  ./bounties/index.json
+1360d81d776a28bfa63336bd35a08b216dfe3cc65c22b5e0bfb87c3bc14ab566  ./bounties/open-sealed-test.json
 8931f035672887dce836f5d53fe11790fa3c23f669eb4406560fa7f3cfa19ebd  ./calibration/bank.json
 3d5b6b008634a78c3bd5a371827dd834ca9c28659a57438cdaf5d40433574bd2  ./calibration/run-artifact-15b.json
 c352fb0b994cba31b7a461edaa30820c465234b99e2391bbfcdae9739dc78b1d  ./calibration/run-artifact.json
@@ -42,7 +45,7 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
 fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
-2c0e1aaa554a49fa55c35e66a4b99f60757d1449e405cdd34b3b3d602e3db8b9  ./index.html
+0bd203532abc314964c8a2c3b4045c8d56ac473049813aa25884d70f25c35f50  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json

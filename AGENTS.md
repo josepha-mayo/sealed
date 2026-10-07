@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 63/63 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 64/64 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
@@ -97,10 +97,10 @@ parimutuel markets resolved from `Run.correct`.
   score≥threshold). Tamper fails exactly at the replay check.
   `chain artifact <file|dir>` is the universal verifier — detects any
   sealed-claim/policy/match/trail/report/evidence-digest/board/bank/
-  position/catalog/v1 payload and routes to the
+  position/bounty/catalog/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 123 artifacts in one pass). `chain catalog` prints the
+  replays all 125 artifacts in one pass). `chain catalog` prints the
   evidence table of contents (every artifact grouped by kind with a
   title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json
   + the served mirror web/artifacts.json) and `--check` proves the
@@ -134,7 +134,18 @@ parimutuel markets resolved from `Run.correct`.
   payout/live verdict replays, snapshot-bound. `--verify <f>` replays it
   keyless (committed examples: docs/evidence/positions/ +
   web/positions/ — a payable band position and a sealed dark one,
-  served in-page at "verify a bettor card").
+  served in-page at "verify a bettor card"). `chain market bounty card
+  --bounty <pk> --prove <f> --snapshot <f2>` mints `sealed-bounty/v1` —
+  the sponsor's certificate: the bounty PDA re-derives
+  (`[bounty, bank, sponsor, salt]` @ market), every account field binds
+  to the decoded Bounty, and a claimed card replays the program's
+  `bounty_qualifies` gate over the embedded winner run — same bank,
+  postdates, runner≠sponsor, score≥threshold, score==winningScore,
+  finalized-or-proven, !post_reveal — plus threshold ≤ bank capacity
+  and the snapshot sha (committed examples: docs/evidence/bounties/ +
+  web/bounties/ — a claimed 20/32 card and an open 0.2 SOL pot,
+  served in-page at "verify a bounty card"; `claimwin` in the forgery
+  lab forges the winning score and dies at account binding).
   `chain export --verify <f>
   --snapshot <f2>` replays a committed `sealed-evidence-digest/v1` —
   snapshot-sha binding + field-equality over counts/integrity/keeper/
@@ -468,4 +479,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 63/63.
+  `yarn harness:test` → 64/64.

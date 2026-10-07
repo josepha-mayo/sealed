@@ -290,6 +290,24 @@ yarn --cwd packages/harness cli chain market position --verify \
 #         → POSITION VERIFIED — payable 0.10 SOL card + sealed dark card
 #         → same replay in the explorer at "verify a bettor card"
 
+# 3o. THE SPONSOR'S CERTIFICATE — sealed-bounty/v1 proves a pot and its
+#     payout without trusting the keeper: the bounty PDA re-derives
+#     ([bounty, bank, sponsor, salt]), every account field binds to the
+#     decoded Bounty, and a claimed card replays the on-chain
+#     bounty_qualifies gate leg by leg — same bank, postdates,
+#     runner≠sponsor, score≥threshold, score==winningScore,
+#     finalized-or-proven, !post_reveal. The open card proves the
+#     escrow is still there waiting for a qualifying run.
+yarn --cwd packages/harness cli chain market bounty card --verify \
+  ../../docs/evidence/bounties/claimed-20of32.json --snapshot ../../web/snapshot.json
+yarn --cwd packages/harness cli chain market bounty card --verify \
+  ../../docs/evidence/bounties/open-sealed-test.json --snapshot ../../web/snapshot.json
+#         → BOUNTY VERIFIED — claimed (pot paid to runner, 20/32 beat
+#           threshold 4) + open (0.2 SOL still escrowed)
+#         → same replay in the explorer at "verify a bounty card";
+#           the forgery lab's "steal the bounty" attack dies at
+#           account binding
+
 # 3l. THE ONE COMMAND — `chain artifact` is the universal verifier:
 #     point it at the WHOLE evidence tree and it replays every
 #     artifact in one pass — kind auto-detected, non-artifacts
@@ -297,27 +315,30 @@ yarn --cwd packages/harness cli chain market position --verify \
 #     which artifact.
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
   --snapshot ../../web/snapshot.json
-#         → ALL ARTIFACTS VERIFIED — 123 replayed, 28 skipped ·
+#         → ALL ARTIFACTS VERIFIED — 125 replayed, 28 skipped ·
 #           31× claim, 73× match, 3× policy, 4× report, 4× trail,
-#           3× bank, 2× position,
+#           3× bank, 2× position, 2× bounty,
 #           1× evidence-digest, 1× board, 1× catalog
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 123 committed artifacts
+#           verifier in-browser: all 125 committed artifacts
 #           through their own check lists, live progress
 
 # 2n. THE FORGERY LAB — don't trust the checks, run the attack. The
-#     explorer's "forgery lab" section hands you eight canned attacks:
+#     explorer's "forgery lab" section hands you eleven canned attacks:
 #     forge a +1 score, swap the #1 rank, un-vouch an attested receipt,
 #     flip a head-to-head verdict, mint a phantom receipt, inflate a
-#     settled pool, re-age the ledger. Each mutates a committed artifact
+#     settled pool, re-age the ledger, mint a phantom run, erase an
+#     artifact from the index, inflate a winning stake, steal the
+#     bounty. Each mutates a committed artifact
 #     and hands it to the same in-page verifier — every forgery dies at
 #     a named check (aggregates · ranking · snapshot binding · verdict
-#     replay · receipt PDAs · pool accounting · counts · run surface). The headless
-#     audit pins all eight.
+#     replay · receipt PDAs · pool accounting · counts · run surface ·
+#     completeness · stake binding · account binding). The headless
+#     audit pins all eleven.
 
 # 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
 #     pinned file and prints BUNDLE ROOT: a single sha256 covering
@@ -336,9 +357,9 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     sealed-catalog/v1 — the index proves it lists EVERY artifact
 #     (completeness + hash-pinning vs SHA256SUMS). CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
-#         → CATALOG COMPLETE — 122 artifact(s), every sealed-*/v1 file listed
+#         → CATALOG COMPLETE — 124 artifact(s), every sealed-*/v1 file listed
 yarn --cwd packages/harness cli chain fingerprint
-#         → re-hash check PASS — 312/312 · BUNDLE ROOT <64-hex sha256>
+#         → re-hash check PASS — 321/321 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 
@@ -365,7 +386,7 @@ python3 scripts/verify.py
 #           PASS · anchor doc carries this root PASS
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
-#     5.8MB file: the page, the snapshot, all 123 artifacts, both
+#     5.8MB file: the page, the snapshot, all 125 artifacts, both
 #     manifests, the vendored crypto deps, and the devnet anchor doc,
 #     plus a fetch() shim so every in-page verifier runs OFFLINE.
 #     Download it, disconnect, open it in any browser — the audit, the

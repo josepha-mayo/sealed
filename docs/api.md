@@ -276,9 +276,22 @@ settled-payout/live verdict replays. `chain market position --verify
 `docs/evidence/positions/` — a payable band position and a sealed
 dark one — served at `web/positions/`; the explorer's "verify a
 bettor card" replays the same in-page).
+`chain market bounty card --bounty <pk> --prove <f> --snapshot <f2>`
+mints `sealed-bounty/v1` — the sponsor's certificate: the bounty PDA
+re-derives (`[bounty, bank, sponsor, salt_u64le]` @ the market
+program), every account field binds to the decoded Bounty, and a
+claimed card replays the program's `bounty_qualifies` gate over the
+embedded winner run — same bank, postdates, runner≠sponsor,
+score≥threshold, score==winningScore, finalized-or-proven,
+!post_reveal — plus threshold ≤ bank capacity and the snapshot sha.
+`chain market bounty card --verify <f>` replays it keyless (committed:
+two cards at `docs/evidence/bounties/` — a claimed 20/32 and an open
+0.2 SOL pot — served at `web/bounties/`; the explorer's "verify a
+bounty card" replays the same in-page, and the forgery lab's "steal
+the bounty" attack dies at account binding).
 `chain fingerprint` reduces the entire evidence base to one sha256 —
 `BUNDLE ROOT` = sha256 over the evidence + web manifests after
-re-hashing every pinned file (312 entries; exit 1 on any mismatch).
+re-hashing every pinned file (321 entries; exit 1 on any mismatch).
 The in-page replay prints the same root, so the terminal and the
 browser agree on one hash for the whole submission.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`

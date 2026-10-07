@@ -81,7 +81,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-catalog">catalog</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-catalog">catalog</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -231,6 +231,17 @@
   <div id="posres"></div>
 </div>
 
+<h2 id="sec-bountycard">verify a bounty card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the sponsor's certificate — a <code>sealed-bounty/v1</code> card (<code>chain market bounty card &lt;pk&gt; --prove</code> mints it) binds a capability bounty end-to-end: the bounty PDA (<code>[bounty, bank, sponsor, salt]</code>), every account field, and — when claimed — the <code>bounty_qualifies</code> gate replayed over the embedded winner run: same bank, postdates the bounty, runner ≠ sponsor, score ≥ threshold, finalized-or-proven. The pot paid <code>run.runner</code> — no referee signed off. Same checks as <code>chain market bounty card --verify</code>.</div>
+  <div><select id="bountypick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed bounty card —</option><option value="bounties/claimed-20of32.json">claimed — 20/32 beat threshold 4</option><option value="bounties/open-sealed-test.json">open — 0.20 SOL still escrowed</option></select>
+  <button onclick="loadBounty(document.getElementById('bountypick').value || 'bounties/claimed-20of32.json')">load card</button>
+  <span class="kv">two committed cards — one claimed-and-paid, one still escrowed</span></div>
+  <div><textarea id="bountyjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-bounty/v1",…}'></textarea></div>
+  <button onclick="verifyBounty()">verify bounty card</button>
+  <div id="bountyres"></div>
+</div>
+
 <h2 id="sec-forge">the forgery lab — try to break it</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">don&#8217;t take the checks on faith — <b>run the attack</b>. Each button mutates a committed artifact the way a cheater would, then hands the forged card straight to the same in-page verifier. Every forgery must die at a named check; if one ever says VERIFIED, the artifact scheme is broken. The full check list renders in the target section below the verdict.</div>
@@ -245,6 +256,7 @@
     <button onclick="forge('phanrun')">mint a phantom run</button>
     <button onclick="forge('toc')">erase an artifact from the index</button>
     <button onclick="forge('payout')">inflate a winning stake</button>
+    <button onclick="forge('claimwin')">steal the bounty</button>
   </div>
   <div id="forgeres"></div>
 </div>
@@ -2490,7 +2502,7 @@ async function verifyCatalog() {
   ck("kind", doc.kind === "sealed-catalog/v1");
   const listed = new Set((doc.artifacts ?? []).map(a => a.path));
   const expected = new Set();
-  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks", "positions"]) {
+  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks", "positions", "bounties"]) {
     try { for (const f of await (await fetch(`${dir}/index.json`)).json()) expected.add(`${dir}/${f}`); } catch {}
   }
   for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); } catch {} }
@@ -2548,6 +2560,7 @@ function verifyAnyArtifact() {
       "sealed-bank/v1": ["bankjson", "sec-bankcard", verifyBank],
       "sealed-catalog/v1": ["catalogjson", "sec-catalog", verifyCatalog],
       "sealed-position/v1": ["posjson", "sec-poscard", verifyPosition],
+      "sealed-bounty/v1": ["bountyjson", "sec-bountycard", verifyBounty],
     };
     const r = kind ? ROUTE[kind] : null;
     if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/catalog/position/v1)`; return; }
@@ -2575,6 +2588,7 @@ async function replayBundle() {
     ["reports", "reportjson", "reportres", verifyReport, "sealed-report/v1"],
     ["banks", "bankjson", "bankres", verifyBank, "sealed-bank/v1"],
     ["positions", "posjson", "posres", verifyPosition, "sealed-position/v1"],
+    ["bounties", "bountyjson", "bountyres", verifyBounty, "sealed-bounty/v1"],
   ];
   const rows = [];
   let total = 0, passed = 0, checks = 0;
@@ -3327,6 +3341,100 @@ async function verifyPosition() {
   }
 }
 
+async function loadBounty(name) {
+  const ta = document.getElementById("bountyjson");
+  try {
+    const r = await fetch(name);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text(); window.__cardSrc = name;
+  } catch (e) { ta.value = ""; document.getElementById("bountyres").innerHTML = `<div class="kv">committed card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+// sealed-bounty/v1 verifier — mirrors `chain market bounty card --verify`:
+// the sponsor's certificate. The bounty PDA re-derives from [bounty, bank,
+// sponsor, salt], every account field binds to the decoded Bounty, and a
+// claimed card replays the program's bounty_qualifies gate over the
+// embedded winner run — same bank, postdates, runner≠sponsor, score ≥
+// threshold, score==winning, proven — then the snapshot sha binds.
+async function verifyBounty() {
+  const res = document.getElementById("bountyres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("bountyjson").value);
+    if (c.kind !== "sealed-bounty/v1") throw new Error(`not a sealed-bounty/v1 card (kind=${c.kind ?? "?"})`);
+    const A = window.__audit;
+    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored bundle</div>`; return; }
+    const mpid = new PK(c.programs?.market ?? MARKET_PID.toString());
+    // [1] bounty PDA
+    const bPda = pdaB([utf8("bounty"), pkB(c.bounty.seeds.bank), pkB(c.bounty.seeds.sponsor), u64le(c.bounty.seeds.salt)], mpid);
+    bPda === c.bounty.pk
+      ? pass("bounty PDA", "[bounty, bank, sponsor, salt]")
+      : fail("bounty PDA", `re-derived ${short(bPda)} ≠ declared ${short(c.bounty.pk)}`);
+    // [2] account binding
+    const realB = A.bounties.find(b => b.pk === c.bounty.pk);
+    if (!realB) fail("account binding", "bounty not in the snapshot");
+    else {
+      const ok = realB.sponsor === c.bounty.seeds.sponsor && realB.bank === c.bounty.seeds.bank
+        && String(realB.salt) === String(c.bounty.seeds.salt) && realB.status === c.bounty.status
+        && realB.threshold === c.bounty.threshold && String(realB.amount) === String(c.bounty.amount)
+        && realB.deadline === Number(c.bounty.deadline) && realB.createdAt === Number(c.bounty.createdAt)
+        && (c.bounty.status !== 1 || (realB.winnerRun === c.bounty.winnerRun && realB.winningScore === c.bounty.winningScore));
+      ok ? pass("account binding", "sponsor · bank · salt · status · threshold · amount · deadline · winner all equal the decoded Bounty")
+        : fail("account binding", "declared fields differ from the account bytes");
+    }
+    // [3] qualifies replay — claimed cards only.
+    if (c.bounty.status === 1) {
+      const w = c.winner;
+      if (!w) fail("bounty_qualifies replay", "claimed card without a winner run");
+      else {
+        const realRun = A.runs.find(r => r.pk === w.run);
+        const now = Math.floor(Date.now() / 1000);
+        const gate = {
+          bank: w.benchmark === c.bounty.seeds.bank,
+          postdates: BigInt(w.createdAt) >= BigInt(c.bounty.createdAt),
+          notSelf: w.runner !== c.bounty.seeds.sponsor,
+          meets: w.correct >= c.bounty.threshold,
+          scoreMatch: w.correct === c.bounty.winningScore,
+          proven: w.status === 1 || (Number(w.allQueuedAt) !== 0 && now > Number(w.allQueuedAt) + 86400 && String(w.scoredMask) !== "0"),
+          notPostReveal: !w.postReveal,
+        };
+        const gOk = Object.values(gate).every(Boolean);
+        gOk ? pass("bounty_qualifies replay", `bank ✓ postdates ✓ runner≠sponsor ✓ score≥threshold ✓ score==winning ✓ proven ✓ !post-reveal ✓`)
+          : fail("bounty_qualifies replay", Object.entries(gate).map(([k, v]) => `${k}=${v}`).join(" "));
+        if (realRun) {
+          const wOk = realRun.correct === w.correct && realRun.runner === w.runner && realRun.benchmark === w.benchmark;
+          wOk ? pass("winner binding", "run account fields equal the decoded Run")
+            : fail("winner binding", "declared winner fields differ from the account bytes");
+        } else fail("winner binding", "winner run not in the snapshot");
+      }
+    } else {
+      pass("verdict", "open — pot still escrowed, no referee needed to claim it");
+    }
+    // [4] threshold ≤ bank capacity
+    if (c.bank) {
+      const realBank = A.benches.find(b => b.pk === c.bank.pk);
+      const cap = realBank ? realBank.chunkCount * 32 : c.bank.capacity;
+      c.bounty.threshold <= cap && c.bank.capacity === cap
+        ? pass("threshold ≤ capacity", `${c.bounty.threshold} ≤ ${cap} (${esc(c.bank.name)})`)
+        : fail("threshold ≤ capacity", `declared cap ${c.bank.capacity} / on-chain ${cap}`);
+    }
+    // [5] snapshot binding.
+    try {
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+      gotSha === c.snapshotSha256
+        ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
+        : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
+    } catch { fail("snapshot binding", "snapshot.json unreachable"); }
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOUNTY VERIFIED" : "BOUNTY FAILED"}</b> — ${esc(c.verdict.state)} · ${c.bounty.status === 1 ? `pot paid to runner · winner ${c.bounty.winningScore}/${c.bank?.capacity ?? "?"} beat threshold ${c.bounty.threshold}` : `${(Number(c.bounty.amount) / 1e9).toFixed(4)} SOL escrowed · threshold ${c.bounty.threshold}`}</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
 // the forgery lab — each attack mutates a committed artifact the way a
 // cheater would, then runs it through the same in-page verifier. The
 // output names the check that caught it; a forgery surviving would
@@ -3352,6 +3460,8 @@ const FORGE_DEFS = {
                r.index = 999; r.pk = r.pk.slice(0, -1) + (r.pk.endsWith("x") ? "y" : "x"); c.runs.push(r); return c; } },
   toc:     { label: "erase an artifact from the index", file: "artifacts.json", ta: "catalogjson", res: "catres", sec: "sec-catalog", verify: verifyCatalog,
              mutate: (c) => { c.artifacts.splice(3, 1); c.count -= 1; return c; } },
+  claimwin:{ label: "steal the bounty", file: "bounties/claimed-20of32.json", ta: "bountyjson", res: "bountyres", sec: "sec-bountycard", verify: verifyBounty,
+    mutate: (c) => { c.winner.correct = c.bounty.threshold - 1; c.bounty.winningScore = c.bounty.threshold - 1; return c; } },
   payout:  { label: "inflate a winning stake", file: "positions/winning-band.json", ta: "posjson", res: "posres", sec: "sec-poscard", verify: verifyPosition,
              mutate: (c) => { c.stake.amounts[1] = "900000000"; c.verdict.estPayout = "999000000"; c.verdict.staked = "930000000"; return c; } },
 };
@@ -3533,6 +3643,7 @@ const TOUR_STOPS = [
   ["sec-boardcard", "the leaderboard itself is a portable artifact: ranking, receipts, and pairwise evidence replayed in one card"],
   ["sec-bankcard", "the exam is evidence too: the items_root commitment re-folds from the chunk bytes — even the private bank proves its commitment without a key"],
   ["sec-poscard", "the bettor's receipt — a position card proves the stake and the settlement, PDA seeds and all"],
+  ["sec-bountycard", "the sponsor's certificate — a bounty card replays the whole qualifies gate, pot included"],
   ["sec-forge", "finally — don't trust the checks, run the attack: every forgery dies at a named check"],
 ];
 let __tourIx = -1, __tourTimer = 0;

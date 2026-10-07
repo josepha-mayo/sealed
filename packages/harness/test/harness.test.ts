@@ -1425,6 +1425,37 @@ test("sealed-position/v1 — the bettor's card binds stake+venue+verdict; a puff
   } finally { console.log = origLog; process.exitCode = origExit; }
 });
 
+test("sealed-bounty/v1 — the sponsor's card replays the qualifies gate; a stolen claim fails", async () => {
+  const { bountyVerify } = await import("../src/chain.js");
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const snap = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const dir0 = new URL("../../../docs/evidence/bounties", import.meta.url).pathname;
+  const origLog = console.log; console.log = () => {};
+  const origExit = process.exitCode; process.exitCode = 0;
+  try {
+    // claimed card: PDA + account binding + full bounty_qualifies replay
+    // over the winner run (7 legs incl. !post-reveal) + winner binding.
+    const claimed = (await bountyVerify(join(dir0, "claimed-20of32.json"), false, snap)) as any;
+    assert.equal(claimed.fail, 0);
+    assert.equal(claimed.pass, 6);
+    // open card: escrow state binds, no winner invented.
+    const open = (await bountyVerify(join(dir0, "open-sealed-test.json"), false, snap)) as any;
+    assert.equal(open.fail, 0);
+    // stealing the pot — a below-threshold score forged as the winner dies
+    // at the qualifies replay / winner binding.
+    const c = JSON.parse(readFileSync(join(dir0, "claimed-20of32.json"), "utf8"));
+    c.winner.correct = c.bounty.threshold - 1; c.bounty.winningScore = c.bounty.threshold - 1;
+    const dir = mkdtempSync(join(tmpdir(), "sealed-bounty-"));
+    writeFileSync(join(dir, "forged.json"), JSON.stringify(c));
+    const bad = (await bountyVerify(join(dir, "forged.json"), false, snap)) as any;
+    assert.equal(bad.fail >= 1, true);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = origExit; }
+});
+
 test("sealed-report/v1 — the document's card binding verifies, and a forged hash fails", async () => {
   const { reportVerify } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

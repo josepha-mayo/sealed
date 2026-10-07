@@ -1,10 +1,11 @@
 {
   "kind": "sealed-catalog/v1",
-  "root": "docs/evidence",
-  "count": 122,
+  "root": "../../docs/evidence",
+  "count": 124,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
+    "sealed-bounty/v1": 2,
     "sealed-claim/v1": 31,
     "sealed-evidence-digest/v1": 1,
     "sealed-match/v1": 73,
@@ -33,6 +34,16 @@
       "path": "board.json",
       "kind": "sealed-board/v1",
       "title": "paired-evidence leaderboard"
+    },
+    {
+      "path": "bounties/claimed-20of32.json",
+      "kind": "sealed-bounty/v1",
+      "title": "claimed · 0.000 SOL · ≥4/32 — 4RUW4pDm…"
+    },
+    {
+      "path": "bounties/open-sealed-test.json",
+      "kind": "sealed-bounty/v1",
+      "title": "open · 0.200 SOL · ≥32/64 — 4RUW4pDm…"
     },
     {
       "path": "claims/dark_model-a.json",

@@ -20,6 +20,9 @@ Checks:
      result lands on the ed25519 curve — the real Solana rule, not a
      lookup table. Both committed cards are checked (plain [position,
      venue, bettor] and dark [darkpos, venue, bettor, pos_salt]).
+  6. bounty PDAs re-derive from [bounty, bank, sponsor, salt_u64le]
+     @ the market program — the same off-curve rule, a third seed
+     shape, checked on every committed sealed-bounty/v1 card.
 """
 
 import hashlib
@@ -183,6 +186,23 @@ def main():
             vd = pda(vs, mpid)
             ok &= check(f"{card_path.name}: venue PDA ({v['kind']})",
                         vd is not None and b58encode_check(vd, v["pk"]))
+
+    for card_path in sorted((ROOT / "docs" / "evidence" / "bounties").glob("*.json")):
+        if card_path.name == "index.json":
+            continue
+        card = json.loads(card_path.read_text())
+        ok &= check(f"{card_path.name}: kind",
+                    card.get("kind") == "sealed-bounty/v1")
+        ok &= check(f"{card_path.name}: snapshot binding",
+                    card.get("snapshotSha256") == snap_hash,
+                    snap_hash[:16] + "…")
+        s = card["bounty"]["seeds"]
+        derived = pda([b"bounty", b58decode(s["bank"]),
+                       b58decode(s["sponsor"]), u64le(s["salt"])],
+                      card["programs"]["market"])
+        ok &= check(f"{card_path.name}: bounty PDA",
+                    derived is not None and b58encode_check(derived, card["bounty"]["pk"]),
+                    "re-derived [bounty, bank, sponsor, salt], off-curve as required")
 
     print(f"\n{'ALL VERIFIED' if ok else 'FAILED'} — independent Python replay "
           f"agrees on BUNDLE ROOT {root[:16]}…" if ok else "\nFAILED")

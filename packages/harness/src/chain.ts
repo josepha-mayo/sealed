@@ -3129,6 +3129,154 @@ export async function positionVerify(file: string, json = false, snapPath?: stri
   return { ok, pass, fail };
 }
 
+/** `chain market bounty card <pk> --prove <f>` — mints
+ * `sealed-bounty/v1`: the sponsor's portable claim certificate. The
+ * bounty PDA re-derives ([bounty, bank, sponsor, salt]), every account
+ * field binds to the decoded ledger, and when claimed the
+ * `bounty_qualifies` gate replays against the winner run —
+ * same bank, postdates the bounty, runner ≠ sponsor, score ≥ threshold,
+ * finalized-or-proven — plus the open/expired verdict and the snapshot
+ * sha. */
+export async function bountyProve(bountyPkStr: string, out: string, snapPath?: string) {
+  const [bounties, runs, banks]: [SnapAccount[], SnapAccount[], SnapAccount[]] = snapPath
+    ? (() => { const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+        const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+        return [snapOf(sm, "Bounty"), snapOf(ss, "Run"), snapOf(ss, "Benchmark")]; })()
+    : await Promise.all([(marketProgram().market.account as any).bounty.all(),
+        (sealedProgram().program.account as any).run.all(),
+        (sealedProgram().program.account as any).benchmark.all()]);
+  const pk = new PublicKey(bountyPkStr);
+  const b = bounties.find((x) => x.publicKey.equals(pk));
+  if (!b) throw new Error(`bounty ${bountyPkStr} not found`);
+  const acct = b.account as any;
+  const bank = banks.find((x) => x.publicKey.equals(acct.bank));
+  const winner = acct.status === 1
+    ? runs.find((x) => x.publicKey.equals(acct.winnerRun)) : undefined;
+  if (acct.status === 1 && !winner) throw new Error("claimed bounty but winner run absent from the ledger — incomplete snapshot");
+  const w = winner?.account as any;
+  const card: any = {
+    kind: "sealed-bounty/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+    programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
+    snapshotSha256: snapPath ? createHash("sha256").update(readFileSync(snapPath)).digest("hex") : null,
+    bounty: {
+      pk: bountyPkStr,
+      seeds: { bank: (acct.bank as PublicKey).toBase58(), sponsor: (acct.sponsor as PublicKey).toBase58(), salt: acct.salt.toString() },
+      status: acct.status,
+      threshold: Number(acct.threshold),
+      amount: acct.amount.toString(),
+      deadline: acct.deadline.toString(),
+      createdAt: acct.createdAt.toString(),
+      winnerRun: acct.status === 1 ? (acct.winnerRun as PublicKey).toBase58() : null,
+      winningScore: acct.status === 1 ? Number(acct.winningScore) : null,
+    },
+    bank: bank ? { pk: bank.publicKey.toBase58(), name: (bank.account as any).name, capacity: Number((bank.account as any).chunkCount) * 32 } : null,
+    winner: winner ? {
+      run: winner.publicKey.toBase58(),
+      runner: (w.runner as PublicKey).toBase58(),
+      benchmark: (w.benchmark as PublicKey).toBase58(),
+      correct: Number(w.correct), status: w.status,
+      createdAt: w.createdAt.toString(), scoredMask: (w.scoredMask ?? 0).toString(),
+      firstPendingAt: (w.firstPendingAt ?? 0).toString(), allQueuedAt: (w.allQueuedAt ?? 0).toString(),
+      postReveal: !!w.postReveal,
+    } : null,
+    verdict: {
+      state: acct.status === 1 ? "claimed" : "open",
+      amount: acct.amount.toString(),
+      note: acct.status === 1
+        ? `run ${(acct.winnerRun as PublicKey).toBase58().slice(0, 12)}… scored ${acct.winningScore} ≥ threshold ${acct.threshold} — pot paid run.runner, no referee`
+        : "pot still escrowed — first proven run ≥ threshold claims it",
+    },
+  };
+  writeFileSync(out, JSON.stringify(card, null, 2));
+  console.log(`sealed-bounty/v1 → ${out}`);
+  console.log(`  ${bountyPkStr} — ${card.verdict.state} · ${acct.status === 1 ? "pot paid to runner" : `${solAmt(BigInt(card.bounty.amount))} SOL escrowed`} · threshold ${card.bounty.threshold}`);
+  console.log(`  verify: sealed chain market bounty card --verify ${out} --snapshot <snapshot.json>`);
+  return card;
+}
+
+/** Replays `sealed-bounty/v1` keyless — the sponsor-side twin of the
+ *  bettor's position card: bounty PDA, account binding, the
+ *  bounty_qualifies gate replayed over the embedded winner run, the
+ *  claim verdict, and the snapshot sha. */
+export async function bountyVerify(file: string, json = false, snapPath?: string): Promise<any> {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-bounty/v1") throw new Error("not a sealed-bounty/v1 artifact");
+  let pass = 0, fail = 0;
+  const lines: string[] = [];
+  const note = (ok: boolean, name: string, detail = "") => { ok ? pass++ : fail++; lines.push(`${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}`); };
+  const mpid = new PublicKey(card.programs.market);
+  // [1] bounty PDA — [bounty, bank, sponsor, salt]
+  const [bountyPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("bounty"), new PublicKey(card.bounty.seeds.bank).toBuffer(),
+     new PublicKey(card.bounty.seeds.sponsor).toBuffer(), u64le(BigInt(card.bounty.seeds.salt))], mpid);
+  note(bountyPda.toBase58() === card.bounty.pk, "bounty PDA", "[bounty, bank, sponsor, salt] @ market program");
+  // [2] account binding — every card field equals the decoded Bounty
+  let bound = false, bAcct: any = null, winnerAcct: any = null;
+  if (snapPath) {
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const found = snapOf(sm, "Bounty").find((x) => x.publicKey.toBase58() === card.bounty.pk);
+    bAcct = found?.account as any;
+    bound = true;
+    if (card.bounty.status === 1)
+      winnerAcct = (snapOf(ss, "Run").find((x) => x.publicKey.toBase58() === card.bounty.winnerRun)?.account) as any;
+    const cmp = (a: any, b: any) => String(a) === String(b);
+    note(!!bAcct && cmp(card.bounty.threshold, bAcct.threshold) && cmp(card.bounty.amount, bAcct.amount) &&
+      cmp(card.bounty.status, bAcct.status) && cmp(card.bounty.deadline, bAcct.deadline) &&
+      cmp(card.bounty.createdAt, bAcct.createdAt) &&
+      cmp(card.bounty.seeds.bank, (bAcct.bank as PublicKey).toBase58()) &&
+      cmp(card.bounty.seeds.sponsor, (bAcct.sponsor as PublicKey).toBase58()) &&
+      cmp(card.bounty.winnerRun ?? "null", bAcct.status === 1 ? (bAcct.winnerRun as PublicKey).toBase58() : "null") &&
+      cmp(card.bounty.winningScore ?? "null", bAcct.status === 1 ? bAcct.winningScore : "null"),
+      "account binding", "threshold · amount · status · deadline · seeds · winner all equal the decoded Bounty");
+  } else note(false, "account binding", "needs --snapshot");
+  // [3] qualifies replay — the program's bounty_qualifies gate over the
+  // embedded winner run (claimed cards only).
+  if (card.bounty.status === 1) {
+    const w = card.winner;
+    if (w) {
+      const sameBank = w.benchmark === card.bounty.seeds.bank;
+      const postdates = BigInt(w.createdAt) >= BigInt(card.bounty.createdAt);
+      const notSelf = w.runner !== card.bounty.seeds.sponsor;
+      const meets = w.correct >= card.bounty.threshold;
+      const scoreMatch = w.correct === card.bounty.winningScore;
+      const provenNow = proven({ pubkey: w.run, benchmark: w.benchmark, runner: w.runner,
+        status: w.status, correct: w.correct, createdAt: Number(w.createdAt),
+        firstPendingAt: Number(w.firstPendingAt), allQueuedAt: Number(w.allQueuedAt),
+        scoredMask: w.scoredMask, postReveal: w.postReveal } as BoardRun, Math.floor(Date.now() / 1000));
+      const notPostReveal = !w.postReveal;
+      note(sameBank && postdates && notSelf && meets && scoreMatch && provenNow && notPostReveal,
+        "bounty_qualifies replay",
+        `bank=${sameBank} postdates=${postdates} runner≠sponsor=${notSelf} score≥threshold=${meets} score==winning=${scoreMatch} proven=${provenNow} !post-reveal=${notPostReveal}`);
+      if (winnerAcct) note(w.correct === Number(winnerAcct.correct) && w.runner === (winnerAcct.runner as PublicKey).toBase58(),
+        "winner binding", "run account fields equal the decoded Run");
+    } else note(false, "bounty_qualifies replay", "claimed card without a winner run");
+  } else {
+    // open card — a claim is still possible; the verdict is the gate
+    // itself: anyone can CHECK whether a qualifying run exists.
+    note(true, "verdict", "open — pot still escrowed, no referee needed to claim it");
+  }
+  // [4] bank context — threshold can't exceed the bank's capacity.
+  if (card.bank) note(card.bounty.threshold <= card.bank.capacity,
+    "threshold ≤ capacity", `${card.bounty.threshold} ≤ ${card.bank.capacity} (${card.bank.name})`);
+  // [5] snapshot binding
+  if (snapPath && card.snapshotSha256)
+    note(createHash("sha256").update(readFileSync(snapPath)).digest("hex") === card.snapshotSha256, "snapshot binding", `sha256 ${card.snapshotSha256.slice(0, 16)}…`);
+  const ok = fail === 0;
+  if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
+  else {
+    console.log(`sealed-bounty/v1 — ${basename(file)}`);
+    for (const l of lines) console.log(`  ${l}`);
+    console.log(ok
+      ? `BOUNTY VERIFIED — ${card.verdict.state} · ${card.bounty.status === 1 ? `pot paid to runner · winner ${card.bounty.winningScore}/${card.bank?.capacity ?? "?"} beat threshold ${card.bounty.threshold}` : `${solAmt(BigInt(card.bounty.amount))} SOL escrowed · threshold ${card.bounty.threshold}`}`
+      : "BOUNTY FAILED");
+  }
+  if (!ok) process.exitCode = 1;
+  return { ok, pass, fail };
+}
+
 /** `chain compare --matrix [--top N] [--min-shared K]` — the N×N
  *  tournament table: every pair's shared-bank verdict as a cell.
  *  Leaderboards tell you who's ahead; the grid shows WHO beat WHOM —
@@ -3835,6 +3983,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-bank/v1": (f) => bankVerify(f, json, snapPath),
     "sealed-catalog/v1": (f) => catalogVerify(f, json),
     "sealed-position/v1": (f) => positionVerify(f, json, snapPath),
+    "sealed-bounty/v1": (f) => bountyVerify(f, json, snapPath),
   };
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
@@ -3888,7 +4037,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog|position/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog|position|bounty/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
 }
@@ -3922,6 +4071,7 @@ async function scanArtifacts(dir: string) {
       case "sealed-evidence-digest/v1": return "whole-ledger digest";
       case "sealed-board/v1": return "paired-evidence leaderboard";
       case "sealed-position/v1": return `${raw.verdict?.state ?? "?"} · ${raw.venue?.kind ?? "?"} venue — ${String(raw.position?.seeds?.bettor ?? "").slice(0, 8)}…`;
+      case "sealed-bounty/v1": return `${raw.verdict?.state ?? (raw.bounty?.status === 1 ? "claimed" : "open")} · ${(Number(raw.bounty?.amount ?? 0) / 1e9).toFixed(3)} SOL · ≥${raw.bounty?.threshold ?? "?"}/${raw.bank?.capacity ?? "?"} — ${String(raw.bounty?.seeds?.sponsor ?? "").slice(0, 8)}…`;
       case "sealed-trail/v1": return `run ${String(raw.run?.pk ?? base).slice(0, 8)}… (${base})`;
       default: return base;
     }
@@ -7769,6 +7919,14 @@ export async function chainMain(cmd: string[], args: Args) {
         await bountyExpire(new PublicKey(String(args.bounty)), bettor);
       } else if (m1 === "show") {
         await bountyShow(new PublicKey(String(args.bounty)));
+      } else if (m1 === "card") {
+        if (args.verify) { await bountyVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined); return; }
+        if (args.prove) {
+          if (!args.snapshot) throw new Error("bounty cards claim a pinned ledger — pass --snapshot <f>");
+          await bountyProve(String(args.bounty ?? cmd[3] ?? ""), String(args.prove), String(args.snapshot));
+          return;
+        }
+        throw new Error("bounty card needs --prove <f> --snapshot <f2> or --verify <f>");
       } else throw new Error(`unknown bounty command: ${m1}`);
     } else if (m0 === "show") {
       await marketShow(new PublicKey(String(args.market)));

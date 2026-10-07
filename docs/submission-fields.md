@@ -82,9 +82,9 @@ the chain never trusts self-reported scores. The capability registry
 persists per-model records — 31 records / 292 receipts replayed
 bit-exact by verify.mjs and in-browser; the calibration specimen
 replays the same MPC arithmetic per-item (3b 7/32 vs 1.5b 2/32).
-Outputs are portable proof — 123 artifacts across 10 kinds
-replay keyless via `chain artifact --recursive`; `chain fingerprint` =
-one sha256 notarized on devnet; the forgery lab's ten attacks die at
+Outputs are portable proof — 125 artifacts across 11 kinds replay
+keyless via `chain artifact --recursive`; `chain fingerprint` = one
+sha256 notarized on devnet; the forgery lab's 11 attacks die at
 named checks — `verify.py` redoes it in Python.
 
 ## targetAudience

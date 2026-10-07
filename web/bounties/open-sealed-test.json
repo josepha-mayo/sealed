@@ -1,0 +1,36 @@
+{
+  "kind": "sealed-bounty/v1",
+  "generatedAt": "2026-10-07T13:47:52.112Z",
+  "source": "web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "bounty": {
+    "pk": "2pumK8fXqz8SnPVs5tT2ahhpwWEVRg9s2SSzxNYZSqwd",
+    "seeds": {
+      "bank": "CTF7g4FPZBT9FqW6mr7ztKNzDSKPfT3sexTneUX7K8dJ",
+      "sponsor": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "salt": "1"
+    },
+    "status": 0,
+    "threshold": 32,
+    "amount": "200000000",
+    "deadline": "1793457089",
+    "createdAt": "1790865513",
+    "winnerRun": null,
+    "winningScore": null
+  },
+  "bank": {
+    "pk": "CTF7g4FPZBT9FqW6mr7ztKNzDSKPfT3sexTneUX7K8dJ",
+    "name": "sealed-test",
+    "capacity": 64
+  },
+  "winner": null,
+  "verdict": {
+    "state": "open",
+    "amount": "200000000",
+    "note": "pot still escrowed — first proven run ≥ threshold claims it"
+  }
+}

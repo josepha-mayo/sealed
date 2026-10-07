@@ -198,6 +198,9 @@ async function main() {
   sealed chain catalog --check | --verify <f>               prove the committed index is complete — an unlisted artifact fails
   sealed chain market position <pk> --prove <f> --snapshot <f2>  mint sealed-position/v1 — the bettor's portable receipt (stake + venue + payout verdict)
   sealed chain market position --verify <f> [--snapshot <f2>]    replay a bettor card keyless — 6 checks ending on payout recomputation
+  sealed chain market bounty card --bounty <pk> --prove <f> --snapshot <f2>
+                                                              mint sealed-bounty/v1 — the sponsor's certificate (qualifies gate replayed over the winner run)
+  sealed chain market bounty card --verify <f> [--snapshot <f2>] replay a bounty card keyless — PDA + account binding + bounty_qualifies replay
   sealed chain fingerprint [--json]                        the whole evidence base as one sha256 — re-hashes every pinned file, prints the bundle root
   sealed chain fingerprint --anchor [file] [--rpc url]     notarize the bundle root on-chain via memo tx (default: docs/evidence-anchor.json)
   sealed chain fingerprint --check-anchor <file>           fetch the notarization tx back and prove the chain carries the claimed root
