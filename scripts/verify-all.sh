@@ -34,9 +34,23 @@ scripts/web-manifest.sh check
 say "6b. second-language verdict — Python (stdlib-only) recomputes the root + re-derives PDAs"
 python3 scripts/verify.py && python3 scripts/verify.py --tamper && python3 scripts/verify.py --decrypt
 
-say "6bb. CLI forgery lab — the verifier catches its own lies (TypeScript)"
-yarn --cwd packages/harness -s cli chain artifact \
-  ../../docs/evidence/board.json --tamper --snapshot ../../web/snapshot.json
+say "6bb. CLI forgery lab — every artifact kind's canned attack dies (TypeScript)"
+for CARD in \
+  board.json \
+  matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json \
+  claims/qwen2.5-3b-instruct.json \
+  trails/qwen3b-ladder-deadheat.json \
+  digest.json \
+  banks/sealed-gen.json \
+  artifacts.json \
+  bounties/claimed-20of32.json \
+  grants/sealed-priv-panel.json \
+  policies/min60-3runs.json \
+  positions/winning-band.json \
+; do
+  yarn --cwd packages/harness -s cli chain artifact \
+    "../../docs/evidence/${CARD}" --tamper --snapshot ../../web/snapshot.json
+done
 
 say "6c. the capsule — standalone.html is a byte-fresh mirror of the pinned bundle"
 node scripts/gen-standalone.mjs --check

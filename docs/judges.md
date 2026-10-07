@@ -402,7 +402,10 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snap
 #     ?tamper=<exhibit> replays a committed sealed-tamper/v1 lie, e.g.
 #       https://josepha-mayo.github.io/sealed/?tamper=qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json
 #     opens on EXHIBIT VERIFIED — the oracle-substituted trail card died
-#     at run binding, exactly as recorded when it was minted. CLI parity:
+#     at run binding, exactly as recorded when it was minted. And
+#     ?decrypt=1 is the payoff as a URL — the sealed private exam
+#     materializes in-page, decrypted by the committed throwaway
+#     delegate key (questions only — answers never move). CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
 #         → CATALOG COMPLETE — 137 artifact(s), every sealed-*/v1 file listed
 yarn --cwd packages/harness cli chain fingerprint

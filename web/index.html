@@ -92,6 +92,7 @@
     <button onclick="quickForge()">② watch a forgery die</button>
     <button onclick="quickReplay()">③ replay all 138 proofs</button>
     <button onclick="megaAudit()" style="border-color:var(--acc)">④ PROVE EVERYTHING</button>
+    <button onclick="quickDecrypt(this)">⑤ read the sealed exam</button>
     <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — twenty-four captioned stops</span>
     <div id="megares" style="margin-top:8px"></div>
   </div>
@@ -497,6 +498,17 @@ function unpackSpecs(fields) {
     specs.push(s);
   }
   return specs;
+}
+// ⑤ read the sealed exam — the judge path's payoff beat: scroll to the
+// private bank's dossier and decrypt its ShareGrants with the committed
+// throwaway delegate key. ghost absorbs decryptBank's button-label writes.
+const PRIV_BANK = "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug";
+async function quickDecrypt(btn) {
+  btn.disabled = true; btn.textContent = "⑤ reading the sealed exam…";
+  const ghost = { disabled: false, textContent: "" };
+  document.getElementById("dec-" + PRIV_BANK)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  await decryptBank(PRIV_BANK, ghost);
+  btn.disabled = false; btn.textContent = "⑤ read the sealed exam";
 }
 // "Decrypt as delegate" — the ciphertext-only claim, exercised: the committed
 // throwaway delegate keypair + the MXE x25519 pubkey rebuild the shared secret,
@@ -3952,6 +3964,9 @@ async function maybeAudit() {
       document.getElementById("sec-tampercard")?.scrollIntoView?.({ block: "start" });
     }
   }
+  // ?decrypt=1 — the most visceral beat as a URL: the sealed exam
+  // materializes in-page, decrypted from the committed demo delegate key.
+  if (new URLSearchParams(location.search).get("decrypt")) await quickDecrypt({ disabled: false, textContent: "" });
   // ?mega=1 — the whole demo as a URL: audit + all 138 artifacts + every
   // forgery attack, cascading to EVERYTHING VERIFIED while you watch.
   if (new URLSearchParams(location.search).get("mega")) await megaAudit();
