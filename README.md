@@ -28,7 +28,7 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # trail → its feed → a venue's book → an actor's P&L
 > yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
 >   --snapshot ../../web/snapshot.json
->                                  # THE one command — all 125 committed artifacts
+>                                  # THE one command — all 127 committed artifacts
 >                                  # (claims, matches, policies, trails, reports,
 >                                  # digest, board, exams, positions, bounties) replayed keyless; non-artifacts skipped
 > yarn --cwd packages/harness cli chain fingerprint
@@ -305,7 +305,7 @@ sealed chain prove --all --out claims/ && sealed chain prove --verify claims/
                                                                      # the whole registry as verifiable artifacts — 31 cards, all replayed
 sealed chain prove --verify claim.json --min-pct 60 --min-runs 3       # verifier-composable — authentic AND sufficient for YOUR policy
 sealed chain report <model> --out report.md                          # sealed-report/v1 — the dossier as a printable document
-sealed chain artifact docs/evidence --recursive                      # THE one command — all 125 artifacts replayed, non-artifacts skipped
+sealed chain artifact docs/evidence --recursive                      # THE one command — all 127 artifacts replayed, non-artifacts skipped
 sealed chain fingerprint                                             # THE one hash — every pinned byte re-hashed → one BUNDLE ROOT
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence

@@ -1456,6 +1456,36 @@ test("sealed-bounty/v1 — the sponsor's card replays the qualifies gate; a stol
   } finally { console.log = origLog; process.exitCode = origExit; }
 });
 
+test("sealed-grant/v1 — the viewer's card proves disclosure; a redirected grant fails three ways", async () => {
+  const { grantVerify } = await import("../src/chain.js");
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const snap = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const dir0 = new URL("../../../docs/evidence/grants", import.meta.url).pathname;
+  const origLog = console.log; console.log = () => {};
+  const origExit = process.exitCode; process.exitCode = 0;
+  try {
+    for (const f of ["sealed-priv-panel.json", "sealed-priv-first.json"]) {
+      const r = (await grantVerify(join(dir0, f), false, snap)) as any;
+      assert.equal(r.fail, 0, f);
+      assert.equal(r.pass, 6, f);
+    }
+    // redirecting the viewer dies at PDA + binding + key echo — the
+    // viewer is a seed, so every leg sees the swap.
+    const c = JSON.parse(readFileSync(join(dir0, "sealed-priv-panel.json"), "utf8"));
+    const v = c.grant.viewer as string;
+    c.grant.viewer = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x");
+    c.grant.seeds.viewer = c.grant.viewer;
+    const dir = mkdtempSync(join(tmpdir(), "sealed-grant-"));
+    writeFileSync(join(dir, "forged.json"), JSON.stringify(c));
+    const bad = (await grantVerify(join(dir, "forged.json"), false, snap)) as any;
+    assert.equal(bad.fail >= 3, true);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = origExit; }
+});
+
 test("sealed-report/v1 — the document's card binding verifies, and a forged hash fails", async () => {
   const { reportVerify } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

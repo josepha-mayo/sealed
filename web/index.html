@@ -81,7 +81,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-catalog">catalog</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-grantcard">disclosure</a><a href="#sec-catalog">catalog</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -242,6 +242,17 @@
   <div id="bountyres"></div>
 </div>
 
+<h2 id="sec-grantcard">verify a disclosure card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the viewer's certificate — a <code>sealed-grant/v1</code> card (<code>chain grant &lt;pk&gt; --prove</code> mints it) proves exam questions moved <b>without publishing them</b>: the grant PDA re-derives from five seeds (<code>[grant, bank, chunk, part, viewer]</code> — and the viewer seed is raw x25519 bytes, not a wallet), every account field binds to the decoded ShareGrant, and the circuit's key echo (<code>encryption_key == viewer</code>) proves the MPC re-encrypted to the key it was asked for. The panel tally — who else was shown the exam — re-derives from the snapshot, not the card's say-so. Answers are never in a grant: only the questions moved. Same checks as <code>chain grant --verify</code>.</div>
+  <div><select id="grantpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed grant card —</option><option value="grants/sealed-priv-panel.json">full panel — a viewer shown all 4 parts of sealed-priv</option><option value="grants/sealed-priv-first.json">first disclosure — the earliest grant on sealed-priv</option></select>
+  <button onclick="loadGrant(document.getElementById('grantpick').value || 'grants/sealed-priv-panel.json')">load card</button>
+  <span class="kv">two committed cards on the ciphertext-only exam</span></div>
+  <div><textarea id="grantjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-grant/v1",…}'></textarea></div>
+  <button onclick="verifyGrant()">verify grant card</button>
+  <div id="grantres"></div>
+</div>
+
 <h2 id="sec-forge">the forgery lab — try to break it</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">don&#8217;t take the checks on faith — <b>run the attack</b>. Each button mutates a committed artifact the way a cheater would, then hands the forged card straight to the same in-page verifier. Every forgery must die at a named check; if one ever says VERIFIED, the artifact scheme is broken. The full check list renders in the target section below the verdict.</div>
@@ -257,6 +268,7 @@
     <button onclick="forge('toc')">erase an artifact from the index</button>
     <button onclick="forge('payout')">inflate a winning stake</button>
     <button onclick="forge('claimwin')">steal the bounty</button>
+    <button onclick="forge('regrant')">redirect a disclosure</button>
   </div>
   <div id="forgeres"></div>
 </div>
@@ -2502,7 +2514,7 @@ async function verifyCatalog() {
   ck("kind", doc.kind === "sealed-catalog/v1");
   const listed = new Set((doc.artifacts ?? []).map(a => a.path));
   const expected = new Set();
-  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks", "positions", "bounties"]) {
+  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants"]) {
     try { for (const f of await (await fetch(`${dir}/index.json`)).json()) expected.add(`${dir}/${f}`); } catch {}
   }
   for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); } catch {} }
@@ -2561,6 +2573,7 @@ function verifyAnyArtifact() {
       "sealed-catalog/v1": ["catalogjson", "sec-catalog", verifyCatalog],
       "sealed-position/v1": ["posjson", "sec-poscard", verifyPosition],
       "sealed-bounty/v1": ["bountyjson", "sec-bountycard", verifyBounty],
+      "sealed-grant/v1": ["grantjson", "sec-grantcard", verifyGrant],
     };
     const r = kind ? ROUTE[kind] : null;
     if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/catalog/position/v1)`; return; }
@@ -2589,6 +2602,7 @@ async function replayBundle() {
     ["banks", "bankjson", "bankres", verifyBank, "sealed-bank/v1"],
     ["positions", "posjson", "posres", verifyPosition, "sealed-position/v1"],
     ["bounties", "bountyjson", "bountyres", verifyBounty, "sealed-bounty/v1"],
+    ["grants", "grantjson", "grantres", verifyGrant, "sealed-grant/v1"],
   ];
   const rows = [];
   let total = 0, passed = 0, checks = 0;
@@ -3434,6 +3448,88 @@ async function verifyBounty() {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
   }
 }
+async function loadGrant(name) {
+  const ta = document.getElementById("grantjson");
+  try {
+    const r = await fetch(name);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text(); window.__cardSrc = name;
+  } catch (e) { ta.value = ""; document.getElementById("grantres").innerHTML = `<div class="kv">committed card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+// sealed-grant/v1 verifier — mirrors `chain grant --verify`: the
+// viewer's disclosure certificate. The 5-seed PDA re-derives ([grant,
+// bank, chunk_u16le, part_u8, viewer32] — the viewer seed is raw x25519
+// bytes, not an ed25519 pubkey), every account field binds to the
+// decoded ShareGrant, the circuit's encryption_key echo proves the MPC
+// wrote to the key it was asked for, and the panel tally re-derives
+// from the snapshot — who else was shown the exam is not the card's
+// say-so. Answers are never in a grant; only the questions moved.
+async function verifyGrant() {
+  const res = document.getElementById("grantres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("grantjson").value);
+    if (c.kind !== "sealed-grant/v1") throw new Error(`not a sealed-grant/v1 card (kind=${c.kind ?? "?"})`);
+    const A = window.__audit;
+    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored bundle</div>`; return; }
+    const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
+    // [1] grant PDA — [grant, bank, chunk_u16le, part_u8, viewer32]
+    const gPda = pdaB([utf8("grant"), pkB(c.grant.seeds.bank), u16b(c.grant.seeds.chunkIndex), Uint8Array.of(c.grant.seeds.part), pkB(c.grant.seeds.viewer)], spid);
+    gPda === c.grant.pk
+      ? pass("grant PDA", "[grant, bank, chunk, part, viewer] — viewer is x25519, not a wallet")
+      : fail("grant PDA", `re-derived ${short(gPda)} ≠ declared ${short(c.grant.pk)}`);
+    // [2] account binding — every field equals the decoded ShareGrant.
+    const real = (A.grants ?? []).find(g => g.pk === c.grant.pk);
+    if (!real) fail("account binding", "grant not in the snapshot");
+    else {
+      // card stores the two [u8;32] ciphertexts as b58; the page decodes
+      // cts as one 64-byte hex — same bytes, compared by decoding back.
+      const ctsHex = c.grant.ciphertexts.map(ct => hex(pkB(ct))).join("");
+      const nonceLE = BigInt(c.grant.nonce).toString(16).padStart(32, "0").match(/../g).reverse().join("");
+      const ok = real.bench === c.grant.benchmark && real.chunk === c.grant.chunkIndex &&
+        real.part === c.grant.part && real.viewer === c.grant.viewer &&
+        real.encKey === c.grant.encryptionKey && real.nonce === nonceLE &&
+        real.cts === ctsHex && real.sharedAt === Number(c.grant.sharedAt);
+      ok ? pass("account binding", "bank · chunk · part · viewer · encKey · nonce · ciphertexts · sharedAt all equal the decoded ShareGrant")
+        : fail("account binding", "declared fields differ from the account bytes");
+    }
+    // [3] key echo — the circuit echoes the key it encrypted to.
+    c.grant.encryptionKey === c.grant.viewer
+      ? pass("key echo", "encryption_key == viewer — the MPC bound output to the requested key")
+      : fail("key echo", "encryption_key ≠ viewer — a re-targeted grant would look exactly like this");
+    // [4] bank semantics — grants are evidence only on ciphertext banks.
+    if (c.bank) {
+      const realBank = A.benches.find(b => b.pk === c.bank.pk);
+      const ok = c.grant.benchmark === c.bank.pk && c.grant.seeds.bank === c.bank.pk && Number(c.bank.kind) === 2;
+      ok ? pass("bank semantics", `${esc(realBank?.name ?? c.bank.name)} kind=2 — ciphertext-only exam; the questions moved without publishing`)
+        : fail("bank semantics", "grant/bank mismatch, or the bank isn't a private ciphertext exam");
+    }
+    // [5] panel tally — re-derived from the snapshot, not the card.
+    if (A.grants) {
+      const onBank = A.grants.filter(g => g.bench === c.grant.benchmark);
+      const viewers = new Set(onBank.map(g => g.viewer));
+      const full = [...viewers].filter(v => new Set(onBank.filter(g => g.viewer === v).map(g => g.part)).size >= 4).length;
+      (onBank.length === c.panel.grantsOnBank && viewers.size === c.panel.viewersOnBank && full === c.panel.viewersAllParts)
+        ? pass("panel tally", `${onBank.length} grant(s) · ${viewers.size} viewer(s) · ${full} full-panel — re-derived`)
+        : fail("panel tally", `declared ${c.panel.grantsOnBank}/${c.panel.viewersOnBank}/${c.panel.viewersAllParts} vs re-derived ${onBank.length}/${viewers.size}/${full}`);
+    }
+    // [6] snapshot binding.
+    try {
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+      gotSha === c.snapshotSha256
+        ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
+        : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
+    } catch { fail("snapshot binding", "snapshot.json unreachable"); }
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "GRANT VERIFIED" : "GRANT FAILED"}</b> — ${esc(c.bank?.name ?? "?")} part ${c.grant.part} → viewer ${esc(c.grant.viewer.slice(0, 12))}… · ${c.panel.viewersOnBank} viewer(s) saw this exam · the answers never moved</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
 
 // the forgery lab — each attack mutates a committed artifact the way a
 // cheater would, then runs it through the same in-page verifier. The
@@ -3462,6 +3558,8 @@ const FORGE_DEFS = {
              mutate: (c) => { c.artifacts.splice(3, 1); c.count -= 1; return c; } },
   claimwin:{ label: "steal the bounty", file: "bounties/claimed-20of32.json", ta: "bountyjson", res: "bountyres", sec: "sec-bountycard", verify: verifyBounty,
     mutate: (c) => { c.winner.correct = c.bounty.threshold - 1; c.bounty.winningScore = c.bounty.threshold - 1; return c; } },
+  regrant: { label: "redirect a disclosure", file: "grants/sealed-priv-panel.json", ta: "grantjson", res: "grantres", sec: "sec-grantcard", verify: verifyGrant,
+    mutate: (c) => { const v = c.grant.viewer; c.grant.viewer = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x"); c.grant.seeds.viewer = c.grant.viewer; return c; } },
   payout:  { label: "inflate a winning stake", file: "positions/winning-band.json", ta: "posjson", res: "posres", sec: "sec-poscard", verify: verifyPosition,
              mutate: (c) => { c.stake.amounts[1] = "900000000"; c.verdict.estPayout = "999000000"; c.verdict.staked = "930000000"; return c; } },
 };
@@ -3644,6 +3742,7 @@ const TOUR_STOPS = [
   ["sec-bankcard", "the exam is evidence too: the items_root commitment re-folds from the chunk bytes — even the private bank proves its commitment without a key"],
   ["sec-poscard", "the bettor's receipt — a position card proves the stake and the settlement, PDA seeds and all"],
   ["sec-bountycard", "the sponsor's certificate — a bounty card replays the whole qualifies gate, pot included"],
+  ["sec-grantcard", "the viewer's certificate — a grant card proves the questions moved, the answers never did"],
   ["sec-forge", "finally — don't trust the checks, run the attack: every forgery dies at a named check"],
 ];
 let __tourIx = -1, __tourTimer = 0;

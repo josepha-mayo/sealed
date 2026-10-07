@@ -1,0 +1,45 @@
+{
+  "kind": "sealed-grant/v1",
+  "generatedAt": "2026-10-07T14:12:13.829Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "grant": {
+    "pk": "U6HjhVF2t6cbWFrM4NcZfuhYekfcRobJUbR2wKf4N6a",
+    "seeds": {
+      "bank": "CP3Fv2fuZMBhekofYa9eiXc4vVVruaSbnYh6KqUV5vsL",
+      "chunkIndex": 0,
+      "part": 3,
+      "viewer": "QwS93ebpYTw77h85Amh3mb9597c7ai4eeo1m8FqdKxj"
+    },
+    "benchmark": "CP3Fv2fuZMBhekofYa9eiXc4vVVruaSbnYh6KqUV5vsL",
+    "chunkIndex": 0,
+    "part": 3,
+    "viewer": "QwS93ebpYTw77h85Amh3mb9597c7ai4eeo1m8FqdKxj",
+    "encryptionKey": "QwS93ebpYTw77h85Amh3mb9597c7ai4eeo1m8FqdKxj",
+    "nonce": "121838240516522985158199050195359944519",
+    "ciphertexts": [
+      "4EbvQjxVoCt2ceaCWa7qPDTZHzEYZTfdakq2cvn1Nzmd",
+      "EQnq6ivLxiTPhbgrj1Kmr9dB1SjgiZfHiG8rXuGhHb6o"
+    ],
+    "sharedAt": "1791027314"
+  },
+  "bank": {
+    "pk": "CP3Fv2fuZMBhekofYa9eiXc4vVVruaSbnYh6KqUV5vsL",
+    "name": "sealed-priv",
+    "kind": 2,
+    "itemsRoot": "566370d94372eadd70181c25bf94ded86e873590fa121fa84ec609baeaa8aa65"
+  },
+  "panel": {
+    "grantsOnBank": 5,
+    "viewersOnBank": 2,
+    "viewersAllParts": 1
+  },
+  "verdict": {
+    "state": "disclosed",
+    "note": "part 3 of bank \"sealed-priv\" re-encrypted to viewer QwS93ebpYTw7… inside MPC — only that x25519 key opens the specs; answers never moved"
+  }
+}

@@ -3277,6 +3277,141 @@ export async function bountyVerify(file: string, json = false, snapPath?: string
   return { ok, pass, fail };
 }
 
+/** `chain grant <pk> --prove <f> --snapshot <f2>` — mints
+ * `sealed-grant/v1`: the viewer's disclosure certificate. A ShareGrant
+ * is the only on-chain proof that exam questions moved — reshare_part
+ * re-encrypted one private-bank part to a delegate's x25519 key inside
+ * MPC, and this card proves it: the 5-seed PDA re-derives ([grant,
+ * bank, chunk_u16, part_u8, viewer32] — the viewer seed is raw x25519
+ * bytes, not an ed25519 pubkey), every account field binds to the
+ * decoded ShareGrant, the encryption_key echo proves the circuit wrote
+ * to the key it was asked for, and the panel tally re-derives from the
+ * snapshot. Answers are never in a grant — only the questions moved. */
+export async function grantProve(grantPkStr: string, out: string, snapPath?: string) {
+  const ss = snapPath
+    ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed")
+    : null;
+  const [grants, banks]: [SnapAccount[], SnapAccount[]] = ss
+    ? [snapOf(ss, "ShareGrant"), snapOf(ss, "Benchmark")]
+    : await Promise.all([(sealedProgram().program.account as any).shareGrant.all(),
+        (sealedProgram().program.account as any).benchmark.all()]);
+  const pk = new PublicKey(grantPkStr);
+  const g = grants.find((x) => x.publicKey.equals(pk));
+  if (!g) throw new Error(`grant ${grantPkStr} not found`);
+  const a = g.account as any;
+  const viewerB58 = new PublicKey(Buffer.from(a.viewer)).toBase58();
+  const bank = banks.find((x) => x.publicKey.equals(a.benchmark));
+  const bankPk = (a.benchmark as PublicKey).toBase58();
+  const onBank = grants.filter((x) => (x.account.benchmark as PublicKey).toBase58() === bankPk);
+  const viewers = new Set(onBank.map((x) => new PublicKey(Buffer.from(x.account.viewer)).toBase58()));
+  const fullPanels = [...viewers].filter((v) =>
+    new Set(onBank.filter((x) => new PublicKey(Buffer.from(x.account.viewer)).toBase58() === v)
+      .map((x) => Number(x.account.part))).size >= 4).length;
+  const card: any = {
+    kind: "sealed-grant/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+    programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
+    snapshotSha256: snapPath ? createHash("sha256").update(readFileSync(snapPath)).digest("hex") : null,
+    grant: {
+      pk: grantPkStr,
+      seeds: { bank: bankPk, chunkIndex: Number(a.chunkIndex), part: Number(a.part), viewer: viewerB58 },
+      benchmark: bankPk,
+      chunkIndex: Number(a.chunkIndex), part: Number(a.part),
+      viewer: viewerB58,
+      encryptionKey: new PublicKey(Buffer.from(a.encryptionKey)).toBase58(),
+      nonce: a.nonce.toString(),
+      ciphertexts: (a.ciphertexts as any[]).map((c) => new PublicKey(Buffer.from(c)).toBase58()),
+      sharedAt: a.sharedAt.toString(),
+    },
+    bank: bank ? { pk: bank.publicKey.toBase58(), name: (bank.account as any).name,
+      kind: Number((bank.account as any).kind), itemsRoot: Buffer.from((bank.account as any).itemsRoot).toString("hex") } : null,
+    panel: { grantsOnBank: onBank.length, viewersOnBank: viewers.size, viewersAllParts: fullPanels },
+    verdict: {
+      state: "disclosed",
+      note: `part ${a.part} of bank "${(bank?.account as any)?.name ?? bankPk.slice(0, 10)}" re-encrypted to viewer ${viewerB58.slice(0, 12)}… inside MPC — only that x25519 key opens the specs; answers never moved`,
+    },
+  };
+  writeFileSync(out, JSON.stringify(card, null, 2));
+  console.log(`sealed-grant/v1 → ${out}`);
+  console.log(`  ${grantPkStr} — ${card.bank?.name ?? "?"} part ${card.grant.part} → viewer ${viewerB58.slice(0, 12)}… · panel ${card.panel.viewersOnBank} viewers / ${card.panel.grantsOnBank} grants`);
+  console.log(`  verify: sealed chain grant --verify ${out} --snapshot <snapshot.json>`);
+  return card;
+}
+
+/** Replays `sealed-grant/v1` keyless — six checks: the 5-seed PDA
+ *  (viewer is raw x25519 bytes, not a pubkey), the account binding,
+ *  the circuit's key echo, bank privacy semantics, the re-derived
+ *  panel tally, and the snapshot sha. */
+export async function grantVerify(file: string, json = false, snapPath?: string): Promise<any> {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-grant/v1") throw new Error("not a sealed-grant/v1 artifact");
+  let pass = 0, fail = 0;
+  const lines: string[] = [];
+  const note = (ok: boolean, name: string, detail = "") => { ok ? pass++ : fail++; lines.push(`${ok ? "✓" : "✗"} ${name}${detail ? ` — ${detail}` : ""}`); };
+  const spid = new PublicKey(card.programs.sealed);
+  const b58bytes = (s: string) => new PublicKey(s).toBuffer();
+  // [1] grant PDA — [grant, bank, chunk_u16le, part_u8, viewer32]
+  const [gPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("grant"), b58bytes(card.grant.seeds.bank), u16le(Number(card.grant.seeds.chunkIndex)),
+     Uint8Array.of(Number(card.grant.seeds.part)), b58bytes(card.grant.seeds.viewer)], spid);
+  note(gPda.toBase58() === card.grant.pk, "grant PDA", "[grant, bank, chunk, part, viewer] — viewer is x25519, not a wallet");
+  // [2] account binding — every card field equals the decoded ShareGrant.
+  let gAcct: any = null;
+  if (snapPath) {
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const found = snapOf(ss, "ShareGrant").find((x) => x.publicKey.toBase58() === card.grant.pk);
+    gAcct = found?.account as any;
+    if (gAcct) {
+      const cmp = (x: any, y: any) => String(x) === String(y);
+      const same32 = (x: any, b58: string) => new PublicKey(Buffer.from(x)).toBase58() === b58;
+      note(cmp(card.grant.benchmark, (gAcct.benchmark as PublicKey).toBase58()) &&
+        cmp(card.grant.chunkIndex, gAcct.chunkIndex) && cmp(card.grant.part, gAcct.part) &&
+        same32(gAcct.viewer, card.grant.viewer) && same32(gAcct.encryptionKey, card.grant.encryptionKey) &&
+        cmp(card.grant.nonce, gAcct.nonce) && cmp(card.grant.sharedAt, gAcct.sharedAt) &&
+        (gAcct.ciphertexts as any[]).every((c, i) => same32(c, card.grant.ciphertexts[i])),
+        "account binding", "bank · chunk · part · viewer · encKey · nonce · ciphertexts · sharedAt all equal the decoded ShareGrant");
+    } else note(false, "account binding", "grant not in the snapshot");
+  } else note(false, "account binding", "needs --snapshot");
+  // [3] key echo — the circuit echoes the key it encrypted to; a
+  // re-targeted grant would break this equality.
+  note(card.grant.encryptionKey === card.grant.viewer, "key echo", "encryption_key == viewer — the MPC bound output to the requested key");
+  // [4] bank binding + privacy semantics — grants only carry meaning on
+  // ciphertext banks: a grant on an authored bank would disclose public
+  // specs, which isn't evidence of anything.
+  if (card.bank) {
+    const bankOk = card.grant.benchmark === card.bank.pk && card.grant.seeds.bank === card.bank.pk;
+    note(bankOk && Number(card.bank.kind) === 2, "bank semantics",
+      `${card.bank.name} kind=${card.bank.kind} — ciphertext-only exam; the questions moved without publishing`);
+  }
+  // [5] panel tally — who else was shown the exam? Re-derived from the
+  // snapshot, not the card's say-so.
+  if (snapPath && gAcct) {
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const onBank = snapOf(ss, "ShareGrant").filter((x) => (x.account.benchmark as PublicKey).toBase58() === card.grant.benchmark);
+    const viewers = new Set(onBank.map((x) => new PublicKey(Buffer.from(x.account.viewer)).toBase58()));
+    const full = [...viewers].filter((v) =>
+      new Set(onBank.filter((x) => new PublicKey(Buffer.from(x.account.viewer)).toBase58() === v)
+        .map((x) => Number(x.account.part))).size >= 4).length;
+    note(onBank.length === card.panel.grantsOnBank && viewers.size === card.panel.viewersOnBank && full === card.panel.viewersAllParts,
+      "panel tally", `${onBank.length} grant(s) · ${viewers.size} viewer(s) · ${full} full-panel — re-derived`);
+  }
+  // [6] snapshot binding
+  if (snapPath && card.snapshotSha256)
+    note(createHash("sha256").update(readFileSync(snapPath)).digest("hex") === card.snapshotSha256, "snapshot binding", `sha256 ${card.snapshotSha256.slice(0, 16)}…`);
+  const ok = fail === 0;
+  if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
+  else {
+    console.log(`sealed-grant/v1 — ${basename(file)}`);
+    for (const l of lines) console.log(`  ${l}`);
+    console.log(ok
+      ? `GRANT VERIFIED — ${card.bank?.name ?? "?"} part ${card.grant.part} → viewer ${card.grant.viewer.slice(0, 12)}… · ${card.panel.viewersOnBank} viewer(s) saw this exam · the answers never moved`
+      : "GRANT FAILED");
+  }
+  if (!ok) process.exitCode = 1;
+  return { ok, pass, fail };
+}
+
 /** `chain compare --matrix [--top N] [--min-shared K]` — the N×N
  *  tournament table: every pair's shared-bank verdict as a cell.
  *  Leaderboards tell you who's ahead; the grid shows WHO beat WHOM —
@@ -3984,6 +4119,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-catalog/v1": (f) => catalogVerify(f, json),
     "sealed-position/v1": (f) => positionVerify(f, json, snapPath),
     "sealed-bounty/v1": (f) => bountyVerify(f, json, snapPath),
+    "sealed-grant/v1": (f) => grantVerify(f, json, snapPath),
   };
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
@@ -4072,6 +4208,7 @@ async function scanArtifacts(dir: string) {
       case "sealed-board/v1": return "paired-evidence leaderboard";
       case "sealed-position/v1": return `${raw.verdict?.state ?? "?"} · ${raw.venue?.kind ?? "?"} venue — ${String(raw.position?.seeds?.bettor ?? "").slice(0, 8)}…`;
       case "sealed-bounty/v1": return `${raw.verdict?.state ?? (raw.bounty?.status === 1 ? "claimed" : "open")} · ${(Number(raw.bounty?.amount ?? 0) / 1e9).toFixed(3)} SOL · ≥${raw.bounty?.threshold ?? "?"}/${raw.bank?.capacity ?? "?"} — ${String(raw.bounty?.seeds?.sponsor ?? "").slice(0, 8)}…`;
+      case "sealed-grant/v1": return `${raw.bank?.name ?? "?"} part ${raw.grant?.part ?? "?"} → ${String(raw.grant?.viewer ?? "").slice(0, 8)}… · ${raw.panel?.viewersOnBank ?? "?"} viewer(s)`;
       case "sealed-trail/v1": return `run ${String(raw.run?.pk ?? base).slice(0, 8)}… (${base})`;
       default: return base;
     }
@@ -7360,11 +7497,17 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "grant") {
+    if (args.verify) { await grantVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined); return; }
+    if (args.prove) {
+      if (!args.snapshot) throw new Error("grant cards claim a pinned ledger — pass --snapshot <f>");
+      await grantProve(String(cmd[1] ?? args.grant ?? ""), String(args.prove), String(args.snapshot));
+      return;
+    }
     // Fetch + decrypt a ShareGrant addressed to the local wallet.
     if (typeof args.chunk !== "string" || typeof args.part !== "string" || !args.chunk || !args.part
       || !Number.isInteger(Number(args.chunk)) || !Number.isInteger(Number(args.part))
       || Number(args.part) < 0 || Number(args.part) > 3)
-      throw new Error("grant needs --chunk <i> and --part <0..3>");
+      throw new Error("grant needs <pk> --prove <f> | --verify <f> | --benchmark <pk> --chunk <i> --part <0..3> (live decrypt)");
     const g = await fetchGrant(new PublicKey(String(args.benchmark)), Number(args.chunk), Number(args.part));
     console.log(`grant ${g.grant.toBase58()} shared_at=${g.sharedAt}`);
     for (const [i, s] of g.specs.entries()) console.log(`  item ${i}: ${renderPrompt(s)}`);

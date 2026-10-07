@@ -289,9 +289,23 @@ two cards at `docs/evidence/bounties/` — a claimed 20/32 and an open
 0.2 SOL pot — served at `web/bounties/`; the explorer's "verify a
 bounty card" replays the same in-page, and the forgery lab's "steal
 the bounty" attack dies at account binding).
+`chain grant <pk> --prove <f> --snapshot <f2>` mints
+`sealed-grant/v1` — the viewer's disclosure certificate: the 5-seed
+grant PDA re-derives (`[grant, bank, chunk_u16le, part_u8, viewer32]`
+@ the sealed program — the viewer seed is raw x25519 bytes, not an
+ed25519 pubkey), every ShareGrant field binds to the decoded account,
+the `encryption_key == viewer` echo proves the MPC re-encrypted to
+the requested key, bank semantics pin kind=2 (ciphertext-only exam —
+the questions moved without publishing), and the panel tally of who
+else was shown the exam re-derives from the snapshot. `chain grant
+--verify <f>` replays it keyless (committed: two cards at
+`docs/evidence/grants/` — a full-panel grant and the earliest
+disclosure on sealed-priv — served at `web/grants/`; the explorer's
+"verify a disclosure card" replays the same in-page, and the forgery
+lab's "redirect a disclosure" attack dies at grant PDA).
 `chain fingerprint` reduces the entire evidence base to one sha256 —
 `BUNDLE ROOT` = sha256 over the evidence + web manifests after
-re-hashing every pinned file (321 entries; exit 1 on any mismatch).
+re-hashing every pinned file (324 entries; exit 1 on any mismatch).
 The in-page replay prints the same root, so the terminal and the
 browser agree on one hash for the whole submission.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`

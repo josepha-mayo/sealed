@@ -17,7 +17,7 @@ a8b77ba902c15a996629ee99ae1f17e3a056c86d8de36b386418e0821b2d1987  ./acct-HW5H5bT
 d89d09b043820f3816d2464da8b85e0b92754db67d40db07b2554e46207d83ad  ./acct-HnM9ffHULWHBDAP4E8VaFFKRf7ckJCv9JMTvuGsSYkeL.json
 7a03c2dd181820f95872db7310d4630db4944000dee21fa29b58fcb7ee63ffd8  ./acct-VyAAjrsBiUkMumc8PqpA9nTzMyBsQ7uHMDf1AWQHFk3.json
 0f92df3cc6c204a44a756ab5044be1b2f50e3a018eb28c03ff4668d9e2ce97ed  ./acct-zbgZVGwLLvi9YcUsy3VZTpVLuw2qf6bHcdVsbZjEydj.json
-befd2bb667bf63e46462524e24642104dd170da786232ba94a7fff0612e05ee6  ./artifacts.json
+adafeb8797246894d516ee1beaa32df7cd00d80382a7ff510a2ab3bd79869ac3  ./artifacts.json
 266fa9904a385df504617ea5b818cf9e57003ffee2dd30e1eb786157a87794df  ./band-local-cancelled.txt
 8d778bd2fe275f53687f035d3f7f5a60ed645a2ba849e607db115f20b8bf93d9  ./band-local.txt
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
@@ -71,6 +71,9 @@ fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
 ae89c3955d250a65dd0237401c20d2609ee00f850e674a06e8154e0ab08de928  ./duel-local.txt
 e3312151c32021428cc5de9c0f5751ce07e5d273547f2dee6fc28b8fd20afe82  ./duel-private.txt
 c025f68b98388c7fa1a12c5f656a9e2f66ab8f7d04181ba05bce60001ee1677a  ./duel-real.txt
+682646dcc42063eecbeabf36fdb8874118fd35b258fb8abf52612449ade58437  ./grants/index.json
+893b0e4e24d62253d70fb6d7185fb23960536dea3e8f31f631cf4ae44099e793  ./grants/sealed-priv-first.json
+2e7356673256fcb137fe666f1f38fa6df1cb9811debd0e7552ee7b32ff569cbc  ./grants/sealed-priv-panel.json
 3df0876b4c0215fa9c3c4bf6c330e3bc1b6d376182d5f10645d137dcbf710f37  ./ladder-local.txt
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
@@ -157,7 +160,7 @@ f09dd766837ac4b64f7d873a394ba5fa36b8005bd40d6f3305c5dbb826a0bb64  ./prove-gen-it
 c243c5f93d89156d8411c9b9352eef0cf012abdc71760397e12c22dea6cf0d57  ./real-bounty.txt
 5e818edfc0a0efeae88d590a4195b59ddfec0559b1e04a3cf043c1a245bb5ff7  ./record-local.txt
 28f399e71d688092e60e8cd3651b7312a2d9f5cf317fc55531455fd32586bcd2  ./records.txt
-0704908ca9184ffcb827614a25bf8578ed3bb4e723ba7278d85874f1e5698f42  ./replay.txt
+04ef9f70ee6a8dee67e554afdf685706733aa0a84721c52b977760a6b166eeff  ./replay.txt
 cb1812b5d2faf569f782bc78934a1a7e10dea92a7309828b415f5d4bc6aa0666  ./reports/llama-3.2-1b-instruct.md
 0b540b2b152e8743fb3b5f81bc476e16c6dc84b5dd99d285de7b508c635d4559  ./reports/qwen2.5-0.5b-instruct.md
 db76c83e616727758b434190293654f79f81264e09997d0e8ec19a6151cb7689  ./reports/qwen2.5-1.5b-instruct.md

@@ -23,6 +23,9 @@ Checks:
   6. bounty PDAs re-derive from [bounty, bank, sponsor, salt_u64le]
      @ the market program — the same off-curve rule, a third seed
      shape, checked on every committed sealed-bounty/v1 card.
+  7. grant PDAs re-derive from [grant, bank, chunk_u16le, part_u8,
+     viewer32] @ the sealed program — a fourth seed shape, and the
+     viewer seed is raw x25519 bytes, not an ed25519 pubkey.
 """
 
 import hashlib
@@ -203,6 +206,27 @@ def main():
         ok &= check(f"{card_path.name}: bounty PDA",
                     derived is not None and b58encode_check(derived, card["bounty"]["pk"]),
                     "re-derived [bounty, bank, sponsor, salt], off-curve as required")
+
+    for card_path in sorted((ROOT / "docs" / "evidence" / "grants").glob("*.json")):
+        if card_path.name == "index.json":
+            continue
+        card = json.loads(card_path.read_text())
+        ok &= check(f"{card_path.name}: kind",
+                    card.get("kind") == "sealed-grant/v1")
+        ok &= check(f"{card_path.name}: snapshot binding",
+                    card.get("snapshotSha256") == snap_hash,
+                    snap_hash[:16] + "…")
+        s = card["grant"]["seeds"]
+        derived = pda([b"grant", b58decode(s["bank"]),
+                       struct.pack("<H", int(s["chunkIndex"])),
+                       bytes([int(s["part"])]), b58decode(s["viewer"])],
+                      card["programs"]["sealed"])
+        ok &= check(f"{card_path.name}: grant PDA",
+                    derived is not None and b58encode_check(derived, card["grant"]["pk"]),
+                    "re-derived [grant, bank, chunk, part, viewer] — viewer is x25519")
+        ok &= check(f"{card_path.name}: key echo",
+                    card["grant"]["encryptionKey"] == card["grant"]["viewer"],
+                    "encryption_key == viewer — the MPC bound output to the requested key")
 
     print(f"\n{'ALL VERIFIED' if ok else 'FAILED'} — independent Python replay "
           f"agrees on BUNDLE ROOT {root[:16]}…" if ok else "\nFAILED")

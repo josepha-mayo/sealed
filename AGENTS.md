@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 64/64 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 65/65 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
@@ -97,10 +97,10 @@ parimutuel markets resolved from `Run.correct`.
   score≥threshold). Tamper fails exactly at the replay check.
   `chain artifact <file|dir>` is the universal verifier — detects any
   sealed-claim/policy/match/trail/report/evidence-digest/board/bank/
-  position/bounty/catalog/v1 payload and routes to the
+  position/bounty/grant/catalog/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 125 artifacts in one pass). `chain catalog` prints the
+  replays all 127 artifacts in one pass). `chain catalog` prints the
   evidence table of contents (every artifact grouped by kind with a
   title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json
   + the served mirror web/artifacts.json) and `--check` proves the
@@ -145,7 +145,22 @@ parimutuel markets resolved from `Run.correct`.
   and the snapshot sha (committed examples: docs/evidence/bounties/ +
   web/bounties/ — a claimed 20/32 card and an open 0.2 SOL pot,
   served in-page at "verify a bounty card"; `claimwin` in the forgery
-  lab forges the winning score and dies at account binding).
+  lab forges the winning score and dies at account binding). `chain
+  grant <pk> --prove <f> --snapshot <f2>` mints `sealed-grant/v1` — the
+  viewer's disclosure certificate: the 5-seed grant PDA re-derives
+  (`[grant, bank, chunk_u16le, part_u8, viewer32]` @ the SEALED
+  program — the viewer seed is raw x25519 bytes, not an ed25519
+  pubkey), every ShareGrant field binds to the decoded account, the
+  `encryption_key == viewer` echo proves the MPC wrote to the key it
+  was asked for, bank semantics pin kind=2 (ciphertext-only exam), and
+  the panel tally (grants/viewers/full-panels on this bank) re-derives
+  from the snapshot — who was shown the exam is not the card's say-so
+  (committed examples: docs/evidence/grants/ + web/grants/ — a
+  full-panel grant and the earliest disclosure on sealed-priv, served
+  in-page at "verify a disclosure card"; `regrant` in the forgery lab
+  redirects the viewer and dies at grant PDA). `chain grant --verify
+  <f>` replays it keyless; bare `chain grant --benchmark --chunk --part`
+  still fetches+decrypts live for the local wallet.
   `chain export --verify <f>
   --snapshot <f2>` replays a committed `sealed-evidence-digest/v1` —
   snapshot-sha binding + field-equality over counts/integrity/keeper/
@@ -479,4 +494,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 64/64.
+  `yarn harness:test` → 65/65.

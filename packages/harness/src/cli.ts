@@ -201,6 +201,8 @@ async function main() {
   sealed chain market bounty card --bounty <pk> --prove <f> --snapshot <f2>
                                                               mint sealed-bounty/v1 — the sponsor's certificate (qualifies gate replayed over the winner run)
   sealed chain market bounty card --verify <f> [--snapshot <f2>] replay a bounty card keyless — PDA + account binding + bounty_qualifies replay
+  sealed chain grant <pk> --prove <f> --snapshot <f2>              mint sealed-grant/v1 — the viewer's disclosure certificate (specs moved, answers never did)
+  sealed chain grant --verify <f> [--snapshot <f2>]                replay a grant card keyless — 5-seed PDA + key echo + panel tally
   sealed chain fingerprint [--json]                        the whole evidence base as one sha256 — re-hashes every pinned file, prints the bundle root
   sealed chain fingerprint --anchor [file] [--rpc url]     notarize the bundle root on-chain via memo tx (default: docs/evidence-anchor.json)
   sealed chain fingerprint --check-anchor <file>           fetch the notarization tx back and prove the chain carries the claimed root

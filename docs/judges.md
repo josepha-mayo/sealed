@@ -308,6 +308,20 @@ yarn --cwd packages/harness cli chain market bounty card --verify \
 #           the forgery lab's "steal the bounty" attack dies at
 #           account binding
 
+# 3p. THE VIEWER'S CERTIFICATE — sealed-grant/v1 proves questions moved
+#     without publishing them: the grant PDA re-derives from five seeds
+#     ([grant, bank, chunk, part, viewer] — the viewer seed is raw
+#     x25519 bytes, not a wallet), the encryption_key echo proves the
+#     MPC re-encrypted to the key it was asked for, and the panel
+#     tally — who else was shown the exam — re-derives from the
+#     snapshot. The answers never moved.
+yarn --cwd packages/harness cli chain grant --verify \
+  ../../docs/evidence/grants/sealed-priv-panel.json --snapshot ../../web/snapshot.json
+#         → GRANT VERIFIED — sealed-priv part 3 → viewer … ·
+#           2 viewer(s) saw this exam · the answers never moved
+#         → same replay in the explorer at "verify a disclosure card";
+#           "redirect a disclosure" in the forgery lab dies at grant PDA
+
 # 3l. THE ONE COMMAND — `chain artifact` is the universal verifier:
 #     point it at the WHOLE evidence tree and it replays every
 #     artifact in one pass — kind auto-detected, non-artifacts
@@ -315,20 +329,20 @@ yarn --cwd packages/harness cli chain market bounty card --verify \
 #     which artifact.
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
   --snapshot ../../web/snapshot.json
-#         → ALL ARTIFACTS VERIFIED — 125 replayed, 28 skipped ·
+#         → ALL ARTIFACTS VERIFIED — 127 replayed, 28 skipped ·
 #           31× claim, 73× match, 3× policy, 4× report, 4× trail,
-#           3× bank, 2× position, 2× bounty,
+#           3× bank, 2× position, 2× bounty, 2× grant,
 #           1× evidence-digest, 1× board, 1× catalog
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 125 committed artifacts
+#           verifier in-browser: all 127 committed artifacts
 #           through their own check lists, live progress
 
 # 2n. THE FORGERY LAB — don't trust the checks, run the attack. The
-#     explorer's "forgery lab" section hands you eleven canned attacks:
+#     explorer's "forgery lab" section hands you twelve canned attacks:
 #     forge a +1 score, swap the #1 rank, un-vouch an attested receipt,
 #     flip a head-to-head verdict, mint a phantom receipt, inflate a
 #     settled pool, re-age the ledger, mint a phantom run, erase an
@@ -338,7 +352,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     a named check (aggregates · ranking · snapshot binding · verdict
 #     replay · receipt PDAs · pool accounting · counts · run surface ·
 #     completeness · stake binding · account binding). The headless
-#     audit pins all eleven.
+#     audit pins all twelve.
 
 # 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
 #     pinned file and prints BUNDLE ROOT: a single sha256 covering
@@ -357,9 +371,9 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     sealed-catalog/v1 — the index proves it lists EVERY artifact
 #     (completeness + hash-pinning vs SHA256SUMS). CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
-#         → CATALOG COMPLETE — 124 artifact(s), every sealed-*/v1 file listed
+#         → CATALOG COMPLETE — 126 artifact(s), every sealed-*/v1 file listed
 yarn --cwd packages/harness cli chain fingerprint
-#         → re-hash check PASS — 321/321 · BUNDLE ROOT <64-hex sha256>
+#         → re-hash check PASS — 324/324 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 

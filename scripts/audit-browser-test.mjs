@@ -307,7 +307,7 @@ const posDarkOk = /POSITION VERIFIED/.test(posDarkTxt) && /pos_salt/.test(posDar
 console.log(`in-page position verifier — sealed dark card (pos_salt seed) ${posDarkOk ? "PASS" : "FAIL"}`);
 if (!posDarkOk) fails++;
 // the forgery lab — every canned attack must die at a named check.
-for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun", "toc", "payout", "claimwin"]) {
+for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun", "toc", "payout", "claimwin", "regrant"]) {
   await vm.runInContext(`forge(${JSON.stringify(k)})`, ctx);
   await new Promise((r) => setTimeout(r, 400));
   const r = await vm.runInContext(`__forgeOut[${JSON.stringify(k)}]`, ctx);
@@ -320,12 +320,13 @@ for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /125\/125 artifacts replayed in-page/.test(bundleTxt) &&
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /127\/127 artifacts replayed in-page/.test(bundleTxt) &&
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
   /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt) &&
   /sealed-bank\/v1 — 3\/3/.test(bundleTxt) && /sealed-catalog\/v1 — 1\/1/.test(bundleTxt) &&
-  /sealed-position\/v1 — 2\/2/.test(bundleTxt) && /sealed-bounty\/v1 — 2\/2/.test(bundleTxt);
-console.log(`in-page bundle replay — 125 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+  /sealed-position\/v1 — 2\/2/.test(bundleTxt) && /sealed-bounty\/v1 — 2\/2/.test(bundleTxt) &&
+  /sealed-grant\/v1 — 2\/2/.test(bundleTxt);
+console.log(`in-page bundle replay — 127 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // the hero stat: SOL settled by MPC-written scores — must render a real
 // lamports total, not a blank cell.
@@ -386,7 +387,7 @@ if (!statOk) fails++;
 {
   const catTxt = (els.get("catalog")?.innerHTML ?? "");
   const catLinks = (catTxt.match(/\?card=/g) || []).length;
-  const catOk = /124 artifacts/.test(catTxt) && catLinks === 125 && /sealed-position\/v1/.test(catTxt);
+  const catOk = /126 artifacts/.test(catTxt) && catLinks === 127 && /sealed-grant\/v1/.test(catTxt);
   console.log(`in-page evidence catalog — ${catLinks} ?card= links across 8 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
 }
@@ -409,7 +410,7 @@ if (!statOk) fails++;
   els.get("catalogjson").value = readFileSync(join(ROOT, "web", "artifacts.json"), "utf8");
   await vm.runInContext("verifyCatalog()", ctx);
   const cv = (els.get("catres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-  const cvOk = /CATALOG VERIFIED/.test(cv) && /124 listed \/ 124 found/.test(cv) && /124\/124 paths pinned/.test(cv);
+  const cvOk = /CATALOG VERIFIED/.test(cv) && /126 listed \/ 126 found/.test(cv) && /126\/126 paths pinned/.test(cv);
   console.log(`in-page catalog verifier — the index proves itself ${cvOk ? "PASS" : "FAIL — " + cv.slice(0, 300)}`);
   if (!cvOk) fails++;
 }
@@ -432,7 +433,7 @@ const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/21/.test(tourStep2) &&
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/22/.test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;

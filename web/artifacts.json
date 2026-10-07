@@ -1,13 +1,14 @@
 {
   "kind": "sealed-catalog/v1",
   "root": "../../docs/evidence",
-  "count": 124,
+  "count": 126,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
     "sealed-bounty/v1": 2,
     "sealed-claim/v1": 31,
     "sealed-evidence-digest/v1": 1,
+    "sealed-grant/v1": 2,
     "sealed-match/v1": 73,
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
@@ -204,6 +205,16 @@
       "path": "digest.json",
       "kind": "sealed-evidence-digest/v1",
       "title": "whole-ledger digest"
+    },
+    {
+      "path": "grants/sealed-priv-first.json",
+      "kind": "sealed-grant/v1",
+      "title": "sealed-priv part 0 → 5Gcyd1ka… · 2 viewer(s)"
+    },
+    {
+      "path": "grants/sealed-priv-panel.json",
+      "kind": "sealed-grant/v1",
+      "title": "sealed-priv part 3 → QwS93ebp… · 2 viewer(s)"
     },
     {
       "path": "matches/dark_model-a-vs-duel_model-a.json",

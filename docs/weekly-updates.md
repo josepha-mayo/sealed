@@ -91,11 +91,11 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 125 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  all 127 committed artifacts: 31 claim cards, 73 match cards, 3 policy
   certificates, 4 custody trails, 4 capability reports, the ledger
   digest, the leaderboard card, 3 exam cards (one per commitment
   regime — authored, generated, private), 2 bettor-position cards
-  (a payable band stake + a sealed dark position), two bounty cards
+  (a payable band stake + a sealed dark position), two bounty cards, two disclosure cards
   (a claimed pot + an open escrow), and the catalog
   itself. Every PDA
   re-derived, every verdict replayed, every settlement recomputed from
@@ -117,19 +117,22 @@ deadline.
   bettor-chosen salt seed), and `sealed-bounty/v1` (the sponsor's
   certificate — the `bounty_qualifies` gate replayed leg by leg over
   the winner run: same bank, postdates, runner≠sponsor,
-  score≥threshold, finalized-or-proven, !post_reveal).
+  score≥threshold, finalized-or-proven, !post_reveal), and
+  `sealed-grant/v1` (the viewer's certificate — five-seed PDA over an
+  x25519 viewer key, `encryption_key == viewer` echo, and the panel
+  tally re-derived: the questions moved, the answers never did).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
-  321 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 125 artifacts
+  324 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
+  explorer's "replay the whole bundle" button drives all 127 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
-  auto-walk through twenty-one sections, ending on the forgery lab —
-  "try to break it": eleven canned attacks (forge a score, swap a rank,
+  auto-walk through twenty-two sections, ending on the forgery lab —
+  "try to break it": twelve canned attacks (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
   a pool, re-age the ledger, plant a phantom run on an exam, erase an
   artifact from the index itself, inflate a winning bettor's stake,
-  steal the bounty pot)
+  steal the bounty pot, redirect a disclosure)
   each die at a named check in-browser —
   and `?forge=<attack>` makes any of them a shareable link that runs
   the attack on open.
