@@ -70,8 +70,8 @@ ops need no operator.
 
 120 banks minted, 503 runs, 340 venues across six primitives
 (208 band/duel, 48 ladders, 47 dark, 37 bounties) — the offline audit
-re-verifies 201 resolutions + 145 grants + 30 reveal burns on the
-committed ledger: zero plaintext answer keys. Every primitive settled a
+re-verifies 201 resolutions, 145 grants, 30 reveal burns: zero
+plaintext answer keys on the committed ledger. Every primitive settled a
 REAL open-weights model's MPC score: four local models raced an
 MPC-minted exam — 3b 6/32 tied 1.5b 6/32 (dead-heat pro-rata), llama-1b
 1/32, 0.5b 0/32 — plus a sealed dark leg. On a ciphertext-only PRIVATE
@@ -80,12 +80,13 @@ the 3b's pending run; a band market settled the 0.5b's 2/32. gpt-oss-20b
 hit 64/64 on MPC-minted 6932 — and a stale-artifact claim scored 1/64:
 the chain never trusts self-reported scores. The capability registry
 persists per-model records — 31 records / 292 receipts replayed
-bit-exact by verify.mjs and in-browser; the calibration specimen
-replays the same MPC arithmetic per-item (3b 7/32 vs 1.5b 2/32).
-Outputs are portable proof — 127 artifacts across 12 kinds replay
-keyless via `chain artifact --recursive`; `chain fingerprint` = one
-sha256 notarized on devnet; the forgery lab's 12 attacks die at
-named checks — `verify.py` redoes it in Python.
+bit-exact in-browser; the calibration specimen replays the same MPC
+arithmetic per-item (3b 7/32 vs 1.5b 2/32).
+Outputs are portable proof — 138 artifacts / 13 kinds replay
+keyless; `chain fingerprint` = one sha256 notarized on devnet;
+12 canned forgeries die at named checks; tamper/ pins 11 forged
+artifacts that verify by being REJECTED — `verify.py` redoes it
+in Python.
 
 ## targetAudience
 
