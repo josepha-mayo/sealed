@@ -37,12 +37,18 @@ Checks:
      decoded independently and dark forfeit sums recomputed from
      DarkPosition bytes), settlements replayed against the DECODED
      Run.correct — not the card's claim.
+ 10. sealed-board/v1 — the leaderboard card — replays in full: every
+     modelrec/scorelog PDA re-derived, aggregates + pairwise matrix +
+     Wilson-95 LCB ranking recomputed from the embedded receipts, and
+     every receipt bound to its decoded ScoreLog account bytes AND the
+     run's decoded Run.correct.
 """
 
 import base64
 import copy
 import hashlib
 import json
+import math
 import struct
 import sys
 from pathlib import Path
@@ -409,6 +415,138 @@ def main():
                     and vd["scoreMismatches"] == len(resolved) - s_ok,
                     f"{pools} lamports · {len(resolved)}/{v_n} resolved · 0 mismatch")
 
+    # --- sealed-board/v1 — the leaderboard card ---------------------------
+    # Re-derive every record/receipt PDA, replay the aggregates bit-exact,
+    # rebuild the shared-bank pairwise matrix and the Wilson ranking, then
+    # bind every embedded receipt to its decoded ScoreLog + Run bytes.
+    for card_path in sorted((ROOT / "docs" / "evidence").glob("board*.json")):
+        card = json.loads(card_path.read_text())
+        name = card_path.name
+        if card.get("kind") != "sealed-board/v1":
+            continue
+        ok &= check(f"{name}: kind", True)
+        spid = card["programs"]["sealed"]
+
+        id_ok = all(
+            hashlib.sha256(m["modelId"].encode()).hexdigest() == m["record"]["modelHash"]
+            and b58encode_check(
+                pda([b"modelrec", hashlib.sha256(m["modelId"].encode()).digest()], spid) or b"",
+                m["recordPk"])
+            for m in card["models"])
+        ok &= check(f"{name}: record identity", id_ok,
+                    f"{len(card['models'])} record PDAs = [modelrec, sha256(modelId)]")
+
+        r_n = sum(len(m["receipts"]) for m in card["models"])
+        rid_ok = all(
+            b58encode_check(pda([b"scorelog", b58decode(l["run"])], spid) or b"", l["pk"])
+            and l["modelRecord"] == m["recordPk"]
+            for m in card["models"] for l in m["receipts"])
+        ok &= check(f"{name}: receipt identity", rid_ok,
+                    f"{r_n} receipt PDAs = [scorelog, run] bound to their record")
+
+        ag_ok = True
+        for m in card["models"]:
+            correct = sum(l["correct"] for l in m["receipts"])
+            items = sum(l["items"] for l in m["receipts"])
+            row = next((r for r in card["ranking"] if r["recordPk"] == m["recordPk"]), None)
+            if (correct != m["record"]["totalCorrect"] or items != m["record"]["totalItems"]
+                    or len(m["receipts"]) != m["record"]["runsScored"] or row is None
+                    or row["aggregate"]["correct"] != correct or row["aggregate"]["items"] != items
+                    or row["aggregate"]["runs"] != len(m["receipts"])):
+                ag_ok = False
+        ok &= check(f"{name}: aggregates", ag_ok,
+                    "record totals + ranking rows replay bit-exact from embedded receipts")
+
+        # pairwise — shared-bank join, per-pair delta + verdict, W-L-T tallies
+        by_bank = {m["recordPk"]: {} for m in card["models"]}
+        for m in card["models"]:
+            for l in m["receipts"]:
+                e = by_bank[m["recordPk"]].setdefault(l["benchmark"], [0, 0])
+                e[0] += l["correct"]; e[1] += l["items"]
+        stats = {m["recordPk"]: dict(wins=0, losses=0, ties=0, rankedPairs=0,
+                                     sharedBanks=0, ppDelta=0.0) for m in card["models"]}
+        rebuilt = []
+        for i, A in enumerate(card["models"]):
+            for B in card["models"][i + 1:]:
+                a, b = by_bank[A["recordPk"]], by_bank[B["recordPk"]]
+                shared = [k for k in a if k in b]
+                if not shared:
+                    continue
+                pa = sum(a[k][0] for k in shared) / max(1, sum(a[k][1] for k in shared))
+                pb = sum(b[k][0] for k in shared) / max(1, sum(b[k][1] for k in shared))
+                d = round(100 * (pa - pb), 4)
+                sa, sb = stats[A["recordPk"]], stats[B["recordPk"]]
+                sa["rankedPairs"] += 1; sb["rankedPairs"] += 1
+                sa["sharedBanks"] += len(shared); sb["sharedBanks"] += len(shared)
+                sa["ppDelta"] = round(sa["ppDelta"] + d, 4); sb["ppDelta"] = round(sb["ppDelta"] - d, 4)
+                verdict = "a" if pa > pb else "b" if pb > pa else "tie"
+                if verdict == "a": sa["wins"] += 1; sb["losses"] += 1
+                elif verdict == "b": sb["wins"] += 1; sa["losses"] += 1
+                else: sa["ties"] += 1; sb["ties"] += 1
+                flip = A["modelId"] > B["modelId"]
+                rebuilt.append({
+                    "a": B["modelId"] if flip else A["modelId"],
+                    "b": A["modelId"] if flip else B["modelId"],
+                    "shared": len(shared),
+                    "deltaPp": -d if flip else d,
+                    "verdict": ("b" if verdict == "a" else "a" if verdict == "b" else "tie") if flip else verdict,
+                })
+        pair_sort = lambda x: (x["a"], x["b"])
+        mine = sorted(rebuilt, key=pair_sort)
+        theirs = sorted(card["pairs"], key=pair_sort)
+        pairs_ok = (len(mine) == len(theirs) and all(
+            x["a"] == y["a"] and x["b"] == y["b"] and x["shared"] == y["shared"]
+            and x["verdict"] == y["verdict"] and abs(x["deltaPp"] - y["deltaPp"]) < 0.001
+            for x, y in zip(mine, theirs)))
+        ok &= check(f"{name}: pairwise verdicts", pairs_ok,
+                    f"{len(rebuilt)} ranked pairs — shared banks, deltas, verdicts recomputed")
+        stat_ok = True
+        for m in card["models"]:
+            s = stats[m["recordPk"]]
+            p = next((r["pairwise"] for r in card["ranking"] if r["recordPk"] == m["recordPk"]), None)
+            if (p is None or s["wins"] != p["wins"] or s["losses"] != p["losses"]
+                    or s["ties"] != p["ties"] or s["rankedPairs"] != p["rankedPairs"]
+                    or s["sharedBanks"] != p["sharedBanks"] or abs(s["ppDelta"] - p["ppDelta"]) > 0.001):
+                stat_ok = False
+        ok &= check(f"{name}: pairwise tallies", stat_ok,
+                    "per-model W-L-T, ranked pairs, shared banks, ΣΔpp re-derived equal")
+
+        # ranking — Wilson-95 LCB order recomputed
+        order = sorted(
+            ((m["recordPk"], stats[m["recordPk"]]) for m in card["models"]),
+            key=lambda t: (-wilson_lcb(t[1]["wins"] + t[1]["ties"] / 2, t[1]["rankedPairs"]),
+                           -t[1]["wins"], -t[1]["ppDelta"]))
+        rank_ok = True
+        for i, r in enumerate(card["ranking"]):
+            pk, s = order[i] if i < len(order) else (None, None)
+            lcb = round(wilson_lcb(s["wins"] + s["ties"] / 2, s["rankedPairs"]), 4) if s else -1
+            if (r["recordPk"] != pk or r["rank"] != i + 1
+                    or abs(r["pairwise"]["lcb"] - lcb) > 0.001):
+                rank_ok = False
+        ok &= check(f"{name}: ranking", rank_ok,
+                    f"Wilson-95 LCB order re-derived — #1 {card['ranking'][0]['modelId']}, "
+                    f"{len(card['ranking'])} rows")
+
+        # snapshot binding — every receipt equals its decoded ScoreLog
+        # account AND the run's MPC-written Run.correct.
+        b_n, b_bad = 0, 0
+        for m in card["models"]:
+            for l in m["receipts"]:
+                b_n += 1
+                raw = find_account(SNAP["sealed"], l["pk"], disc("ScoreLog"))
+                sl = decode_scorelog(raw) if raw else None
+                rr = find_account(SNAP["sealed"], l["run"], disc("Run"))
+                dr = decode_run(rr) if rr else None
+                if (sl is None or dr is None
+                        or sl["run"] != l["run"] or sl["benchmark"] != l["benchmark"]
+                        or sl["modelRecord"] != m["recordPk"]
+                        or sl["correct"] != l["correct"] or sl["items"] != l["items"]
+                        or sl["vouched"] != l["vouched"] or sl["postReveal"] != l["postReveal"]
+                        or sl["recordedAt"] != l["recordedAt"] or dr["correct"] != l["correct"]):
+                    b_bad += 1
+        ok &= check(f"{name}: snapshot binding", b_bad == 0,
+                    f"{b_n} receipts equal their ScoreLog bytes; every score == decoded Run.correct")
+
     print(f"\n{'ALL VERIFIED' if ok else 'FAILED'} — independent Python replay "
           f"agrees on BUNDLE ROOT {root[:16]}…" if ok else "\nFAILED")
     sys.exit(0 if ok else 1)
@@ -521,6 +659,32 @@ def dark_positions(section, market_b58):
             if p["market"] == market_b58:
                 out.append(p)
     return out
+
+
+def decode_scorelog(d):
+    # disc8 run32 model_record32 benchmark32 correct u32 items u32
+    # recorded_by32 recorded_at i64 vouched u8 post_reveal u8 bump
+    return {
+        "run": b58encode(d[8:40]), "modelRecord": b58encode(d[40:72]),
+        "benchmark": b58encode(d[72:104]),
+        "correct": int.from_bytes(d[104:108], "little"),
+        "items": int.from_bytes(d[108:112], "little"),
+        "recordedBy": b58encode(d[112:144]),
+        "recordedAt": int.from_bytes(d[144:152], "little", signed=True),
+        "vouched": d[152], "postReveal": d[153],
+    }
+
+
+def wilson_lcb(correct, items, z=1.96):
+    """Wilson score-interval lower bound, percent — mirrors gate.ts."""
+    if items <= 0:
+        return 0.0
+    p = correct / items
+    z2 = z * z
+    denom = 1 + z2 / items
+    centre = p + z2 / (2 * items)
+    margin = z * math.sqrt((p * (1 - p) + z2 / (4 * items)) / items)
+    return 100 * (centre - margin) / denom
 
 
 def decode_run(d):
@@ -665,6 +829,22 @@ def tamper_demo():
     caught = dr is None or dr["correct"] != forged["run"]["correct"]
     all_ok &= check("oracle substitution (correct +1)", caught,
                     'forgery dies at "run binding"' if caught else "FORGERY PASSED")
+
+    # 6. leaderboard inflation — bump a receipt's score on the flagship
+    #    board card. The decoded ScoreLog bytes disagree (snapshot binding)
+    #    AND the record's totals no longer replay (aggregates).
+    card = json.loads((ROOT / "docs/evidence/board.json").read_text())
+    forged = copy.deepcopy(card)
+    l = forged["models"][0]["receipts"][0]
+    l["correct"] += 1
+    raw = find_account(SNAP["sealed"], l["pk"], disc("ScoreLog"))
+    sl = decode_scorelog(raw) if raw else None
+    recompute = sum(x["correct"] for x in forged["models"][0]["receipts"])
+    caught = (sl is None or sl["correct"] != l["correct"]
+              or recompute != forged["models"][0]["record"]["totalCorrect"])
+    all_ok &= check("leaderboard inflation (receipt correct +1)", caught,
+                    'forgery dies at "snapshot binding" AND "aggregates"'
+                    if caught else "FORGERY PASSED")
 
     print("\n" + ("ALL FORGERIES CAUGHT — the Python verifier rejects its own lies"
                   if all_ok else "FORGERY LAB FAILED — a forged card verified"))

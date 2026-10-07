@@ -425,19 +425,23 @@ yarn --cwd packages/harness cli chain fingerprint \
 # 3o. THE SECOND-LANGUAGE VERDICT — don't trust our TypeScript? Re-run
 #     the whole integrity chain in ~330 lines of stdlib-only Python:
 #     re-hash both manifests, recompute the BUNDLE ROOT, match the
-#     devnet anchor doc, re-derive the position/venue/bounty/grant PDAs
-#     with real ed25519 curve math (bump iteration + off-curve
-#     rejection) — and it unpacks the raw account bytes itself
-#     (Bounty / ShareGrant / Position / DarkPosition layouts), so the
-#     field binding is checked against the bytes, not our decoder.
+#     devnet anchor doc, re-derive every artifact's PDAs (position /
+#     venue / bounty / grant / trail / board) with real ed25519 curve
+#     math (bump iteration + off-curve rejection) — and it unpacks the
+#     raw account bytes itself (Run / Market / DarkMarket / Ladder /
+#     Bounty / ShareGrant / Position / DarkPosition / ScoreLog), so
+#     field binding checks the bytes, not our decoder. It replays the
+#     flagship board card end-to-end too — 292 receipts bound to their
+#     ScoreLog bytes, pairwise matrix and Wilson ranking recomputed.
 python3 scripts/verify.py
-#         → BUNDLE ROOT be4087dc… (same as the TypeScript — or the
-#           bundle is dirty) · all six committed cards' PDAs +
-#           account fields verified in Python · anchor carries root PASS
+#         → BUNDLE ROOT c49d2b58… (same as the TypeScript — or the
+#           bundle is dirty) · every committed card's PDAs + account
+#           fields verified in Python · anchor carries root PASS
 #
 #     …and watch the verifier catch its own lie — --tamper forges each
-#     card kind (bounty theft, stake inflation, viewer redirect) and
-#     asserts every forgery dies at a named check:
+#     card kind (bounty theft, stake inflation, viewer redirect, pool
+#     rewrite, oracle substitution, leaderboard inflation) and asserts
+#     every forgery dies at a named check:
 python3 scripts/verify.py --tamper
 #         → ALL FORGERIES CAUGHT — the Python verifier rejects its own lies
 #
@@ -449,7 +453,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/board.json \
 #           ALL FORGERIES CAUGHT — the verifier rejects its own lies
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
-#     5.8MB file: the page, the snapshot, all 125 artifacts, both
+#     6.6MB file: the page, the snapshot, all 138 artifacts, both
 #     manifests, the vendored crypto deps, and the devnet anchor doc,
 #     plus a fetch() shim so every in-page verifier runs OFFLINE.
 #     Download it, disconnect, open it in any browser — the audit, the
