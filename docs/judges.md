@@ -442,7 +442,7 @@ yarn --cwd packages/harness cli chain fingerprint \
 #     fold ciphertexts+nonces), and the whole-ledger digest (keeper
 #     classification and all).
 python3 scripts/verify.py
-#         → BUNDLE ROOT c49d2b58… (same as the TypeScript — or the
+#         → BUNDLE ROOT f4d1c7b7… (same as the TypeScript — or the
 #           bundle is dirty) · all 138 artifacts replayed in Python ·
 #           anchor carries root PASS
 #
@@ -503,6 +503,23 @@ python3 scripts/verify.py --rescore
 node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
   --run 4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1 --rpc http://127.0.0.1:8899
 ```
+
+## Who proves what — every load-bearing claim, three independent implementations
+
+| Claim | TypeScript CLI | Explorer (in-browser JS) | stdlib Python |
+|---|---|---|---|
+| Bundle integrity — 351 pinned files → one BUNDLE ROOT | `chain fingerprint` | auto-audit §bundle | `verify.py` §1–3 |
+| PDA custody — every account re-derives, vaults provably keyless | `artifact --verify` | audit §PDA | `verify.py` §5–8 |
+| All 138 artifact cards replay | `artifact --recursive` | `?mega=1` cascade | `verify.py` §9–17 |
+| MPC score arithmetic (fingerprints → Reveals → outputs_root → recount) | `rescore.mjs` | audit §calibration | `verify.py --rescore` |
+| Selective disclosure — grants decrypt, ciphertext round-trips | `decrypt-grants-test` | ⑤ read the sealed exam | `verify.py --decrypt` |
+| Forgeries die at named checks | `artifact --tamper` | forgery lab + forge-your-card | `verify.py --tamper` |
+| Devnet notarization carries the root | `fingerprint --check-anchor` | audit §anchor | `verify.py --check-anchor` |
+
+Nothing in the middle column trusts the left column — Python re-derives
+the curve math, unpacks the raw account bytes, and re-runs the MPC's
+arithmetic itself. If two columns disagree, the discrepancy is a finding,
+not a rounding error (see `docs/engineering-log.md` §verifier-side).
 
 ## The 30-second wow moment
 
