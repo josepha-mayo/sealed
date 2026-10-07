@@ -18,7 +18,7 @@ parimutuel markets resolved from `Run.correct`.
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
   closer): offline verify + headless browser audit + grant-decrypt
-  regression + calibration rescore + recursive artifact replay (115
+  regression + calibration rescore + recursive artifact replay (116
   artifacts in one pass) + evidence/web manifests + doc-count freshness
   + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
@@ -81,10 +81,15 @@ parimutuel markets resolved from `Run.correct`.
   Run.correct (duel packs `(a<<16)|b`, ladder re-argmaxs mask, bounty
   score≥threshold). Tamper fails exactly at the replay check.
   `chain artifact <file|dir>` is the universal verifier — detects any
-  sealed-claim/policy/match/trail/report/v1 payload and routes to the
+  sealed-claim/policy/match/trail/report/evidence-digest/v1 payload and
+  routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 115 artifacts in one pass). `chain fingerprint` is the
+  replays all 116 artifacts in one pass). `chain export --verify <f>
+  --snapshot <f2>` replays a committed `sealed-evidence-digest/v1` —
+  snapshot-sha binding + field-equality over counts/integrity/keeper/
+  ledgers (committed example: docs/evidence/digest.json, served in-page
+  at "verify the ledger digest"). `chain fingerprint` is the
   one-hash closer: re-hashes every manifest-pinned file, then prints
   BUNDLE ROOT = sha256(evidenceRoot ‖ webRoot); web/SHA256SUMS is a
   byte-copy of docs/evidence/SHA256SUMS (evidence-manifest.sh check

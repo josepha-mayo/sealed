@@ -78,7 +78,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -86,7 +86,7 @@
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span></div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a></div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -167,6 +167,16 @@
   <div><textarea id="reportjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='# Capability report — … (sealed-report/v1 markdown)'></textarea></div>
   <button onclick="verifyReport()">verify report</button>
   <div id="reportres"></div>
+</div>
+
+<h2 id="sec-digest">verify the ledger digest</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the whole ledger as one document — a <code>sealed-evidence-digest/v1</code> (<code>chain export --snapshot</code> mints it) pins the bundle's own sha256 plus every count, integrity verdict, bank and record row. The page re-hashes the served <code>snapshot.json</code> and field-compares every ledger line against the decoded accounts — the digest is bound to <i>these bytes</i>. Same check as <code>chain export --verify</code>.</div>
+  <button onclick="loadDigest()">load committed digest</button>
+  <span class="kv">sha256-pinned in this bundle&#8217;s MANIFEST</span>
+  <div><textarea id="digestjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-evidence-digest/v1",…}'></textarea></div>
+  <button onclick="verifyDigest()">verify digest</button>
+  <div id="digestres"></div>
 </div>
 <div id="tourbar" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--card);border-top:1px solid var(--acc);padding:10px 16px;font-size:13px">
   <span id="tourcap" class="kv"></span>
@@ -2342,9 +2352,10 @@ function verifyAnyArtifact() {
       "sealed-match/v1": ["matchjson", "sec-match", verifyMatch],
       "sealed-trail/v1": ["trailjson", "sec-trail", verifyTrail],
       "sealed-report/v1": ["reportjson", "sec-report", verifyReport],
+      "sealed-evidence-digest/v1": ["digestjson", "sec-digest", verifyDigest],
     };
     const r = kind ? ROUTE[kind] : null;
-    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/v1)`; return; }
+    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/v1)`; return; }
     document.getElementById(r[0]).value = raw;
     note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below`;
     document.getElementById(r[1]).scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2402,6 +2413,24 @@ async function replayBundle() {
       passed += ok;
       rows.push(`<div class="proof"><span class="pill ${ok === files.length ? "resolved" : "cancelled"}">${ok === files.length ? "PASS" : "FAIL"}</span> ${kind} — ${ok}/${files.length} artifact(s) replayed</div>`);
       res.innerHTML = rows.join("");
+    }
+    // the digest is a singleton — no index; replay it through its verifier
+    // like the indexed kinds.
+    try {
+      total++;
+      const dr = await fetch("digest.json");
+      if (!dr.ok) throw new Error(`HTTP ${dr.status}`);
+      const ta = document.getElementById("digestjson"), sub = document.getElementById("digestres");
+      saved.set("digestjson", { value: ta.value }); saved.set("digestres", { html: sub.innerHTML });
+      ta.value = await dr.text();
+      await verifyDigest();
+      const html = sub.innerHTML;
+      const fails = (html.match(/pill cancelled/g) || []).length;
+      checks += fails + (html.match(/pill resolved/g) || []).length;
+      if (fails === 0 && html.includes("VERIFIED")) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-evidence-digest/v1 — 1/1 artifact(s) replayed</div>`); }
+      else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> digest.json — ${fails || "verdict"} failed check(s)</div>`);
+    } catch (e) {
+      rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> digest.json — ${esc(e.message ?? String(e))}</div>`);
     }
     // bundle root — the same recipe `chain fingerprint` prints: sha256 over
     // the evidence manifest (served pinned as SHA256SUMS) + the web MANIFEST.
@@ -2555,6 +2584,75 @@ async function verifyReport() {
     pass("bound card available", `claims/${slug}.json loaded — <a href="#sec-claim" onclick="document.getElementById('claimjson').value=JSON.stringify(window.__reportBoundCard);verifyClaim()">replay it in the claim verifier →</a>`);
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "REPORT VERIFIED" : "REPORT FAILED"}</b> — ${esc(model)} · digest + identity bound to a committed card</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
+async function loadDigest() {
+  const ta = document.getElementById("digestjson");
+  try {
+    const r = await fetch("digest.json");
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text();
+  } catch (e) { ta.value = ""; document.getElementById("digestres").innerHTML = `<div class="kv">committed digest not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+// sealed-evidence-digest/v1 verifier — mirrors `chain export --verify`:
+// (a) the served snapshot.json's sha256 must equal the digest's declared
+// binding, (b) every count and every bank/record ledger row field-compares
+// against the decoded accounts, (c) the integrity verdicts are clean and
+// self-consistent. The heavier replay (records bit-exact, resolutions) is
+// the audit card's job — this checks the digest against what the page
+// already decoded.
+async function verifyDigest() {
+  const res = document.getElementById("digestres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const d = JSON.parse(document.getElementById("digestjson").value);
+    if (d.kind !== "sealed-evidence-digest/v1") throw new Error(`not a sealed-evidence-digest/v1 document (kind=${d.kind ?? "?"})`);
+    const A = window.__audit;
+    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    // [1] snapshot binding — hash the bytes actually being audited.
+    const snapText = await fetch("snapshot.json").then(r => { if (!r.ok) throw new Error("snapshot.json not reachable"); return r.text(); });
+    const gotSha = hex(await sha(utf8(snapText)));
+    gotSha === d.snapshotSha256
+      ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… matches the digest — bound to THESE bytes`)
+      : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(d.snapshotSha256).slice(0, 16)}… — this digest describes a different ledger`);
+    // [2] program ids — the digest must name this deployment.
+    (d.programs?.sealed === SEALED_PID.toString() && d.programs?.market === MARKET_PID.toString())
+      ? pass("program ids", `sealed ${short(d.programs.sealed)} · market ${short(d.programs.market)}`)
+      : fail("program ids", `declared ${esc(JSON.stringify(d.programs ?? {}))} ≠ this build`);
+    // [3] counts — every account class tallied against what was decoded.
+    const c = d.counts ?? {};
+    const want = { banks: A.benches.length, runs: A.runs.length, receipts: A.scoreLogs.length, records: A.modelRecords.length, reveals: A.reveals.length, grants: A.grants.length, itemChunks: A.itemChunks.length, privChunks: A.privChunks.length, markets: A.markets.length, darkMarkets: A.darkMarkets.length, ladders: A.ladders.length, bounties: A.bounties.length, positions: A.positions.length + A.darkPositions.length };
+    const cmis = Object.keys(want).filter(k => c[k] !== want[k]);
+    cmis.length === 0
+      ? pass("counts", `${Object.keys(want).length} ledger tallies match — ${want.banks} banks · ${want.runs} runs · ${want.receipts} receipts · ${want.positions} positions`)
+      : fail("counts", `mismatch: ${cmis.map(k => `${k} declared ${c[k]} vs decoded ${want[k]}`).join("; ")}`);
+    // [4] bank + record ledgers — every row field-compares.
+    const revBy = new Map();
+    for (const r of A.reveals) revBy.set(r.bench, (revBy.get(r.bench) || 0) + 1);
+    const bmap = new Map(A.benches.map(b => [b.pk, b]));
+    const bbad = (d.banks ?? []).filter(b => { const x = bmap.get(b.pk); return !x || x.name !== b.name || x.kind !== b.kind || x.itemsRoot !== b.itemsRoot || x.chunkCount * 32 !== b.items || Number(x.runCount) !== b.runs || (revBy.get(b.pk) ?? 0) !== b.reveals; });
+    bbad.length === 0 && (d.banks ?? []).length === A.benches.length
+      ? pass("bank ledger", `${A.benches.length} bank rows — pk · name · kind · items_root · run/reveal counts all equal`)
+      : fail("bank ledger", `${(d.banks ?? []).length} declared rows, ${bbad.length} mismatched against decoded banks`);
+    const rmap = new Map(A.modelRecords.map(m => [m.pk, m]));
+    const rbad = (d.records ?? []).filter(r => { const m = rmap.get(r.pk); return !m || m.modelId !== r.modelId || Number(m.runsScored) !== r.runsScored || Number(m.totalCorrect) !== r.totalCorrect || Number(m.totalItems) !== r.totalItems; });
+    rbad.length === 0 && (d.records ?? []).length === A.modelRecords.length
+      ? pass("record ledger", `${A.modelRecords.length} record rows — pk · model id · aggregates all equal`)
+      : fail("record ledger", `${(d.records ?? []).length} declared rows, ${rbad.length} mismatched against decoded records`);
+    // [5] integrity verdicts — the digest claims a clean ledger; the audit
+    // card independently recomputes those same verdicts on this page.
+    const ig = d.integrity ?? {};
+    (ig.recordsBad === 0 && ig.resolutionsBad === 0 && ig.recordsOk === want.records)
+      ? pass("integrity verdicts", `${ig.recordsOk} records bit-exact · ${ig.resolutionsOk} resolutions match Run.correct — replayed live in the audit card above`)
+      : fail("integrity verdicts", `declared ${JSON.stringify({ recordsOk: ig.recordsOk, recordsBad: ig.recordsBad, resolutionsOk: ig.resolutionsOk, resolutionsBad: ig.resolutionsBad })} — expected bad=0 and recordsOk=${want.records}`);
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "DIGEST VERIFIED" : "DIGEST FAILED"}</b> — the declared snapshot hash + every ledger row check out against the decoded bundle</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;

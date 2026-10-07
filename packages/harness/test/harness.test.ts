@@ -1362,6 +1362,42 @@ test("sealed-report/v1 — the document's card binding verifies, and a forged ha
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("sealed-evidence-digest/v1 — the committed digest replays; a mutated count or a wrong bundle fails", async () => {
+  const { digestVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const good = new URL("../../../docs/evidence/digest.json", import.meta.url).pathname;
+    const ok = (await digestVerify(good, false, snapPath)) as any;
+    assert.equal(ok.fail, 0);
+    assert.equal(ok.pass, 3);
+    // a mutated count flips the field-equality check
+    const tampered = JSON.parse(readFileSync(good, "utf8"));
+    tampered.counts.runs += 1;
+    const bad = join(mkdtempSync(join(tmpdir(), "sealed-dig-")), "bad.json");
+    writeFileSync(bad, JSON.stringify(tampered));
+    process.exitCode = 0;
+    const r2 = (await digestVerify(bad, false, snapPath)) as any;
+    assert.equal(r2.fail > 0, true);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+    // a digest bound to different bytes fails the snapshot-hash binding —
+    // re-write it claiming a different snapshot hash
+    const wrongBundle = JSON.parse(readFileSync(good, "utf8"));
+    wrongBundle.snapshotSha256 = "0".repeat(64);
+    const bad2 = join(mkdtempSync(join(tmpdir(), "sealed-dig2-")), "bad.json");
+    writeFileSync(bad2, JSON.stringify(wrongBundle));
+    process.exitCode = 0;
+    const r3 = (await digestVerify(bad2, false, snapPath)) as any;
+    assert.equal(r3.fail > 0, true);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+
 test("sealed-fingerprint/v1 — the bundle root re-hashes every pinned file and breaks on a one-bit change", async () => {
   const { chainFingerprint } = await import("../src/chain.js");
   const { readFileSync, writeFileSync, mkdtempSync, mkdirSync } = await import("node:fs");

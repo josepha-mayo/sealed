@@ -273,14 +273,14 @@ yarn --cwd packages/harness cli chain trail --verify ../../docs/evidence/trails
 #     which artifact.
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
   --snapshot ../../web/snapshot.json
-#         → ALL ARTIFACTS VERIFIED — 115 replayed, 28 skipped ·
+#         → ALL ARTIFACTS VERIFIED — 116 replayed, 28 skipped ·
 #           31× claim, 73× match, 3× policy, 4× report, 4× trail
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 115 committed artifacts
+#           verifier in-browser: all 116 committed artifacts
 #           through their own check lists, live progress
 
 # 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-

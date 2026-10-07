@@ -9,7 +9,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type * as AnchorTypes from "@anchor-lang/core";
 import { Keypair, PublicKey, Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
@@ -3128,6 +3128,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-match/v1": (f) => matchVerify(f, json),
     "sealed-trail/v1": (f) => trailVerify(f, json),
     "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
+    "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
   };
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
@@ -3181,7 +3182,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
 }
@@ -4443,7 +4444,11 @@ export async function chainStats(snapPath?: string, json = false) {
  *  diff without learning the account layouts. Without `--snapshot` the
  *  digest runs over the live cluster — the same verdicts on YOUR
  *  deployment, not just the committed bundle. */
-export async function chainExport(snapPath: string | undefined, out?: string) {
+/** Shared digest builder — `chain export` emits it, `export --verify`
+ *  and the universal artifact router recompute it for field-equality.
+ *  Snapshot-mode is the only keyless path (and the only one that can
+ *  carry `snapshotSha256`); live mode leaves the hash null. */
+async function buildDigestData(snapPath: string | undefined) {
   const snap = snapPath ? loadSnapshotJson(snapPath) : null;
   const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
   const sm = snap ? decodeSnapshotSection(snap, "market") : null;
@@ -4468,10 +4473,9 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
   const { board } = await loadBoard(snapPath);
   const actionable = board.claimable.length + board.resolvable.length + board.resolvableLadders.length +
     board.tallyable.length + board.expirable.length + board.expiredBounties.length;
-  const digest = {
+  return {
     kind: "sealed-evidence-digest/v1",
-    generatedAt: new Date().toISOString(),
-    source: snapPath ?? "live", snapshotSha256: sha256,
+    snapshotSha256: sha256,
     programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
     epochs: snap?.meta?.epochs ?? null,
     counts: {
@@ -4504,11 +4508,74 @@ export async function chainExport(snapPath: string | undefined, out?: string) {
       totalCorrect: Number(x.account.totalCorrect), totalItems: Number(x.account.totalItems),
     })),
   };
+}
+
+export async function chainExport(snapPath: string | undefined, out?: string) {
+  const data = await buildDigestData(snapPath);
+  const digest = {
+    ...data,
+    generatedAt: new Date().toISOString(),
+    source: snapPath ?? "live",
+  };
+  const integ = data.integrity;
   const text = JSON.stringify(digest, null, 2) + "\n";
-  if (out) { writeFileSync(out, text); console.log(`wrote ${out} — ${integ.recOk}/${records.length} records bit-exact, ${integ.resOk}/${integ.resOk + integ.resBad} resolutions verified, ${actionable} keeper actions`); }
+  if (out) { writeFileSync(out, text); console.log(`wrote ${out} — ${integ.recordsOk}/${data.records.length} records bit-exact, ${integ.resolutionsOk}/${integ.resolutionsOk + integ.resolutionsBad} resolutions verified, ${data.keeper.actionable} keeper actions`); }
   else console.log(text);
-  if (integ.recBad || integ.resBad) process.exitCode = 1;
+  if (integ.recordsBad || integ.resolutionsBad) process.exitCode = 1;
   return digest;
+}
+
+/** `chain export --verify <f>` / `chain artifact <f>` — replay a
+ *  `sealed-evidence-digest/v1` against the bundle it claims to describe:
+ *  (a) the snapshot file's sha256 must equal the declared
+ *  `snapshotSha256` (the digest is bound to THESE bytes), and (b) every
+ *  stable field — counts, integrity verdicts and rows, keeper stats,
+ *  bank + record ledgers — is recomputed from that snapshot and compared
+ *  field-for-field. `generatedAt`/`source` are volatile and excluded. */
+export async function digestVerify(file: string, json: boolean, snapPath?: string) {
+  const raw = JSON.parse(readFileSync(file, "utf8"));
+  if (raw.kind !== "sealed-evidence-digest/v1") throw new Error("not a sealed-evidence-digest/v1 artifact");
+  if (!snapPath) {
+    if (raw.snapshotSha256) throw new Error("digest is bound to a snapshot — pass --snapshot <file> to replay it");
+    throw new Error("live-source digests need --snapshot to verify against a bundle");
+  }
+  const lines: string[] = [];
+  let bad = 0;
+  const note = (ok: boolean, label: string) => { lines.push(`${ok ? "✓" : "✗"} ${label}`); if (!ok) bad++; };
+
+  const sha = createHash("sha256").update(readFileSync(snapPath)).digest("hex");
+  note(raw.snapshotSha256 === sha, `snapshot binding — sha256 ${sha.slice(0, 16)}… ${raw.snapshotSha256 === sha ? "matches the digest" : "MISMATCH — this digest describes different bytes"}`);
+
+  const rebuilt = await buildDigestData(snapPath);
+  const stable = (d: any) => {
+    const { generatedAt: _g, source: _s, ...rest } = d;
+    return rest;
+  };
+  // deep field-equality over every stable key — mismatches are named.
+  const diffs: string[] = [];
+  const cmp = (path: string, a: any, b: any) => {
+    if (JSON.stringify(a) !== JSON.stringify(b)) diffs.push(path);
+  };
+  for (const k of new Set([...Object.keys(stable(raw)), ...Object.keys(stable(rebuilt))])) {
+    cmp(k, stable(raw)[k], (rebuilt as any)[k]);
+  }
+  note(diffs.length === 0, diffs.length === 0
+    ? `fields replayed — counts, integrity (${rebuilt.integrity.recordsOk}+${rebuilt.integrity.recordsBad} records, ${rebuilt.integrity.resolutionsOk}+${rebuilt.integrity.resolutionsBad} resolutions), keeper, ${rebuilt.banks.length} banks, ${rebuilt.records.length} records all identical`
+    : `field mismatch: ${diffs.slice(0, 5).join(", ")}${diffs.length > 5 ? ` +${diffs.length - 5} more` : ""}`);
+  // integrity verdicts themselves must be clean — a faithfully-replayed
+  // digest of a dirty bundle is still a fail.
+  note(rebuilt.integrity.recordsBad === 0 && rebuilt.integrity.resolutionsBad === 0,
+    `integrity verdicts — ${rebuilt.integrity.recordsOk}/${rebuilt.integrity.recordsOk + rebuilt.integrity.recordsBad} records bit-exact · ${rebuilt.integrity.resolutionsOk}/${rebuilt.integrity.resolutionsOk + rebuilt.integrity.resolutionsBad} resolutions match Run.correct`);
+
+  const ok = bad === 0;
+  if (json) console.log(JSON.stringify({ kind: raw.kind, ok, bad, lines }, null, 2));
+  else {
+    console.log(`sealed-evidence-digest/v1 — ${basename(file)}`);
+    for (const l of lines) console.log(`  ${l}`);
+    console.log(ok ? "DIGEST VERIFIED" : "DIGEST FAILED");
+  }
+  if (!ok) process.exitCode = 1;
+  return { ok, pass: 3 - bad, fail: bad };
 }
 
 /** `chain prove <model> [--out f]` — mint a portable claim card
@@ -6393,6 +6460,11 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "export") {
+    if (args.verify) {
+      // Replay a committed digest against the bundle it claims to describe.
+      await digestVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
     // No --snapshot → digest the live cluster (source: "live").
     await chainExport(args.snapshot ? String(args.snapshot) : undefined, args.out ? String(args.out) : undefined);
     return;

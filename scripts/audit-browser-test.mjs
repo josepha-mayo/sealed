@@ -213,14 +213,32 @@ const anyReportTxt = (els.get("reportres")?.innerHTML ?? "").replace(/<[^>]+>/g,
 const anyReportOk = /REPORT VERIFIED/.test(anyReportTxt) && /sealed-report\/v1/.test(els.get("artifactnote")?.innerHTML ?? "");
 console.log(`in-page universal verifier — markdown report routed + verified ${anyReportOk ? "PASS" : "FAIL"}`);
 if (!anyReportOk) fails++;
+// the committed ledger digest — snapshot-hash binding + every ledger row
+// field-compared against the decoded accounts; a mutated count must fail.
+await vm.runInContext("loadDigest()", ctx);
+await new Promise((r) => setTimeout(r, 60));
+await vm.runInContext("verifyDigest()", ctx);
+await new Promise((r) => setTimeout(r, 60));
+const digestTxt = (els.get("digestres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const digestOk = /DIGEST VERIFIED/.test(digestTxt) && /snapshot binding/.test(digestTxt) && /bank ledger/.test(digestTxt) && /record ledger/.test(digestTxt);
+console.log(`in-page digest verifier — committed sealed-evidence-digest ${digestOk ? "PASS" : "FAIL"}`);
+if (!digestOk) fails++;
+els.get("digestjson").value = els.get("digestjson").value.replace(/"runs": (\d+)/, (_m, n) => `"runs": ${Number(n) + 1}`);
+await vm.runInContext("verifyDigest()", ctx);
+await new Promise((r) => setTimeout(r, 60));
+const digestTamperTxt = (els.get("digestres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const digestTamperOk = /DIGEST FAILED/.test(digestTamperTxt) && /counts/.test(digestTamperTxt);
+console.log(`in-page digest tamper case — mutated run count ${digestTamperOk ? "rejected PASS" : "MISSED FAIL"}`);
+if (!digestTamperOk) fails++;
 // the bundle replay: every committed artifact through its own verifier —
 // the in-page mirror of `chain artifact docs/evidence --recursive`.
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /115\/115 artifacts replayed in-page/.test(bundleTxt) &&
-  /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt);
-console.log(`in-page bundle replay — 115 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /116\/116 artifacts replayed in-page/.test(bundleTxt) &&
+  /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
+  /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt);
+console.log(`in-page bundle replay — 116 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // cross-surface agreement: the in-page bundle root must equal the recipe
 // `chain fingerprint` computes — sha256(SHA256SUMS) || sha256(MANIFEST).

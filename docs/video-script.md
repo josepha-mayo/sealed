@@ -95,7 +95,7 @@ the demo. Screen-record the hosted explorer only:
 | 0:00 | One URL | https://josepha-mayo.github.io/sealed/ loading `web/snapshot.json` | "No wallet, no node, no RPC key — the whole ledger replayed from one committed file." |
 | 0:05 | The audit | audit panel auto-running — PDAs re-derived, roots re-folded, 201 resolutions replayed | "Every claim on this page is re-computed in your browser right now — nothing is trusted." |
 | 0:12 | The artifact | claim-card verifier: pick `qwen2.5-3b-instruct`, 9/9 checks pass | "One file is a model's entire reputation — and it verifies itself." |
-| 0:18 | The replay | "replay the whole bundle" — 115 artifacts through their own verifiers, per-kind tallies | "One click replays every committed proof — 115 artifacts, five kinds, in your browser." |
+| 0:18 | The replay | "replay the whole bundle" — 116 artifacts through their own verifiers, per-kind tallies | "One click replays every committed proof — 116 artifacts, five kinds, in your browser." |
 | 0:24 | The close | the audit card's bundle-root line — the same sha256 `chain fingerprint` prints | "The whole evidence base is one sha256 — terminal and browser agree, or it's dirty. Nobody else ends in a hash." |
 
 **Tags:** solana, arcium, mpc, confidential computing, prediction markets,

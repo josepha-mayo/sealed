@@ -219,15 +219,16 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 the same checks in-page.
 `chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json]` is
 the universal verifier — auto-detects any
-`sealed-claim|policy|match|trail|report/v1` payload and routes it to
-the right replay. A directory verifies every artifact in it, mixing
-kinds freely; `--recursive` walks the whole tree (115 artifacts in
-`docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any failure;
-non-artifact files are skipped, not failed). Reports need `--snapshot`
-(or live RPC) to re-mint their bound claim card. The explorer's
+`sealed-claim|policy|match|trail|report|evidence-digest/v1` payload and
+routes it to the right replay. A directory verifies every artifact in
+it, mixing kinds freely; `--recursive` walks the whole tree (116
+artifacts in `docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any
+failure; non-artifact files are skipped, not failed). Reports need
+`--snapshot` (or live RPC) to re-mint their bound claim card; digests
+need it to re-hash the bundle they're bound to. The explorer's
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
-in-browser — all 115 committed artifacts driven through their own
+in-browser — all 116 committed artifacts driven through their own
 in-page check lists with live progress, ending in the bundle root.
 `chain fingerprint` reduces the entire evidence base to one sha256 —
 `BUNDLE ROOT` = sha256 over the evidence + web manifests after
@@ -257,7 +258,14 @@ one diffable JSON document, exit 1 on any violation. Drop `--snapshot`
 and the same digest runs over the live cluster (`source: "live"`) —
 the verdicts applied to YOUR deployment, with a discriminator-filtered
 fallback that tolerates old-layout accounts the same way snapshot
-decoding does.
+decoding does. `chain export --verify <f> --snapshot <f2>` (or the
+universal router on the same file) replays a committed digest: the
+snapshot's sha256 must equal the declared binding and every stable
+field — counts, integrity verdicts and rows, keeper stats, the bank and
+record ledgers — is recomputed and compared. The committed example is
+`docs/evidence/digest.json` (served in-page at "verify the ledger
+digest"); `generatedAt`/`source` are volatile and excluded from the
+comparison.
 `chain runs` filters the substrate — `--bank`, `--model`, `--min-pct`,
 `--status`, `--attested` isolates authority-countersigned runs (the flag
 markets and the `vouched` gate trust), and `--post-reveal` isolates runs
