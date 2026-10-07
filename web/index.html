@@ -3469,6 +3469,10 @@ async function runAudit(force) {
         }
         const share = `${location.origin ?? ""}${location.pathname ?? ""}?root=${root}`;
         rows.push(`<div class="proof"><span class="kv">shareable verdict — <a href="${share}">${esc(short(root))}</a> links assert the root; the page re-checks on open</span></div>`);
+        if (claimed) {
+          window.__scrolled = true;
+          document.getElementById("sec-audit")?.scrollIntoView?.({ block: "start" });
+        }
       } catch {}
     } catch (e) {
       skip("bundle integrity", "MANIFEST not reachable (serve the repo root or use the hosted explorer)");

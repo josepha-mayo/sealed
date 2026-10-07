@@ -26,7 +26,9 @@ the whole arc end-to-end; this script splits it into narrated segments.
 | 1:50 | Resolution | `market resolve` → `claim` + leaderboard | "Permissionless settle straight off `Run.correct`. Winner withdraws. No oracle operator, no admin key." |
 | 1:55 | Audit beat | `chain reveal` + `chain verify`, then the hosted explorer's audit panel auto-running — green checks ending on the calibration rescore | "Need to audit a score? The authority declassifies answer *fingerprints* — never plaintext. And you don't have to trust this page: the hosted explorer re-derives every PDA, replays every resolution, and recomputes the MPC's arithmetic on a public calibration exam — in your browser, right now." |
 | 2:00 | Specimen beat | explorer calibration card: 32 rows, canonical answer vs two models' outputs, discrimination line | "This is a real exam the enclave sealed then revealed on purpose: qwen-3b scored 7 of 32, the 1.5b scored 2 — and the matrix shows exactly which five items separate them. Every hash on this table was recomputed live." |
-| 2:10 | Close | leaderboard + grant trail | "A benchmark nobody can read, scored by nobody in particular — and a market that settles itself." |
+| 2:10 | The attack | forgery lab: press "forge a +1 score" — the mutated leaderboard card dies at the *aggregates* check, live | "Don't take our word for the checks — run the attack. Seven forgeries, seven named catches." |
+| 2:20 | The one hash | `chain fingerprint` → `BUNDLE ROOT`, then the devnet anchor receipt | "The whole evidence base — every bank, run, settlement, artifact — is one sha256, and that root is timestamped on Solana devnet. Change one byte of our evidence and the hash breaks." |
+| 2:30 | Close | leaderboard + grant trail | "A benchmark nobody can read, scored by nobody in particular — and a market that settles itself." |
 
 ## Cut points if you only have 60s
 
