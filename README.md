@@ -71,6 +71,17 @@ Prediction markets on AI progress settle against leaderboards run by single comp
 | Runs are commitments | A run commits to the Merkle root of all its output hashes before any chunk is scored, and every scored chunk's hashes are permanently in the transaction record. A bad run cannot be retracted. |
 | Per-item results stay hidden | Only aggregate counts leave the circuit, so a run cannot be used to leak the answer to a specific item. |
 
+## This is not another leaderboard
+
+Every existing eval surface asks you to trust *someone*. Sealed asks you to recompute:
+
+| | Who holds the answer key | Who writes the score | Who settles the market | How you check it |
+|---|---|---|---|---|
+| Lab-reported numbers | The lab | The lab | — | You don't |
+| Public leaderboards (HELM, Chatbot Arena) | The operator | The operator's pipeline | — | Trust the operator's rerun policy |
+| Prediction markets on evals (Kalshi/Poly-style) | The platform | The platform's resolver | A referee's judgement call | Appeal to the referee |
+| **Sealed** | **Nobody** — answers are computed inside MPC; generated exams never have one | **The MPC cluster** writes `Run.correct` via callback | **The same account** — venues read `Run.correct` directly; no referee exists to overrule | **`python3 scripts/verify.py`** — re-hash the evidence, recompute the bundle root, re-derive the PDAs |
+
 ## Architecture
 
 ```mermaid
