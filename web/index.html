@@ -92,7 +92,7 @@
     <button onclick="quickForge()">② watch a forgery die</button>
     <button onclick="quickReplay()">③ replay all 138 proofs</button>
     <button onclick="megaAudit()" style="border-color:var(--acc)">④ PROVE EVERYTHING</button>
-    <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — twenty-two captioned stops</span>
+    <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — twenty-four captioned stops</span>
     <div id="megares" style="margin-top:8px"></div>
   </div>
 </div>
@@ -3949,13 +3949,15 @@ const TOUR_STOPS = [
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
-  ["sec-artifact", "verify anything — then 'replay the whole bundle': 123 committed artifacts"],
+  ["sec-artifact", "verify anything — then 'replay the whole bundle': 138 committed artifacts"],
   ["sec-catalog", "the evidence catalog — every artifact is a link you can forward; each re-verifies on open"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
+  ["sec-policy", "the referee — admission gates replay as portable certificates; every verdict re-derives from the receipts embedded in it"],
   ["sec-trail", "the money followed the MPC score — the custody trail, proven"],
   ["sec-digest", "the whole ledger as one document: every count and ledger row re-checked against the bytes you're looking at"],
   ["sec-boardcard", "the leaderboard itself is a portable artifact: ranking, receipts, and pairwise evidence replayed in one card"],
-  ["sec-bankcard", "the exam is evidence too: the items_root commitment re-folds from the chunk bytes — even the private bank proves its commitment without a key"],
+  ["sec-bankcard", "the exam is evidence too: the items_root commitment re-folds from the chunk bytes — even the private bank proves its commitment without a key (verify.py --decrypt reads the delegate's share in a third language)"],
+  ["sec-tampercard", "the committed lie exhibit — each forged artifact is a checkable counterexample: replay it and watch the inner card die at its named check"],
   ["sec-poscard", "the bettor's receipt — a position card proves the stake and the settlement, PDA seeds and all"],
   ["sec-bountycard", "the sponsor's certificate — a bounty card replays the whole qualifies gate, pot included"],
   ["sec-grantcard", "the viewer's certificate — a grant card proves the questions moved, the answers never did"],
