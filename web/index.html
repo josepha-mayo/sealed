@@ -3280,6 +3280,13 @@ async function maybeAudit() {
       }
     } catch { /* unreachable card — the link is stale, not broken crypto */ }
   }
+  // ?forge=<attack> — a shareable "watch it fail" link: auto-run the named
+  // lab attack and land on FORGERY CAUGHT. The demo IS the URL.
+  const forgeParam = new URLSearchParams(location.search).get("forge");
+  if (forgeParam && FORGE_DEFS[forgeParam]) {
+    await forge(forgeParam);
+    document.getElementById("sec-forge")?.scrollIntoView?.({ block: "start" });
+  }
 }
 
 // The explorer demos itself — the in-page mirror of `chain tour`: an

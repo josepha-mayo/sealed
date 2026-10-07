@@ -354,6 +354,17 @@ if (!statOk) fails++;
   console.log(`in-page evidence catalog — ${catLinks} ?card= links across 8 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
 }
+// the ?forge= deep link — a URL that runs the attack itself.
+{
+  ctx.location.search = "?forge=phanrun";
+  await vm.runInContext("window.__auditKey=''; maybeAudit()", ctx);
+  await new Promise((r) => setTimeout(r, 500));
+  const fr = await vm.runInContext("__forgeOut['phanrun']", ctx);
+  const forgeLinkOk = fr?.state === "caught" && /run surface/.test(fr.check ?? "");
+  console.log(`in-page ?forge= deep link — attack ran and died at a named check ${forgeLinkOk ? "PASS" : "FAIL"}`);
+  if (!forgeLinkOk) fails++;
+  ctx.location.search = "?snapshot=bundled";
+}
 // guided tour — the bar opens on the first stop with its caption, and
 // next() advances through the section walk.
 vm.runInContext("startTour()", ctx);
