@@ -111,7 +111,9 @@ deadline.
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
-  auto-walk through sixteen sections, ending on the leaderboard card —
-  even the ranking is a replayable artifact.
+  auto-walk through seventeen sections, ending on the forgery lab —
+  "try to break it": seven canned attacks (forge a score, swap a rank,
+  un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
+  a pool, re-age the ledger) each die at a named check in-browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256."

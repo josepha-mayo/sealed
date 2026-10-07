@@ -249,6 +249,15 @@ const boardTamperTxt = (els.get("boardres")?.innerHTML ?? "").replace(/<[^>]+>/g
 const boardTamperOk = /BOARD FAILED/.test(boardTamperTxt);
 console.log(`in-page board tamper case — swapped rank rejected ${boardTamperOk ? "PASS" : "MISSED FAIL"}`);
 if (!boardTamperOk) fails++;
+// the forgery lab — every canned attack must die at a named check.
+for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts"]) {
+  await vm.runInContext(`forge(${JSON.stringify(k)})`, ctx);
+  await new Promise((r) => setTimeout(r, 400));
+  const r = await vm.runInContext(`__forgeOut[${JSON.stringify(k)}]`, ctx);
+  const ok = r?.state === "caught" && typeof r.check === "string" && r.check.length > 0;
+  console.log(`forgery lab — ${k}: ${ok ? `caught by "${r.check}" PASS` : `NOT CAUGHT (${r?.state ?? "no state"}) FAIL`}`);
+  if (!ok) fails++;
+}
 // the bundle replay: every committed artifact through its own verifier —
 // the in-page mirror of `chain artifact docs/evidence --recursive`.
 await vm.runInContext("replayBundle()", ctx);
@@ -280,7 +289,7 @@ const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/16/.test(tourStep2) &&
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/17/.test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;

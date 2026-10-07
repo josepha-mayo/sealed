@@ -119,6 +119,14 @@ parimutuel markets resolved from `Run.correct`.
   bank / status / min-% / attested / post-reveal filters, score-first
   sort) and `#sec-grants` mirrors `chain grants` (the 145-grant
   disclosure trail — bank · chunk.part · viewer · shared-at).
+  `#sec-forge` is the forgery lab — seven canned attacks (mutated
+  score / swapped rank / un-vouched receipt / flipped verdict /
+  phantom receipt / inflated pool / re-aged ledger counts) run through
+  the real in-page verifiers; each must die at a named check and the
+  headless audit pins all seven. The audit DOM stub has no
+  `querySelectorAll`/`dataset`/`style` — extract check names from
+  `innerHTML` by regex and keep element stubs in
+  `scripts/audit-browser-test.mjs` in sync when adding page features.
 - Pure logic lives in `board.ts` (keeper classification mirroring the
   on-chain still_moving/proven/bounty_qualifies gates) and `gate.ts`
   (policy eval, Wilson LCB, exit 0/1/2) — the same code runs live and

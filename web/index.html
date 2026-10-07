@@ -78,7 +78,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -187,6 +187,21 @@
   <div><textarea id="boardjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-board/v1",…}'></textarea></div>
   <button onclick="verifyBoard()">verify board</button>
   <div id="boardres"></div>
+</div>
+
+<h2 id="sec-forge">the forgery lab — try to break it</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">don&#8217;t take the checks on faith — <b>run the attack</b>. Each button mutates a committed artifact the way a cheater would, then hands the forged card straight to the same in-page verifier. Every forgery must die at a named check; if one ever says VERIFIED, the artifact scheme is broken. The full check list renders in the target section below the verdict.</div>
+  <div>
+    <button onclick="forge('score')">forge a +1 score</button>
+    <button onclick="forge('rank')">swap the #1 rank</button>
+    <button onclick="forge('vouch')">un-vouch an attested receipt</button>
+    <button onclick="forge('verdict')">flip a head-to-head verdict</button>
+    <button onclick="forge('phantom')">mint a phantom receipt</button>
+    <button onclick="forge('pool')">inflate a settled pool</button>
+    <button onclick="forge('counts')">re-age the ledger</button>
+  </div>
+  <div id="forgeres"></div>
 </div>
 <div id="tourbar" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--card);border-top:1px solid var(--acc);padding:10px 16px;font-size:13px">
   <span id="tourcap" class="kv"></span>
@@ -2819,6 +2834,57 @@ async function verifyBoard() {
   }
 }
 
+// the forgery lab — each attack mutates a committed artifact the way a
+// cheater would, then runs it through the same in-page verifier. The
+// output names the check that caught it; a forgery surviving would
+// mean the artifact scheme is broken.
+const FORGE_DEFS = {
+  score:   { label: "forge a +1 score", file: "board.json", ta: "boardjson", res: "boardres", sec: "sec-boardcard", verify: verifyBoard,
+             mutate: (c) => { c.models[0].receipts[0].correct += 1; return c; } },
+  rank:    { label: "swap the #1 rank", file: "board.json", ta: "boardjson", res: "boardres", sec: "sec-boardcard", verify: verifyBoard,
+             mutate: (c) => { const t = c.ranking[0]; c.ranking[0] = c.ranking[1]; c.ranking[1] = t; return c; } },
+  vouch:   { label: "un-vouch an attested receipt", file: "board.json", ta: "boardjson", res: "boardres", sec: "sec-boardcard", verify: verifyBoard,
+             mutate: (c) => { const l = c.models.flatMap((m) => m.receipts).find((x) => x.vouched === 1); l.vouched = 0; return c; } },
+  verdict: { label: "flip a head-to-head verdict", file: "matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json", ta: "matchjson", res: "matchres", sec: "sec-match", verify: verifyMatch,
+             mutate: (c) => { c.verdict.winner = c.verdict.winner === "a" ? "b" : "a"; return c; } },
+  phantom: { label: "mint a phantom receipt", file: "claims/qwen2.5-3b-instruct.json", ta: "claimjson", res: "claimres", sec: "sec-claim", verify: verifyClaim,
+             mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0]));
+               r.pk = r.pk.slice(0, -1) + (r.pk.endsWith("x") ? "y" : "x"); c.receipts.push(r); return c; } },
+  pool:    { label: "inflate a settled pool", file: "trails/qwen3b-ladder-deadheat.json", ta: "trailjson", res: "trailres", sec: "sec-trail", verify: verifyTrail,
+             mutate: (c) => { c.venues[0].poolTotal += 1; return c; } },
+  counts:  { label: "re-age the ledger", file: "digest.json", ta: "digestjson", res: "digestres", sec: "sec-digest", verify: verifyDigest,
+             mutate: (c) => { c.counts.runs = 9999; return c; } },
+};
+const __forgeOut = {};
+async function forge(k) {
+  const d = FORGE_DEFS[k], out = document.getElementById("forgeres");
+  __forgeOut[k] = { label: d.label, sec: d.sec, state: "running…" };
+  renderForge();
+  try {
+    const c = JSON.parse(await (await fetch(d.file)).text());
+    document.getElementById(d.ta).value = JSON.stringify(d.mutate(c));
+    await d.verify();
+    const m = (document.getElementById(d.res).innerHTML ?? "")
+      .match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
+    __forgeOut[k] = m
+      ? { label: d.label, sec: d.sec, state: "caught", check: m[1].trim() }
+      : { label: d.label, sec: d.sec, state: "NOT CAUGHT — verifier accepted the forgery" };
+  } catch (e) {
+    __forgeOut[k] = { label: d.label, sec: d.sec, state: `error — ${esc(e.message ?? String(e))}` };
+  }
+  renderForge();
+}
+function renderForge() {
+  document.getElementById("forgeres").innerHTML = Object.entries(__forgeOut).map(([k, r]) => {
+    const pill = r.state === "caught" ? `<span class="pill cancelled">FORGERY CAUGHT</span>`
+      : r.state === "running…" ? `<span class="pill open">RUNNING</span>`
+      : r.state.startsWith("NOT CAUGHT") ? `<span class="pill resolved" style="background:var(--err)">${r.state}</span>`
+      : `<span class="pill cancelled">${r.state}</span>`;
+    return `<div class="proof">${pill} <a href="#${r.sec}">${r.label}</a>` +
+      (r.check ? ` — <span class="kv">caught by the <b>${esc(r.check)}</b> check <a href="#${r.sec}">(full list ↓)</a></span>` : "") + `</div>`;
+  }).join("");
+}
+
 async function verify() {
   const res = document.getElementById("vres");
   try {
@@ -2942,7 +3008,8 @@ const TOUR_STOPS = [
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-trail", "the money followed the MPC score — the custody trail, proven"],
   ["sec-digest", "the whole ledger as one document: every count and ledger row re-checked against the bytes you're looking at"],
-  ["sec-boardcard", "and the closer — the leaderboard itself is a portable artifact: ranking, receipts, and pairwise evidence replayed in one card"],
+  ["sec-boardcard", "the leaderboard itself is a portable artifact: ranking, receipts, and pairwise evidence replayed in one card"],
+  ["sec-forge", "finally — don't trust the checks, run the attack: every forgery dies at a named check"],
 ];
 let __tourIx = -1, __tourTimer = 0;
 function startTour() {

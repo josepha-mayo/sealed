@@ -59,7 +59,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #    minted specs, scores, resolved markets
 #   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
-#   demos itself: an auto-walk through all sixteen sections with one-line
+#   demos itself: an auto-walk through all seventeen sections with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   On the hosted page, in order:
 #     - hero strip: MPC ciphertext → proven score, one glance
@@ -283,6 +283,16 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #           "replay the whole bundle" button is the recursive
 #           verifier in-browser: all 117 committed artifacts
 #           through their own check lists, live progress
+
+# 2n. THE FORGERY LAB — don't trust the checks, run the attack. The
+#     explorer's "forgery lab" section hands you seven canned attacks:
+#     forge a +1 score, swap the #1 rank, un-vouch an attested receipt,
+#     flip a head-to-head verdict, mint a phantom receipt, inflate a
+#     settled pool, re-age the ledger. Each mutates a committed artifact
+#     and hands it to the same in-page verifier — every forgery dies at
+#     a named check (aggregates · ranking · snapshot binding · verdict
+#     replay · receipt PDAs · pool accounting · counts). The headless
+#     audit pins all seven.
 
 # 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
 #     pinned file and prints BUNDLE ROOT: a single sha256 covering

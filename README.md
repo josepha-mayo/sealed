@@ -29,12 +29,14 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 > yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
 >   --snapshot ../../web/snapshot.json
 >                                  # THE one command — all 117 committed artifacts
->                                  # (claims, matches, policies, trails, reports)
->                                  # replayed keyless; non-artifacts skipped
+>                                  # (claims, matches, policies, trails, reports,
+>                                  # digest, board) replayed keyless; non-artifacts skipped
 > yarn --cwd packages/harness cli chain fingerprint
 >                                  # THE one hash — every manifest-pinned byte
 >                                  # re-checked → a single BUNDLE ROOT
 > ```
+>
+> **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) replays all of it in-browser, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check.
 >
 > The second command is the one nobody else ships: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **bit-identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
 
