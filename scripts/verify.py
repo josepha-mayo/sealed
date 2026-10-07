@@ -26,8 +26,14 @@ Checks:
   7. grant PDAs re-derive from [grant, bank, chunk_u16le, part_u8,
      viewer32] @ the sealed program — a fourth seed shape, and the
      viewer seed is raw x25519 bytes, not an ed25519 pubkey.
+  8. account binding in Python too — the snapshot's raw account bytes
+     are struct-unpacked HERE (discriminator + Bounty/ShareGrant/
+     Position layouts), and every card field is compared against the
+     bytes, not against TypeScript's decode. A decoder bug in
+     snapshot.ts can no longer launder a forged card.
 """
 
+import base64
 import hashlib
 import json
 import struct
@@ -126,6 +132,8 @@ def manifest_root(manifest_path):
 
 def main():
     ok = True
+    global SNAP
+    SNAP = json.loads((ROOT / "web" / "snapshot.json").read_text())
 
     print("sealed-fingerprint/v1 — Python re-verification (zero deps)")
     sums = ROOT / "docs" / "evidence" / "SHA256SUMS"
@@ -190,6 +198,27 @@ def main():
             ok &= check(f"{card_path.name}: venue PDA ({v['kind']})",
                         vd is not None and b58encode_check(vd, v["pk"]))
 
+        # account binding — decode the account bytes HERE and compare.
+        msec = SNAP["market"]
+        if card["position"]["account"] == "dark":
+            raw = find_account(msec, card["position"]["pk"], DISC["darkPosition"])
+            dec = decode_dark_position(raw) if raw else None
+            ok &= check(f"{card_path.name}: account binding",
+                        dec is not None and dec["market"] == card["position"]["seeds"]["venue"]
+                        and dec["bettor"] == card["position"]["seeds"]["bettor"]
+                        and str(dec["amount"]) == str(card["stake"]["amount"])
+                        and dec["commitment"] == card["stake"]["commitment"]
+                        and dec["revealed"] == card["stake"]["revealed"],
+                        "dark position fields unpacked from account bytes")
+        else:
+            raw = find_account(msec, card["position"]["pk"], DISC["position"])
+            dec = decode_position(raw) if raw else None
+            ok &= check(f"{card_path.name}: account binding",
+                        dec is not None and dec["market"] == card["position"]["seeds"]["venue"]
+                        and dec["bettor"] == card["position"]["seeds"]["bettor"]
+                        and dec["amounts"] == [int(x) for x in card["stake"]["amounts"]],
+                        "stake amounts unpacked from account bytes")
+
     for card_path in sorted((ROOT / "docs" / "evidence" / "bounties").glob("*.json")):
         if card_path.name == "index.json":
             continue
@@ -206,6 +235,25 @@ def main():
         ok &= check(f"{card_path.name}: bounty PDA",
                     derived is not None and b58encode_check(derived, card["bounty"]["pk"]),
                     "re-derived [bounty, bank, sponsor, salt], off-curve as required")
+        raw = find_account(SNAP["market"], card["bounty"]["pk"], DISC["bounty"])
+        dec = decode_bounty(raw) if raw else None
+        if dec is not None:
+            winner_ok = (card["bounty"]["status"] != 1) or (
+                dec["winnerRun"] == card["bounty"]["winnerRun"]
+                and dec["winningScore"] == card["bounty"]["winningScore"])
+            ok &= check(f"{card_path.name}: account binding",
+                        dec["sponsor"] == card["bounty"]["seeds"]["sponsor"]
+                        and dec["bank"] == card["bounty"]["seeds"]["bank"]
+                        and str(dec["salt"]) == str(card["bounty"]["seeds"]["salt"])
+                        and dec["status"] == card["bounty"]["status"]
+                        and dec["threshold"] == card["bounty"]["threshold"]
+                        and str(dec["amount"]) == str(card["bounty"]["amount"])
+                        and dec["createdAt"] == int(card["bounty"]["createdAt"])
+                        and dec["deadline"] == int(card["bounty"]["deadline"])
+                        and winner_ok,
+                        "sponsor · bank · salt · status · threshold · amount · deadline · winner")
+        else:
+            ok &= check(f"{card_path.name}: account binding", False, "bounty not found in snapshot")
 
     for card_path in sorted((ROOT / "docs" / "evidence" / "grants").glob("*.json")):
         if card_path.name == "index.json":
@@ -227,6 +275,18 @@ def main():
         ok &= check(f"{card_path.name}: key echo",
                     card["grant"]["encryptionKey"] == card["grant"]["viewer"],
                     "encryption_key == viewer — the MPC bound output to the requested key")
+        raw = find_account(SNAP["sealed"], card["grant"]["pk"], DISC["shareGrant"])
+        dec = decode_share_grant(raw) if raw else None
+        ok &= check(f"{card_path.name}: account binding",
+                    dec is not None and dec["benchmark"] == card["grant"]["benchmark"]
+                    and dec["chunkIndex"] == card["grant"]["chunkIndex"]
+                    and dec["part"] == card["grant"]["part"]
+                    and dec["viewer"] == card["grant"]["viewer"]
+                    and dec["encryptionKey"] == card["grant"]["encryptionKey"]
+                    and str(dec["nonce"]) == str(card["grant"]["nonce"])
+                    and dec["ciphertexts"] == card["grant"]["ciphertexts"]
+                    and dec["sharedAt"] == int(card["grant"]["sharedAt"]),
+                    "all eight ShareGrant fields unpacked from account bytes")
 
     print(f"\n{'ALL VERIFIED' if ok else 'FAILED'} — independent Python replay "
           f"agrees on BUNDLE ROOT {root[:16]}…" if ok else "\nFAILED")
@@ -241,6 +301,87 @@ def b58encode_check(digest: bytes, want_b58: str) -> bool:
         out = B58[r] + out
     pad = len(digest) - len(digest.lstrip(b"\x00"))
     return "1" * pad + out == want_b58
+
+
+def b58encode(raw: bytes) -> str:
+    n = int.from_bytes(raw, "big")
+    out = ""
+    while n:
+        n, r = divmod(n, 58)
+        out = B58[r] + out
+    pad = len(raw) - len(raw.lstrip(b"\x00"))
+    return "1" * pad + out
+
+
+# --- independent account decoders -----------------------------------------
+# The snapshot is raw {pubkey, data-b64}. These unpack Anchor layouts the
+# same way the on-chain program does — a bug in snapshot.ts's decoder would
+# show up here as a field mismatch, not propagate into a forged card.
+DISC = {
+    "bounty": bytes.fromhex("ed1069c61345f2ea"),
+    "shareGrant": bytes.fromhex("a47067c1839cb4c0"),
+    "position": bytes.fromhex("aabc8fe47a40f7d0"),
+    "darkPosition": bytes.fromhex("d8c18faeae9d7715"),
+}
+
+
+def find_account(section, pubkey, disc):
+    for a in section:
+        if a["pubkey"] != pubkey:
+            continue
+        d = base64.b64decode(a["data"])
+        if d[:8] == disc:
+            return d
+    return None
+
+
+def decode_bounty(d):
+    # disc8 sponsor32 bank32 salt u64 bump status threshold u32
+    # amount u64 winnerRun32 winningScore u32 createdAt i64 deadline i64
+    return {
+        "sponsor": b58encode(d[8:40]), "bank": b58encode(d[40:72]),
+        "salt": int.from_bytes(d[72:80], "little"),
+        "status": d[81],
+        "threshold": int.from_bytes(d[82:86], "little"),
+        "amount": int.from_bytes(d[86:94], "little"),
+        "winnerRun": b58encode(d[94:126]),
+        "winningScore": int.from_bytes(d[126:130], "little"),
+        "createdAt": int.from_bytes(d[130:138], "little", signed=True),
+        "deadline": int.from_bytes(d[138:146], "little", signed=True),
+    }
+
+
+def decode_share_grant(d):
+    # disc8 benchmark32 chunk u16 part u8 bump viewer32 encKey32
+    # nonce u128 ciphertexts64 sharedAt i64
+    return {
+        "benchmark": b58encode(d[8:40]),
+        "chunkIndex": int.from_bytes(d[40:42], "little"),
+        "part": d[42],
+        "viewer": b58encode(d[44:76]),
+        "encryptionKey": b58encode(d[76:108]),
+        "nonce": int.from_bytes(d[108:124], "little"),
+        "ciphertexts": [b58encode(d[124:156]), b58encode(d[156:188])],
+        "sharedAt": int.from_bytes(d[188:196], "little", signed=True),
+    }
+
+
+def decode_position(d):
+    # disc8 market32 bettor32 bump amounts u64[8]
+    return {
+        "market": b58encode(d[8:40]), "bettor": b58encode(d[40:72]),
+        "amounts": [int.from_bytes(d[73 + 8 * i:81 + 8 * i], "little") for i in range(8)],
+    }
+
+
+def decode_dark_position(d):
+    # disc8 market32 bettor32 bump amount u64 commitment32 revealed u8
+    return {
+        "market": b58encode(d[8:40]), "bettor": b58encode(d[40:72]),
+        "amount": int.from_bytes(d[73:81], "little"),
+        "commitment": d[81:113].hex(),
+        "revealed": d[113],
+    }
 
 
 if __name__ == "__main__":

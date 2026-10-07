@@ -390,14 +390,17 @@ yarn --cwd packages/harness cli chain fingerprint \
 #           after notarization — we re-anchor at freeze)
 
 # 3o. THE SECOND-LANGUAGE VERDICT — don't trust our TypeScript? Re-run
-#     the whole integrity chain in ~150 lines of stdlib-only Python:
+#     the whole integrity chain in ~330 lines of stdlib-only Python:
 #     re-hash both manifests, recompute the BUNDLE ROOT, match the
-#     devnet anchor doc, AND re-derive the position/venue PDAs with
-#     real ed25519 curve math (bump iteration + off-curve rejection).
+#     devnet anchor doc, re-derive the position/venue/bounty/grant PDAs
+#     with real ed25519 curve math (bump iteration + off-curve
+#     rejection) — and it unpacks the raw account bytes itself
+#     (Bounty / ShareGrant / Position / DarkPosition layouts), so the
+#     field binding is checked against the bytes, not our decoder.
 python3 scripts/verify.py
-#         → BUNDLE ROOT c6d0d93e… (same as the TypeScript — or the
-#           bundle is dirty) · both position cards' PDAs re-derived
-#           PASS · anchor doc carries this root PASS
+#         → BUNDLE ROOT be4087dc… (same as the TypeScript — or the
+#           bundle is dirty) · all six committed cards' PDAs +
+#           account fields verified in Python · anchor carries root PASS
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     5.8MB file: the page, the snapshot, all 125 artifacts, both

@@ -41,9 +41,12 @@ parimutuel markets resolved from `Run.correct`.
 - `python3 scripts/verify.py` → the SECOND-LANGUAGE verdict: stdlib-only
   Python re-hashes both manifests, recomputes BUNDLE ROOT (same recipe
   as `chain fingerprint`), matches it against docs/evidence-anchor.json,
-  and re-derives the committed position/venue PDAs with real ed25519
-  curve math (bump iteration + RFC8032 off-curve rejection). No node,
-  no pip, no RPC — proof the evidence is language-agnostic.
+  re-derives the committed position/venue/bounty/grant PDAs with real
+  ed25519 curve math (bump iteration + RFC8032 off-curve rejection),
+  AND struct-unpacks the raw account bytes itself (Bounty / ShareGrant /
+  Position / DarkPosition) — the field binding is checked against the
+  bytes, so a decoder bug in snapshot.ts can't launder a forged card.
+  No node, no pip, no RPC — proof the evidence is language-agnostic.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.

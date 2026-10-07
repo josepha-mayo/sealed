@@ -139,6 +139,12 @@ deadline.
 - 10s: the table of contents is evidence too — `artifacts.json` is a
   `sealed-catalog/v1` card; `chain catalog --check` proves the index
   lists EVERY artifact (completeness vs a fresh scan + sha256 pinning),
-  so the 124-card set can't be silently edited down.
+  so the 126-card set can't be silently edited down.
+- 10s: don't trust our TypeScript? `python3 scripts/verify.py` is a
+  second implementation — stdlib-only Python that re-hashes both
+  manifests, recomputes the same BUNDLE ROOT, matches the devnet
+  anchor, re-derives four seed shapes of PDA with real ed25519
+  off-curve math, and struct-unpacks the account bytes itself — a
+  decoder bug on our side can't launder a forged card.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256 — timestamped on Solana itself."
