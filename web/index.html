@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A benchmark whose answer key was never written down, scored by nobody in particular — MPC-generated exams, on-chain score receipts, and prediction markets that settle without a referee. Replay the whole evidence base keyless.">
+<meta property="og:title" content="Sealed — the leaderboard you don't have to trust">
+<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 117 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://josepha-mayo.github.io/sealed/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Sealed — benchmark truth without a referee">
+<meta name="twitter:description" content="A benchmark whose answer key was never written down, scored by nobody in particular. Solana + Arcium MPC. Replay the evidence in-browser.">
 <title>Sealed — benchmark oracle &amp; markets</title>
 <script src="https://unpkg.com/@solana/web3.js@1.95.8/lib/index.iife.min.js"></script>
 <script type="importmap">
@@ -3441,6 +3449,18 @@ async function runAudit(force) {
         const evRoot = hex(await sha(utf8(await (await fetch("SHA256SUMS")).text())));
         const root = hex(await sha(utf8(`sealed-fingerprint/v1\n${evRoot}\n${hex(await sha(utf8(mf)))}\n`)));
         rows.push(`<div class="proof"><span class="kv">bundle root <code>${root}</code> — one sha256 for the whole evidence base; <code>chain fingerprint</code> prints the same hash</span></div>`);
+        // ?root=<sha256> — the URL carries the claim: whoever shared the
+        // link asserts the bundle root; the page recomputes it over the
+        // bytes it was actually served and renders the verdict. A link
+        // that disagrees is a dirty bundle, not a stale doc.
+        const claimed = new URLSearchParams(location.search).get("root");
+        if (claimed) {
+          rows.push(/^([0-9a-f]{64})$/.test(claimed) && claimed === root
+            ? `<div class="proof"><span class="pill resolved">LINK CLAIM VERIFIED</span> the shared URL asserted this exact bundle root — the bytes served recompute to it</div>`
+            : `<div class="proof"><span class="pill cancelled">LINK CLAIM FAILED</span> <span class="kv" style="color:var(--err)">the URL asserted <code>${esc(short(claimed))}</code> but the served bytes recompute to <code>${esc(short(root))}</code> — the bundle does not match what was shared</span></div>`);
+        }
+        const share = `${location.origin ?? ""}${location.pathname ?? ""}?root=${root}`;
+        rows.push(`<div class="proof"><span class="kv">shareable verdict — <a href="${share}">${esc(short(root))}</a> links assert the root; the page re-checks on open</span></div>`);
       } catch {}
     } catch (e) {
       skip("bundle integrity", "MANIFEST not reachable (serve the repo root or use the hosted explorer)");

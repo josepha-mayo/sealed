@@ -280,6 +280,23 @@ if (!bundleOk) fails++;
     new RegExp(`bundle root\\s+${want}`).test(auditTxt);
   console.log(`in-page bundle fingerprint — root ${want.slice(0, 16)}… ${fpOk ? "PASS" : "FAIL"}`);
   if (!fpOk) fails++;
+  // the ?root= link claim — the URL carries the asserted bundle root and
+  // the page re-checks it on load. Re-run the audit under a matching link
+  // (VERIFIED) and a forged one (FAILED).
+  ctx.location.search = `?root=${want}`;
+  await vm.runInContext("runAudit(true)", ctx);
+  await new Promise((r) => setTimeout(r, 400));
+  const okTxt = (els.get("auditres")?.innerHTML ?? "");
+  const linkOk = /LINK CLAIM VERIFIED/.test(okTxt) && !/LINK CLAIM FAILED/.test(okTxt);
+  ctx.location.search = `?root=${"0".repeat(64)}`;
+  await vm.runInContext("runAudit(true)", ctx);
+  await new Promise((r) => setTimeout(r, 400));
+  const badTxt = (els.get("auditres")?.innerHTML ?? "");
+  const linkBad = /LINK CLAIM FAILED/.test(badTxt) && !/LINK CLAIM VERIFIED/.test(badTxt);
+  ctx.location.search = "?snapshot=bundled";
+  await vm.runInContext("runAudit(true)", ctx);
+  console.log(`in-page link claims — ?root= match ${linkOk ? "VERIFIED" : "MISSED"} · forged root ${linkBad ? "rejected" : "MISSED"} ${linkOk && linkBad ? "PASS" : "FAIL"}`);
+  if (!(linkOk && linkBad)) fails++;
 }
 // guided tour — the bar opens on the first stop with its caption, and
 // next() advances through the section walk.
