@@ -43,6 +43,36 @@ nothing is a claim.
   to gross refunds instead of stranding the pot (`expire_dark`'s
   empty-pool fast-path rides the same rule).
 
+## Verifier-side findings (the audit auditing itself)
+
+The forgery lab isn't decorative — running it against real inputs found
+gaps in the verifiers, not just in the programs:
+
+- **The trail card was consistency-only.** `verifyTrail` re-derived PDAs
+  and replayed verdicts but never bound `run.correct` or the venue's
+  escrow fields to decoded account bytes — the CLI dir sweep caught a
+  forged bounty `amount` sailing through. Now every venue field binds to
+  the raw account bytes in the CLI, the browser, AND the Python verifier,
+  and the phantom `forfeitTotal` (a field that read a nonexistent account
+  member — always 0) became real: stake on unrevealed dark positions,
+  recomputed from DarkPosition bytes.
+- **The `?card=`/`?forge=` headless pins rode on stale state.** The audit
+  test reset `window.__auditKey` — but `__auditKey` is a module-level
+  `let`, so the reset was a no-op and `maybeAudit` early-returned; the
+  deep-link pins passed on leftover DOM without executing anything. The
+  deep links now run once when `__audit` first appears, and the pins
+  reset `__deepLinksDone` — they genuinely re-execute or they fail.
+- **The exhibit verifier asked its inner verifier for JSON.** Machines
+  parse JSON; the `died at:` extraction needed text-mode `FAIL <check>`
+  lines — so exhibits verified with an empty `died` list until the inner
+  call was forced to text output. A verdict isn't evidence if you can't
+  show the check that fired.
+- **The doc-freshness gate had blind spots in its own coverage.** It
+  pinned "503 runs"-style account phrasings but not bundle totals —
+  six stale artifact/file/stop counts survived in docs. The gate now
+  pins those too (a checker that can't see its own gaps gets strengthened,
+  not trusted harder).
+
 ## Operational war stories (the parts docs never show)
 
 - **Devnet write congestion + zombie buffers.** Every aborted
