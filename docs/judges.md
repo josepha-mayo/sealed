@@ -65,6 +65,9 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
 #   demos itself: an auto-walk through all twenty-two stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
+#   TERMINAL: bash scripts/judge-demo.sh — the 90-second keyless audit
+#   (verify.py → all 138 artifacts → forgery lab → tamper exhibits →
+#   fingerprint). docs/audit.gif is a real recording of it.
 #   On the hosted page, in order:
 #     - hero strip: MPC ciphertext → proven score, one glance
 #     - cryptographic audit panel: auto-runs — every account PDA re-derived,
