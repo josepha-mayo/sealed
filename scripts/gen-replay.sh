@@ -78,7 +78,7 @@ emit "bank --verify docs/evidence/banks/sealed-priv.json $SNAP   (the exam as a 
 emit "market position --verify docs/evidence/positions/winning-band.json $SNAP   (the bettor's receipt — payout recomputed)" "market position --verify ../../docs/evidence/positions/winning-band.json $SNAP"
 emit "market bounty card --verify docs/evidence/bounties/claimed-20of32.json $SNAP   (the sponsor's certificate — qualifies gate replayed)" "market bounty card --verify ../../docs/evidence/bounties/claimed-20of32.json $SNAP"
 emit "grant --verify docs/evidence/grants/sealed-priv-panel.json $SNAP   (the viewer's certificate — questions moved, answers never did)" "grant --verify ../../docs/evidence/grants/sealed-priv-panel.json $SNAP"
-emit "artifact docs/evidence --recursive $SNAP   (the one command — 127 artifacts)" "artifact ../../docs/evidence --recursive $SNAP"
+emit "artifact docs/evidence --recursive $SNAP   (the one command — 138 artifacts)" "artifact ../../docs/evidence --recursive $SNAP"
 emit "catalog --check   (the index proves itself complete)" "catalog --dir ../../docs/evidence --check"
 emit "diff web/snapshot.json web/snapshot.json   (integrity self-check)" "diff ../../web/snapshot.json ../../web/snapshot.json"
 {

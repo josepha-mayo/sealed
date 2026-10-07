@@ -379,22 +379,22 @@ market escrow — 76.0750◎ cumulative stakes tracked across 303 venues + 37 bo
 $ sealed chain market live --snapshot ../../web/snapshot.json   (head -14)
 open venues — 28 accepting positions, soonest-close first
   ladder  4gx1VhwgTK9b… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 23.9d · expires in 23.9d
+    book 0.600◎ · bets close in 23.7d · expires in 23.7d
     sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
   ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
-    book 0.300◎ · bets close in 24.3d · expires in 24.3d
+    book 0.300◎ · bets close in 24.1d · expires in 24.1d
     sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
   ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 24.3d · expires in 24.3d
+    book 0.600◎ · bets close in 24.1d · expires in 24.1d
     sealed chain market quote 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN <outcome> <lamports>
   duel    GL4yEgmZPa5k… duel/model-a vs duel/model-b — who scores higher?
-    book 0.550◎ · bets close — · expires in 24.0d
+    book 0.550◎ · bets close — · expires in 23.8d
     sealed chain market quote GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv <outcome> <lamports>
   band    32B8aRsiEjhV… test/market-run — which of 2 band(s)?
 
 $ sealed chain market bounties --snapshot ../../web/snapshot.json   (head -10)
 37 bounties — 1 open (0 claimable right now):
-  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 574h  best-on-bank=64 (predates bounty — retroactivity wall)
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 569h  best-on-bank=64 (predates bounty — retroactivity wall)
   3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
@@ -667,7 +667,7 @@ sealed-grant/v1 — sealed-priv-panel.json
   ✓ snapshot binding — sha256 ac4617590680c497…
 GRANT VERIFIED — sealed-priv part 3 → viewer QwS93ebpYTw7… · 2 viewer(s) saw this exam · the answers never moved
 
-$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 127 artifacts)
+$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 138 artifacts)
 scanning 166 candidate file(s) in ../../docs/evidence (recursive)
   SKIP acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json — not a sealed artifact
   SKIP acct-3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG.json — not a sealed artifact
@@ -852,7 +852,7 @@ fingerprint flagging THAT file mid-flight is the feature working.
 The committed copy passes (see scripts/verify-all.sh stage output).
 sealed-fingerprint/v1 — the whole evidence base as one hash
   snapshot.json     ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079
-  docs/evidence     470ac23a041425e02e482de506800b1b8f49c35f8f971b2ca0d900bae0aa6f57  (191 pinned file(s))
-  web bundle        f853bc99d0fefba2cad93b18f93008f995976afb0957de94f603d919b8623b47  (160 pinned file(s))
-  re-hash check     FAIL — 349/351 file(s) match · ../../docs/evidence/replay.txt, ../../web/index.html
-  BUNDLE ROOT       f86a34b2956f1dade5979cfc2957506ecfadc8b8f6f57b4bfab31a86f87d3951
+  docs/evidence     721152d97b546ca1e28363d1e185caf0988b073f7aa79294e10ad0ede3edb8bf  (191 pinned file(s))
+  web bundle        e7bf560e36bd57b530a438e86bb8311dc9f41862172fa4dd9b576dabe5162cb4  (160 pinned file(s))
+  re-hash check     FAIL — 350/351 file(s) match · ../../docs/evidence/replay.txt
+  BUNDLE ROOT       610d3a41b2743a93f5a265f98536eb02a3cfce99c91c76218c1e73a6ad78cf7a

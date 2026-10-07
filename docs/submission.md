@@ -241,7 +241,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   sweep rejected, edge bounds, double-attestation rejected, duel dead-run
   expiry bail, retired-bank mutation rejected. The suite salts bank ids per
   run so it's re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a
-  run). `yarn harness:test` — 17/17.
+  run). `yarn harness:test` — 67/67.
 
 ## Reproduce
 

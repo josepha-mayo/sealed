@@ -122,12 +122,12 @@ deadline.
   x25519 viewer key, `encryption_key == viewer` echo, and the panel
   tally re-derived: the questions moved, the answers never did).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
-  324 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 127 artifacts
+  351 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
+  explorer's "replay the whole bundle" button drives all 138 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
-  auto-walk through twenty-two sections, ending on the forgery lab —
+  auto-walk through twenty-four sections, ending on the forgery lab —
   "try to break it": twelve canned attacks (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
   a pool, re-age the ledger, plant a phantom run on an exam, erase an

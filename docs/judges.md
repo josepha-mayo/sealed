@@ -63,7 +63,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   account audit → all 138 artifacts through their verifiers → every
 #   forgery attack in the lab, landing "EVERYTHING VERIFIED" in ~5s.
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
-#   demos itself: an auto-walk through all twenty-two stops with one-line
+#   demos itself: an auto-walk through all twenty-four stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   TERMINAL: bash scripts/judge-demo.sh — the 90-second keyless audit
 #   (verify.py → all 138 artifacts → forgery lab → tamper exhibits →
