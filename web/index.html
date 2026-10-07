@@ -3777,6 +3777,9 @@ async function maybeAudit() {
     await forge(forgeParam);
     document.getElementById("sec-forge")?.scrollIntoView?.({ block: "start" });
   }
+  // ?mega=1 — the whole demo as a URL: audit + all 127 artifacts + every
+  // forgery attack, cascading to EVERYTHING VERIFIED while you watch.
+  if (new URLSearchParams(location.search).get("mega")) await megaAudit();
 }
 
 // The explorer demos itself — the in-page mirror of `chain tour`: an

@@ -58,8 +58,12 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
 #    minted specs, scores, resolved markets
 #   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
+#   ONE LINK, EVERY PROOF: https://josepha-mayo.github.io/sealed/?mega=1 —
+#   opens the page and runs the whole skeptic's suite while you watch:
+#   account audit → all 127 artifacts through their verifiers → every
+#   forgery attack in the lab, landing "EVERYTHING VERIFIED" in ~5s.
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
-#   demos itself: an auto-walk through all nineteen sections with one-line
+#   demos itself: an auto-walk through all twenty-two stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   On the hosted page, in order:
 #     - hero strip: MPC ciphertext → proven score, one glance
