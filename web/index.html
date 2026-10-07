@@ -86,7 +86,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-catalog">catalog</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -122,6 +122,12 @@
   <div class="kv" style="margin-top:10px">…or replay <b>every committed artifact</b> — the in-page mirror of <code>chain artifact docs/evidence --recursive</code>. Each file below runs through its own verifier above: every PDA re-derived, every verdict replayed, nothing trusted.</div>
   <button onclick="replayBundle()">replay the whole bundle</button>
   <div id="bundleres"></div>
+</div>
+
+<h2 id="sec-catalog">the evidence catalog</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">every committed artifact, browsable — eight kinds, each a shareable <code>?card=</code> link that re-verifies on open. This is the table of contents for the whole evidence base; nothing here is a screenshot.</div>
+  <div id="catalog"><div class="kv">loading indexes…</div></div>
 </div>
 
 <h2 id="sec-claim">verify a claim card</h2>
@@ -2408,6 +2414,44 @@ async function loadBankIndex() {
   } catch (e) { /* picker stays on the default option */ }
 }
 loadBankIndex();
+// the evidence catalog — every committed artifact as a browsable,
+// shareable link. The catalog IS the table of contents: each entry is a
+// ?card= deep link that fetches + routes + re-verifies on open.
+async function renderCatalog() {
+  const el = document.getElementById("catalog");
+  if (!el) return;
+  const GROUPS = [
+    ["claims", "sealed-claim/v1", "a model's whole evidentiary record"],
+    ["policies", "sealed-policy/v1", "a governance decision + its receipts"],
+    ["matches", "sealed-match/v1", "a portable head-to-head"],
+    ["trails", "sealed-trail/v1", "proof the money followed the MPC score"],
+    ["reports", "sealed-report/v1", "the printable dossier, hash-bound"],
+    ["banks", "sealed-bank/v1", "the exam itself — commitment re-folded"],
+  ];
+  const out = [];
+  let total = 0;
+  for (const [dir, kind, blurb] of GROUPS) {
+    try {
+      const files = await (await fetch(`${dir}/index.json`)).json();
+      total += files.length;
+      out.push(`<div style="margin-top:10px"><b>${esc(kind)}</b> <span class="kv">× ${files.length} — ${esc(blurb)}</span></div>`);
+      out.push(`<div class="kv" style="margin:4px 0 0 12px;line-height:1.9">` +
+        files.map(f => `<a href="?card=${encodeURIComponent(dir + "/" + f)}">${esc(f.replace(/\.(json|md)$/, ""))}</a>`).join(" · ") + `</div>`);
+    } catch { out.push(`<div class="kv">${dir}/index.json unreachable</div>`); }
+  }
+  for (const [f, kind, blurb] of [["digest.json", "sealed-evidence-digest/v1", "the whole ledger as one document"], ["board.json", "sealed-board/v1", "the leaderboard itself, replayed"]]) {
+    try {
+      const r = await fetch(f, { method: "HEAD" });
+      if (!r.ok) throw new Error("404");
+      total++;
+      out.push(`<div style="margin-top:10px"><b>${esc(kind)}</b> <span class="kv">× 1 — ${esc(blurb)}</span></div>` +
+        `<div class="kv" style="margin:4px 0 0 12px"><a href="?card=${f}">${esc(f)}</a></div>`);
+    } catch {}
+  }
+  out.unshift(`<div class="kv"><b>${total} artifacts</b> across ${GROUPS.length + 2} kinds — every link below re-verifies its card on open</div>`);
+  el.innerHTML = out.join("");
+}
+renderCatalog();
 // universal artifact router — mirrors `chain artifact <file>`: detect the
 // sealed-*/v1 kind, hand the payload to that kind's verifier + section.
 function verifyAnyArtifact() {
@@ -3254,6 +3298,7 @@ const TOUR_STOPS = [
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
   ["sec-artifact", "verify anything — then 'replay the whole bundle': 120 committed artifacts"],
+  ["sec-catalog", "the evidence catalog — every artifact is a link you can forward; each re-verifies on open"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-trail", "the money followed the MPC score — the custody trail, proven"],
   ["sec-digest", "the whole ledger as one document: every count and ledger row re-checked against the bytes you're looking at"],

@@ -346,6 +346,14 @@ if (!statOk) fails++;
   if (!cardOk) fails++;
   ctx.location.search = "?snapshot=bundled";
 }
+// the evidence catalog — all 120 artifacts listed as ?card= links.
+{
+  const catTxt = (els.get("catalog")?.innerHTML ?? "");
+  const catLinks = (catTxt.match(/\?card=/g) || []).length;
+  const catOk = /120 artifacts/.test(catTxt) && catLinks === 120 && /sealed-bank\/v1/.test(catTxt);
+  console.log(`in-page evidence catalog — ${catLinks} ?card= links across 8 kinds ${catOk ? "PASS" : "FAIL"}`);
+  if (!catOk) fails++;
+}
 // guided tour — the bar opens on the first stop with its caption, and
 // next() advances through the section walk.
 vm.runInContext("startTour()", ctx);
@@ -354,7 +362,7 @@ const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/18/.test(tourStep2) &&
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/19/.test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;

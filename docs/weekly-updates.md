@@ -115,7 +115,7 @@ deadline.
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
-  auto-walk through eighteen sections, ending on the forgery lab —
+  auto-walk through nineteen sections, ending on the forgery lab —
   "try to break it": eight canned attacks (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
   a pool, re-age the ledger) each die at a named check in-browser.
