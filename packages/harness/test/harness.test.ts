@@ -1398,6 +1398,51 @@ test("sealed-evidence-digest/v1 — the committed digest replays; a mutated coun
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("sealed-board/v1 — the leaderboard card replays end-to-end; a flipped rank or a mutated receipt fails", async () => {
+  const { boardProve, boardVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    // re-mint must reproduce the committed card byte-field-for-byte-field
+    const tmp = join(mkdtempSync(join(tmpdir(), "sealed-board-")), "b.json");
+    const fresh = (await boardProve(tmp, snapPath)) as any;
+    const committed = JSON.parse(readFileSync(new URL("../../../docs/evidence/board.json", import.meta.url).pathname, "utf8"));
+    assert.equal(JSON.stringify({ ...fresh, generatedAt: "", source: "" }),
+      JSON.stringify({ ...committed, generatedAt: "", source: "" }));
+    // verify the committed card — all checks including snapshot binding
+    const ok = (await boardVerify(tmp, false, snapPath)) as any;
+    assert.equal(ok.fail, 0);
+    assert.equal(ok.pass, 7);
+    // a mutated ranking LCB breaks the ranking check
+    const tampered = JSON.parse(readFileSync(tmp, "utf8"));
+    tampered.ranking[0].pairwise.lcb = 99.9;
+    const bad = join(mkdtempSync(join(tmpdir(), "sealed-boardb-")), "bad.json");
+    writeFileSync(bad, JSON.stringify(tampered));
+    process.exitCode = 0;
+    const r2 = (await boardVerify(bad, false, snapPath)) as any;
+    assert.equal(r2.fail > 0, true);
+    assert.equal(process.exitCode, 1);
+    process.exitCode = 0;
+    // a mutated receipt's score breaks BOTH aggregates and snapshot binding
+    const tampered2 = JSON.parse(readFileSync(tmp, "utf8"));
+    tampered2.models[0].receipts[0].correct += 1;
+    const bad2 = join(mkdtempSync(join(tmpdir(), "sealed-boardc-")), "bad.json");
+    writeFileSync(bad2, JSON.stringify(tampered2));
+    process.exitCode = 0;
+    const r3 = (await boardVerify(bad2, false, snapPath)) as any;
+    assert.equal(r3.fail > 0, true);
+    process.exitCode = 0;
+    // routes through the universal verifier too
+    const { artifactVerify } = await import("../src/chain.js");
+    const routed = (await artifactVerify(tmp, false, snapPath)) as any;
+    assert.equal(routed.fail, 0);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+
 test("sealed-fingerprint/v1 — the bundle root re-hashes every pinned file and breaks on a one-bit change", async () => {
   const { chainFingerprint } = await import("../src/chain.js");
   const { readFileSync, writeFileSync, mkdtempSync, mkdirSync } = await import("node:fs");

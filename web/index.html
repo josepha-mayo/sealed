@@ -78,7 +78,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -177,6 +177,16 @@
   <div><textarea id="digestjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-evidence-digest/v1",…}'></textarea></div>
   <button onclick="verifyDigest()">verify digest</button>
   <div id="digestres"></div>
+</div>
+
+<h2 id="sec-boardcard">verify the leaderboard card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the flagship claim, checkable — a <code>sealed-board/v1</code> card (<code>chain board --prove</code> mints it) binds the whole paired-evidence leaderboard to the receipts it&#8217;s computed from. Every record and receipt PDA re-derives in-page, every aggregate replays, the shared-bank join and Wilson ordering re-derive the printed ranks — and each embedded receipt field-compares against the decoded ScoreLog account. A leaderboard you don&#8217;t have to trust. Same checks as <code>chain board --verify</code>.</div>
+  <button onclick="loadBoard()">load committed board</button>
+  <span class="kv">sha256-pinned in this bundle&#8217;s MANIFEST</span>
+  <div><textarea id="boardjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-board/v1",…}'></textarea></div>
+  <button onclick="verifyBoard()">verify board</button>
+  <div id="boardres"></div>
 </div>
 <div id="tourbar" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--card);border-top:1px solid var(--acc);padding:10px 16px;font-size:13px">
   <span id="tourcap" class="kv"></span>
@@ -2353,9 +2363,10 @@ function verifyAnyArtifact() {
       "sealed-trail/v1": ["trailjson", "sec-trail", verifyTrail],
       "sealed-report/v1": ["reportjson", "sec-report", verifyReport],
       "sealed-evidence-digest/v1": ["digestjson", "sec-digest", verifyDigest],
+      "sealed-board/v1": ["boardjson", "sec-boardcard", verifyBoard],
     };
     const r = kind ? ROUTE[kind] : null;
-    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/v1)`; return; }
+    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/v1)`; return; }
     document.getElementById(r[0]).value = raw;
     note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below`;
     document.getElementById(r[1]).scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2431,6 +2442,22 @@ async function replayBundle() {
       else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> digest.json — ${fails || "verdict"} failed check(s)</div>`);
     } catch (e) {
       rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> digest.json — ${esc(e.message ?? String(e))}</div>`);
+    }
+    try {
+      total++;
+      const br = await fetch("board.json");
+      if (!br.ok) throw new Error(`HTTP ${br.status}`);
+      const ta = document.getElementById("boardjson"), sub = document.getElementById("boardres");
+      saved.set("boardjson", { value: ta.value }); saved.set("boardres", { html: sub.innerHTML });
+      ta.value = await br.text();
+      await verifyBoard();
+      const html = sub.innerHTML;
+      const fails = (html.match(/pill cancelled/g) || []).length;
+      checks += fails + (html.match(/pill resolved/g) || []).length;
+      if (fails === 0 && html.includes("VERIFIED")) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-board/v1 — 1/1 artifact(s) replayed</div>`); }
+      else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> board.json — ${fails || "verdict"} failed check(s)</div>`);
+    } catch (e) {
+      rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> board.json — ${esc(e.message ?? String(e))}</div>`);
     }
     // bundle root — the same recipe `chain fingerprint` prints: sha256 over
     // the evidence manifest (served pinned as SHA256SUMS) + the web MANIFEST.
@@ -2659,6 +2686,139 @@ async function verifyDigest() {
   }
 }
 
+async function loadBoard() {
+  const ta = document.getElementById("boardjson");
+  try {
+    const r = await fetch("board.json");
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text();
+  } catch (e) { ta.value = ""; document.getElementById("boardres").innerHTML = `<div class="kv">committed board not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+// sealed-board/v1 verifier — mirrors `chain board --verify`: record PDAs
+// re-derive from modelId hashes, receipt PDAs re-derive from run keys,
+// aggregates replay from embedded receipts, the shared-bank join and
+// Wilson ordering re-derive the printed ranking, and every receipt
+// field-compares against the decoded ScoreLog + Run accounts.
+async function verifyBoard() {
+  const res = document.getElementById("boardres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("boardjson").value);
+    if (c.kind !== "sealed-board/v1") throw new Error(`not a sealed-board/v1 card (kind=${c.kind ?? "?"})`);
+    const A = window.__audit;
+    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
+    const wilsonLcb = (w, n, z = 1.96) => n <= 0 ? 0 :
+      100 * ((w / n + z * z / (2 * n)) - z * Math.sqrt((w / n * (1 - w / n) + z * z / (4 * n)) / n)) / (1 + z * z / n);
+    // [1] record identity — PDA re-derives from sha256(modelId), and the
+    // declared modelHash is that hash.
+    let idBad = 0;
+    for (const m of c.models) {
+      const mh = hex(await sha(utf8(m.modelId)));
+      if (mh !== m.record.modelHash || pdaB([utf8("modelrec"), unhex(mh)], spid) !== m.recordPk) idBad++;
+    }
+    idBad === 0 ? pass("record identity", `${c.models.length} record PDAs = [modelrec, sha256(modelId)] + modelHash matches`)
+      : fail("record identity", `${idBad} record(s) failed`);
+    // [2] receipt identity — [scorelog, run] PDAs + back-reference.
+    let rpBad = 0, rpN = 0;
+    for (const m of c.models) for (const l of m.receipts) {
+      rpN++;
+      if (pdaB([utf8("scorelog"), pkB(l.run)], spid) !== l.pk || l.modelRecord !== m.recordPk) rpBad++;
+    }
+    rpBad === 0 ? pass("receipt identity", `${rpN} receipt PDAs = [scorelog, run], each bound to its record`)
+      : fail("receipt identity", `${rpBad}/${rpN} receipt(s) failed`);
+    // [3] aggregates — declared record + ranking row recompute.
+    let agBad = 0;
+    for (const m of c.models) {
+      const correct = m.receipts.reduce((s, l) => s + l.correct, 0);
+      const items = m.receipts.reduce((s, l) => s + l.items, 0);
+      const row = (c.ranking ?? []).find(r => r.recordPk === m.recordPk);
+      if (correct !== m.record.totalCorrect || items !== m.record.totalItems ||
+          m.receipts.length !== m.record.runsScored ||
+          !row || row.aggregate.correct !== correct || row.aggregate.items !== items || row.aggregate.runs !== m.receipts.length) agBad++;
+    }
+    agBad === 0 ? pass("aggregates", "every record's totals + ranking row replay bit-exact from its embedded receipts")
+      : fail("aggregates", `${agBad} record(s) mismatched`);
+    // [4] pairwise — the shared-bank join + every verdict re-derive.
+    const byBank = new Map();
+    for (const m of c.models) {
+      const e = new Map();
+      for (const l of m.receipts) {
+        const x = e.get(l.benchmark) ?? { correct: 0, items: 0 };
+        x.correct += l.correct; x.items += l.items; e.set(l.benchmark, x);
+      }
+      byBank.set(m.recordPk, e);
+    }
+    const rebuilt = [], stats = new Map(c.models.map(m => [m.recordPk, { wins: 0, losses: 0, ties: 0, rankedPairs: 0, sharedBanks: 0, ppDelta: 0 }]));
+    for (let i = 0; i < c.models.length; i++) for (let j = i + 1; j < c.models.length; j++) {
+      const MA = c.models[i], MB = c.models[j];
+      const a = byBank.get(MA.recordPk), b = byBank.get(MB.recordPk);
+      const shared = [...a.keys()].filter(k => b.has(k));
+      if (!shared.length) continue;
+      const pa = shared.reduce((s, k) => s + a.get(k).correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k).items, 0));
+      const pb = shared.reduce((s, k) => s + b.get(k).correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k).items, 0));
+      const d = +(100 * (pa - pb)).toFixed(4);
+      const sa = stats.get(MA.recordPk), sb = stats.get(MB.recordPk);
+      sa.rankedPairs++; sb.rankedPairs++;
+      sa.sharedBanks += shared.length; sb.sharedBanks += shared.length;
+      sa.ppDelta = +(sa.ppDelta + d).toFixed(4); sb.ppDelta = +(sb.ppDelta - d).toFixed(4);
+      const verdict = pa > pb ? "a" : pa < pb ? "b" : "tie";
+      if (verdict === "a") { sa.wins++; sb.losses++; } else if (verdict === "b") { sb.wins++; sa.losses++; } else { sa.ties++; sb.ties++; }
+      const flip = MA.modelId > MB.modelId;
+      rebuilt.push(flip
+        ? { a: MB.modelId, b: MA.modelId, shared: shared.length, deltaPp: -d, verdict: verdict === "a" ? "b" : verdict === "b" ? "a" : "tie" }
+        : { a: MA.modelId, b: MB.modelId, shared: shared.length, deltaPp: d, verdict });
+    }
+    const pairSort = (x, y) => x.a.localeCompare(y.a) || x.b.localeCompare(y.b);
+    JSON.stringify([...(c.pairs ?? [])].sort(pairSort)) === JSON.stringify([...rebuilt].sort(pairSort))
+      ? pass("pairwise verdicts", `${rebuilt.length} ranked pairs — shared banks, deltas, and every verdict recomputed`)
+      : fail("pairwise verdicts", `${(c.pairs ?? []).length} declared vs ${rebuilt.length} recomputed — not identical`);
+    let statBad = 0;
+    for (const m of c.models) {
+      const s = stats.get(m.recordPk), p = (c.ranking ?? []).find(r => r.recordPk === m.recordPk)?.pairwise;
+      if (!p || s.wins !== p.wins || s.losses !== p.losses || s.ties !== p.ties ||
+          s.rankedPairs !== p.rankedPairs || s.sharedBanks !== p.sharedBanks || Math.abs(s.ppDelta - p.ppDelta) > 0.001) statBad++;
+    }
+    statBad === 0 ? pass("pairwise tallies", "per-model W-L-T, ranked pairs, shared banks, ΣΔpp all re-derived equal")
+      : fail("pairwise tallies", `${statBad} row(s) mismatched`);
+    // [5] the ranking — Wilson LCB per model, then the printed order.
+    let rankBad = 0;
+    const order = c.models.map(m => {
+      const s = stats.get(m.recordPk);
+      const lcb = s.rankedPairs ? wilsonLcb(s.wins + s.ties / 2, s.rankedPairs) : 0;
+      return { pk: m.recordPk, lcb: +lcb.toFixed(4), s };
+    }).sort((x, y) => y.lcb - x.lcb || y.s.wins - x.s.wins || y.s.ppDelta - x.s.ppDelta);
+    (c.ranking ?? []).forEach((r, i) => {
+      if (r.recordPk !== order[i].pk || r.rank !== i + 1 || Math.abs(r.pairwise.lcb - order[i].lcb) > 0.001) rankBad++;
+    });
+    rankBad === 0 ? pass("ranking", `Wilson-95 LCB order re-derived — #1 ${c.ranking?.[0]?.modelId ?? "?"}, ${c.ranking.length} ranked rows in declared order`)
+      : fail("ranking", `${rankBad} row(s) out of order or mis-LCB'd`);
+    // [6] binding — every embedded receipt equals its decoded ScoreLog
+    // account and the run's MPC-written score.
+    const logMap = new Map(A.scoreLogs.map(l => [l.pk, l]));
+    const runMap = new Map(A.runs.map(r => [r.pk, r]));
+    let bBad = 0, bN = 0;
+    for (const m of c.models) for (const l of m.receipts) {
+      bN++;
+      const real = logMap.get(l.pk), run = runMap.get(l.run);
+      if (!real || !run || real.run !== l.run || real.benchmark !== l.benchmark ||
+          real.modelRecord !== m.recordPk || real.correct !== l.correct || real.items !== l.items ||
+          Number(real.vouched ?? 0) !== l.vouched || Number(real.postReveal ?? 0) !== l.postReveal ||
+          real.recordedAt !== l.recordedAt || run.correct !== l.correct) bBad++;
+    }
+    bBad === 0 ? pass("snapshot binding", `${bN} receipts equal their ScoreLog accounts field-for-field; every score == Run.correct`)
+      : fail("snapshot binding", `${bBad}/${bN} receipt(s) differ from the decoded accounts`);
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOARD VERIFIED" : "BOARD FAILED"}</b> — ${c.totals?.models ?? c.models.length} models · ${c.totals?.receipts ?? rpN} receipts · ${c.totals?.pairs ?? rebuilt.length} ranked pairs; #1 ${esc(c.ranking?.[0]?.modelId ?? "?")}</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
 async function verify() {
   const res = document.getElementById("vres");
   try {
@@ -2778,10 +2938,11 @@ const TOUR_STOPS = [
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
-  ["sec-artifact", "verify anything — then 'replay the whole bundle': 115 committed artifacts"],
+  ["sec-artifact", "verify anything — then 'replay the whole bundle': 117 committed artifacts"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-trail", "the money followed the MPC score — the custody trail, proven"],
-  ["sec-digest", "finally — the whole ledger as one document: every count and ledger row re-checked against the bytes you're looking at"],
+  ["sec-digest", "the whole ledger as one document: every count and ledger row re-checked against the bytes you're looking at"],
+  ["sec-boardcard", "and the closer — the leaderboard itself is a portable artifact: ranking, receipts, and pairwise evidence replayed in one card"],
 ];
 let __tourIx = -1, __tourTimer = 0;
 function startTour() {

@@ -219,20 +219,28 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 the same checks in-page.
 `chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json]` is
 the universal verifier — auto-detects any
-`sealed-claim|policy|match|trail|report|evidence-digest/v1` payload and
+`sealed-claim|policy|match|trail|report|evidence-digest|board/v1`
+payload and
 routes it to the right replay. A directory verifies every artifact in
-it, mixing kinds freely; `--recursive` walks the whole tree (116
+it, mixing kinds freely; `--recursive` walks the whole tree (117
 artifacts in `docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any
 failure; non-artifact files are skipped, not failed). Reports need
 `--snapshot` (or live RPC) to re-mint their bound claim card; digests
-need it to re-hash the bundle they're bound to. The explorer's
+and board cards need it to replay against the decoded accounts. The explorer's
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
-in-browser — all 116 committed artifacts driven through their own
+in-browser — all 117 committed artifacts driven through their own
 in-page check lists with live progress, ending in the bundle root.
+`chain board --prove <f> --snapshot <f2>` mints `sealed-board/v1` —
+the paired-evidence leaderboard as a portable card (record identities,
+all embedded receipts, per-bank aggregates, every shared-bank pairwise
+verdict, W-L-T tallies, the Wilson-LCB order, and the snapshot binding);
+`chain board --verify <f>` replays all seven checks keyless, and the
+explorer's "verify the leaderboard card" section replays the same
+in-page (committed: `docs/evidence/board.json`, served at `web/board.json`).
 `chain fingerprint` reduces the entire evidence base to one sha256 —
 `BUNDLE ROOT` = sha256 over the evidence + web manifests after
-re-hashing every pinned file (291 entries; exit 1 on any mismatch).
+re-hashing every pinned file (296 entries; exit 1 on any mismatch).
 The in-page replay prints the same root, so the terminal and the
 browser agree on one hash for the whole submission.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`

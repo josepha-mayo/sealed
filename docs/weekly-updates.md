@@ -91,21 +91,27 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 116 committed artifacts: 31 claim cards, 73 match cards, 3 policy
-  certificates, 4 custody trails, 4 capability reports. Every PDA
+  all 117 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  certificates, 4 custody trails, 4 capability reports, the ledger
+  digest, and the leaderboard card. Every PDA
   re-derived, every verdict replayed, every settlement recomputed from
   `Run.correct`. Non-artifacts skipped, tamper fails at the exact check.
-- 15s: the five artifact kinds — `sealed-claim/v1` (a model's whole
+- 15s: the seven artifact kinds — `sealed-claim/v1` (a model's whole
   evidentiary record), `sealed-policy/v1` (a governance decision +
   the receipts behind it), `sealed-match/v1` (a portable head-to-head),
   `sealed-trail/v1` (proof the money followed the MPC score),
-  `sealed-report/v1` (the printable dossier, hash-bound to its card).
+  `sealed-report/v1` (the printable dossier, hash-bound to its card),
+  `sealed-evidence-digest/v1` (the whole ledger as one replayable
+  document — snapshot-bound, every row field-compared), and
+  `sealed-board/v1` (the leaderboard itself — ranking, receipts, and
+  all 73 pairwise verdicts replayed from one card).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
-  292 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 116 artifacts
+  296 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
+  explorer's "replay the whole bundle" button drives all 117 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
-  auto-walk through all twelve sections, ending on the bundle root.
+  auto-walk through sixteen sections, ending on the leaderboard card —
+  even the ranking is a replayable artifact.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256."

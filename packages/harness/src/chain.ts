@@ -2450,6 +2450,253 @@ export async function compareAll(json = false, snapPath?: string, minShared = 1,
   return ranked;
 }
 
+/** `chain board --prove <f>` — mint `sealed-board/v1`: the paired-evidence
+ *  leaderboard as a portable artifact. A leaderboard is a CLAIM — this
+ *  binds it to the receipts it's computed from, so a judge doesn't ask
+ *  "is this table honest?", they replay it. `chain board --verify <f>`
+ *  re-derives every record/receipt PDA, recomputes every aggregate, the
+ *  shared-bank join, every pairwise verdict, and the Wilson ordering —
+ *  all offline; with --snapshot every embedded receipt is also bound to
+ *  its real ScoreLog account and Run.correct. */
+export async function boardProve(out: string, snapPath?: string) {
+  const ss = snapPath ? decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed") : null;
+  if (!ss) throw new Error("board cards are snapshot-only — the ledger they claim must be pinned bytes");
+  const records = snapOf(ss, "ModelRecord"), logs = snapOf(ss, "ScoreLog");
+  const recByPk = new Map(records.map((r) => [r.publicKey.toBase58(), r]));
+  const models = records.map((r) => {
+    const pk = r.publicKey.toBase58();
+    const receipts = logs
+      .filter((l) => (l.account.modelRecord as PublicKey).toBase58() === pk)
+      .map((l) => ({
+        pk: l.publicKey.toBase58(), run: (l.account.run as PublicKey).toBase58(),
+        benchmark: (l.account.benchmark as PublicKey).toBase58(),
+        correct: Number(l.account.correct), items: Number(l.account.items),
+        vouched: Number(l.account.vouchedAtRecord ?? 0), postReveal: Number(l.account.postReveal ?? 0),
+        recordedAt: Number(l.account.recordedAt), modelRecord: pk,
+      }))
+      .sort((a, b) => a.recordedAt - b.recordedAt || a.pk.localeCompare(b.pk));
+    const a = r.account;
+    return {
+      recordPk: pk, modelId: a.modelId,
+      record: {
+        modelHash: Buffer.from(a.modelHash).toString("hex"),
+        runsScored: Number(a.runsScored), totalCorrect: Number(a.totalCorrect), totalItems: Number(a.totalItems),
+        bestCorrect: Number(a.bestCorrect), bestItems: Number(a.bestItems),
+        bestRun: (a.bestRun as PublicKey).toBase58(), bestBank: (a.bestBank as PublicKey).toBase58(),
+        lastRun: (a.lastRun as PublicKey).toBase58(),
+        firstSeen: Number(a.firstSeen), lastScored: Number(a.lastScored),
+      },
+      receipts,
+    };
+  });
+  // the shared-bank join + Wilson ordering — same math as compareAll
+  const byBank = new Map<string, Map<string, { correct: number; items: number }>>();
+  for (const m of models) {
+    const e = new Map<string, { correct: number; items: number }>();
+    for (const l of m.receipts) {
+      const x = e.get(l.benchmark) ?? { correct: 0, items: 0 };
+      x.correct += l.correct; x.items += l.items;
+      e.set(l.benchmark, x);
+    }
+    byBank.set(m.recordPk, e);
+  }
+  const stats = new Map(models.map((m) => [m.recordPk, { wins: 0, losses: 0, ties: 0, rankedPairs: 0, sharedBanks: 0, ppDelta: 0 }]));
+  const pairs: any[] = [];
+  for (let i = 0; i < models.length; i++) for (let j = i + 1; j < models.length; j++) {
+    const A = models[i], B = models[j];
+    const a = byBank.get(A.recordPk)!, b = byBank.get(B.recordPk)!;
+    const shared = [...a.keys()].filter((k) => b.has(k));
+    if (!shared.length) continue;
+    const pa = shared.reduce((s, k) => s + a.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k)!.items, 0));
+    const pb = shared.reduce((s, k) => s + b.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k)!.items, 0));
+    const d = +(100 * (pa - pb)).toFixed(4);
+    const sa = stats.get(A.recordPk)!, sb = stats.get(B.recordPk)!;
+    sa.rankedPairs++; sb.rankedPairs++;
+    sa.sharedBanks += shared.length; sb.sharedBanks += shared.length;
+    sa.ppDelta = +(sa.ppDelta + d).toFixed(4); sb.ppDelta = +(sb.ppDelta - d).toFixed(4);
+    const verdict = pa > pb ? "a" : pa < pb ? "b" : "tie";
+    if (verdict === "a") { sa.wins++; sb.losses++; } else if (verdict === "b") { sb.wins++; sa.losses++; } else { sa.ties++; sb.ties++; }
+    // canonical direction: a < b by model id — deltaPp always reads "a − b"
+    const flip = A.modelId > B.modelId;
+    pairs.push(flip
+      ? { a: B.modelId, b: A.modelId, shared: shared.length, deltaPp: -d, verdict: verdict === "a" ? "b" : verdict === "b" ? "a" : "tie" }
+      : { a: A.modelId, b: B.modelId, shared: shared.length, deltaPp: d, verdict });
+  }
+  const rows = models.map((m) => {
+    const s = stats.get(m.recordPk)!;
+    const items = m.receipts.reduce((x, l) => x + l.items, 0);
+    const correct = m.receipts.reduce((x, l) => x + l.correct, 0);
+    return {
+      rank: 0, modelId: m.modelId, recordPk: m.recordPk, receipts: m.receipts, record: m.record,
+      aggregate: { runs: m.receipts.length, correct, items, pct: items ? +(100 * correct / items).toFixed(4) : 0 },
+      pairwise: { ...s, lcb: s.rankedPairs ? +wilsonLowerBoundPct(s.wins + s.ties / 2, s.rankedPairs).toFixed(4) : 0 },
+    };
+  });
+  rows.sort((x, y) => y.pairwise.lcb - x.pairwise.lcb || y.pairwise.wins - x.pairwise.wins || y.pairwise.ppDelta - x.pairwise.ppDelta);
+  rows.forEach((r, i) => (r.rank = i + 1));
+  const total = (models.length * (models.length - 1)) / 2;
+  const card = {
+    kind: "sealed-board/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath,
+    programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
+    policy: { metric: "wilson-lcb-95", ties: "half", minShared: 1 },
+    totals: { models: models.length, receipts: logs.length, pairs: pairs.length, unrankedPairs: total - pairs.length },
+    ranking: rows.map((r) => ({ rank: r.rank, modelId: r.modelId, recordPk: r.recordPk, aggregate: r.aggregate, pairwise: r.pairwise })),
+    models: rows.map((r) => ({ recordPk: r.recordPk, modelId: r.modelId, record: r.record, receipts: r.receipts })),
+    pairs,
+  };
+  writeFileSync(out, JSON.stringify(card, null, 2) + "\n");
+  console.log(`wrote ${out} — sealed-board/v1: ${models.length} models · ${logs.length} receipts · ${pairs.length} ranked pairs; verify: chain board --verify ${out} --snapshot ${snapPath}`);
+  return card;
+}
+
+/** `chain board --verify <f> [--snapshot f2]` — replay a sealed-board/v1
+ *  card: record/receipt PDAs re-derive, aggregates recompute from
+ *  embedded receipts, the shared-bank join and Wilson ordering re-derive
+ *  the printed ranking, and (with --snapshot) every receipt is bound to
+ *  its real ScoreLog account byte-fields + the run's MPC score. */
+export async function boardVerify(file: string, json = false, snapPath?: string): Promise<any> {
+  const { statSync, readdirSync } = await import("node:fs");
+  if (statSync(file).isDirectory()) {
+    let okAll = true, n = 0;
+    for (const f of readdirSync(file).filter((x) => x.endsWith(".json") && x !== "index.json").sort()) {
+      const r = await boardVerify(`${file}/${f}`, json, snapPath); okAll &&= r.ok; n++;
+    }
+    if (!json) console.log(`${okAll ? "ALL VERIFIED" : "FAILED"} — ${n} board card(s)`);
+    return { ok: okAll, pass: n, fail: okAll ? 0 : n };
+  }
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-board/v1") throw new Error("not a sealed-board/v1 artifact");
+  const spid = sealedProgramId();
+  const lines: string[] = [];
+  let pass = 0, fail = 0;
+  const note = (ok: boolean, label: string, detail = "") => { lines.push(`${ok ? "✓" : "✗"} ${label}${detail ? ` — ${detail}` : ""}`); ok ? pass++ : fail++; };
+
+  // [1] record identity — PDA re-derives from the model id hash, and the
+  // declared modelHash is that hash.
+  let idBad = 0;
+  for (const m of card.models) {
+    const mh = createHash("sha256").update(m.modelId).digest("hex");
+    const [recPda] = PublicKey.findProgramAddressSync([Buffer.from("modelrec"), Buffer.from(mh, "hex")], spid);
+    if (mh !== m.record.modelHash || recPda.toBase58() !== m.recordPk) idBad++;
+  }
+  note(idBad === 0, "record identity", `${card.models.length} record PDAs = [modelrec, sha256(modelId)] + modelHash matches`);
+
+  // [2] receipt identity — [scorelog, run] PDAs + back-reference to the record.
+  let rpBad = 0;
+  for (const m of card.models) for (const l of m.receipts) {
+    const [pda] = PublicKey.findProgramAddressSync([Buffer.from("scorelog"), new PublicKey(l.run).toBuffer()], spid);
+    if (pda.toBase58() !== l.pk || l.modelRecord !== m.recordPk) rpBad++;
+  }
+  note(rpBad === 0, "receipt identity", `${card.models.reduce((s: number, m: any) => s + m.receipts.length, 0)} receipt PDAs = [scorelog, run], each bound to its record`);
+
+  // [3] aggregates — declared record + aggregate rows recompute from receipts.
+  let agBad = 0;
+  for (const m of card.models) {
+    const correct = m.receipts.reduce((s: number, l: any) => s + l.correct, 0);
+    const items = m.receipts.reduce((s: number, l: any) => s + l.items, 0);
+    const row = card.ranking.find((r: any) => r.recordPk === m.recordPk);
+    if (correct !== m.record.totalCorrect || items !== m.record.totalItems ||
+        m.receipts.length !== m.record.runsScored ||
+        !row || row.aggregate.correct !== correct || row.aggregate.items !== items || row.aggregate.runs !== m.receipts.length) agBad++;
+  }
+  note(agBad === 0, "aggregates", "every record's totals + ranking row replay bit-exact from its embedded receipts");
+
+  // [4] pairwise — the shared-bank join + every pair verdict re-derive.
+  const byBank = new Map<string, Map<string, { correct: number; items: number }>>();
+  for (const m of card.models) {
+    const e = new Map<string, { correct: number; items: number }>();
+    for (const l of m.receipts) {
+      const x = e.get(l.benchmark) ?? { correct: 0, items: 0 };
+      x.correct += l.correct; x.items += l.items; e.set(l.benchmark, x);
+    }
+    byBank.set(m.recordPk, e);
+  }
+  const rebuiltPairs: any[] = [];
+  type Pw = { wins: number; losses: number; ties: number; rankedPairs: number; sharedBanks: number; ppDelta: number };
+  const stats = new Map<string, Pw>(card.models.map((m: any) => [m.recordPk as string, { wins: 0, losses: 0, ties: 0, rankedPairs: 0, sharedBanks: 0, ppDelta: 0 } as Pw]));
+  const idToPk = new Map(card.models.map((m: any) => [m.modelId, m.recordPk]));
+  for (let i = 0; i < card.models.length; i++) for (let j = i + 1; j < card.models.length; j++) {
+    const A = card.models[i], B = card.models[j];
+    const a = byBank.get(A.recordPk)!, b = byBank.get(B.recordPk)!;
+    const shared = [...a.keys()].filter((k) => b.has(k));
+    if (!shared.length) continue;
+    const pa = shared.reduce((s, k) => s + a.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + a.get(k)!.items, 0));
+    const pb = shared.reduce((s, k) => s + b.get(k)!.correct, 0) / Math.max(1, shared.reduce((s, k) => s + b.get(k)!.items, 0));
+    const d = +(100 * (pa - pb)).toFixed(4);
+    const sa = stats.get(A.recordPk)!, sb = stats.get(B.recordPk)!;
+    sa.rankedPairs++; sb.rankedPairs++;
+    sa.sharedBanks += shared.length; sb.sharedBanks += shared.length;
+    sa.ppDelta = +(sa.ppDelta + d).toFixed(4); sb.ppDelta = +(sb.ppDelta - d).toFixed(4);
+    const verdict = pa > pb ? "a" : pa < pb ? "b" : "tie";
+    if (verdict === "a") { sa.wins++; sb.losses++; } else if (verdict === "b") { sb.wins++; sa.losses++; } else { sa.ties++; sb.ties++; }
+    // canonical direction: a < b by model id — deltaPp always reads "a − b"
+    const flip = A.modelId > B.modelId;
+    rebuiltPairs.push(flip
+      ? { a: B.modelId, b: A.modelId, shared: shared.length, deltaPp: -d, verdict: verdict === "a" ? "b" : verdict === "b" ? "a" : "tie" }
+      : { a: A.modelId, b: B.modelId, shared: shared.length, deltaPp: d, verdict });
+  }
+  const pairSort = (x: any, y: any) => x.a.localeCompare(y.a) || x.b.localeCompare(y.b);
+  note(JSON.stringify([...card.pairs].sort(pairSort)) === JSON.stringify([...rebuiltPairs].sort(pairSort)),
+    "pairwise verdicts", `${rebuiltPairs.length} ranked pairs — shared banks, deltas, and every verdict recomputed`);
+  let statBad = 0;
+  for (const m of card.models) {
+    const s = stats.get(m.recordPk)!, p = card.ranking.find((r: any) => r.recordPk === m.recordPk)?.pairwise;
+    if (!p || s.wins !== p.wins || s.losses !== p.losses || s.ties !== p.ties ||
+        s.rankedPairs !== p.rankedPairs || s.sharedBanks !== p.sharedBanks || Math.abs(s.ppDelta - p.ppDelta) > 0.001) statBad++;
+  }
+  note(statBad === 0, "pairwise tallies", "per-model W-L-T, ranked pairs, shared banks, ΣΔpp all re-derived equal");
+
+  // [5] the ranking itself — Wilson LCB per model, then the printed order.
+  let rankBad = 0;
+  const order = card.models.map((m: any) => {
+    const s = stats.get(m.recordPk)!;
+    const lcb = s.rankedPairs ? wilsonLowerBoundPct(s.wins + s.ties / 2, s.rankedPairs) : 0;
+    return { pk: m.recordPk, lcb: +lcb.toFixed(4), s };
+  }).sort((x: any, y: any) => y.lcb - x.lcb || y.s.wins - x.s.wins || y.s.ppDelta - x.s.ppDelta);
+  for (let i = 0; i < card.ranking.length; i++) {
+    const r = card.ranking[i];
+    if (r.recordPk !== order[i].pk || r.rank !== i + 1 ||
+        Math.abs(r.pairwise.lcb - order[i].lcb) > 0.001) rankBad++;
+  }
+  note(rankBad === 0, "ranking", `Wilson-95 LCB order re-derived — #1 ${card.ranking[0]?.modelId ?? "?"}, ${card.ranking.length} ranked rows in declared order`);
+
+  // [6] snapshot binding — every embedded receipt must equal the real
+  // ScoreLog account's fields, and the run's MPC-written score.
+  if (snapPath) {
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const logs = new Map(snapOf(ss, "ScoreLog").map((l) => [l.publicKey.toBase58(), l]));
+    const runs = new Map(snapOf(ss, "Run").map((r) => [r.publicKey.toBase58(), r]));
+    let bBad = 0, bN = 0;
+    for (const m of card.models) for (const l of m.receipts) {
+      bN++;
+      const real = logs.get(l.pk), run = runs.get(l.run);
+      if (!real || !run) { bBad++; continue; }
+      if ((real.account.run as PublicKey).toBase58() !== l.run ||
+          (real.account.benchmark as PublicKey).toBase58() !== l.benchmark ||
+          (real.account.modelRecord as PublicKey).toBase58() !== m.recordPk ||
+          Number(real.account.correct) !== l.correct || Number(real.account.items) !== l.items ||
+          Number(real.account.vouchedAtRecord ?? 0) !== l.vouched || Number(real.account.postReveal ?? 0) !== l.postReveal ||
+          Number(real.account.recordedAt) !== l.recordedAt ||
+          Number((run.account as any).correct) !== l.correct) bBad++;
+    }
+    note(bBad === 0, "snapshot binding", `${bN} receipts equal their ScoreLog accounts field-for-field; every score == Run.correct`);
+  }
+
+  const ok = fail === 0;
+  if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
+  else {
+    console.log(`sealed-board/v1 — ${basename(file)}`);
+    for (const l of lines) console.log(`  ${l}`);
+    console.log(ok
+      ? `BOARD VERIFIED — ${card.totals.models} models · ${card.totals.receipts} receipts · ${card.totals.pairs} ranked pairs; #1 ${card.ranking[0]?.modelId}`
+      : "BOARD FAILED");
+  }
+  if (!ok) process.exitCode = 1;
+  return { ok, pass, fail };
+}
+
 /** `chain compare --matrix [--top N] [--min-shared K]` — the N×N
  *  tournament table: every pair's shared-bank verdict as a cell.
  *  Leaderboards tell you who's ahead; the grid shows WHO beat WHOM —
@@ -3129,6 +3376,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-trail/v1": (f) => trailVerify(f, json),
     "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
     "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
+    "sealed-board/v1": (f) => boardVerify(f, json, snapPath),
   };
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
@@ -3182,7 +3430,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
 }
@@ -6397,6 +6645,18 @@ export async function chainMain(cmd: string[], args: Args) {
   if (sub === "fingerprint") {
     await chainFingerprint(String(args.evidence ?? "docs/evidence"), String(args.web ?? "web"), Boolean(args.json));
     return;
+  }
+  if (sub === "board") {
+    if (args.verify) {
+      await boardVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
+    if (args.prove) {
+      if (!args.snapshot) throw new Error("board cards claim a pinned ledger — pass --snapshot <f>");
+      await boardProve(String(args.prove), String(args.snapshot));
+      return;
+    }
+    throw new Error("usage: chain board --prove <file> --snapshot <f> | --verify <file|dir> [--snapshot <f>]");
   }
   if (sub === "attest") {
     await attestRun(new PublicKey(String(args.run)));

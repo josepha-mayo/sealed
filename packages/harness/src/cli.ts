@@ -170,6 +170,8 @@ async function main() {
   sealed chain stats                                       the dashboard — counts, escrow, bit-exact integrity verdicts
   sealed chain export [--snapshot <f>] [--out file]        the portable integrity digest — bundle or live cluster
   sealed chain export --verify <f> --snapshot <f2>         replay a digest: snapshot-hash binding + every ledger row field-compared
+  sealed chain board --prove <f> --snapshot <f>            mint sealed-board/v1 — the leaderboard as a verifiable artifact
+  sealed chain board --verify <file|dir> [--snapshot f]    replay a board card — PDAs, aggregates, pairwise verdicts, Wilson order
   sealed chain prove <model> [--out file] [--snapshot f]   mint a claim card — record+receipts+runs+venues+PDA seeds
   sealed chain prove --all [--out dir] [--snapshot f]      mint one claim card per record — the whole registry as verifiable artifacts
   sealed chain prove --verify <file|dir> [--json]           verify a claim card (or every card in a directory) offline — every PDA re-derived, verdicts replayed (--json = machine-readable checks for CI)

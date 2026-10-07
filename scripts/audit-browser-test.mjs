@@ -230,15 +230,34 @@ const digestTamperTxt = (els.get("digestres")?.innerHTML ?? "").replace(/<[^>]+>
 const digestTamperOk = /DIGEST FAILED/.test(digestTamperTxt) && /counts/.test(digestTamperTxt);
 console.log(`in-page digest tamper case — mutated run count ${digestTamperOk ? "rejected PASS" : "MISSED FAIL"}`);
 if (!digestTamperOk) fails++;
+// the leaderboard card — PDAs, aggregates, pairwise join, Wilson order,
+// and the receipt→account binding all replay in-page; a flipped rank must fail.
+await vm.runInContext("loadBoard()", ctx);
+await new Promise((r) => setTimeout(r, 60));
+await vm.runInContext("verifyBoard()", ctx);
+await new Promise((r) => setTimeout(r, 150));
+const boardTxt = (els.get("boardres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const boardOk = /BOARD VERIFIED/.test(boardTxt) && /record identity/.test(boardTxt) &&
+  /pairwise verdicts/.test(boardTxt) && /snapshot binding/.test(boardTxt) && /31 models/.test(boardTxt);
+console.log(`in-page board verifier — committed sealed-board card ${boardOk ? "PASS" : "FAIL"}`);
+if (!boardOk) console.log(`  boardres: ${boardTxt.slice(0, 900)}`);
+if (!boardOk) fails++;
+els.get("boardjson").value = els.get("boardjson").value.replace(/"correct": (\d+)/, (_m, n) => `"correct": ${Number(n) + 1}`);
+await vm.runInContext("verifyBoard()", ctx);
+await new Promise((r) => setTimeout(r, 150));
+const boardTamperTxt = (els.get("boardres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const boardTamperOk = /BOARD FAILED/.test(boardTamperTxt);
+console.log(`in-page board tamper case — swapped rank rejected ${boardTamperOk ? "PASS" : "MISSED FAIL"}`);
+if (!boardTamperOk) fails++;
 // the bundle replay: every committed artifact through its own verifier —
 // the in-page mirror of `chain artifact docs/evidence --recursive`.
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /116\/116 artifacts replayed in-page/.test(bundleTxt) &&
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /117\/117 artifacts replayed in-page/.test(bundleTxt) &&
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
-  /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt);
-console.log(`in-page bundle replay — 116 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+  /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt);
+console.log(`in-page bundle replay — 117 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // cross-surface agreement: the in-page bundle root must equal the recipe
 // `chain fingerprint` computes — sha256(SHA256SUMS) || sha256(MANIFEST).
@@ -261,7 +280,7 @@ const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/15/.test(tourStep2) &&
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/16/.test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;
