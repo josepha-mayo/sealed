@@ -3681,6 +3681,18 @@ async function runAudit(force) {
         }
         const share = `${location.origin ?? ""}${location.pathname ?? ""}?root=${root}`;
         rows.push(`<div class="proof"><span class="kv">shareable verdict — <a href="${share}">${esc(short(root))}</a> links assert the root; the page re-checks on open</span></div>`);
+        // on-chain anchor — docs/evidence-anchor.json lives OUTSIDE the
+        // manifests (pinning the notarization inside the bundle would move
+        // the root it notarizes), so it rides the repo, fetched here and
+        // compared against the root these served bytes recompute to.
+        try {
+          const anch = await fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/evidence-anchor.json").then(r => r.ok ? r.json() : null);
+          if (anch?.kind === "sealed-anchor/v1" && anch.explorer) {
+            rows.push(anch.bundleRoot === root
+              ? `<div class="proof"><span class="pill resolved">ANCHOR VERIFIED</span> this exact root is notarized on Solana devnet — memo tx <a href="${esc(anch.explorer)}" target="_blank" rel="noopener">${esc(short(anch.signature))}</a> · slot ${anch.slot} · ${esc(new Date(anch.blockTime * 1000).toISOString().slice(0, 19))}Z — timestamped evidence, verifiable on any Solana explorer</div>`
+              : `<div class="proof"><span class="pill open">ANCHOR DRIFT</span> <span class="kv">the devnet memo carries <code>${esc(short(anch.bundleRoot ?? ""))}</code> — these bytes recompute to <code>${esc(short(root))}</code>; the evidence moved since notarization (re-anchor: <code>chain fingerprint --anchor</code>)</span></div>`);
+          }
+        } catch { /* anchor doc unreachable — offline or repo-private; the root still self-verifies */ }
         if (claimed) {
           window.__scrolled = true;
           document.getElementById("sec-audit")?.scrollIntoView?.({ block: "start" });

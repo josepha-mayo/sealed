@@ -30,7 +30,8 @@ const ctx = {
   URLSearchParams,
   fetch: async (u) => {
     const s = String(u);
-    const file = s.startsWith("https://raw.githubusercontent.com") ? null // repo cross-check unreachable in test
+    const file = s.includes("raw.githubusercontent.com") && s.includes("evidence-anchor") ? "docs/evidence-anchor.json"
+      : s.startsWith("https://raw.githubusercontent.com") ? null // repo cross-check unreachable in test
       : s === "MANIFEST" ? "web/MANIFEST"
       : s.includes("calibration/bank") ? "web/calibration/bank.json"
       : s.includes("calibration/run-artifact-15b") ? "web/calibration/run-artifact-15b.json"
@@ -309,6 +310,11 @@ if (!statOk) fails++;
     new RegExp(`bundle root\\s+${want}`).test(auditTxt);
   console.log(`in-page bundle fingerprint — root ${want.slice(0, 16)}… ${fpOk ? "PASS" : "FAIL"}`);
   if (!fpOk) fails++;
+  // the committed anchor doc (fetched repo-side, served raw) claims the
+  // recomputed root — the audit card must render ANCHOR VERIFIED.
+  const anchOk = /ANCHOR VERIFIED/.test(auditTxt) && /notarized on Solana devnet/.test(auditTxt);
+  console.log(`in-page anchor check — committed devnet memo carries this root ${anchOk ? "PASS" : "FAIL"}`);
+  if (!anchOk) fails++;
   // the ?root= link claim — the URL carries the asserted bundle root and
   // the page re-checks it on load. Re-run the audit under a matching link
   // (VERIFIED) and a forged one (FAILED).
