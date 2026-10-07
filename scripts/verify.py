@@ -27,10 +27,13 @@ Checks:
      viewer32] @ the sealed program — a fourth seed shape, and the
      viewer seed is raw x25519 bytes, not an ed25519 pubkey.
   8. account binding in Python too — the snapshot's raw account bytes
-     are struct-unpacked HERE (discriminator + Bounty/ShareGrant/
-     Position layouts), and every card field is compared against the
-     bytes, not against TypeScript's decode. A decoder bug in
-     snapshot.ts can no longer launder a forged card.
+     are struct-unpacked HERE (Anchor discriminators derived as
+     sha256("account:"+Name)[:8]; Benchmark/Run/ScoreLog/ModelRecord/
+     Reveal/ShareGrant/ItemChunk/PrivItemChunk on sealed, Market/
+     DarkMarket/Ladder/Bounty/Position/DarkPosition on market), and
+     every card field is compared against the bytes, not against
+     TypeScript's decode. A decoder bug in snapshot.ts can no longer
+     launder a forged card.
   9. sealed-trail/v1 money-trails replay end-to-end: run + bank +
      receipt PDAs, every venue PDA (band/duel/dark/ladder/bounty),
      run field binding, venue field binding (incl. ladder LEG runs
@@ -49,6 +52,32 @@ Checks:
  12. sealed-tamper/v1 exhibits — the eleven committed forgeries are
      replayed through Python's decoders and MUST be rejected; a lie
      that verifies under the second implementation fails the audit.
+ 13. sealed-report/v1 — each narrated report's canonical claim-card
+     sha256 recomputed (generatedAt/source excluded) and compared.
+ 14. sealed-policy/v1 — evalGate() ported line-for-line: vouchedOnly /
+     noPostReveal scoping, no-evidence on empty scope, the minPct /
+     minRuns / minItems / minWilsonPct check list — plus receipt↔
+     ScoreLog multiset binding (deeper than the TS cert verifier).
+ 15. sealed-catalog/v1 — the artifact index proves itself: directory
+     re-walk completeness, kind honesty per entry, and every declared
+     sha256 re-pinned against SHA256SUMS.
+ 16. sealed-bank/v1 — the exam dossier: bank PDA, chunk-set PDAs with
+     completeness + field binding, the items_root fold replayed in
+     mint_order landing sequence (generated banks fold plaintext specs;
+     private banks fold ciphertexts+nonces — the MPC commitment itself
+     re-derived in stdlib Python), bank fields, run / reveal / grant /
+     receipt surfaces all bound to decoded account bytes, and the
+     snapshot-file hash.
+ 17. sealed-evidence-digest/v1 — buildDigestData() ported: snapshot
+     hash, per-type counts, the full integrity replay (records bit-
+     exact from ScoreLogs; every resolved venue's stored score vs
+     decoded Run.correct — duel packing, ladder resultMask included),
+     and the keeper board classification re-derived. Wall-clock `now`
+     is used identically to chain.ts — every evidence window in the
+     committed bundle is long past, so the board is stable.
+
+Coverage: every committed artifact — all 12 JSON kinds (134 files) and
+the 4 markdown reports — replays under this second implementation.
 """
 
 import base64
@@ -56,8 +85,11 @@ import copy
 import hashlib
 import json
 import math
+import os
+import re
 import struct
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -739,6 +771,331 @@ def main():
                     f"{c_n - c_bad}/{c_n} model claims: every PDA re-derived, run + receipt "
                     f"bytes bound, venues replayed from Run.correct")
 
+    # --- sealed-report/v1 — the narrated capability cards (.md) -----------
+    # A report proves its numbers by committing to the claim card's
+    # canonical sha256 (generatedAt/source excluded). Recompute it.
+    rdir = ROOT / "docs" / "evidence" / "reports"
+    if rdir.is_dir():
+        for rpt in sorted(rdir.glob("*.md")):
+            txt = rpt.read_text()
+            if "sealed-report/v1" not in txt:
+                continue
+            mm = re.search(r"claim-card content sha256 `([0-9a-f]{64})`", txt)
+            model_m = re.search(r"# Capability report — (.+)", txt)
+            claim = ROOT / "docs" / "evidence" / "claims" / f"{model_m.group(1).strip()}.json" if model_m else None
+            ok_h = False
+            if mm and claim and claim.exists():
+                c = json.loads(claim.read_text())
+                c.pop("generatedAt", None); c.pop("source", None)
+                canon = json.dumps(c, sort_keys=True, separators=(",", ":")).encode()
+                ok_h = hashlib.sha256(canon).hexdigest() == mm.group(1)
+            ok &= check(f"{rpt.name}: claim-card binding", ok_h,
+                        "report's numbers hash-commit to the replayed claim card"
+                        if ok_h else "canonical hash mismatch or claim missing")
+
+    # --- sealed-policy/v1 — gate certificates -----------------------------
+    pdir = ROOT / "docs" / "evidence" / "policies"
+    if pdir.is_dir():
+        for card_path in sorted(pdir.glob("*.json")):
+            if card_path.name == "index.json":
+                continue
+            card = json.loads(card_path.read_text())
+            if card.get("kind") != "sealed-policy/v1":
+                continue
+            name = card_path.name
+            pol = card["policy"]
+            ok &= check(f"{name}: kind", True)
+            spid = card["programs"]["sealed"]
+            # receipt ↔ ScoreLog binding surface: decoded snapshot receipts for
+            # this cert's record set (bank-filtered like the cert's policy.bank)
+            bank_arg = pol.get("bank")
+            bank_pks = None
+            if bank_arg:
+                bank_pks = set()
+                for a in SNAP["sealed"]:
+                    d = base64.b64decode(a["data"])
+                    if d[:8] != disc("Benchmark"):
+                        continue
+                    if a["pubkey"] == bank_arg or decode_benchmark(d)["name"] == bank_arg:
+                        bank_pks.add(a["pubkey"])
+            logs_by_rec = {}
+            for a in SNAP["sealed"]:
+                d = base64.b64decode(a["data"])
+                if d[:8] != disc("ScoreLog"):
+                    continue
+                l = decode_scorelog(d)
+                if bank_pks is not None and l["benchmark"] not in bank_pks:
+                    continue
+                logs_by_rec.setdefault(l["modelRecord"], []).append(
+                    (l["correct"], l["items"], bool(l["vouched"]), bool(l["postReveal"])))
+            npass, v_bad, r_bad = 0, 0, 0
+            for m in card["models"]:
+                ident = b58encode_check(
+                    pda([b"modelrec", bytes.fromhex(m["seeds"]["modelHash"])], spid) or b"",
+                    m["recordPk"])
+                emb = sorted((r["correct"], r["items"], bool(r.get("vouchedAtRecord")),
+                              bool(r.get("postReveal"))) for r in m["receipts"])
+                if emb != sorted(logs_by_rec.get(m["recordPk"], [])):
+                    r_bad += 1
+                v = eval_gate(m["receipts"], pol)
+                w = m["verdict"]
+                if (not ident or bool(w["pass"]) != v["pass"] or w.get("reason") != v["reason"]
+                        or abs(w.get("pct", -1) - v["pct"]) > 0.01
+                        or w.get("runs") != v["runs"] or w.get("items") != v["items"]
+                        or w.get("correct") != v["correct"]
+                        or w.get("postRevealRuns") != v["postRevealRuns"]):
+                    v_bad += 1
+                npass += 1 if v["pass"] else 0
+            s = card["summary"]
+            recomp_fail = sum(1 for m in card["models"] if m["verdict"].get("reason") == "policy")
+            recomp_ne = sum(1 for m in card["models"] if m["verdict"].get("reason") == "no-evidence")
+            ok &= check(f"{name}: verdict replay", v_bad == 0,
+                        f"{len(card['models'])} models — record PDAs + verdicts recomputed bit-exact")
+            ok &= check(f"{name}: receipt binding", r_bad == 0,
+                        "every embedded receipt multiset == decoded ScoreLog bytes"
+                        + (f" (bank {bank_arg[:8]}…)" if bank_arg else ""))
+            ok &= check(f"{name}: summary", s.get("records") == len(card["models"])
+                        and s.get("pass") == npass
+                        and s.get("fail") == recomp_fail
+                        and s.get("noEvidence") == recomp_ne,
+                        f"{s.get('records')} records · {s.get('pass')} pass · {s.get('fail')} fail · {s.get('noEvidence')} no-evidence")
+
+    # --- sealed-catalog/v1 — the index proves itself -----------------------
+    cat_path = ROOT / "docs" / "evidence" / "artifacts.json"
+    if cat_path.exists():
+        card = json.loads(cat_path.read_text())
+        if card.get("kind") == "sealed-catalog/v1":
+            # completeness — the same walk the TypeScript scanner performs
+            found = []
+            for dp, _dn, fn in os.walk(ROOT / "docs" / "evidence"):
+                for f in sorted(fn):
+                    if not f.endswith((".json", ".md")) or f in ("index.json", "artifacts.json", "SHA256SUMS", "README.md"):
+                        continue
+                    full = Path(dp) / f
+                    rel = full.relative_to(ROOT / "docs" / "evidence").as_posix()
+                    try:
+                        raw = full.read_text()
+                        k = ("sealed-report/v1" if f.endswith(".md") and "sealed-report/v1" in raw
+                             else None if f.endswith(".md") else json.loads(raw).get("kind"))
+                    except Exception:
+                        k = None
+                    if k:
+                        found.append(rel)
+            listed = [a["path"] for a in card.get("artifacts", [])]
+            ok &= check("artifacts.json: completeness",
+                        sorted(found) == sorted(listed) and card.get("count") == len(listed),
+                        f"{len(listed)} listed / {len(found)} found")
+            # kind honesty + hash pinning vs SHA256SUMS
+            sums = {}
+            for line in (ROOT / "docs" / "evidence" / "SHA256SUMS").read_text().splitlines():
+                if "  " in line:
+                    h, p = line.split("  ", 1)
+                    sums[p.lstrip("./")] = h
+            k_bad = h_bad = 0
+            for a in card.get("artifacts", []):
+                full = ROOT / "docs" / "evidence" / a["path"]
+                if not full.exists():
+                    k_bad += 1
+                    continue
+                raw = full.read_text()
+                actual = ("sealed-report/v1" if a["path"].endswith(".md") and "sealed-report/v1" in raw
+                          else json.loads(raw).get("kind") if a["path"].endswith(".json") else None)
+                if actual != a["kind"]:
+                    k_bad += 1
+                if sums.get(a["path"]) != hashlib.sha256(full.read_bytes()).hexdigest():
+                    h_bad += 1
+            ok &= check("artifacts.json: kind honesty + hash pinning",
+                        k_bad == 0 and h_bad == 0,
+                        f"{len(listed)} entries parse to their declared kind, every sha256 pinned")
+
+    # --- sealed-bank/v1 — the exam dossier: fold + full surface ------------
+    bdir = ROOT / "docs" / "evidence" / "banks"
+    if bdir.is_dir():
+        for card_path in sorted(bdir.glob("*.json")):
+            if card_path.name == "index.json":
+                continue
+            card = json.loads(card_path.read_text())
+            if card.get("kind") != "sealed-bank/v1":
+                continue
+            name, spid = card_path.name, card["programs"]["sealed"]
+            bank = card["bank"]
+            ok &= check(f"{name}: bank PDA", b58encode_check(
+                pda([b"benchmark", b58decode(bank["authority"]),
+                     struct.pack("<I", int(bank["id"]))], spid) or b"", bank["pk"]),
+                "[benchmark, authority, u32le(id)]")
+            # [2] chunk set — PDAs + complete enumeration + field binding
+            c_bad, bound = 0, 0
+            for c in card["chunks"]["public"]:
+                if not b58encode_check(
+                        pda([b"items", b58decode(bank["pk"]), struct.pack("<H", c["index"])],
+                            spid) or b"", c["pk"]):
+                    c_bad += 1
+            for c in card["chunks"]["private"]:
+                if not b58encode_check(
+                        pda([b"pitems", b58decode(bank["pk"]), struct.pack("<H", c["index"])],
+                            spid) or b"", c["pk"]):
+                    c_bad += 1
+            real_i = {a["pubkey"]: base64.b64decode(a["data"]) for a in SNAP["sealed"]
+                      if base64.b64decode(a["data"])[:8] == disc("ItemChunk")}
+            real_p = {a["pubkey"]: base64.b64decode(a["data"]) for a in SNAP["sealed"]
+                      if base64.b64decode(a["data"])[:8] == disc("PrivItemChunk")}
+            on_bank_i = {k: v for k, v in real_i.items() if b58encode(v[8:40]) == bank["pk"]}
+            on_bank_p = {k: v for k, v in real_p.items() if b58encode(v[8:40]) == bank["pk"]}
+            card_set = {c["pk"] for c in card["chunks"]["public"] + card["chunks"]["private"]}
+            complete = card_set == set(on_bank_i) | set(on_bank_p)
+            for c in card["chunks"]["public"]:
+                d = on_bank_i.get(c["pk"])
+                if d is not None:
+                    st = decode_item_chunk(d)
+                    if st["index"] == c["index"] and st["partsWritten"] == c["partsWritten"] \
+                            and st["mintOrder"] == c["mintOrder"]:
+                        bound += 1
+            for c in card["chunks"]["private"]:
+                d = on_bank_p.get(c["pk"])
+                if d is not None:
+                    st = decode_priv_item_chunk(d)
+                    if st["index"] == c["index"] and st["partsWritten"] == c["partsWritten"] \
+                            and st["mintOrder"] == c["mintOrder"]:
+                        bound += 1
+            ok &= check(f"{name}: chunk set",
+                        c_bad == 0 and complete
+                        and bound == len(card["chunks"]["public"]) + len(card["chunks"]["private"]),
+                        f"{len(card['chunks']['public'])} items + {len(card['chunks']['private'])} pitems "
+                        f"PDAs re-derive · {bound} field-bound · complete")
+            # [3] items_root fold — replayed from pinned chunk bytes in
+            # mint_order landing sequence (generated folds spec bytes,
+            # private folds ciphertexts+nonces; authored banks carry no
+            # on-chain fold — the root binds to the account field only)
+            foldable = card["chunks"]["public"] or card["chunks"]["private"]
+            priv = not card["chunks"]["public"] and bool(card["chunks"]["private"])
+            if not foldable:
+                fold_ok, fold_msg = True, "authored bank — items_root is an externally-committed root; bound to account field"
+            else:
+                steps = []
+                fold_ok, fold_msg = True, ""
+                raw_all = {a["pubkey"]: base64.b64decode(a["data"]) for a in SNAP["sealed"]}
+                for c in foldable:
+                    buf = raw_all.get(c["pk"])
+                    if buf is None:
+                        fold_ok, fold_msg = False, f"chunk {c['pk'][:8]}… not in snapshot"
+                        break
+                    st = decode_priv_item_chunk(buf) if priv else decode_item_chunk(buf)
+                    for part in range(4):
+                        if not (st["partsWritten"] & (1 << part)):
+                            continue
+                        if priv:
+                            enc = b"".join(st["ciphertexts"][part * 2 + k] for k in range(2)) \
+                                  + st["nonces"][part].to_bytes(16, "little")
+                        else:
+                            enc = b"".join(bytes(st["specs"][part * 8 + k]) for k in range(8))
+                        steps.append((st["mintOrder"][part], c["index"], part, enc))
+                if fold_ok:
+                    fold_root = b"\x00" * 32
+                    for _seq, ci, part, enc in sorted(steps, key=lambda s: s[0]):
+                        fold_root = (priv_items_fold(fold_root, ci, part, enc) if priv
+                                     else gen_items_fold(fold_root, ci, part, enc))
+                    got = fold_root.hex()
+                    fold_ok = got == bank["itemsRoot"]
+                    fold_msg = (f"{len(steps)} parts re-folded in landing order → {got[:12]}… "
+                                + ("== items_root" if fold_ok else f"!= items_root {bank['itemsRoot'][:12]}…"))
+            ok &= check(f"{name}: items_root fold", fold_ok, fold_msg)
+            # [4] bank fields vs decoded Benchmark
+            braw = find_account(SNAP["sealed"], bank["pk"], disc("Benchmark"))
+            real = decode_benchmark(braw) if braw else None
+            f_ok = bool(real) and all([
+                real["authority"] == bank["authority"], str(real["id"]) == str(bank["id"]),
+                real["name"] == bank["name"], str(real["kind"]) == str(bank["kind"]),
+                str(real["chunkCount"]) == str(bank["chunkCount"]),
+                str(real["chunksSealed"]) == str(bank["chunksSealed"]),
+                real["itemsRoot"] == bank["itemsRoot"],
+                str(real["feeLamports"]) == str(bank["feeLamports"]),
+                str(real["runCount"]) == str(bank["runCount"]),
+                str(real["revealCount"]) == str(bank["revealCount"]),
+                str(real["createdAt"]) == str(bank["createdAt"]),
+                str(real["status"]) == str(bank["status"])])
+            ok &= check(f"{name}: bank fields", f_ok,
+                        "authority · id · name · kind · counts · items_root · fee · status all equal the decoded account")
+            # [5] run surface
+            real_runs = {}
+            for a in SNAP["sealed"]:
+                d = base64.b64decode(a["data"])
+                if d[:8] == disc("Run") and b58encode(d[8:40]) == bank["pk"]:
+                    real_runs[a["pubkey"]] = decode_run(d)
+            r_bad = 0 if len(real_runs) == len(card["runs"]) else 1
+            for r in card["runs"]:
+                if not b58encode_check(
+                        pda([b"run", b58decode(bank["pk"]), u64le(r["index"])], spid) or b"", r["pk"]):
+                    r_bad += 1
+                    continue
+                rr = real_runs.get(r["pk"])
+                if not (rr and rr["index"] == r["index"] and rr["modelId"] == r["modelId"]
+                        and rr["status"] == r["status"] and rr["correct"] == r["correct"]
+                        and rr["postReveal"] == r["postReveal"]):
+                    r_bad += 1
+            ok &= check(f"{name}: run surface", r_bad == 0,
+                        f"{len(card['runs'])} runs — PDAs re-derive · field-bound · complete")
+            # [6] disclosure surface
+            real_rev = sum(1 for a in SNAP["sealed"]
+                           if base64.b64decode(a["data"])[:8] == disc("Reveal")
+                           and b58encode(base64.b64decode(a["data"])[8:40]) == bank["pk"])
+            real_gr = sum(1 for a in SNAP["sealed"]
+                          if base64.b64decode(a["data"])[:8] == disc("ShareGrant")
+                          and b58encode(base64.b64decode(a["data"])[8:40]) == bank["pk"])
+            d_bad = (real_rev != len(card["reveals"])) + (real_gr != len(card["grants"]))
+            for r in card["reveals"]:
+                d_bad += 0 if b58encode_check(
+                    pda([b"reveal", b58decode(bank["pk"]), struct.pack("<H", r["chunkIndex"]),
+                         bytes([r["part"]])], spid) or b"", r["pk"]) else 1
+            for g in card["grants"]:
+                d_bad += 0 if b58encode_check(
+                    pda([b"grant", b58decode(bank["pk"]), struct.pack("<H", g["chunkIndex"]),
+                         bytes([g["part"]]), b58decode(g["viewer"])], spid) or b"", g["pk"]) else 1
+            ok &= check(f"{name}: disclosure surface", d_bad == 0,
+                        f"{len(card['reveals'])} reveals + {len(card['grants'])} grants — PDAs re-derive · counts complete")
+            # [7] receipt surface
+            real_logs = {}
+            for a in SNAP["sealed"]:
+                d = base64.b64decode(a["data"])
+                if d[:8] == disc("ScoreLog") and b58encode(d[72:104]) == bank["pk"]:
+                    real_logs[a["pubkey"]] = decode_scorelog(d)
+            l_bad = 0 if len(real_logs) == len(card["receipts"]) else 1
+            for l in card["receipts"]:
+                r = real_logs.get(l["pk"])
+                if not (r and r["run"] == l["run"] and r["modelRecord"] == l["modelRecord"]
+                        and r["correct"] == l["correct"] and r["items"] == l["items"]
+                        and r["vouched"] == l["vouched"] and r["postReveal"] == l["postReveal"]
+                        and r["recordedAt"] == l["recordedAt"]):
+                    l_bad += 1
+            ok &= check(f"{name}: receipt surface", l_bad == 0,
+                        f"{len(card['receipts'])} score receipts on this bank — field-bound · complete")
+            # [8] snapshot binding
+            snap_digest = hashlib.sha256((ROOT / "web" / "snapshot.json").read_bytes()).hexdigest()
+            ok &= check(f"{name}: snapshot binding", snap_digest == card.get("snapshot"),
+                        "sha256(snapshot.json) == card.snapshot")
+
+    # --- sealed-evidence-digest/v1 — the whole-ledger verdict --------------
+    dig_path = ROOT / "docs" / "evidence" / "digest.json"
+    if dig_path.exists():
+        card = json.loads(dig_path.read_text())
+        if card.get("kind") == "sealed-evidence-digest/v1":
+            rebuilt = build_digest()
+            snap_sha = hashlib.sha256((ROOT / "web" / "snapshot.json").read_bytes()).hexdigest()
+            ok &= check("digest.json: snapshot binding",
+                        card.get("snapshotSha256") == snap_sha,
+                        "sha256(snapshot.json) matches the digest's bound bytes")
+            diffs = [k for k in set(list(card) + list(rebuilt))
+                     if k not in ("generatedAt", "source")
+                     and card.get(k) != rebuilt.get(k)]
+            ok &= check("digest.json: field replay", not diffs,
+                        "counts, integrity rows, keeper board, bank + record ledgers — "
+                        "all rebuilt from decoded account bytes"
+                        if not diffs else f"field mismatch: {', '.join(sorted(diffs)[:5])}")
+            integ = rebuilt["integrity"]
+            ok &= check("digest.json: integrity verdicts",
+                        integ["recordsBad"] == 0 and integ["resolutionsBad"] == 0,
+                        f"{integ['recordsOk']} records bit-exact · "
+                        f"{integ['resolutionsOk']} resolutions match Run.correct")
+
     # --- sealed-tamper/v1 — the committed lie exhibit ----------------------
     # Each exhibit carries a forged artifact; verifying it means the inner
     # card MUST be rejected by this implementation too. If a "forgery"
@@ -900,6 +1257,105 @@ def wilson_lcb(correct, items, z=1.96):
     return 100 * (centre - margin) / denom
 
 
+def eval_gate(receipts, pol):
+    """evalGate() from gate.ts, ported line-for-line: vouchedOnly/noPostReveal
+    select the evidence scope, runs==0 → no-evidence, then the check list
+    (minPct/minRuns/minItems/minWilsonPct) decides pass|policy."""
+    post = sum(1 for r in receipts if r.get("postReveal"))
+    sel = [r for r in receipts if r.get("vouchedAtRecord")] if pol.get("vouchedOnly") else list(receipts)
+    if pol.get("noPostReveal"):
+        sel = [r for r in sel if not r.get("postReveal")]
+    runs = len(sel)
+    c = sum(r["correct"] for r in sel)
+    it = sum(r["items"] for r in sel)
+    pct = 100 * c / it if it else 0.0
+    if runs == 0:
+        return {"pass": False, "reason": "no-evidence", "runs": runs,
+                "items": it, "correct": c, "pct": 0.0, "postRevealRuns": post}
+    checks = []
+    if pol.get("minPct") is not None:
+        checks.append(pct >= float(pol["minPct"]))
+    if pol.get("minRuns") is not None:
+        checks.append(runs >= int(pol["minRuns"]))
+    if pol.get("minItems") is not None:
+        checks.append(it >= int(pol["minItems"]))
+    if pol.get("minWilsonPct") is not None:
+        checks.append(wilson_lcb(c, it) >= float(pol["minWilsonPct"]))
+    ok = all(checks)
+    return {"pass": ok, "reason": "pass" if ok else "policy", "runs": runs,
+            "items": it, "correct": c, "pct": pct, "postRevealRuns": post}
+
+
+def decode_benchmark(d):
+    # disc8 authority32 id u32 bump status chunkCount u16 chunksSealed u16
+    # itemsRoot32 feeLamports u64 runCount u64 createdAt i64 [kind u8] name-str
+    o = 8
+    authority = b58encode(d[o:o + 32]); o += 32
+    bid = int.from_bytes(d[o:o + 4], "little"); o += 4
+    status = d[o + 1]; o += 2
+    chunk_count = int.from_bytes(d[o:o + 2], "little"); o += 2
+    chunks_sealed = int.from_bytes(d[o:o + 2], "little"); o += 2
+    items_root = d[o:o + 32].hex(); o += 32
+    fee = int.from_bytes(d[o:o + 8], "little"); o += 8
+    run_count = int.from_bytes(d[o:o + 8], "little"); o += 8
+    created = int.from_bytes(d[o:o + 8], "little", signed=True); o += 8
+    kind = 0
+    nl_new = int.from_bytes(d[o + 1:o + 5], "little") if o + 5 <= len(d) else -1
+    if o < len(d) and d[o] <= 2 and 0 <= nl_new <= 32 and o + 5 + nl_new <= len(d):
+        kind = d[o]; o += 1
+        nl = int.from_bytes(d[o:o + 4], "little"); o += 4
+    else:
+        nl = int.from_bytes(d[o:o + 4], "little") if o + 4 <= len(d) else 0
+        o += 4
+        if nl > 32 or o + nl > len(d):
+            nl = 0
+    name = d[o:o + nl].decode("utf-8", "replace")
+    o += nl
+    # tail (new layout): priv_viewer32 + mint_seq u16 + reveal_count u32 —
+    # absent on pre-upgrade accounts.
+    reveal_count = mint_seq = 0
+    priv_viewer = "0" * 64
+    if len(d) - o >= 38:
+        priv_viewer = d[o:o + 32].hex(); o += 32
+        mint_seq = int.from_bytes(d[o:o + 2], "little"); o += 2
+        reveal_count = int.from_bytes(d[o:o + 4], "little"); o += 4
+    return {"authority": authority, "id": bid, "status": status,
+            "chunkCount": chunk_count, "chunksSealed": chunks_sealed,
+            "itemsRoot": items_root, "feeLamports": fee, "runCount": run_count,
+            "createdAt": created, "kind": kind, "name": name,
+            "privViewer": priv_viewer, "mintSeq": mint_seq,
+            "revealCount": reveal_count}
+
+
+def decode_item_chunk(d):
+    # disc8 benchmark32 index u16 bump parts_written  specs[32]×5B  mint_order[4]u16
+    specs = [tuple(d[44 + i * 5:49 + i * 5]) for i in range(32)]
+    mint_order = [int.from_bytes(d[204 + p * 2:206 + p * 2], "little") for p in range(4)]
+    return {"index": int.from_bytes(d[40:42], "little"), "partsWritten": d[43],
+            "specs": specs, "mintOrder": mint_order}
+
+
+def decode_priv_item_chunk(d):
+    # disc8 benchmark32 index u16 bump parts_written  encKey32  nonces[4]u128
+    # ciphertexts[8]×32B  mint_order[4]u16
+    nonces = [int.from_bytes(d[76 + p * 16:92 + p * 16], "little") for p in range(4)]
+    cts = [d[140 + i * 32:172 + i * 32] for i in range(8)]
+    mint_order = [int.from_bytes(d[396 + p * 2:398 + p * 2], "little") for p in range(4)]
+    return {"index": int.from_bytes(d[40:42], "little"), "partsWritten": d[43],
+            "nonces": nonces, "ciphertexts": cts, "mintOrder": mint_order}
+
+
+def gen_items_fold(root, chunk_index, part, spec_bytes):
+    # sha256("sealed/v1/genitems\0" ‖ root ‖ u16le(chunk) ‖ u8(part) ‖ specs)
+    return sha256(b"sealed/v1/genitems\x00" + root
+                  + struct.pack("<H", chunk_index) + bytes([part]) + spec_bytes)
+
+
+def priv_items_fold(root, chunk_index, part, enc_bytes):
+    return sha256(b"sealed/v1/privitems\x00" + root
+                  + struct.pack("<H", chunk_index) + bytes([part]) + enc_bytes)
+
+
 def decode_run(d):
     # disc8 benchmark32 runner32 index u64 bump status chunkCount u16
     # pending u64 scored u64 correct u32 created i64 finalized i64
@@ -907,24 +1363,39 @@ def decode_run(d):
     ml = int.from_bytes(d[184:188], "little")
     tail = 188 + ml
     post = False
+    attested = 0
+    first_pending_at = ever_queued_mask = all_queued_at = pending_since = 0
     if tail + 9 <= len(d):
+        attested = d[tail]
         tail += 9   # attested u8 + attestedAt i64
     if tail + 8 <= len(d):
-        tail += 8   # pendingSince
+        pending_since = int.from_bytes(d[tail:tail + 8], "little", signed=True)
+        tail += 8
     if tail + 8 <= len(d):
-        tail += 8   # firstPendingAt
+        first_pending_at = int.from_bytes(d[tail:tail + 8], "little", signed=True)
+        tail += 8
     if tail + 8 <= len(d):
-        tail += 8   # everQueuedMask
+        ever_queued_mask = int.from_bytes(d[tail:tail + 8], "little")
+        tail += 8
     if tail + 8 <= len(d):
-        tail += 8   # allQueuedAt
+        all_queued_at = int.from_bytes(d[tail:tail + 8], "little", signed=True)
+        tail += 8
     if tail + 1 <= len(d):
         post = d[tail] != 0
     return {
         "benchmark": b58encode(d[8:40]), "runner": b58encode(d[40:72]),
         "index": int.from_bytes(d[72:80], "little"),
         "status": d[81],
+        "scoredMask": int.from_bytes(d[92:100], "little"),
         "correct": int.from_bytes(d[100:104], "little"),
+        "createdAt": int.from_bytes(d[104:112], "little", signed=True),
+        "finalizedAt": int.from_bytes(d[112:120], "little", signed=True),
         "modelId": d[188:188 + ml].decode(),
+        "attested": attested,
+        "pendingSince": pending_since,
+        "firstPendingAt": first_pending_at,
+        "everQueuedMask": ever_queued_mask,
+        "allQueuedAt": all_queued_at,
         "postReveal": post,
     }
 
@@ -941,6 +1412,7 @@ def decode_market(d):
         "totals": [int.from_bytes(d[152 + 8 * i:160 + 8 * i], "little") for i in range(8)],
         "resolvedScore": int.from_bytes(d[216:220], "little"),
         "runB": b58encode(d[236:268]) if len(d) >= 268 else None,
+        "resolveBy": int.from_bytes(d[286:294], "little", signed=True) if len(d) >= 294 else 0,
     }
 
 
@@ -956,8 +1428,21 @@ def decode_dark_market(d):
         "winTotal": int.from_bytes(d[160:168], "little"),
         "revealedCount": int.from_bytes(d[168:172], "little"),
         "resolvedScore": int.from_bytes(d[172:176], "little"),
+        "revealUntil": int.from_bytes(d[200:208], "little", signed=True) if len(d) >= 208 else 0,
+        "resolveBy": int.from_bytes(d[226:234], "little", signed=True) if len(d) >= 234 else 0,
         "tallied": len(d) > 234 and d[234] == 1,
     }
+
+
+def decode_model_record(d):
+    # disc8 model_hash32 model_id str runs_scored u32 total_correct u64
+    # total_items u64 best_* …
+    ml = int.from_bytes(d[40:44], "little")
+    o = 44 + ml
+    return {"modelId": d[44:o].decode(),
+            "runsScored": int.from_bytes(d[o:o + 4], "little"),
+            "totalCorrect": int.from_bytes(d[o + 4:o + 12], "little"),
+            "totalItems": int.from_bytes(d[o + 12:o + 20], "little")}
 
 
 def decode_ladder(d):
@@ -971,6 +1456,228 @@ def decode_ladder(d):
         "status": d[338], "resultMask": d[339],
         "resolvedScore": int.from_bytes(d[340:344], "little"),
         "totals": [int.from_bytes(d[344 + 8 * i:352 + 8 * i], "little") for i in range(8)],
+        "resolveBy": int.from_bytes(d[442:450], "little", signed=True) if len(d) >= 450 else 0,
+    }
+
+
+HARD_CAP_SECS = 24 * 3600
+NULL_PK = "1" * 32  # Pubkey::default
+
+
+def _still_moving(r, now):
+    return (r["status"] != 1
+            and ((r["firstPendingAt"] and now <= r["firstPendingAt"] + HARD_CAP_SECS)
+                 or (r["allQueuedAt"] and now <= r["allQueuedAt"] + HARD_CAP_SECS)))
+
+
+def _proven(r, now):
+    return (r["status"] == 1
+            or (r["allQueuedAt"] and now > r["allQueuedAt"] + HARD_CAP_SECS
+                and str(r["scoredMask"]) != "0"))
+
+
+def classify_board(bounties, markets, ladders, runs, now):
+    """board.ts classifyBoard — the keeper gates evaluated off decoded
+    accounts: claimable / expired / live bounties, resolvable / expirable /
+    tallyable venues, resolvableLadders, filling, settled."""
+    board = {"claimable": [], "liveBounties": [], "expiredBounties": [],
+             "claimedBounties": 0, "resolvable": [], "expirable": [],
+             "tallyable": [], "resolvableLadders": [], "revealing": 0,
+             "filling": 0, "settled": 0}
+    runs_by_pk = {r["pubkey"]: r for r in runs}
+    runs_by_bank = {}
+    for r in runs:
+        if _proven(r, now):
+            runs_by_bank.setdefault(r["benchmark"], []).append(r)
+    for b in bounties:
+        if b["status"] != 0:
+            board["claimedBounties"] += 1
+            continue
+        if now > b["deadline"]:
+            board["expiredBounties"].append(b)
+            continue
+        q = sorted((r for r in runs_by_bank.get(b["bank"], [])
+                    if r["correct"] >= b["threshold"] and r["createdAt"] >= b["createdAt"]
+                    and r["runner"] != b["sponsor"] and not r["postReveal"]),
+                   key=lambda r: -r["correct"])
+        if q:
+            board["claimable"].append({**b, "qualifyingRun": q[0]["pubkey"],
+                                       "qualifyingScore": q[0]["correct"]})
+        else:
+            board["liveBounties"].append(b)
+    for m in markets:
+        if m["kind"] == "dark" and m["status"] == 1 and not m["tallied"]:
+            if now > m.get("revealUntil", 0):
+                board["tallyable"].append(m)
+            else:
+                board["revealing"] += 1
+            continue
+        if m["status"] != 0:
+            board["settled"] += 1
+            continue
+        a = runs_by_pk.get(m["run"])
+        b = runs_by_pk.get(m["runB"]) if m.get("runB") else None
+        legs_done = (a and a["status"] == 1
+                     and (m["kind"] != "duel" or (b and b["status"] == 1)))
+        if legs_done:
+            board["resolvable"].append(m)
+            continue
+        if (not a or (m["kind"] == "duel" and not b)
+                or m["resolveBy"] == 0 or now <= m["resolveBy"]
+                or _still_moving(a, now) or (b and _still_moving(b, now))):
+            board["filling"] += 1
+            continue
+        settleable = _proven(a, now) and (_proven(b, now) if m["kind"] == "duel" else True)
+        board["expirable"].append({**m, "expireOutcome": "settles" if settleable else "refunds"})
+    for l in ladders:
+        if l["status"] != 0:
+            board["settled"] += 1
+            continue
+        legs = [runs_by_pk.get(pk) for pk in l["legs"]]
+        if any(r is None or _still_moving(r, now) for r in legs):
+            board["filling"] += 1
+        else:
+            board["resolvableLadders"].append(l)
+    return board
+
+
+def build_digest():
+    """buildDigestData() ported — every digest field recomputed from decoded
+    snapshot accounts (used to field-compare against the committed card)."""
+    seal, mkt = {}, {}
+    decoders_s = [("Benchmark", decode_benchmark), ("Run", decode_run),
+                  ("ScoreLog", decode_scorelog), ("ModelRecord", decode_model_record),
+                  ("Reveal", None), ("ShareGrant", decode_share_grant),
+                  ("ItemChunk", decode_item_chunk), ("PrivItemChunk", decode_priv_item_chunk)]
+    decoders_m = [("Market", decode_market), ("DarkMarket", decode_dark_market),
+                  ("Ladder", decode_ladder), ("Bounty", decode_bounty),
+                  ("Position", decode_position), ("DarkPosition", decode_dark_position)]
+    for a in SNAP["sealed"]:
+        d = base64.b64decode(a["data"])
+        for name, fn in decoders_s:
+            if d[:8] == disc(name):
+                try:
+                    seal.setdefault(name, []).append(
+                        (a["pubkey"], fn(d) if fn else None))
+                except Exception:
+                    pass  # undecodable → snapOf's skip
+                break
+    for a in SNAP["market"]:
+        d = base64.b64decode(a["data"])
+        for name, fn in decoders_m:
+            if d[:8] == disc(name):
+                try:
+                    mkt.setdefault(name, []).append(
+                        (a["pubkey"], fn(d) if fn else None))
+                except Exception:
+                    pass
+                break
+    counts = {
+        "banks": len(seal.get("Benchmark", [])), "runs": len(seal.get("Run", [])),
+        "receipts": len(seal.get("ScoreLog", [])), "records": len(seal.get("ModelRecord", [])),
+        "reveals": len(seal.get("Reveal", [])), "grants": len(seal.get("ShareGrant", [])),
+        "itemChunks": len(seal.get("ItemChunk", [])), "privChunks": len(seal.get("PrivItemChunk", [])),
+        "markets": len(mkt.get("Market", [])), "darkMarkets": len(mkt.get("DarkMarket", [])),
+        "ladders": len(mkt.get("Ladder", [])), "bounties": len(mkt.get("Bounty", [])),
+        "positions": len(mkt.get("Position", [])) + len(mkt.get("DarkPosition", [])),
+    }
+    # integrity.records — every ModelRecord replayed from its ScoreLogs
+    logs_by_rec = {}
+    for _pk, l in seal.get("ScoreLog", []):
+        logs_by_rec.setdefault(l["modelRecord"], []).append(l)
+    run_by_pk = {pk: r for pk, r in seal.get("Run", [])}
+    correct_of = lambda pk: run_by_pk.get(pk, {}).get("correct", -1)
+    rec_rows = []
+    for pk, a in seal.get("ModelRecord", []):
+        ls = logs_by_rec.get(pk, [])
+        rc = sum(l["correct"] for l in ls)
+        ri = sum(l["items"] for l in ls)
+        okk = len(ls) == a["runsScored"] and rc == a["totalCorrect"] and ri == a["totalItems"]
+        rec_rows.append({"pk": pk, "modelId": a["modelId"],
+                         "stored": f"{a['totalCorrect']}/{a['totalItems']} over {a['runsScored']}",
+                         "replayed": f"{rc}/{ri} over {len(ls)}", "ok": okk})
+    venue_rows = []
+    for pk, m in mkt.get("Market", []):
+        if m["status"] != 1:
+            continue
+        duel = m["runB"] and m["runB"] != NULL_PK
+        expected = (correct_of(m["run"]) << 16) | correct_of(m["runB"]) if duel else correct_of(m["run"])
+        venue_rows.append({"venue": pk, "kind": "duel" if duel else "band",
+                           "stored": m["resolvedScore"], "expected": expected,
+                           "ok": m["resolvedScore"] == expected})
+    for pk, dd in mkt.get("DarkMarket", []):
+        if dd["status"] != 1:
+            continue
+        venue_rows.append({"venue": pk, "kind": "dark", "stored": dd["resolvedScore"],
+                           "expected": correct_of(dd["run"]),
+                           "ok": dd["resolvedScore"] == correct_of(dd["run"])})
+    for pk, bb in mkt.get("Bounty", []):
+        if bb["status"] != 1:
+            continue
+        venue_rows.append({"venue": pk, "kind": "bounty", "stored": bb["winningScore"],
+                           "expected": correct_of(bb["winnerRun"]),
+                           "ok": bb["winningScore"] == correct_of(bb["winnerRun"])})
+    for pk, l in mkt.get("Ladder", []):
+        if l["status"] != 1:
+            continue
+        legs = l["legs"][:l["legCount"]]
+        scores = [correct_of(x) for x in legs]
+        mx = max(scores)
+        mask_ok = all((s == mx) == bool((l["resultMask"] >> i) & 1)
+                      for i, s in enumerate(scores))
+        venue_rows.append({"venue": pk, "kind": "ladder", "stored": l["resolvedScore"],
+                           "expected": mx,
+                           "ok": l["resolvedScore"] == mx and mask_ok})
+    now = int(time.time())
+    bruns = [{"pubkey": pk, "benchmark": r["benchmark"], "runner": r["runner"],
+              "status": r["status"], "correct": r["correct"],
+              "createdAt": r["createdAt"], "firstPendingAt": r["firstPendingAt"],
+              "allQueuedAt": r["allQueuedAt"], "scoredMask": str(r["scoredMask"]),
+              "postReveal": r["postReveal"]} for pk, r in seal.get("Run", [])]
+    bbounties = [{"pubkey": pk, "sponsor": b["sponsor"], "bank": b["bank"],
+                  "status": b["status"], "threshold": b["threshold"],
+                  "amount": b["amount"], "createdAt": b["createdAt"],
+                  "deadline": b["deadline"], "winnerRun": b["winnerRun"],
+                  "winningScore": b["winningScore"]} for pk, b in mkt.get("Bounty", [])]
+    bmarkets = ([{"pubkey": pk, "kind": "duel" if m["runB"] and m["runB"] != NULL_PK else "band",
+                  "status": m["status"], "run": m["run"], "runB": m["runB"],
+                  "resolveBy": m["resolveBy"]} for pk, m in mkt.get("Market", [])]
+                + [{"pubkey": pk, "kind": "dark", "status": dd["status"], "run": dd["run"],
+                    "resolveBy": dd["resolveBy"], "revealUntil": dd["revealUntil"],
+                    "tallied": bool(dd["tallied"])} for pk, dd in mkt.get("DarkMarket", [])])
+    bladders = [{"pubkey": pk, "status": l["status"],
+                 "legs": l["legs"][:l["legCount"]], "resolveBy": l["resolveBy"]}
+                for pk, l in mkt.get("Ladder", [])]
+    board = classify_board(bbounties, bmarkets, bladders, bruns, now)
+    keeper = {"actionable": (len(board["claimable"]) + len(board["resolvable"])
+                             + len(board["resolvableLadders"]) + len(board["tallyable"])
+                             + len(board["expirable"]) + len(board["expiredBounties"])),
+              "settled": board["settled"], "filling": board["filling"],
+              "claimable": board["claimable"], "resolvable": board["resolvable"],
+              "resolvableLadders": board["resolvableLadders"],
+              "tallyable": board["tallyable"], "expirable": board["expirable"],
+              "expiredBounties": board["expiredBounties"]}
+    return {
+        "kind": "sealed-evidence-digest/v1",
+        "snapshotSha256": hashlib.sha256(
+            (ROOT / "web" / "snapshot.json").read_bytes()).hexdigest(),
+        "programs": {"sealed": SNAP.get("meta", {}).get("programs", {}).get("sealed"),
+                     "market": SNAP.get("meta", {}).get("programs", {}).get("market")},
+        "epochs": SNAP.get("meta", {}).get("epochs"),
+        "counts": counts,
+        "integrity": {"recordsOk": sum(1 for r in rec_rows if r["ok"]),
+                      "recordsBad": sum(1 for r in rec_rows if not r["ok"]),
+                      "resolutionsOk": sum(1 for r in venue_rows if r["ok"]),
+                      "resolutionsBad": sum(1 for r in venue_rows if not r["ok"]),
+                      "records": rec_rows, "resolutions": venue_rows},
+        "keeper": keeper,
+        "banks": [{"pk": pk, "name": b["name"], "kind": b["kind"],
+                   "items": b["chunkCount"] * 32, "runs": b["runCount"],
+                   "reveals": b["revealCount"], "itemsRoot": b["itemsRoot"]}
+                  for pk, b in seal.get("Benchmark", [])],
+        "records": [{"pk": pk, "modelId": a["modelId"], "runsScored": a["runsScored"],
+                     "totalCorrect": a["totalCorrect"], "totalItems": a["totalItems"]}
+                    for pk, a in seal.get("ModelRecord", [])],
     }
 
 

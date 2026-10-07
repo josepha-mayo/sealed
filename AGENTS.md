@@ -41,18 +41,23 @@ parimutuel markets resolved from `Run.correct`.
 - `python3 scripts/verify.py` → the SECOND-LANGUAGE verdict: stdlib-only
   Python re-hashes both manifests, recomputes BUNDLE ROOT (same recipe
   as `chain fingerprint`), matches it against docs/evidence-anchor.json,
-  re-derives the committed position/venue/bounty/grant PDAs with real
-  ed25519 curve math (bump iteration + RFC8032 off-curve rejection),
-  AND struct-unpacks the raw account bytes itself (Run / Market /
-  DarkMarket / Ladder / Bounty / ShareGrant / Position / DarkPosition —
-  discriminators derived via sha256("account:Name"), not hardcoded) —
-  the field binding is checked against the bytes, so a decoder bug in
-  snapshot.ts can't launder a forged card. The trail loop replays whole
-  `sealed-trail/v1` cards end-to-end (leg runs bound independently,
-  dark forfeits recomputed from DarkPosition bytes, settlements vs the
-  DECODED Run.correct). No node, no pip, no RPC — proof the evidence is
-  language-agnostic. `--tamper` forges each card family and asserts the
-  catch at a named check.
+  re-derives every artifact's PDAs with real ed25519 curve math (bump
+  iteration + RFC8032 off-curve rejection), AND struct-unpacks all 14
+  raw account layouts itself (Benchmark/Run/ScoreLog/ModelRecord/Reveal/
+  ShareGrant/ItemChunk/PrivItemChunk on sealed; Market/DarkMarket/
+  Ladder/Bounty/Position/DarkPosition on market — discriminators derived
+  via sha256("account:Name"), not hardcoded). Coverage is TOTAL: every
+  committed artifact replays — board, all 73 match cards, all 31 claims,
+  trails (leg runs bound, dark forfeits recomputed from DarkPosition
+  bytes), positions, bounties, grants, reports (canonical claim-card
+  hash), policy certs (evalGate ported line-for-line + receipt↔ScoreLog
+  multiset binding), the catalog index, bank dossiers (items_root fold
+  replayed in mint_order — gen banks fold specs, private fold
+  ciphertexts+nonces), the whole-ledger digest (integrity rows + keeper
+  classification), and the 11 tamper exhibits which MUST be rejected.
+  No node, no pip, no RPC — proof the evidence is language-agnostic.
+  `--tamper` forges each card family and asserts the catch at a named
+  check.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.
@@ -106,10 +111,10 @@ parimutuel markets resolved from `Run.correct`.
   score≥threshold). Tamper fails exactly at the replay check.
   `chain artifact <file|dir>` is the universal verifier — detects any
   sealed-claim/policy/match/trail/report/evidence-digest/board/bank/
-  position/bounty/grant/catalog/v1 payload and routes to the
+  position/bounty/grant/catalog/tamper/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 127 artifacts in one pass). `chain artifact <file>
+  replays all 138 artifacts in one pass). `chain artifact <file>
   --tamper` is the CLI forgery lab: kind-aware mutations re-run the
   verifier and MUST fail — a forged card that verifies exits 1 (all
   12 JSON kinds carry canned attacks; the harness test pins all 12).

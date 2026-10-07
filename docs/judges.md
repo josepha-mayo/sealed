@@ -380,7 +380,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snap
 #           (verifyTamper routes the inner card through the real
 #           verifier and requires the rejection)
 #         → python3 scripts/verify.py --tamper covers the same ground
-#           in stdlib-only Python — five attacks, all caught
+#           in stdlib-only Python — six attacks, all caught
 
 # 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
 #     pinned file and prints BUNDLE ROOT: a single sha256 covering
@@ -423,20 +423,25 @@ yarn --cwd packages/harness cli chain fingerprint \
 #           after notarization — we re-anchor at freeze)
 
 # 3o. THE SECOND-LANGUAGE VERDICT — don't trust our TypeScript? Re-run
-#     the whole integrity chain in ~330 lines of stdlib-only Python:
-#     re-hash both manifests, recompute the BUNDLE ROOT, match the
-#     devnet anchor doc, re-derive every artifact's PDAs (position /
-#     venue / bounty / grant / trail / board) with real ed25519 curve
-#     math (bump iteration + off-curve rejection) — and it unpacks the
-#     raw account bytes itself (Run / Market / DarkMarket / Ladder /
-#     Bounty / ShareGrant / Position / DarkPosition / ScoreLog), so
-#     field binding checks the bytes, not our decoder. It replays the
-#     flagship board card end-to-end too — 292 receipts bound to their
-#     ScoreLog bytes, pairwise matrix and Wilson ranking recomputed.
+#     the whole integrity chain in stdlib-only Python (~1,900 lines —
+#     every check, zero deps): re-hash both manifests, recompute the
+#     BUNDLE ROOT, match the devnet anchor doc, re-derive every
+#     artifact's PDAs with real ed25519 curve math (bump iteration +
+#     off-curve rejection) — and it unpacks every raw account layout
+#     itself (Benchmark/Run/ScoreLog/ModelRecord/Reveal/ShareGrant/
+#     ItemChunk/PrivItemChunk on sealed; Market/DarkMarket/Ladder/
+#     Bounty/Position/DarkPosition on market), so field binding checks
+#     the bytes, not our decoder. EVERY committed artifact kind replays:
+#     board, match, claim, trail, position, bounty, grant, tamper
+#     exhibits, reports (canonical claim-hash), policy certs (evalGate
+#     ported + receipt↔ScoreLog binding), the catalog's own index,
+#     bank dossiers (the items_root MPC fold re-derived — private banks
+#     fold ciphertexts+nonces), and the whole-ledger digest (keeper
+#     classification and all).
 python3 scripts/verify.py
 #         → BUNDLE ROOT c49d2b58… (same as the TypeScript — or the
-#           bundle is dirty) · every committed card's PDAs + account
-#           fields verified in Python · anchor carries root PASS
+#           bundle is dirty) · all 138 artifacts replayed in Python ·
+#           anchor carries root PASS
 #
 #     …and watch the verifier catch its own lie — --tamper forges each
 #     card kind (bounty theft, stake inflation, viewer redirect, pool
