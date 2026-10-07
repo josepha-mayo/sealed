@@ -479,6 +479,15 @@ python3 scripts/verify.py --decrypt
 python3 scripts/verify.py --check-anchor
 #         → ANCHOR VERIFIED — memo, slot, blockTime, and fee payer all
 #           echo the anchor doc; the anchored root IS the current root
+#
+#     and --rescore re-derives the MPC's own arithmetic on the public
+#     calibration bank: plaintext answers → answerHash fingerprints →
+#     on-chain Reveals, model outputs → chunkOut merkle → Run.outputs_root,
+#     then an independent recount vs the MPC-written Run.correct — BOTH
+#     committed artifacts, runs found by scanning for the root itself:
+python3 scripts/verify.py --rescore
+#         → RESCORED — 7/32 (qwen2.5-3b) and 2/32 (qwen2.5-1.5b)
+#           reproduced from plaintext + decoded account bytes
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     6.6MB file: the page, the snapshot, all 138 artifacts, both

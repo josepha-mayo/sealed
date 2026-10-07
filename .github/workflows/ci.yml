@@ -50,6 +50,8 @@ jobs:
         run: python3 scripts/verify.py && python3 scripts/verify.py --tamper
       - name: third-language sealed-exam read — Rescue+x25519 ported, grants decrypt bit-exact
         run: python3 scripts/verify.py --decrypt
+      - name: third-language MPC rescore — answer fingerprints, Reveal PDAs, outputs_root, recount
+        run: python3 scripts/verify.py --rescore
       - name: capsule freshness — standalone.html is a byte-current mirror of the pinned bundle
         run: node scripts/gen-standalone.mjs --check
       - name: submission pre-flight

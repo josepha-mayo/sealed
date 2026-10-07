@@ -91,6 +91,14 @@ the 4 markdown reports — replays under this second implementation.
                                         # devnet memo tx and proves the
                                         # ledger carries the claimed
                                         # BUNDLE ROOT — no Solana SDK
+  python3 scripts/verify.py --rescore     # the MPC's own arithmetic in a
+                                        # third language: plaintext →
+                                        # answerHash → on-chain Reveals,
+                                        # outputs → chunkOut merkle →
+                                        # Run.outputs_root, independent
+                                        # recount vs Run.correct — both
+                                        # committed calibration artifacts
+                                        # (runs found by root scan)
 """
 
 import base64
@@ -2269,6 +2277,150 @@ def tamper_demo():
     return all_ok
 
 
+def rescore_demo():
+    """--rescore: the MPC's own arithmetic recomputed in stdlib Python —
+    mirrors scripts/rescore.mjs on the deliberately-public calibration
+    bank, plus a second artifact for free (runs found by outputs_root
+    scan, no pubkey argument needed).
+
+    Custody chain replayed here, zero trust in the harness:
+      plaintext answer (bank JSON)
+        → answerHash = trunc64(sha256("sealed/v1/answer\\0" ‖ id ‖ idx ‖ canon))
+        → Reveal.hashes on-chain (authority-declassified fingerprints)
+      model output (artifact JSON)
+        → outputHash u64s → chunkOutLeaf merkle → outputs_root
+        → Run.outputs_root on-chain (committed BEFORE scoring)
+      score_chunk (MPC) compared hash equality per position → Run.correct"""
+    cal = ROOT / "docs" / "evidence" / "calibration"
+    bench_pk = "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp"
+    ok = True
+    snap = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    sect = snap["sealed"]
+    prog = snap["meta"]["programs"]["sealed"]
+    bank = json.loads((cal / "bank.json").read_text())
+    arts = sorted(cal.glob("run-artifact*.json"))
+    print("sealed-fingerprint/v1 — calibration rescore (stdlib Python port of rescore.mjs)")
+    print(f"bank id={bank['benchmarkId']} items={len(bank['items'])}  "
+          f"artifacts={len(arts)}")
+    if not arts:
+        return check("calibration artifacts", False, "run-artifact*.json missing")
+
+    D_ANS = b"sealed/v1/answer\x00"
+    D_ITEM = b"sealed/v1/item\x00"
+    D_COUT = b"sealed/v1/chunkout\x00"
+    D_NODE = b"\x01"
+    trunc64 = lambda b: int.from_bytes(b[:8], "little")
+    u32 = lambda n: struct.pack("<I", n)
+    u16 = lambda n: struct.pack("<H", n)
+    u64 = lambda n: struct.pack("<Q", n)
+    ans_hash = lambda i, canon: trunc64(
+        sha256(D_ANS + u32(bank["benchmarkId"]) + u32(i) + canon.encode()))
+    item_leaf = lambda i, salt, prompt: sha256(
+        D_ITEM + u32(bank["benchmarkId"]) + u32(i) + bytes.fromhex(salt) + prompt.encode())
+    cout_leaf = lambda c, outs: sha256(
+        D_COUT + u16(c) + b"".join(u64(o) for o in outs))
+
+    def merkle_root(leaves):
+        if not leaves:
+            return b"\x00" * 32
+        while len(leaves) > 1:
+            leaves = [sha256(D_NODE + leaves[i] + leaves[min(i + 1, len(leaves) - 1)])
+                      for i in range(0, len(leaves), 2)]
+        return leaves[0]
+
+    # layer 1 — plaintext → fingerprints
+    bad_hash = sum(1 for it in bank["items"]
+                   if ans_hash(it["index"], it["answer"]) != int(it["answerHash"]))
+    ok &= check("answer fingerprints", bad_hash == 0,
+                f"all {len(bank['items'])} answerHash values recompute from plaintext"
+                if bad_hash == 0 else f"{bad_hash} mismatches")
+
+    # layer 2 — items_root (salted prompt commitment) vs the decoded Benchmark
+    root_file = merkle_root([item_leaf(it["index"], it["salt"], it["prompt"])
+                             for it in bank["items"]]).hex()
+    bench = decode_benchmark(find_account(sect, bench_pk, disc("Benchmark")))
+    ok &= check("items_root", root_file == bank["itemsRoot"] == bench["itemsRoot"],
+                f"{root_file[:16]}… == file == on-chain"
+                if root_file == bank["itemsRoot"] == bench["itemsRoot"] else
+                f"recomputed {root_file[:16]}… file {bank['itemsRoot'][:16]}… chain {bench['itemsRoot'][:16]}…")
+
+    # layer 3 — every on-chain Reveal PDA re-derived and its hashes checked
+    # against recomputed fingerprints (reveal layout: bench32, chunk u16 @40,
+    # part u8 @42, hashes[8] u64 @52)
+    reveals = {}  # global item index → revealed u64
+    n_reveal = 0
+    for a in sect:
+        d = base64.b64decode(a["data"])
+        if len(d) < 116 or d[:8] != disc("Reveal"):
+            continue
+        if b58encode(d[8:40]) != bench_pk:
+            continue
+        chunk = int.from_bytes(d[40:42], "little"); part = d[42]
+        want = b58encode(pda([b"reveal", b58decode(bench_pk),
+                              u16(chunk), bytes([part])], prog))
+        ok &= check(f"reveal PDA {chunk}/{part}", a["pubkey"] == want,
+                    "re-derived from declared seeds")
+        if a["pubkey"] != want:
+            continue
+        for j in range(8):
+            reveals[chunk * 32 + part * 8 + j] = \
+                int.from_bytes(d[52 + 8 * j:60 + 8 * j], "little")
+        n_reveal += 1
+    mismatch = sum(1 for pos, h in reveals.items()
+                   if pos >= len(bank["items"])
+                   or h != ans_hash(bank["items"][pos]["index"],
+                                    bank["items"][pos]["answer"]))
+    ok &= check("revealed fingerprints", n_reveal > 0 and mismatch == 0,
+                f"{len(reveals)} positions: on-chain Reveal.hashes == recomputed answerHash"
+                if mismatch == 0 else f"{mismatch}/{len(reveals)} mismatches")
+
+    # layers 4+5 per committed artifact — outputs_root binding + rescore
+    runs = [a for a in sect
+            if (len(base64.b64decode(a["data"])) >= 188
+                and base64.b64decode(a["data"])[:8] == disc("Run")
+                and b58encode(base64.b64decode(a["data"])[8:40]) == bench_pk)]
+    for ap in arts:
+        artifact = json.loads(ap.read_text())
+        outs = [int(r["outputHash"]) for r in artifact["items"]]
+        out_leaves = []
+        for c in range(0, len(outs), 32):
+            ch = outs[c:c + 32] + [0] * (32 - len(outs[c:c + 32]))
+            out_leaves.append(cout_leaf(c // 32, ch))
+        root_hex = merkle_root(out_leaves).hex()
+        hit = None
+        for a in runs:
+            d = base64.b64decode(a["data"])
+            if d[152:184].hex() == artifact["outputsRoot"]:
+                hit = a
+                break
+        ok &= check(f"{ap.name}: run account", hit is not None,
+                    f"found by outputs_root scan → {hit['pubkey'][:16]}…"
+                    if hit else f"no run on bank with outputs_root={artifact['outputsRoot'][:16]}…")
+        if hit is None:
+            continue
+        d = base64.b64decode(hit["data"])
+        run = decode_run(d)
+        ok &= check(f"{ap.name}: outputs_root binding",
+                    root_hex == artifact["outputsRoot"] == d[152:184].hex(),
+                    f"{root_hex[:16]}… == artifact == Run.outputs_root")
+        indep = sum(1 for it in bank["items"]
+                    if it["index"] in reveals
+                    and outs[it["index"]] == reveals[it["index"]])
+        ok &= check(f"{ap.name}: independent rescore",
+                    indep == run["correct"],
+                    f"recomputed {indep} == MPC-written Run.correct {run['correct']} "
+                    f"(model {run['modelId']})"
+                    if indep == run["correct"] else
+                    f"recomputed {indep} != Run.correct {run['correct']}")
+        ok &= check(f"{ap.name}: run finalized + local pre-score",
+                    run["status"] == 1 and artifact["localCorrect"] == indep,
+                    f"status=1, localCorrect {artifact['localCorrect']} == independent {indep}")
+
+    print("\n" + ("RESCORED — the MPC's arithmetic reproduced in a third language"
+                  if ok else "RESCORE FAILED"))
+    return ok
+
+
 def check_anchor():
     """--check-anchor: fetch the notarization memo tx back from devnet and
     prove the chain carries the claimed BUNDLE ROOT — stdlib urllib +
@@ -2348,4 +2500,6 @@ if __name__ == "__main__":
         sys.exit(0 if decrypt_demo() else 1)
     if len(sys.argv) > 1 and sys.argv[1] == "--check-anchor":
         sys.exit(0 if check_anchor() else 1)
+    if len(sys.argv) > 1 and sys.argv[1] == "--rescore":
+        sys.exit(0 if rescore_demo() else 1)
     main()
