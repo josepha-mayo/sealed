@@ -561,5 +561,15 @@ const gridOk = gridRows === 12 && /qwen2\.5-3b-instruct/.test(gridHtml) &&
   (gridHtml.match(/>\+\d+<\/td>/) ?? []).length > 0 && /—/.test(gridHtml);
 console.log(`in-page tournament grid — ${gridRows}×12 cells, signed deltas ${gridOk ? "PASS" : "FAIL"}`);
 if (!gridOk) fails++;
+// the one-click centerpiece — megaAudit() must cascade all three stages
+// (account audit, 127-artifact replay, full forgery sweep) into a final
+// EVERYTHING VERIFIED scoreboard.
+await vm.runInContext("megaAudit()", ctx);
+const megaHtml = els.get("megares")?.innerHTML ?? "";
+const megaStages = (megaHtml.match(/class="proof"/g) || []).length;
+const megaOk = megaStages === 3 && /EVERYTHING VERIFIED/.test(megaHtml) &&
+  /127/.test(els.get("bundleres")?.innerHTML ?? "");
+console.log(`in-page PROVE EVERYTHING — 3 stages cascade to the scoreboard ${megaOk ? "PASS" : "FAIL"}`);
+if (!megaOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

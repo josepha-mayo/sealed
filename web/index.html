@@ -91,7 +91,9 @@
     <button onclick="quickVerify()">① verify the leaderboard card</button>
     <button onclick="quickForge()">② watch a forgery die</button>
     <button onclick="quickReplay()">③ replay all 127 proofs</button>
+    <button onclick="megaAudit()" style="border-color:var(--acc)">④ PROVE EVERYTHING</button>
     <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — twenty-two captioned stops</span>
+    <div id="megares" style="margin-top:8px"></div>
   </div>
 </div>
 <div id="out"></div>
@@ -2554,6 +2556,45 @@ async function quickForge() {
 function quickReplay() {
   replayBundle();
   document.getElementById("sec-artifact")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+// ④ PROVE EVERYTHING — one click runs the whole skeptic's suite end to
+// end and keeps score: the account-level audit, all 127 committed
+// artifacts through their kind verifiers, then every forgery attack in
+// the lab. Nothing trusted — the cascade IS the demo.
+async function megaAudit() {
+  const res = document.getElementById("megares");
+  const rows = [];
+  const draw = (extra = "") => {
+    res.innerHTML = rows.join("") + extra;
+  };
+  const cnt = (id, cls) => (document.getElementById(id).innerHTML.match(new RegExp(cls, "g")) || []).length;
+  const stage = (html) => `<div class="proof">${html}</div>`;
+  const t0 = Date.now();
+
+  draw(stage(`<span class="pill open">RUNNING</span> account audit — every PDA re-derived, every fold + resolution replayed`));
+  await runAudit(true);
+  const aPass = cnt("auditres", "pill resolved"), aFail = cnt("auditres", "pill cancelled");
+  rows.push(stage(`<span class="pill ${aFail ? "cancelled" : "resolved"}">${aFail ? "FAIL" : "PASS"}</span> account audit — ${aPass} pass · ${aFail} fail (<a href="#sec-audit">full list ↓</a>)`));
+  draw(stage(`<span class="pill open">RUNNING</span> artifact replay — 127 committed proofs through their own verifiers`));
+
+  await replayBundle();
+  const bFail = cnt("bundleres", "pill cancelled"), bPass = cnt("bundleres", "pill resolved");
+  rows.push(stage(`<span class="pill ${bFail ? "cancelled" : "resolved"}">${bFail ? "FAIL" : "PASS"}</span> artifact replay — ${bPass} kind-groups pass · ${bFail} fail (<a href="#sec-artifact">all 127 ↓</a>)`));
+  draw(stage(`<span class="pill open">RUNNING</span> forgery sweep — every lab attack, automated`));
+
+  let caught = 0, forgedN = 0;
+  for (const k of Object.keys(FORGE_DEFS)) {
+    forgedN++;
+    await forge(k);
+    if (__forgeOut[k].state === "caught") caught++;
+  }
+  const forgeryOk = caught === forgedN;
+  rows.push(stage(`<span class="pill ${forgeryOk ? "resolved" : "cancelled"}">${forgeryOk ? "PASS" : "FAIL"}</span> forgery sweep — ${caught}/${forgedN} attacks died at named checks (<a href="#sec-forge">the lab ↓</a>)`));
+
+  const secs = ((Date.now() - t0) / 1000).toFixed(1);
+  const allOk = aFail === 0 && bFail === 0 && forgeryOk;
+  rows.push(`<div class="kv" style="margin-top:8px"><b>${allOk ? "EVERYTHING VERIFIED" : "NOT ALL GREEN"}</b> — audit ${aPass} pass · artifact groups ${bPass}/${bPass + bFail} pass · forgeries ${caught}/${forgedN} caught · in ${secs}s, in your browser, on bytes served to nobody but you</div>`);
+  draw();
 }
 // "verify YOUR copy" — a file the judge downloaded (or just edited)
 // goes through the same router; __cardSrc is nulled so the note can't
