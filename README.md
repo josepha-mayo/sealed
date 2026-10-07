@@ -9,9 +9,6 @@ Sealed is a referee for AI-capability claims. Benchmark items can be **minted in
 
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 
-[![CI](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml/badge.svg)](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml)
-[![Explorer](https://github.com/josepha-mayo/sealed/actions/workflows/pages.yml/badge.svg)](https://josepha-mayo.github.io/sealed/)
-
 > **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. **Live explorer: [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/)** — renders every bank, run, market, and Merkle proof straight from the committed on-chain snapshot, then **re-audits it in your browser**: every account's PDA re-derived, every `items_root` fold replayed bit-exact, every market resolution re-computed — no localnet, nothing trusted. With `arcium localnet` running, `scripts/demo.sh` runs the whole flow end-to-end.
 >
 > **Verify the whole submission in ~60 seconds** (clone → three commands → every claim recomputed):
@@ -37,6 +34,13 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # notarized on devnet (docs/evidence-anchor.json
 >                                  # holds a memo tx whose payload IS the root —
 >                                  # verify via its explorer link, zero tooling)
+> python3 scripts/verify.py        # don't trust our TypeScript? ~330 lines of
+>                                  # stdlib-only Python re-hashes everything,
+>                                  # re-derives the PDAs with real ed25519 math,
+>                                  # and unpacks the account bytes itself
+> python3 scripts/verify.py --tamper
+>                                  # the verifier catches its own lies —
+>                                  # forges each card kind, asserts the catch
 > ```
 >
 > **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) opens with a **60-second judge path** (verify the leaderboard card → watch a forgery die → replay all 125 proofs, three clicks), or take the whole thing with you: [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 5.8MB file that verifies offline, forever, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
