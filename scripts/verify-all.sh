@@ -40,4 +40,17 @@ node scripts/check-submission.mjs
 say "bundle fingerprint — every pinned byte re-hashed, one root for all of it"
 yarn --cwd packages/harness -s cli chain fingerprint
 
+# on-chain notarization drift — informational, not gating: the anchored
+# root must match the CURRENT tree for the timestamp to describe THIS
+# evidence. Offline-safe (no RPC); --check-anchor adds the live fetch.
+if [ -f docs/evidence-anchor.json ]; then
+  ANCHOR_ROOT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('docs/evidence-anchor.json','utf8')).bundleRoot)")
+  CUR_ROOT=$(yarn --cwd packages/harness -s cli chain fingerprint --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).bundleRoot))")
+  if [ "$ANCHOR_ROOT" = "$CUR_ROOT" ]; then
+    echo "  anchor drift check  IN SYNC — devnet memo tx carries this exact root (docs/evidence-anchor.json)"
+  else
+    echo "  anchor drift check  DRIFT — evidence moved since the anchor was posted; re-run: chain fingerprint --anchor docs/evidence-anchor.json"
+  fi
+fi
+
 say "ALL GREEN — every check above recomputed, nothing trusted"

@@ -12,7 +12,7 @@ import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type * as AnchorTypes from "@anchor-lang/core";
-import { Keypair, PublicKey, Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Keypair, PublicKey, Connection, LAMPORTS_PER_SOL, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
 import {
   awaitComputationFinalization,
   getArciumEnv,
@@ -3488,6 +3488,81 @@ export async function chainFingerprint(evidenceDir: string, webDir: string, json
   return out;
 }
 
+const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
+
+/** `chain fingerprint --anchor [file]` — notarize the bundle root on-chain:
+ *  a memo tx carrying `sealed-fingerprint/v1 <root>` posts to devnet, so the
+ *  evidence hash is timestamped by the ledger itself. The emitted
+ *  `sealed-anchor/v1` doc lives OUTSIDE the pinned trees — anchoring the
+ *  bundle inside the bundle would change the very root it claims. Anyone
+ *  can check the memo via the printed explorer link, no tooling needed. */
+export async function fingerprintAnchor(outFile: string, evDir: string, webDir: string, kpPath?: string, rpcUrl?: string) {
+  const { writeFileSync } = await import("node:fs");
+  const fp = await chainFingerprint(evDir, webDir, false);
+  if (process.exitCode === 1) throw new Error("manifest re-hash failed — refusing to anchor a dirty bundle");
+  const kp = loadKeypair(kpPath ?? process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json"));
+  const url = rpcUrl ?? process.env.SEALED_RPC_URL ?? "https://api.devnet.solana.com";
+  const conn = new Connection(url, "confirmed");
+  const memo = `sealed-fingerprint/v1 ${fp.bundleRoot}`;
+  const tx = new Transaction().add({
+    keys: [{ pubkey: kp.publicKey, isSigner: true, isWritable: true }],
+    programId: MEMO_PROGRAM_ID, data: Buffer.from(memo, "utf8"),
+  });
+  const sig = await sendAndConfirmTransaction(conn, tx, [kp], { commitment: "confirmed" });
+  const st = await conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  const devnet = /devnet|testnet|127\.0\.0\.1|localhost/.test(url);
+  const doc = {
+    kind: "sealed-anchor/v1", bundleRoot: fp.bundleRoot, memo,
+    signature: sig, cluster: url, payer: kp.publicKey.toBase58(),
+    slot: st?.slot ?? null, blockTime: st?.blockTime ?? null,
+    explorer: devnet
+      ? `https://explorer.solana.com/tx/${sig}?cluster=${url.includes("devnet") ? "devnet" : "custom&customUrl=" + encodeURIComponent(url)}`
+      : `https://explorer.solana.com/tx/${sig}`,
+  };
+  writeFileSync(outFile, JSON.stringify(doc, null, 2) + "\n");
+  console.log(`\nanchored — ${memo}`);
+  console.log(`  signature   ${sig}  ·  slot ${doc.slot ?? "?"}  ·  ${new Date((doc.blockTime ?? 0) * 1000).toISOString()}`);
+  console.log(`  explorer    ${doc.explorer}`);
+  console.log(`  wrote ${outFile} (outside the manifests — anchoring the bundle inside the bundle would move the root)`);
+  return doc;
+}
+
+/** `chain fingerprint --check-anchor <file>` — fetch the notarization tx
+ *  back from the cluster and prove the chain carries the claimed root;
+ *  then compare that root against the CURRENT tree (anchors go stale the
+ *  moment evidence moves — DRIFT just means: re-anchor at freeze). */
+export async function anchorVerify(file: string, evDir: string, webDir: string, rpcUrl?: string) {
+  const { readFileSync } = await import("node:fs");
+  const rows: string[] = [];
+  const pass = (n: string, d: string) => rows.push(`  ✓ ${n} — ${d}`);
+  const fail = (n: string, d: string) => { rows.push(`  ✗ ${n} — ${d}`); process.exitCode = 1; };
+  let nBad = 0;
+  const f = (n: string, d: string) => { nBad++; fail(n, d); };
+  const a = JSON.parse(readFileSync(file, "utf8"));
+  if (a.kind !== "sealed-anchor/v1") throw new Error(`not a sealed-anchor/v1 doc (kind=${a.kind})`);
+  console.log(`sealed-anchor/v1 — ${file}`);
+  const url = rpcUrl ?? a.cluster ?? "https://api.devnet.solana.com";
+  const conn = new Connection(url, "confirmed");
+  const st = await conn.getTransaction(a.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  if (!st) { f("on-chain fetch", `${a.signature} not found on ${url}`); }
+  else {
+    const logs = st.meta?.logMessages ?? [];
+    const memoLog = logs.map((l) => l.match(/^Program log: Memo \(len \d+\): "(.*)"$/)?.[1]).find(Boolean);
+    if (memoLog === a.memo) pass("memo on-chain", `the ledger carries "${memoLog}" — timestamped at slot ${st.slot}, blockTime ${new Date((st.blockTime ?? 0) * 1000).toISOString()}`);
+    else f("memo on-chain", `tx exists but memo differs — got "${memoLog ?? "(none)"}", wanted "${a.memo}"`);
+    const declared = `sealed-fingerprint/v1 ${a.bundleRoot}`;
+    memoLog === declared ? pass("root in memo", "the memo embeds the claimed BUNDLE ROOT")
+      : f("root in memo", `memo="${memoLog ?? "(none)"}" ≠ "${declared}"`);
+  }
+  const cur = await chainFingerprint(evDir, webDir, false);
+  cur.bundleRoot === a.bundleRoot
+    ? pass("anchor vs current", "the anchored root IS the current bundle root — evidence unchanged since notarization")
+    : rows.push(`  ! anchor vs current — DRIFT: anchored ${a.bundleRoot.slice(0, 16)}… ≠ current ${cur.bundleRoot.slice(0, 16)}… — evidence moved since the anchor; re-anchor at freeze (this check can't fail, staleness is information)`);
+  console.log(rows.join("\n"));
+  console.log(`${nBad === 0 ? "ANCHOR VERIFIED" : "ANCHOR FAILED"} — ${a.signature} on ${url}`);
+  return { ok: nBad === 0, drift: cur.bundleRoot !== a.bundleRoot };
+}
+
 /** `chain bounties [--snapshot f] [--json]` — the runner-facing index: every
  *  capability bounty (open / claimed / expired), threshold, pot, deadline.
  *  Board serves keepers; this answers "where can my model earn?" */
@@ -6643,7 +6718,19 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "fingerprint") {
-    await chainFingerprint(String(args.evidence ?? "docs/evidence"), String(args.web ?? "web"), Boolean(args.json));
+    const evDir = String(args.evidence ?? "docs/evidence"), webDir = String(args.web ?? "web");
+    if (args.anchor) {
+      const out = args.anchor === true ? "docs/evidence-anchor.json" : String(args.anchor);
+      await fingerprintAnchor(out, evDir, webDir, args.wallet ? String(args.wallet) : undefined,
+        args.rpc ? String(args.rpc) : undefined);
+      return;
+    }
+    if (args["check-anchor"]) {
+      await anchorVerify(String(args["check-anchor"]), evDir, webDir,
+        args.rpc ? String(args.rpc) : undefined);
+      return;
+    }
+    await chainFingerprint(evDir, webDir, Boolean(args.json));
     return;
   }
   if (sub === "board") {

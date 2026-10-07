@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 59/59 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 60/60 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
@@ -101,6 +101,14 @@ parimutuel markets resolved from `Run.correct`.
   BUNDLE ROOT = sha256(evidenceRoot ‖ webRoot); web/SHA256SUMS is a
   byte-copy of docs/evidence/SHA256SUMS (evidence-manifest.sh check
   cmps them) so the in-page bundle replay prints the SAME root.
+  `fingerprint --anchor [file]` notarizes the root on devnet via a
+  memo tx (`sealed-anchor/v1` doc — committed at
+  docs/evidence-anchor.json, deliberately OUTSIDE the manifests so it
+  can't move its own root); `--check-anchor <file>` fetches the tx
+  back and proves the chain carries the claimed root (anchor-vs-current
+  drift is informational — re-anchor whenever the evidence freezes).
+  The explorer's `?root=<sha>` URL param makes a shareable link out of
+  the same root — the page re-checks the claim on open.
   `runsScored`
   counts RECEIPTED runs ([scorelog,run] singleton) — never
   equate it with finalized-run count (runs may finalize unrecorded).
@@ -417,4 +425,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 59/59.
+  `yarn harness:test` → 60/60.

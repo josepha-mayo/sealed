@@ -307,6 +307,18 @@ yarn --cwd packages/harness cli chain fingerprint
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 
+# 3n. THE TIMESTAMPED ROOT — the bundle root is notarized on Solana
+#     devnet itself: docs/evidence-anchor.json holds a memo tx whose
+#     payload IS the root ("sealed-fingerprint/v1 <hash>"). Verify with
+#     zero tooling — open the explorer link in the file and read the
+#     memo — or replay it:
+yarn --cwd packages/harness cli chain fingerprint \
+  --check-anchor ../../docs/evidence-anchor.json \
+  --evidence ../../docs/evidence --web ../../web
+#         → ANCHOR VERIFIED — memo on-chain ✓ root in memo ✓
+#           anchor-vs-current ✓ (a DRIFT note just means evidence moved
+#           after notarization — we re-anchor at freeze)
+
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh
 #    substitute YOUR run PDA (printed by `chain score` / `chain status`).

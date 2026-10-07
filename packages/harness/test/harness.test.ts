@@ -1480,3 +1480,18 @@ test("sealed-fingerprint/v1 — the bundle root re-hashes every pinned file and 
     process.exitCode = origExit;
   } finally { console.log = origLog; process.exitCode = origExit; }
 });
+
+test("sealed-anchor/v1 — the committed notarization doc is internally consistent (memo embeds the claimed root)", async () => {
+  const { readFileSync, existsSync } = await import("node:fs");
+  const f = new URL("../../../docs/evidence-anchor.json", import.meta.url).pathname;
+  assert.ok(existsSync(f), "docs/evidence-anchor.json must exist — run chain fingerprint --anchor at freeze");
+  const a = JSON.parse(readFileSync(f, "utf8"));
+  assert.equal(a.kind, "sealed-anchor/v1");
+  assert.match(a.bundleRoot, /^[0-9a-f]{64}$/);
+  assert.equal(a.memo, `sealed-fingerprint/v1 ${a.bundleRoot}`);
+  assert.match(a.signature, /^[1-9A-HJ-NP-Za-km-z]{40,100}$/);
+  assert.match(a.explorer, new RegExp(`explorer\\.solana\\.com/tx/${a.signature}`));
+  // drift vs the current tree is intentional surface area (evidence moves
+  // after notarization) — verify-all's fingerprint stage reports it; the
+  // unit suite stays offline-safe.
+});
