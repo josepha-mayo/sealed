@@ -261,7 +261,7 @@ const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/14/.test(tourStep2) &&
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/15/.test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;
