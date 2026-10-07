@@ -57,7 +57,12 @@ parimutuel markets resolved from `Run.correct`.
   classification), and the 11 tamper exhibits which MUST be rejected.
   No node, no pip, no RPC — proof the evidence is language-agnostic.
   `--tamper` forges each card family and asserts the catch at a named
-  check.
+  check. `--decrypt` ports the whole disclosure stack — RFC7748 x25519
+  ladder, Rescue-Prime over Fp25519 (SHAKE256-sampled constants, Cauchy
+  MDS, key-schedule permute, CTR mode) — and decrypts the demo
+  delegate's ShareGrants a third way; re-encrypting the plaintext
+  reproduces the committed ciphertext bytes bit-exact, and the 32-spec
+  digest matches decrypt-grants-test.mjs's pin.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.

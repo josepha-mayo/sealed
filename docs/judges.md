@@ -456,6 +456,18 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/board.json \
   --tamper --snapshot ../../web/snapshot.json
 #         → 3 attacks on the leaderboard card (score/rank/vouch),
 #           ALL FORGERIES CAUGHT — the verifier rejects its own lies
+#
+#     …and the deepest cut: --decrypt ports the WHOLE disclosure stack
+#     into stdlib Python — the RFC7748 x25519 ladder, Rescue-Prime over
+#     Fp25519 (SHAKE256-sampled round constants, Cauchy MDS, key-schedule
+#     permute, CTR mode), plus the hash-mode KDF. The committed throwaway
+#     delegate key opens its ShareGrants a THIRD way — and re-encrypting
+#     the recovered plaintext reproduces the on-chain ciphertext bytes
+#     bit-exact, so a wrong port cannot pass:
+python3 scripts/verify.py --decrypt
+#         → 4 grants decrypt · 32 item specs recovered · sha256 of the
+#           spec set matches the JavaScript pin — the sealed exam is
+#           readable by three independent implementations
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     6.6MB file: the page, the snapshot, all 138 artifacts, both

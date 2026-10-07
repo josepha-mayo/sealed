@@ -78,6 +78,13 @@ Checks:
 
 Coverage: every committed artifact — all 12 JSON kinds (134 files) and
 the 4 markdown reports — replays under this second implementation.
+
+  python3 scripts/verify.py --tamper    # the forgery lab, re-run here
+  python3 scripts/verify.py --decrypt   # Rescue+x25519 ported — the
+                                        # demo delegate's ShareGrants
+                                        # decrypt in stdlib Python, and
+                                        # re-encryption reproduces the
+                                        # committed ciphertext bytes
 """
 
 import base64
@@ -1839,6 +1846,333 @@ def forged_card_rejected(f):
     return True  # unknown kind — we cannot bless it
 
 
+# --- Rescue cipher + x25519 — the selective-disclosure port -----------------
+# The SAME Rescue-Prime cipher the browser and harness decrypt ShareGrants
+# with (web/vendor/rescue.mjs, vendored from @arcium-hq/client) — re-derived
+# in stdlib Python: Fp = 2^255-19, SHAKE256-sampled constants, Cauchy MDS,
+# m=5 CTR mode. The ct*/binSize machinery in the JS is constant-time armor;
+# semantically it is signed modular arithmetic — plain % P reproduces it.
+
+FP = 2 ** 255 - 19                       # CURVE25519_BASE_FIELD.ORDER
+RESCUE_M = 5                             # cipher block size (field elements)
+
+
+def _fadd(a, b):
+    return (a + b) % FP
+
+
+def _mat_mul(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(len(b))) % FP
+             for j in range(len(b[0]))] for i in range(len(a))]
+
+
+def _mat_add(a, b):
+    return [[(a[i][j] + b[i][j]) % FP for j in range(len(a[0]))]
+            for i in range(len(a))]
+
+
+def _mat_sub(a, b):
+    return [[(a[i][j] - b[i][j]) % FP for j in range(len(a[0]))]
+            for i in range(len(a))]
+
+
+def _mat_pow(a, e):
+    return [[pow(x, e, FP) for x in row] for row in a]
+
+
+def _mat_det(a):
+    # Gauss elimination over Fp — mirrors rescue.mjs Matrix.det(): pivot on
+    # the first nonzero row, forward-eliminate the rest, drop the column.
+    rows = [list(r) for r in a]
+    det = 1
+    for _ in range(len(rows)):
+        lz = [r for r in rows if r[0] % FP == 0]
+        nlz = [r for r in rows if r[0] % FP != 0]
+        if not nlz:
+            return 0
+        piv = nlz.pop(0)
+        det = det * piv[0] % FP
+        inv = pow(piv[0], FP - 2, FP)
+        norm = [v * inv % FP for v in piv]
+        rows = ([[(v - r[0] * nv) % FP for v, nv in zip(r, norm)][1:]
+                 for r in nlz]
+                + [r[1:] for r in lz])
+    return det
+
+
+class _ShakeStream:
+    """noble shake256.update(seed) + sequential .xof(buflen) — Python's
+    shake_256.digest(n) returns the FIRST n bytes, so we extend lazily."""
+    def __init__(self, seed: bytes, buflen: int = 48):
+        self.h = hashlib.shake_256(seed)
+        self.buflen = buflen
+        self.i = 0
+        self.buf = b""
+
+    def next(self):
+        if (self.i + 1) * self.buflen > len(self.buf):
+            self.buf = self.h.digest((self.i + 64) * self.buflen)
+        out = self.buf[self.i * self.buflen:(self.i + 1) * self.buflen]
+        self.i += 1
+        return int.from_bytes(out, "little") % FP
+
+
+def _build_cauchy(n):
+    return [[pow(i + j, FP - 2, FP) for j in range(1, n + 1)]
+            for i in range(1, n + 1)]
+
+
+def _rescue_alpha():
+    p1 = FP - 1
+    for a in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47):
+        if p1 % a != 0:
+            return a, pow(a, -1, p1)
+    raise ValueError("no alpha")
+
+
+def _nrounds_cipher(m):
+    alpha = _rescue_alpha()[0]
+    l0 = math.ceil((2 * 128) / ((m + 1) * (math.log2(FP) - math.log2(alpha - 1))))
+    l1 = (math.ceil((128 + 2) / (4 * m)) if alpha == 3
+          else math.ceil((128 + 3) / (5.5 * m)))
+    return 2 * max(l0, l1, 5)
+
+
+def _nrounds_hash(m, capacity):
+    alpha = _rescue_alpha()[0]
+    rate = m - capacity
+    dcon = lambda n: int(0.5 * (alpha - 1) * m * (n - 1) + 2.0)
+    v = lambda n: m * (n - 1) + rate
+    target = 1 << 256
+    l1 = 1
+    while math.comb(v(l1) + dcon(l1), v(l1)) ** 2 <= target and l1 <= 23:
+        l1 += 1
+    return math.ceil(1.5 * max(5, l1))
+
+
+def _vec(elems):
+    return [[e % FP] for e in elems]
+
+
+def _rescue_permutation(subkeys, state, alpha, alpha_inv, mds, mode):
+    # rescue.mjs rescuePermutation — alternating alpha/alphaInv power rounds
+    # with MDS + subkey inject. cipher: even→alphaInv, odd→alpha; hash flips.
+    e_even, e_odd = ((alpha_inv, alpha) if mode == "cipher" else (alpha, alpha_inv))
+    states = [_mat_add(state, subkeys[0])]
+    for r in range(len(subkeys) - 1):
+        s = _mat_pow(states[r], e_even if r % 2 == 0 else e_odd)
+        states.append(_mat_add(_mat_mul(mds, s), subkeys[r + 1]))
+    return states
+
+
+class _RescueDescCipher:
+    """Cipher-mode RescueDesc: m = len(key), constants from
+    shake256('encrypt everything, compute anything'), round keys = the
+    key-schedule permutation of the key vector."""
+    def __init__(self, key):
+        self.m = len(key)
+        self.alpha, self.alpha_inv = _rescue_alpha()
+        self.n = _nrounds_cipher(self.m)
+        self.mds = _build_cauchy(self.m)
+        stream = _ShakeStream(b"encrypt everything, compute anything")
+        r_field = [stream.next() for _ in range(self.m * self.m + 2 * self.m)]
+        mat = [r_field[i * self.m:(i + 1) * self.m] for i in range(self.m)]
+        init = [[e] for e in r_field[self.m * self.m:self.m * self.m + self.m]]
+        affine = [[e] for e in r_field[self.m * self.m + self.m:]]
+        while _mat_det(mat) == 0:
+            mat = [[stream.next() for _ in range(self.m)] for _ in range(self.m)]
+        consts = [init]
+        for r in range(2 * self.n):
+            consts.append(_mat_add(_mat_mul(mat, consts[r]), affine))
+        self.round_keys = _rescue_permutation(consts, _vec(key),
+                                              self.alpha, self.alpha_inv,
+                                              self.mds, "cipher")
+
+    def permute(self, state_vec):
+        return _rescue_permutation(self.round_keys, _vec(state_vec),
+                                   self.alpha, self.alpha_inv,
+                                   self.mds, "cipher")[-1]
+
+
+class _RescuePrimeHash:
+    """Hash-mode RescueDesc: m=12 rate=7 capacity=5, constants from
+    shake256(f'Rescue-XLIX({P},{m},{cap},{security})'), digest length 5."""
+    def __init__(self):
+        self.m, self.rate, self.capacity = 12, 7, 5
+        self.alpha, self.alpha_inv = _rescue_alpha()
+        self.n = _nrounds_hash(self.m, self.capacity)
+        self.mds = _build_cauchy(self.m)
+        stream = _ShakeStream(f"Rescue-XLIX({FP},{self.m},{self.capacity},256)".encode())
+        consts = [[[0] for _ in range(self.m)]]
+        for r in range(2 * self.n):
+            consts.append([[stream.next()] for _ in range(self.m)])
+        self.subkeys = consts
+
+    def permute(self, state):
+        return _rescue_permutation(self.subkeys, state,
+                                   self.alpha, self.alpha_inv,
+                                   self.mds, "hash")[-1]
+
+    def digest(self, message):
+        padded = list(message) + [1]
+        while len(padded) % self.rate:
+            padded.append(0)
+        state = [[0]] * self.m
+        for r in range(len(padded) // self.rate):
+            s = [[padded[r * self.rate + i]] for i in range(self.rate)] \
+                + [[0]] * (self.m - self.rate)
+            state = self.permute(_mat_add(state, s))
+        return [state[i][0] for i in range(5)]
+
+
+class RescueCipher:
+    """rescue.mjs RescueCipher — CTR-mode Rescue over Fp25519, m=5."""
+    def __init__(self, shared_secret: bytes):
+        if len(shared_secret) != 32:
+            raise ValueError("shared secret must be 32 bytes")
+        ss = int.from_bytes(shared_secret, "little") % FP
+        key = _RescuePrimeHash().digest([1, ss, RESCUE_M])
+        self.desc = _RescueDescCipher(key)
+
+    def decrypt(self, cts: list, nonce: bytes):
+        if len(nonce) != 16:
+            raise ValueError("nonce must be 16 bytes")
+        fields = [int.from_bytes(c, "little") for c in cts]
+        n_blocks = math.ceil(len(fields) / RESCUE_M)
+        n0 = int.from_bytes(nonce, "little")
+        out = []
+        for i in range(n_blocks):
+            ks = self.desc.permute([n0, i, 0, 0, 0])
+            blk = fields[i * RESCUE_M:i * RESCUE_M + RESCUE_M]
+            out.extend((c - ks[j][0]) % FP for j, c in enumerate(blk))
+        return out
+
+    def encrypt(self, fields, nonce: bytes):
+        n_blocks = math.ceil(len(fields) / RESCUE_M)
+        n0 = int.from_bytes(nonce, "little")
+        out = []
+        for i in range(n_blocks):
+            ks = self.desc.permute([n0, i, 0, 0, 0])
+            blk = fields[i * RESCUE_M:i * RESCUE_M + RESCUE_M]
+            out.extend(((p + ks[j][0]) % FP).to_bytes(32, "little")
+                       for j, p in enumerate(blk))
+        return out
+
+
+def x25519_shared(ed_secret32: bytes, peer_u: bytes) -> bytes:
+    """noble: toMontgomerySecret = sha512(seed)[:32] (unclamped — the
+    RFC7748 clamp is applied inside scalarMult), then the Montgomery
+    ladder on curve25519."""
+    h = hashlib.sha512(ed_secret32).digest()[:32]
+    k = bytearray(h)
+    k[0] &= 248
+    k[31] &= 127
+    k[31] |= 64
+    scalar = int.from_bytes(k, "little")
+    u = int.from_bytes(peer_u, "little") & (2 ** 255 - 1)
+    x1, x2, z2, x3, z3, swap = u, 1, 0, u, 1, 0
+    for t in reversed(range(255)):
+        kt = (scalar >> t) & 1
+        swap ^= kt
+        if swap:
+            x2, x3, z2, z3 = x3, x2, z3, z2
+        swap = kt
+        a = (x2 + z2) % FP
+        aa = a * a % FP
+        b = (x2 - z2) % FP
+        bb = b * b % FP
+        e = (aa - bb) % FP
+        c = (x3 + z3) % FP
+        dd = (x3 - z3) % FP
+        da = dd * a % FP
+        cb = c * b % FP
+        x3 = (da + cb) ** 2 % FP
+        z3 = x1 * ((da - cb) ** 2 % FP) % FP
+        x2 = aa * bb % FP
+        z2 = e * (aa + 121665 * e) % FP
+    if swap:
+        x2, x3, z2, z3 = x3, x2, z3, z2
+    return (x2 * pow(z2, FP - 2, FP) % FP).to_bytes(32, "little")
+
+
+def unpack_specs(fields):
+    """Two packed field elements → 40 bytes → 8 item specs (a,b,c,op0,op1)."""
+    if len(fields) != 2:
+        raise ValueError(f"expected 2 packed fields, got {len(fields)}")
+    bts = bytes((fields[i // 26] >> (8 * (i - (i // 26) * 26))) & 0xFF
+                for i in range(40))
+    specs = []
+    for k in range(8):
+        a, b, c, op0, op1 = bts[k * 5:k * 5 + 5]
+        if a > 63 or b > 63 or c > 63 or op0 > 2 or op1 > 2:
+            raise ValueError(f"spec {k} out of range")
+        specs.append((a, b, c, op0, op1))
+    return specs
+
+
+def decrypt_demo():
+    """--decrypt: the selective-disclosure proof in a THIRD language.
+    web/demo-delegate.json holds a throwaway viewer key; every ShareGrant
+    to it on the committed private bank decrypts here — then we RE-ENCRYPT
+    the plaintext and require the bytes to equal the on-chain ciphertexts.
+    A broken port cannot round-trip into the committed account bytes."""
+    snap = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    demo = json.loads((ROOT / "web" / "demo-delegate.json").read_text())
+    mxe = snap.get("meta", {}).get("mxe_x25519")
+    if not mxe:
+        print("FAIL snapshot.meta.mxe_x25519 missing")
+        return False
+    ok = True
+    print("sealed-fingerprint/v1 — delegate decryption (stdlib Python Rescue+x25519)")
+    secret = bytes(demo["secret_key"])
+    shared = x25519_shared(secret[:32], bytes.fromhex(mxe))
+    cipher = RescueCipher(shared)
+    PINNED_BANK = "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug"
+    grants = []
+    for a in snap["sealed"]:
+        d = base64.b64decode(a["data"])
+        if d[:8] != disc("ShareGrant"):
+            continue
+        g = decode_share_grant(d)
+        if g["viewer"] == demo["viewer_x25519"]:
+            grants.append({"pk": a["pubkey"], "raw": d, **g})
+    grants.sort(key=lambda g: (g["benchmark"], g["chunkIndex"], g["part"]))
+    specs_by_bank = {}
+    for g in grants:
+        nonce = g["raw"][108:124]
+        cts = [g["raw"][124:156], g["raw"][156:188]]
+        try:
+            fields = cipher.decrypt(cts, nonce)
+            specs = unpack_specs(fields)
+            rt = cipher.encrypt(fields, nonce)
+            rt_ok = rt[0] == cts[0] and rt[1] == cts[1]
+        except Exception as e:
+            ok &= check(f"grant {g['pk'][:12]}… decrypt", False, str(e))
+            continue
+        specs_by_bank.setdefault(g["benchmark"], []).extend(specs)
+        ok &= check(f"grant {g['pk'][:12]}… decrypt + re-encrypt", rt_ok,
+                    f"chunk {g['chunkIndex']} part {g['part']} → 8 valid specs; "
+                    "re-encryption reproduces the on-chain ciphertext bytes"
+                    if rt_ok else "re-encryption MISMATCH")
+    OPS = ["+", "-", "*"]
+    all_specs = specs_by_bank.get(PINNED_BANK, [])
+    if all_specs:
+        for s in all_specs[:4]:
+            print(f"    spec: (({s[0]} {OPS[s[3]]} {s[1]}) {OPS[s[4]]} {s[2]})")
+        digest = hashlib.sha256(
+            json.dumps([{"a": s[0], "b": s[1], "c": s[2], "op0": s[3], "op1": s[4]}
+                        for s in all_specs], separators=(",", ":")).encode()).hexdigest()
+        # the pin from scripts/decrypt-grants-test.mjs — same specs, two languages
+        ok &= check("spec digest pin",
+                    digest == "af15a73ddac76e0abc96860349768c61013d7947057882e2cdddfd857dbbff22",
+                    f"{len(all_specs)} specs on the sealed-priv bank · sha256 {digest[:16]}…"
+                    + (" == pinned" if digest.startswith("af15a73d") else " MISMATCH"))
+    total = sum(len(v) for v in specs_by_bank.values())
+    print(f"{'DECRYPTED' if ok and grants else 'FAILED'} — {len(grants)} grants, "
+          f"{total} item specs recovered keyless across {len(specs_by_bank)} bank(s)")
+    return ok and bool(grants)
+
+
 def tamper_demo():
     """--tamper: forge each committed card, run the real checks, show the catch.
 
@@ -1932,4 +2266,6 @@ def tamper_demo():
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--tamper":
         sys.exit(0 if tamper_demo() else 1)
+    if len(sys.argv) > 1 and sys.argv[1] == "--decrypt":
+        sys.exit(0 if decrypt_demo() else 1)
     main()

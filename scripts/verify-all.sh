@@ -32,7 +32,7 @@ scripts/evidence-manifest.sh check
 scripts/web-manifest.sh check
 
 say "6b. second-language verdict — Python (stdlib-only) recomputes the root + re-derives PDAs"
-python3 scripts/verify.py && python3 scripts/verify.py --tamper
+python3 scripts/verify.py && python3 scripts/verify.py --tamper && python3 scripts/verify.py --decrypt
 
 say "6bb. CLI forgery lab — the verifier catches its own lies (TypeScript)"
 yarn --cwd packages/harness -s cli chain artifact \
