@@ -3205,7 +3205,7 @@ const canPda = () => !!(window.solanaWeb3?.PublicKey?.findProgramAddressSync);
 const pdaB = (seeds, pid) => window.solanaWeb3.PublicKey.findProgramAddressSync(seeds, pid)[0].toBase58();
 
 let __auditKey = null;
-function maybeAudit() {
+async function maybeAudit() {
   const A = window.__audit;
   if (!A) return;
   const key = A.benches.length + ":" + A.runs.length + ":" + A.markets.length + ":" + A.ladders.length + ":" + A.darkMarkets.length + ":" + A.bounties.length + ":" + A.skipped;
@@ -3214,6 +3214,19 @@ function maybeAudit() {
   runAudit();
   renderAnomalies();
   if (new URLSearchParams(location.search).get("tour")) startTour();
+  // ?card=<path> — every committed artifact is a shareable link: fetch the
+  // named card, hand it to the universal router, land on the verdict. The
+  // link IS the claim — the page re-verifies on open.
+  const cardParam = new URLSearchParams(location.search).get("card");
+  if (cardParam && /^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(cardParam) && !cardParam.includes("..")) {
+    try {
+      const r = await fetch(cardParam);
+      if (r.ok) {
+        document.getElementById("artifactjson").value = await r.text();
+        verifyAnyArtifact();
+      }
+    } catch { /* unreachable card — the link is stale, not broken crypto */ }
+  }
 }
 
 // The explorer demos itself — the in-page mirror of `chain tour`: an

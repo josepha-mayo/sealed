@@ -315,6 +315,11 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     hosted link and the page re-checks it on open — "LINK CLAIM
 #     VERIFIED" means the bytes served recompute to the shared hash. A
 #     verdict you can paste in chat, not a screenshot you have to trust.
+#     Sibling param: ?card=<path> makes every committed artifact a
+#     shareable self-verifying link — the page fetches the named card,
+#     routes it to its verifier, and lands on the check list. e.g.
+#       https://josepha-mayo.github.io/sealed/?card=banks/sealed-priv.json
+#     lands on the private exam card with the ciphertext fold replayed.
 yarn --cwd packages/harness cli chain fingerprint
 #         → re-hash check PASS — 292/292 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;

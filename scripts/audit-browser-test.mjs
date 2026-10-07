@@ -333,6 +333,19 @@ if (!statOk) fails++;
   console.log(`in-page link claims — ?root= match ${linkOk ? "VERIFIED" : "MISSED"} · forged root ${linkBad ? "rejected" : "MISSED"} ${linkOk && linkBad ? "PASS" : "FAIL"}`);
   if (!(linkOk && linkBad)) fails++;
 }
+// the ?card= deep link — every committed artifact is a shareable URL:
+// fetch, route through the universal verifier, land on the verdict.
+{
+  ctx.location.search = "?card=banks/sealed-gen.json";
+  await vm.runInContext("maybeAudit.__proto__ ? 0 : 0; window.__auditKey=''; maybeAudit()", ctx);
+  await new Promise((r) => setTimeout(r, 400));
+  const noteTxt = els.get("artifactnote")?.innerHTML ?? "";
+  const bankTxt = (els.get("bankres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+  const cardOk = /sealed-bank\/v1/.test(noteTxt) && /BANK VERIFIED/.test(bankTxt);
+  console.log(`in-page ?card= deep link — artifact fetched, routed, verified ${cardOk ? "PASS" : "FAIL"}`);
+  if (!cardOk) fails++;
+  ctx.location.search = "?snapshot=bundled";
+}
 // guided tour — the bar opens on the first stop with its caption, and
 // next() advances through the section walk.
 vm.runInContext("startTour()", ctx);
