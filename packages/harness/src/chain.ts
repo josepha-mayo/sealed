@@ -1834,6 +1834,7 @@ export async function bankShow(keyOrName: string, json = false, snapPath?: strin
     const md = out.marketDepth;
     console.log(`  depth — ${md.venues} venue(s) moved ${(Number(md.lamports) / 1e9).toFixed(3)}◎ through this exam's runs (${(Number(md.resolved) / 1e9).toFixed(3)}◎ resolved · ${(Number(md.open) / 1e9).toFixed(3)}◎ still in play)`);
   }
+  console.log(`  permalink — https://josepha-mayo.github.io/sealed/?pk=${out.pk}`);
   return out;
 }
 
@@ -1997,6 +1998,7 @@ export async function modelRecordShow(keyOrName: string, snapPath?: string, json
     : `  !! VIOLATION — receipts sum ${rc}/${ri} over ${logs.length} run(s), record claims ${rec.totalCorrect}/${rec.totalItems} over ${rec.runsScored}`);
   console.log(`  best=${rec.bestCorrect}/${rec.bestItems} on run ${(rec.bestRun as PublicKey).toBase58()} (bank ${(rec.bestBank as PublicKey).toBase58()})`);
   console.log(`  last=${(rec.lastRun as PublicKey).toBase58()}  first_seen=${rec.firstSeen}  last_scored=${rec.lastScored}`);
+  console.log(`  permalink — https://josepha-mayo.github.io/sealed/?pk=${pda.toBase58()}`);
 }
 
 /** `chain gate <model_id|record-pk> [--min-pct N] [--min-runs N]
@@ -2916,6 +2918,7 @@ export async function chainModel(keyOrName: string, json = false, snapPath?: str
   console.log(`  runs        — ${out.runs.total} submitted · ${out.runs.finalized} finalized`);
   for (const r of out.runs.recent.slice(0, 8))
     console.log(`    ${String(r.pk).slice(0, 12)}… ${r.score} on ${r.bank} (status ${r.status})`);
+  console.log(`  permalink   — https://josepha-mayo.github.io/sealed/?pk=${out.record}`);
   return out;
 }
 
@@ -3135,6 +3138,7 @@ export async function chainTrail(runPkStr: string, json = false, snapPath?: stri
       `${v.resolvedScore != null ? ` resolved=${v.resolvedScore}` : ""}${v.threshold != null ? ` threshold=${v.threshold}` : ""}` +
       `${v.pool != null ? ` pool=${(v.pool / 1e9).toFixed(3)}◎` : ""}${v.amount != null ? ` pot=${(v.amount / 1e9).toFixed(3)}◎` : ""}${check}`);
   }
+  console.log(`  permalink — https://josepha-mayo.github.io/sealed/?pk=${runPkStr}`);
   return out;
 }
 
@@ -3823,6 +3827,7 @@ export async function marketVenue(pkStr: string, json = false, snapPath?: string
   if (out.positions !== undefined) console.log(`  positions — ${out.positions} held`);
   for (const r of book)
     console.log(`    ${r.bettor?.slice(0, 12)}…  ${solAmt(r.staked)}◎ ${r.est > 0n ? `→ ~${solAmt(r.est)}◎ ` : ""}${r.state}${r.posPk ? `  · position ${r.posPk.slice(0, 12)}…` : ""}`);
+  console.log(`  permalink — https://josepha-mayo.github.io/sealed/?pk=${pkStr}`);
   return out;
 }
 
@@ -4340,6 +4345,7 @@ export async function walletShow(pkStr: string, json = false, snapPath?: string)
   if (!myBanks.length && !myRuns.length && !myReceipts.length && !out.venuesCreated &&
       !out.bountiesSponsored.total && !out.bountiesWon.total && !out.positions.count && !out.grantsHeld.length)
     console.log(`  no footprint — this key authored no banks, runs, venues, positions, or grants`);
+  console.log(`  permalink — https://josepha-mayo.github.io/sealed/?pk=${me}`);
   return out;
 }
 
@@ -6434,6 +6440,7 @@ export async function marketPosition(pkStr: string, json = false, snapPath?: str
   if (row && (row.state === "payable" || row.state === "refund")) {
     console.log(`\nclaim: sealed chain market ${row.kind === "ladder" ? "ladder claim" : row.kind === "dark" ? "dark claim --pos-salt <your-salt>" : "claim"} --market ${row.pk}`);
   }
+  console.log(`  permalink — https://josepha-mayo.github.io/sealed/?pk=${pkStr}`);
   return doc;
 }
 

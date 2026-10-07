@@ -242,6 +242,7 @@ model qwen2.5-3b-instruct — the four lenses on one page
     5YKpcbn5UF87… 6/32 on sealed-gen-v87635 (status 1)
     76kDLfXmJrWH… 5/32 on sealed-pgen-v10019 (status 1)
     EQkXCFGSJNZS… 5/32 on sealed-pgen-v10019 (status 1)
+  permalink   — https://josepha-mayo.github.io/sealed/?pk=7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
 
 $ sealed chain modelrec qwen2.5-3b-instruct --snapshot ../../web/snapshot.json
 model record 7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
@@ -250,6 +251,7 @@ model record 7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
   replayed 3 receipt(s) — stored aggregate verified bit-exact
   best=9/32 on run 4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2 (bank BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z)
   last=GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi  first_seen=1790962105  last_scored=1791026278
+  permalink — https://josepha-mayo.github.io/sealed/?pk=7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB
 
 $ sealed chain market board --snapshot ../../web/snapshot.json
 venue board — 37 bounties, 208 markets, 47 dark, 48 ladders over 503 runs
@@ -377,22 +379,22 @@ market escrow — 76.0750◎ cumulative stakes tracked across 303 venues + 37 bo
 $ sealed chain market live --snapshot ../../web/snapshot.json   (head -14)
 open venues — 28 accepting positions, soonest-close first
   ladder  4gx1VhwgTK9b… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 24.3d · expires in 24.3d
+    book 0.600◎ · bets close in 24.2d · expires in 24.2d
     sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
   ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
-    book 0.300◎ · bets close in 24.6d · expires in 24.6d
+    book 0.300◎ · bets close in 24.5d · expires in 24.5d
     sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
   ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 24.7d · expires in 24.7d
+    book 0.600◎ · bets close in 24.5d · expires in 24.5d
     sealed chain market quote 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN <outcome> <lamports>
   duel    GL4yEgmZPa5k… duel/model-a vs duel/model-b — who scores higher?
-    book 0.550◎ · bets close — · expires in 24.4d
+    book 0.550◎ · bets close — · expires in 24.3d
     sealed chain market quote GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv <outcome> <lamports>
   band    32B8aRsiEjhV… test/market-run — which of 2 band(s)?
 
 $ sealed chain market bounties --snapshot ../../web/snapshot.json   (head -10)
 37 bounties — 1 open (0 claimable right now):
-  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 583h  best-on-bank=64 (predates bounty — retroactivity wall)
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 580h  best-on-bank=64 (predates bounty — retroactivity wall)
   3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
@@ -431,6 +433,7 @@ bank A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1
   venues — band/duel: 8 (3 expired, 4 resolved, 1 open)
   venues — bounty: 2 (2 claimed)
   depth — 10 venue(s) moved 1.530◎ through this exam's runs (1.380◎ resolved · 0.150◎ still in play)
+  permalink — https://josepha-mayo.github.io/sealed/?pk=A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1
 
 $ sealed chain trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi --snapshot ../../web/snapshot.json
 trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
@@ -439,6 +442,7 @@ trail GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
   bank  — CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp
   receipt — 2YncpZ3Fib8pCAmwUpnD4B3rDtGisjm2RAsqoWePD77d recorded by 4RUW4pDm38PE… @ 1791026278
   venues — none priced this run
+  permalink — https://josepha-mayo.github.io/sealed/?pk=GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
 
 $ sealed chain feed --limit 14 --snapshot ../../web/snapshot.json
 feed — 14 event(s) newest first
@@ -543,6 +547,7 @@ position 14AQTPw2KjckgvkTWbyVVpKp2mcfZgQuNaRFpdt6gnd6
   payout  ~0.0300 SOL (staked 0.0100)
 
 claim: sealed chain market claim --market 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
+  permalink — https://josepha-mayo.github.io/sealed/?pk=14AQTPw2KjckgvkTWbyVVpKp2mcfZgQuNaRFpdt6gnd6
 
 $ sealed chain market venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm --snapshot ../../web/snapshot.json   (head -20)
 venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
@@ -553,6 +558,7 @@ venue 7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
   resolution — 10 outcome 1  ✓ matches Run.correct
   positions — 1 held
     B5rBjujEKauj…  0.0100◎ → ~0.0300◎ payable  · position 14AQTPw2Kjck…
+  permalink — https://josepha-mayo.github.io/sealed/?pk=7Lt4RooJSmDg3ibpDYrwQ2CgengYdPAyfurqREfmAqvm
 
 $ sealed chain runs --post-reveal --snapshot ../../web/snapshot.json   (head -10)
 29 run(s) — score first:
@@ -780,7 +786,7 @@ fingerprint flagging THAT file mid-flight is the feature working.
 The committed copy passes (see scripts/verify-all.sh stage output).
 sealed-fingerprint/v1 — the whole evidence base as one hash
   snapshot.json     ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079
-  docs/evidence     136f3d5fe0625a3e63f97440651580394c7587b659ccb333a0902d7969d02421  (165 pinned file(s))
-  web bundle        2b7bc2a9831a56a54ae2dbbe4e6982481dbc4d337a84091aad99f71315f74a3d  (131 pinned file(s))
-  re-hash check     FAIL — 294/296 file(s) match · ../../docs/evidence/replay.txt, ../../web/index.html
-  BUNDLE ROOT       66709cef3a080538fa8353648dcc9c939e93d90be01d0f63519c4029163f4d2d
+  docs/evidence     bc161ba0deb4fc4929f80190bdb1161311933dfccab4e4082d8845e47216f48f  (165 pinned file(s))
+  web bundle        d3bb620c5a170076eabb319db8a23f805bdd00abf0c6d5f7a67428a32c602910  (131 pinned file(s))
+  re-hash check     FAIL — 295/296 file(s) match · ../../docs/evidence/replay.txt
+  BUNDLE ROOT       92e34e16e2fd673416e00ad13cd3646a8acd61d169f0a287dddd2ae77fefa839

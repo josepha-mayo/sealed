@@ -1,4 +1,4 @@
-bc161ba0deb4fc4929f80190bdb1161311933dfccab4e4082d8845e47216f48f  ./SHA256SUMS
+b9c616ddd2cd07faa1475b4ddaac25bc331d96fb79d5db44ebc97bf5764999b8  ./SHA256SUMS
 debf82b008d50d4f1fca8c37ab1528aeb4e3c4f8d38ffae9bee0e626f4cbca49  ./board.json
 8931f035672887dce836f5d53fe11790fa3c23f669eb4406560fa7f3cfa19ebd  ./calibration/bank.json
 3d5b6b008634a78c3bd5a371827dd834ca9c28659a57438cdaf5d40433574bd2  ./calibration/run-artifact-15b.json
