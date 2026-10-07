@@ -228,6 +228,28 @@ const anyReportTxt = (els.get("reportres")?.innerHTML ?? "").replace(/<[^>]+>/g,
 const anyReportOk = /REPORT VERIFIED/.test(anyReportTxt) && /sealed-report\/v1/.test(els.get("artifactnote")?.innerHTML ?? "");
 console.log(`in-page universal verifier — markdown report routed + verified ${anyReportOk ? "PASS" : "FAIL"}`);
 if (!anyReportOk) fails++;
+// "verify YOUR copy" — a file-drop must load the judge's bytes, clear
+// __cardSrc (no served-source credit), and route through the same verifier.
+// Forging the dropped copy must die at a named check.
+{
+  const real = readFileSync("web/bounties/claimed-20of32.json", "utf8");
+  ctx.__dropFile = (name, content) => ({ name, text: async () => content });
+  vm.runInContext(`__drop = __dropFile("my-copy.json", ${JSON.stringify(real)})`, ctx);
+  await vm.runInContext("loadArtifactFile(__drop)", ctx);
+  await new Promise((r) => setTimeout(r, 600));
+  const note = els.get("artifactnote")?.innerHTML ?? "";
+  const dropOk = note.includes("my-copy.json") && (els.get("bountyres")?.innerHTML ?? "").includes("BOUNTY VERIFIED");
+  console.log(`in-page file-drop verifier — judge's own copy routed + verified ${dropOk ? "PASS" : "FAIL"}`);
+  if (!dropOk) fails++;
+  const forged = { ...JSON.parse(real), bounty: { ...JSON.parse(real).bounty, winningScore: 4 } };
+  vm.runInContext(`__dropF = __dropFile("forged.json", ${JSON.stringify(JSON.stringify(forged))})`, ctx);
+  await vm.runInContext("loadArtifactFile(__dropF)", ctx);
+  await new Promise((r) => setTimeout(r, 600));
+  const fTxt = (els.get("bountyres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+  const forgedCaught = /FAIL|✗|caught/i.test(fTxt);
+  console.log(`in-page file-drop forgery — edited score dies at a named check ${forgedCaught ? "PASS" : "FAIL"}`);
+  if (!forgedCaught) fails++;
+}
 // the committed ledger digest — snapshot-hash binding + every ledger row
 // field-compared against the decoded accounts; a mutated count must fail.
 await vm.runInContext("loadDigest()", ctx);

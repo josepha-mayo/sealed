@@ -90,15 +90,15 @@
   <div>
     <button onclick="quickVerify()">① verify the leaderboard card</button>
     <button onclick="quickForge()">② watch a forgery die</button>
-    <button onclick="quickReplay()">③ replay all 123 proofs</button>
-    <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — nineteen captioned stops</span>
+    <button onclick="quickReplay()">③ replay all 127 proofs</button>
+    <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — twenty-two captioned stops</span>
   </div>
 </div>
 <div id="out"></div>
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 123 artifacts + its own verifiers as ONE offline file</div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 127 artifacts + its own verifiers as ONE offline file</div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -120,9 +120,12 @@
 <h2 id="sec-artifact">verify anything</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
-  <textarea id="artifactjson" rows="6" oninput="window.__cardSrc=null" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}'></textarea>
+  <textarea id="artifactjson" rows="6" oninput="window.__cardSrc=null" ondragover="event.preventDefault()" ondrop="dropArtifact(event)" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}  — or drop a card file here'></textarea>
   <button onclick="verifyAnyArtifact()">verify artifact</button>
+  <button onclick="document.getElementById('artifactPick').click()" title="verify a card YOU downloaded — or one you just edited">load a file…</button>
+  <input type="file" id="artifactPick" accept=".json" style="display:none" onchange="this.files[0] && loadArtifactFile(this.files[0])">
   <span id="artifactnote" class="kv"></span>
+  <div class="kv" style="margin-top:4px">verify <i>your</i> copy — download a card, edit a field, drop it back: the named check that catches it is the proof the verifier isn't decorative.</div>
   <div class="kv" style="margin-top:10px">…or replay <b>every committed artifact</b> — the in-page mirror of <code>chain artifact docs/evidence --recursive</code>. Each file below runs through its own verifier above: every PDA re-derived, every verdict replayed, nothing trusted.</div>
   <button onclick="replayBundle()">replay the whole bundle</button>
   <div id="bundleres"></div>
@@ -2552,6 +2555,23 @@ function quickReplay() {
   replayBundle();
   document.getElementById("sec-artifact")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+// "verify YOUR copy" — a file the judge downloaded (or just edited)
+// goes through the same router; __cardSrc is nulled so the note can't
+// credit a served source.
+async function loadArtifactFile(file) {
+  const ta = document.getElementById("artifactjson");
+  ta.value = await file.text();
+  window.__cardSrc = null;
+  verifyAnyArtifact();
+  document.getElementById("artifactnote").innerHTML +=
+    ` <span class="kv">· <b>${esc(file.name)}</b>: your bytes, not ours</span>`;
+}
+function dropArtifact(ev) {
+  ev.preventDefault();
+  const f = ev.dataTransfer?.files?.[0];
+  if (f) loadArtifactFile(f);
+}
+
 // universal artifact router — mirrors `chain artifact <file>`: detect the
 // sealed-*/v1 kind, hand the payload to that kind's verifier + section.
 function verifyAnyArtifact() {
