@@ -81,7 +81,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-grantcard">disclosure</a><a href="#sec-catalog">catalog</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-grantcard">disclosure</a><a href="#sec-catalog">catalog</a><a href="#sec-tampercard" style="color:var(--warn)">lie exhibit</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -90,7 +90,7 @@
   <div>
     <button onclick="quickVerify()">① verify the leaderboard card</button>
     <button onclick="quickForge()">② watch a forgery die</button>
-    <button onclick="quickReplay()">③ replay all 127 proofs</button>
+    <button onclick="quickReplay()">③ replay all 138 proofs</button>
     <button onclick="megaAudit()" style="border-color:var(--acc)">④ PROVE EVERYTHING</button>
     <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — twenty-two captioned stops</span>
     <div id="megares" style="margin-top:8px"></div>
@@ -100,7 +100,7 @@
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 127 artifacts + its own verifiers as ONE offline file</div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 138 artifacts + its own verifiers as ONE offline file</div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -256,6 +256,17 @@
   <div><textarea id="grantjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-grant/v1",…}'></textarea></div>
   <button onclick="verifyGrant()">verify grant card</button>
   <div id="grantres"></div>
+</div>
+
+<h2 id="sec-tampercard">the lie exhibit — committed forgeries that verify by failing</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">a <code>sealed-tamper/v1</code> card IS the forgery — a deliberately mutated artifact, pinned in the bundle, with the check(s) it died at recorded when it was minted. Verifying an exhibit replays the forged card against the <b>real</b> verifier and asserts it still dies at the same named check — so the evidence base ships proof of its own skepticism. If a "forgery" ever verified, the exhibit FAILS. Same replay as <code>chain artifact &lt;exhibit&gt;</code>.</div>
+  <div><select id="tamperpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed forgery —</option></select>
+  <button onclick="loadTamper(document.getElementById('tamperpick').value)">load exhibit</button>
+  <span class="kv">ten committed forgeries — oracle substitution, pool rewrite, rank swap, bounty theft, viewer redirect, verdict flip, phantom receipts</span></div>
+  <div><textarea id="tamperjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-tamper/v1",…}'></textarea></div>
+  <button onclick="verifyTamper()">verify exhibit — the inner card MUST be rejected</button>
+  <div id="tamperres"></div>
 </div>
 
 <h2 id="sec-forge">the forgery lab — try to break it</h2>
@@ -2519,7 +2530,7 @@ async function verifyCatalog() {
   ck("kind", doc.kind === "sealed-catalog/v1");
   const listed = new Set((doc.artifacts ?? []).map(a => a.path));
   const expected = new Set();
-  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants"]) {
+  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants", "tamper"]) {
     try { for (const f of await (await fetch(`${dir}/index.json`)).json()) expected.add(`${dir}/${f}`); } catch {}
   }
   for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); } catch {} }
@@ -2539,6 +2550,17 @@ async function verifyCatalog() {
   res.innerHTML = rows.join("") + `<div class="kv" style="margin-top:6px"><span class="pill ${allOk ? "ok" : "cancelled"}">${allOk ? "CATALOG VERIFIED" : "CATALOG FAILED"}</span> the table of contents is itself evidence — an artifact omitted from this index would have failed</div>`;
 }
 renderCatalog();
+// populate the lie-exhibit picker from the committed index
+fetch("tamper/index.json").then(r => r.ok ? r.json() : []).then(files => {
+  const sel = document.getElementById("tamperpick");
+  if (!sel || !Array.isArray(files)) return;
+  for (const f of files) {
+    const o = document.createElement("option");
+    o.value = f;
+    o.textContent = f.replace(/\.json$/, "").replace(/\./g, " — ").replace(/-/g, " ");
+    sel.appendChild(o);
+  }
+}).catch(() => {});
 // the 60-second judge path — three one-click demos from the hero strip.
 async function quickVerify() {
   try {
@@ -2558,7 +2580,7 @@ function quickReplay() {
   document.getElementById("sec-artifact")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 // ④ PROVE EVERYTHING — one click runs the whole skeptic's suite end to
-// end and keeps score: the account-level audit, all 127 committed
+// end and keeps score: the account-level audit, all 138 committed
 // artifacts through their kind verifiers, then every forgery attack in
 // the lab. Nothing trusted — the cascade IS the demo.
 async function megaAudit() {
@@ -2575,11 +2597,11 @@ async function megaAudit() {
   await runAudit(true);
   const aPass = cnt("auditres", "pill resolved"), aFail = cnt("auditres", "pill cancelled");
   rows.push(stage(`<span class="pill ${aFail ? "cancelled" : "resolved"}">${aFail ? "FAIL" : "PASS"}</span> account audit — ${aPass} pass · ${aFail} fail (<a href="#sec-audit">full list ↓</a>)`));
-  draw(stage(`<span class="pill open">RUNNING</span> artifact replay — 127 committed proofs through their own verifiers`));
+  draw(stage(`<span class="pill open">RUNNING</span> artifact replay — 138 committed proofs through their own verifiers`));
 
   await replayBundle();
   const bFail = cnt("bundleres", "pill cancelled"), bPass = cnt("bundleres", "pill resolved");
-  rows.push(stage(`<span class="pill ${bFail ? "cancelled" : "resolved"}">${bFail ? "FAIL" : "PASS"}</span> artifact replay — ${bPass} kind-groups pass · ${bFail} fail (<a href="#sec-artifact">all 127 ↓</a>)`));
+  rows.push(stage(`<span class="pill ${bFail ? "cancelled" : "resolved"}">${bFail ? "FAIL" : "PASS"}</span> artifact replay — ${bPass} kind-groups pass · ${bFail} fail (<a href="#sec-artifact">all 138 ↓</a>)`));
   draw(stage(`<span class="pill open">RUNNING</span> forgery sweep — every lab attack, automated`));
 
   let caught = 0, forgedN = 0;
@@ -2635,6 +2657,7 @@ function verifyAnyArtifact() {
       "sealed-position/v1": ["posjson", "sec-poscard", verifyPosition],
       "sealed-bounty/v1": ["bountyjson", "sec-bountycard", verifyBounty],
       "sealed-grant/v1": ["grantjson", "sec-grantcard", verifyGrant],
+      "sealed-tamper/v1": ["tamperjson", "sec-tampercard", verifyTamper],
     };
     const r = kind ? ROUTE[kind] : null;
     if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/catalog/position/v1)`; return; }
@@ -2664,6 +2687,7 @@ async function replayBundle() {
     ["positions", "posjson", "posres", verifyPosition, "sealed-position/v1"],
     ["bounties", "bountyjson", "bountyres", verifyBounty, "sealed-bounty/v1"],
     ["grants", "grantjson", "grantres", verifyGrant, "sealed-grant/v1"],
+    ["tamper", "tamperjson", "tamperres", verifyTamper, "sealed-tamper/v1"],
   ];
   const rows = [];
   let total = 0, passed = 0, checks = 0;
@@ -2674,7 +2698,7 @@ async function replayBundle() {
   }
   for (const id of ["claimPct", "claimRuns", "claimItems"]) { const e = document.getElementById(id); saved.set(id, { value: e.value }); e.value = ""; }
   const restore = () => { for (const [id, s] of saved) { const e = document.getElementById(id); if (s.value !== undefined) e.value = s.value; if (s.html !== undefined) e.innerHTML = s.html; } };
-  res.innerHTML = `<div class="kv">replaying… fetching the five indexes, then every artifact through its own verifier</div>`;
+  res.innerHTML = `<div class="kv">replaying… fetching the ten indexes, then every artifact through its own verifier — including the lie exhibit, which passes by being rejected</div>`;
   try {
     for (const [dir, taId, resId, fn, kind] of KINDS) {
       let files;
@@ -3641,6 +3665,69 @@ async function verifyGrant() {
   }
 }
 
+// sealed-tamper/v1 — the lie exhibit. The payload IS a forged artifact;
+// verifying it replays the forged card against the REAL in-page verifier
+// and asserts it still dies at the named check recorded at mint time.
+async function loadTamper(name) {
+  const ta = document.getElementById("tamperjson");
+  try {
+    const r = await fetch(`tamper/${name}`);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text(); window.__cardSrc = `tamper/${name}`;
+    return true;
+  } catch (e) { ta.value = ""; document.getElementById("tamperres").innerHTML = `<div class="kv">exhibit not reachable from this page</div>`; }
+  return false;
+}
+async function verifyTamper() {
+  const res = document.getElementById("tamperres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("tamperjson").value);
+    if (c.kind !== "sealed-tamper/v1") throw new Error(`not a sealed-tamper/v1 exhibit (kind=${c.kind ?? "?"})`);
+    const f = c.forged;
+    if (!f || f.kind !== c.targetKind) throw new Error("exhibit carries no forged target card");
+    const INNER = {
+      "sealed-claim/v1": ["claimjson", "claimres", verifyClaim],
+      "sealed-policy/v1": ["certjson", "certres", verifyCert],
+      "sealed-match/v1": ["matchjson", "matchres", verifyMatch],
+      "sealed-trail/v1": ["trailjson", "trailres", verifyTrail],
+      "sealed-evidence-digest/v1": ["digestjson", "digestres", verifyDigest],
+      "sealed-board/v1": ["boardjson", "boardres", verifyBoard],
+      "sealed-bank/v1": ["bankjson", "bankres", verifyBank],
+      "sealed-catalog/v1": ["catalogjson", "catres", verifyCatalog],
+      "sealed-position/v1": ["posjson", "posres", verifyPosition],
+      "sealed-bounty/v1": ["bountyjson", "bountyres", verifyBounty],
+      "sealed-grant/v1": ["grantjson", "grantres", verifyGrant],
+    };
+    const r = INNER[f.kind];
+    if (!r) throw new Error(`no in-page verifier for ${f.kind}`);
+    const [taId, resId, fn] = r;
+    const ta = document.getElementById(taId), inner = document.getElementById(resId);
+    const savedTa = ta.value, savedHtml = inner.innerHTML;
+    ta.value = JSON.stringify(f, null, 2);
+    inner.innerHTML = "";
+    let verdictHtml = "";
+    try { await fn(); verdictHtml = inner.innerHTML; }
+    finally { ta.value = savedTa; inner.innerHTML = savedHtml; }
+    const diedAt = [...verdictHtml.matchAll(/pill cancelled[^<]*<\/span>\s*([^—<]+)/g)].map(m => m[1].trim());
+    const rejected = /pill cancelled|FAILED/.test(verdictHtml);
+    const exp = c.expectFail ?? [];
+    const named = exp.length === 0 || exp.some(x => diedAt.includes(x) || /thrown error/.test(x));
+    rejected
+      ? pass("inner forgery rejected", `the ${f.kind} verifier refused it — died at ${diedAt.slice(0, 3).join(", ") || "a thrown check"}`)
+      : fail("inner forgery rejected", "THE VERIFIER TOOK THE LIE — the inner card VERIFIED");
+    named
+      ? pass("named check", `expected ${exp.join(", ") || "any rejection"}`)
+      : fail("named check", `expected ${exp.join(", ")} — died at ${diedAt.join(", ") || "nothing"}`);
+    res.innerHTML = rows.join("") +
+      `<div class="kv" style="margin-top:8px"><b>${rejected && named ? "EXHIBIT VERIFIED" : "EXHIBIT FAILED"}</b> — "${esc(c.attack)}" on ${esc(c.targetCard)} · this forgery is evidence now</div>`;
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
 // the forgery lab — each attack mutates a committed artifact the way a
 // cheater would, then runs it through the same in-page verifier. The
 // output names the check that caught it; a forgery surviving would
@@ -3796,14 +3883,21 @@ const canPda = () => !!(window.solanaWeb3?.PublicKey?.findProgramAddressSync);
 const pdaB = (seeds, pid) => window.solanaWeb3.PublicKey.findProgramAddressSync(seeds, pid)[0].toBase58();
 
 let __auditKey = null;
+let __deepLinksDone = false;
 async function maybeAudit() {
   const A = window.__audit;
   if (!A) return;
   const key = A.benches.length + ":" + A.runs.length + ":" + A.markets.length + ":" + A.ladders.length + ":" + A.darkMarkets.length + ":" + A.bounties.length + ":" + A.skipped;
-  if (key === __auditKey) return;
-  __auditKey = key;
-  runAudit();
-  renderAnomalies();
+  if (key !== __auditKey) {
+    __auditKey = key;
+    runAudit();
+    renderAnomalies();
+  }
+  // deep links run exactly once — as soon as the decoded snapshot exists —
+  // independent of the audit-key guard (a repeat render must not re-run them,
+  // but a second maybeAudit() call with the same key must still honor them).
+  if (__deepLinksDone) return;
+  __deepLinksDone = true;
   if (new URLSearchParams(location.search).get("tour")) startTour();
   // ?card=<path> — every committed artifact is a shareable link: fetch the
   // named card, hand it to the universal router, land on the verdict. The
@@ -3826,7 +3920,16 @@ async function maybeAudit() {
     await forge(forgeParam);
     document.getElementById("sec-forge")?.scrollIntoView?.({ block: "start" });
   }
-  // ?mega=1 — the whole demo as a URL: audit + all 127 artifacts + every
+  // ?tamper=<exhibit> — deep link a committed lie: load the named
+  // sealed-tamper/v1 card and replay it, landing on FORGERY CAUGHT.
+  const tamperParam = new URLSearchParams(location.search).get("tamper");
+  if (tamperParam && /^[a-zA-Z0-9._-]+\.json$/.test(tamperParam)) {
+    if (await loadTamper(tamperParam)) {
+      await verifyTamper();
+      document.getElementById("sec-tampercard")?.scrollIntoView?.({ block: "start" });
+    }
+  }
+  // ?mega=1 — the whole demo as a URL: audit + all 138 artifacts + every
   // forgery attack, cascading to EVERYTHING VERIFIED while you watch.
   if (new URLSearchParams(location.search).get("mega")) await megaAudit();
 }

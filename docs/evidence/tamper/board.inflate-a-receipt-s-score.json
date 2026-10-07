@@ -1,0 +1,4966 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "inflate a receipt's score",
+  "targetKind": "sealed-board/v1",
+  "targetCard": "board.json",
+  "expectFail": [],
+  "forgedAt": "2026-10-07T16:22:25.941Z",
+  "forged": {
+    "kind": "sealed-board/v1",
+    "generatedAt": "2026-10-07T06:52:28.017Z",
+    "source": "../../web/snapshot.json",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "policy": {
+      "metric": "wilson-lcb-95",
+      "ties": "half",
+      "minShared": 1
+    },
+    "totals": {
+      "models": 31,
+      "receipts": 292,
+      "pairs": 73,
+      "unrankedPairs": 392
+    },
+    "ranking": [
+      {
+        "rank": 1,
+        "modelId": "dark/model-a",
+        "recordPk": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt",
+        "aggregate": {
+          "runs": 16,
+          "correct": 480,
+          "items": 512,
+          "pct": 93.75
+        },
+        "pairwise": {
+          "wins": 8,
+          "losses": 0,
+          "ties": 1,
+          "rankedPairs": 9,
+          "sharedBanks": 137,
+          "ppDelta": 278.125,
+          "lcb": 62.8803
+        }
+      },
+      {
+        "rank": 2,
+        "modelId": "ladder/model-a",
+        "recordPk": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3",
+        "aggregate": {
+          "runs": 17,
+          "correct": 510,
+          "items": 544,
+          "pct": 93.75
+        },
+        "pairwise": {
+          "wins": 8,
+          "losses": 0,
+          "ties": 1,
+          "rankedPairs": 9,
+          "sharedBanks": 142,
+          "ppDelta": 278.125,
+          "lcb": 62.8803
+        }
+      },
+      {
+        "rank": 3,
+        "modelId": "test/sweep-run",
+        "recordPk": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6",
+        "aggregate": {
+          "runs": 16,
+          "correct": 1024,
+          "items": 1024,
+          "pct": 100
+        },
+        "pairwise": {
+          "wins": 5,
+          "losses": 0,
+          "ties": 0,
+          "rankedPairs": 5,
+          "sharedBanks": 46,
+          "ppDelta": 239.0625,
+          "lcb": 56.5509
+        }
+      },
+      {
+        "rank": 4,
+        "modelId": "qwen2.5-3b-instruct",
+        "recordPk": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB",
+        "aggregate": {
+          "runs": 3,
+          "correct": 23,
+          "items": 96,
+          "pct": 23.9583
+        },
+        "pairwise": {
+          "wins": 3,
+          "losses": 0,
+          "ties": 0,
+          "rankedPairs": 3,
+          "sharedBanks": 4,
+          "ppDelta": 59.375,
+          "lcb": 43.8494
+        }
+      },
+      {
+        "rank": 5,
+        "modelId": "test/oracle",
+        "recordPk": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn",
+        "aggregate": {
+          "runs": 18,
+          "correct": 810,
+          "items": 1152,
+          "pct": 70.3125
+        },
+        "pairwise": {
+          "wins": 4,
+          "losses": 1,
+          "ties": 0,
+          "rankedPairs": 5,
+          "sharedBanks": 49,
+          "ppDelta": 60.9375,
+          "lcb": 37.5528
+        }
+      },
+      {
+        "rank": 6,
+        "modelId": "ladder/tie-a",
+        "recordPk": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL",
+        "aggregate": {
+          "runs": 17,
+          "correct": 425,
+          "items": 544,
+          "pct": 78.125
+        },
+        "pairwise": {
+          "wins": 5,
+          "losses": 2,
+          "ties": 2,
+          "rankedPairs": 9,
+          "sharedBanks": 143,
+          "ppDelta": 121.875,
+          "lcb": 35.4197
+        }
+      },
+      {
+        "rank": 7,
+        "modelId": "ladder/tie-b",
+        "recordPk": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi",
+        "aggregate": {
+          "runs": 16,
+          "correct": 400,
+          "items": 512,
+          "pct": 78.125
+        },
+        "pairwise": {
+          "wins": 5,
+          "losses": 2,
+          "ties": 2,
+          "rankedPairs": 9,
+          "sharedBanks": 137,
+          "ppDelta": 121.875,
+          "lcb": 35.4197
+        }
+      },
+      {
+        "rank": 8,
+        "modelId": "duel/model-a",
+        "recordPk": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B",
+        "aggregate": {
+          "runs": 16,
+          "correct": 400,
+          "items": 512,
+          "pct": 78.125
+        },
+        "pairwise": {
+          "wins": 5,
+          "losses": 2,
+          "ties": 2,
+          "rankedPairs": 9,
+          "sharedBanks": 134,
+          "ppDelta": 121.875,
+          "lcb": 35.4197
+        }
+      },
+      {
+        "rank": 9,
+        "modelId": "mock/oracle-0.75",
+        "recordPk": "HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ",
+        "aggregate": {
+          "runs": 2,
+          "correct": 77,
+          "items": 96,
+          "pct": 80.2083
+        },
+        "pairwise": {
+          "wins": 2,
+          "losses": 0,
+          "ties": 0,
+          "rankedPairs": 2,
+          "sharedBanks": 2,
+          "ppDelta": 92.1875,
+          "lcb": 34.2372
+        }
+      },
+      {
+        "rank": 10,
+        "modelId": "qwen2.5-1.5b-instruct",
+        "recordPk": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j",
+        "aggregate": {
+          "runs": 3,
+          "correct": 9,
+          "items": 96,
+          "pct": 9.375
+        },
+        "pairwise": {
+          "wins": 2,
+          "losses": 1,
+          "ties": 0,
+          "rankedPairs": 3,
+          "sharedBanks": 4,
+          "ppDelta": -3.125,
+          "lcb": 20.7655
+        }
+      },
+      {
+        "rank": 11,
+        "modelId": "test/registry-model-87070",
+        "recordPk": "GEuHM2EuDwjAKt3wiGNUv7xo8WpPfhw5HsmNg2nne4Xd",
+        "aggregate": {
+          "runs": 2,
+          "correct": 64,
+          "items": 128,
+          "pct": 50
+        },
+        "pairwise": {
+          "wins": 1,
+          "losses": 0,
+          "ties": 0,
+          "rankedPairs": 1,
+          "sharedBanks": 1,
+          "ppDelta": 37.5,
+          "lcb": 20.6543
+        }
+      },
+      {
+        "rank": 12,
+        "modelId": "test/registry-model-35953",
+        "recordPk": "8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ",
+        "aggregate": {
+          "runs": 2,
+          "correct": 64,
+          "items": 128,
+          "pct": 50
+        },
+        "pairwise": {
+          "wins": 1,
+          "losses": 0,
+          "ties": 0,
+          "rankedPairs": 1,
+          "sharedBanks": 1,
+          "ppDelta": 37.5,
+          "lcb": 20.6543
+        }
+      },
+      {
+        "rank": 13,
+        "modelId": "test/priv-oracle",
+        "recordPk": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx",
+        "aggregate": {
+          "runs": 18,
+          "correct": 378,
+          "items": 576,
+          "pct": 65.625
+        },
+        "pairwise": {
+          "wins": 1,
+          "losses": 0,
+          "ties": 0,
+          "rankedPairs": 1,
+          "sharedBanks": 18,
+          "ppDelta": 6.25,
+          "lcb": 20.6543
+        }
+      },
+      {
+        "rank": 14,
+        "modelId": "ladder/model-b",
+        "recordPk": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s",
+        "aggregate": {
+          "runs": 17,
+          "correct": 340,
+          "items": 544,
+          "pct": 62.5
+        },
+        "pairwise": {
+          "wins": 4,
+          "losses": 5,
+          "ties": 0,
+          "rankedPairs": 9,
+          "sharedBanks": 142,
+          "ppDelta": -34.375,
+          "lcb": 18.8775
+        }
+      },
+      {
+        "rank": 15,
+        "modelId": "test/bounty-wrong-payee",
+        "recordPk": "EPdpCzZ1VEp9U3NfwS6fWCQccuegnGknwTGE8V2hMpxc",
+        "aggregate": {
+          "runs": 4,
+          "correct": 160,
+          "items": 256,
+          "pct": 62.5
+        },
+        "pairwise": {
+          "wins": 2,
+          "losses": 2,
+          "ties": 1,
+          "rankedPairs": 5,
+          "sharedBanks": 17,
+          "ppDelta": 14.0625,
+          "lcb": 17.042
+        }
+      },
+      {
+        "rank": 16,
+        "modelId": "test/bounty-claimant",
+        "recordPk": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt",
+        "aggregate": {
+          "runs": 18,
+          "correct": 720,
+          "items": 1152,
+          "pct": 62.5
+        },
+        "pairwise": {
+          "wins": 2,
+          "losses": 2,
+          "ties": 1,
+          "rankedPairs": 5,
+          "sharedBanks": 49,
+          "ppDelta": 14.0625,
+          "lcb": 17.042
+        }
+      },
+      {
+        "rank": 17,
+        "modelId": "duel/model-b",
+        "recordPk": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB",
+        "aggregate": {
+          "runs": 16,
+          "correct": 304,
+          "items": 512,
+          "pct": 59.375
+        },
+        "pairwise": {
+          "wins": 3,
+          "losses": 6,
+          "ties": 0,
+          "rankedPairs": 9,
+          "sharedBanks": 134,
+          "ppDelta": -65.625,
+          "lcb": 12.0582
+        }
+      },
+      {
+        "rank": 18,
+        "modelId": "test/registry-model",
+        "recordPk": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK",
+        "aggregate": {
+          "runs": 3,
+          "correct": 112,
+          "items": 192,
+          "pct": 58.3333
+        },
+        "pairwise": {
+          "wins": 2,
+          "losses": 4,
+          "ties": 0,
+          "rankedPairs": 6,
+          "sharedBanks": 6,
+          "ppDelta": 1.5625,
+          "lcb": 9.6769
+        }
+      },
+      {
+        "rank": 19,
+        "modelId": "mock/oracle-0.50",
+        "recordPk": "A121sfjRJm9xYknMCJfoApjbcLnfNEbt6neFYVL8fGM8",
+        "aggregate": {
+          "runs": 1,
+          "correct": 32,
+          "items": 64,
+          "pct": 50
+        },
+        "pairwise": {
+          "wins": 1,
+          "losses": 1,
+          "ties": 0,
+          "rankedPairs": 2,
+          "sharedBanks": 2,
+          "ppDelta": -6.25,
+          "lcb": 9.4529
+        }
+      },
+      {
+        "rank": 20,
+        "modelId": "test/gen-oracle",
+        "recordPk": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ",
+        "aggregate": {
+          "runs": 18,
+          "correct": 306,
+          "items": 576,
+          "pct": 53.125
+        },
+        "pairwise": {
+          "wins": 2,
+          "losses": 7,
+          "ties": 0,
+          "rankedPairs": 9,
+          "sharedBanks": 148,
+          "ppDelta": -128.125,
+          "lcb": 6.3224
+        }
+      },
+      {
+        "rank": 21,
+        "modelId": "qwen2.5-0.5b-instruct",
+        "recordPk": "CXt66U71eShBAX3k7ATCzcU6MokgTobVvKwBtmvTZ4Js",
+        "aggregate": {
+          "runs": 1,
+          "correct": 0,
+          "items": 32,
+          "pct": 0
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 2,
+          "ties": 1,
+          "rankedPairs": 3,
+          "sharedBanks": 3,
+          "ppDelta": -28.125,
+          "lcb": 1.7652
+        }
+      },
+      {
+        "rank": 22,
+        "modelId": "llama-3.2-1b-instruct",
+        "recordPk": "HT5SbpWXhi9mUgQDn6Y8TiuBu29qFT9WsGPbt4cwKf1c",
+        "aggregate": {
+          "runs": 1,
+          "correct": 0,
+          "items": 32,
+          "pct": 0
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 2,
+          "ties": 1,
+          "rankedPairs": 3,
+          "sharedBanks": 3,
+          "ppDelta": -28.125,
+          "lcb": 1.7652
+        }
+      },
+      {
+        "rank": 23,
+        "modelId": "ladder/tie-c",
+        "recordPk": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw",
+        "aggregate": {
+          "runs": 16,
+          "correct": 160,
+          "items": 512,
+          "pct": 31.25
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 8,
+          "ties": 1,
+          "rankedPairs": 9,
+          "sharedBanks": 137,
+          "ppDelta": -346.875,
+          "lcb": 0.5827
+        }
+      },
+      {
+        "rank": 24,
+        "modelId": "ladder/model-c",
+        "recordPk": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG",
+        "aggregate": {
+          "runs": 17,
+          "correct": 170,
+          "items": 544,
+          "pct": 31.25
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 8,
+          "ties": 1,
+          "rankedPairs": 9,
+          "sharedBanks": 142,
+          "ppDelta": -346.875,
+          "lcb": 0.5827
+        }
+      },
+      {
+        "rank": 25,
+        "modelId": "mock/oracle-0.5",
+        "recordPk": "uGbfq9L7DZATq7RFfG1JfsGopEuWSc4Xc4GzZe3tEfA",
+        "aggregate": {
+          "runs": 2,
+          "correct": 32,
+          "items": 64,
+          "pct": 50
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 0,
+          "ties": 0,
+          "rankedPairs": 0,
+          "sharedBanks": 0,
+          "ppDelta": 0,
+          "lcb": 0
+        }
+      },
+      {
+        "rank": 26,
+        "modelId": "delegate/runner-1",
+        "recordPk": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb",
+        "aggregate": {
+          "runs": 18,
+          "correct": 342,
+          "items": 576,
+          "pct": 59.375
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 1,
+          "ties": 0,
+          "rankedPairs": 1,
+          "sharedBanks": 18,
+          "ppDelta": -6.25,
+          "lcb": 0
+        }
+      },
+      {
+        "rank": 27,
+        "modelId": "test/post-reveal-87070",
+        "recordPk": "7irQFc6oMCSua79XajcGFSty9mn1ifxWR9rETf5T1pJo",
+        "aggregate": {
+          "runs": 1,
+          "correct": 8,
+          "items": 64,
+          "pct": 12.5
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 1,
+          "ties": 0,
+          "rankedPairs": 1,
+          "sharedBanks": 1,
+          "ppDelta": -37.5,
+          "lcb": 0
+        }
+      },
+      {
+        "rank": 28,
+        "modelId": "test/post-reveal-35953",
+        "recordPk": "Ag85QM2yhLMhHbW6sx9AmV7gcA8t5AVwds8Dd5pun812",
+        "aggregate": {
+          "runs": 1,
+          "correct": 8,
+          "items": 64,
+          "pct": 12.5
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 1,
+          "ties": 0,
+          "rankedPairs": 1,
+          "sharedBanks": 1,
+          "ppDelta": -37.5,
+          "lcb": 0
+        }
+      },
+      {
+        "rank": 29,
+        "modelId": "test/post-reveal-scored",
+        "recordPk": "FR8zRAjyvY5Lc9PxKRQYoDjJyHjm4awVTTtVBWgEpbLq",
+        "aggregate": {
+          "runs": 1,
+          "correct": 8,
+          "items": 64,
+          "pct": 12.5
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 1,
+          "ties": 0,
+          "rankedPairs": 1,
+          "sharedBanks": 1,
+          "ppDelta": -62.5,
+          "lcb": 0
+        }
+      },
+      {
+        "rank": 30,
+        "modelId": "mock/oracle-0.25",
+        "recordPk": "81ETbEzdd1jeeuoohuEVgkmG6hQc9g4KJZF1hbnvcVMe",
+        "aggregate": {
+          "runs": 1,
+          "correct": 15,
+          "items": 64,
+          "pct": 23.4375
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 2,
+          "ties": 0,
+          "rankedPairs": 2,
+          "sharedBanks": 2,
+          "ppDelta": -85.9375,
+          "lcb": 0
+        }
+      },
+      {
+        "rank": 31,
+        "modelId": "test/market-run",
+        "recordPk": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH",
+        "aggregate": {
+          "runs": 10,
+          "correct": 100,
+          "items": 640,
+          "pct": 15.625
+        },
+        "pairwise": {
+          "wins": 0,
+          "losses": 5,
+          "ties": 0,
+          "rankedPairs": 5,
+          "sharedBanks": 34,
+          "ppDelta": -267.1875,
+          "lcb": 0
+        }
+      }
+    ],
+    "models": [
+      {
+        "recordPk": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt",
+        "modelId": "dark/model-a",
+        "record": {
+          "modelHash": "f5d5fca13af8af43119005bc9e732afeefdc7ed6a756585a1e598d100cfd7d8a",
+          "runsScored": 16,
+          "totalCorrect": 480,
+          "totalItems": 512,
+          "bestCorrect": 30,
+          "bestItems": 32,
+          "bestRun": "BuWhy4J57onedDKQGN46isJCGTQsvMDyNFjCdr3ADLwk",
+          "bestBank": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+          "lastRun": "J9mkHQXNWi42KPokmD1mxpjt35TGS2oQbDtGG6SzquDQ",
+          "firstSeen": 1790974344,
+          "lastScored": 1790974445
+        },
+        "receipts": [
+          {
+            "pk": "FG3KxidStPKtk2eNnubFecyYBaZqxoz9J4oD63KJWGKm",
+            "run": "4CPk4KQjXUa15X2qfjPLvLpfQMdMRbaB9bANQ7KxoeTy",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 31,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974344,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "6X3Nyz69kR9bLhJRoRS4UxdV7ysjEMyrxnwxCV7qQ2yG",
+            "run": "5cWzExtw75WkvPHVndTovgfVGbgnVgxWH3G25GEXgDhe",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974351,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "9XdHUmRdpvAvKWi2PeXsnrDCWAN7zgjS52ZQPBGgCpWV",
+            "run": "5hLAiychrrCKegMuXb4HDaaD2CFAUwWc5gXEsAQa2F3f",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974351,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "DMmA6beZdYxe7hBHuhKHhjNggQbMY3kdejG9bDRrZyjg",
+            "run": "67D76X6hYhstNUwzUFUgSsR8qvojyjcAYdN88HfvNPDd",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974356,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "44E52AHmcox5WM55ZZBzdp2QwtMMdrPvcoQicFv3Gz16",
+            "run": "6GjzQB83T5PxWUm1MzwLNu7Yw79YrkycBMt2kGAzMhPD",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974358,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "3hY8NHWKtLHnnariPnTYbRimasiXh89X3xpiJ62v1sgH",
+            "run": "6reSM3F9k2Ya5r8pT1iSiECUaoZoyvpq1tf8Xi4wFKLB",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974364,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "3wry33yVLTbXZdftJd5RJ7d8N4CLU3C8VjYHPhrpQCus",
+            "run": "BiUK2pR2qeKhseBHBSr9M4ZrWCv9Krxnif8M64iACZCc",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974396,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "2DancfL26k3n763uY7CTgYzU7umqSLPKw7kJszJ9QocQ",
+            "run": "BuWhy4J57onedDKQGN46isJCGTQsvMDyNFjCdr3ADLwk",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974397,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "3DYfihZyq6YM4itenotav7KqeR7B2rSJnS2FAVJRcSAs",
+            "run": "BmiWCWintK9bT4cZhHPueXKt5RGj6CZmdncjtM5SGyEi",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974397,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "2v15RGDtcLQ3bPACYrCXodHZknzkSRBHvzzP9xSgMCU8",
+            "run": "CLnA8qqnorDwW6kkz5oo63fLzkTQKFdabfkhs7iruWZn",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974402,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "THKwAbt2FtY32tDAaw4dpRJMQ57QdorUSkQPCKr3rhh",
+            "run": "DXx6KthYowAfpSkttkK1N2dMKPwfzcWXXFUg3JYp3NcW",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974412,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "FazLr7veT3ouShq1cer4oKAGg9dcVELhBr4PwCVQBVKs",
+            "run": "FZWLAxsAToGJ1oEcsY4qjyYk1NYWjRwPcaJvk99QkWsD",
+            "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974427,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "FSeKDTWD8rmDhgn15HJBXrjNe3JPoXeLNgkrA1WqxUN9",
+            "run": "G3NkZCWR8YQCUMtKBGB2vMwifWLoF7neqMkhagZDE9Dv",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974430,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "H8b5B9f3kXVJ1HoUmT4orjaaUxgCBBhcYk8UiSTCNi3r",
+            "run": "HLQ2UqZzhdKRudPtHoHuRkWJ6N87nYLwqAUQ28wo47Q7",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974439,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "9LZmEwf79w6wej6SHoUcriEQKkMiZAuDNDfFkd5VB6M",
+            "run": "HWB1rbppoopw6TEVvb5Formf5DXuYSjW9D5UjkccbBzE",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974440,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          },
+          {
+            "pk": "AdagrXkEoueznxMm85ESRLaprf9mf6YBAuMHvVH9JNT6",
+            "run": "J9mkHQXNWi42KPokmD1mxpjt35TGS2oQbDtGG6SzquDQ",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974445,
+            "modelRecord": "9owumegxzRUL4gYHPsEfzDvECHtZAqkhE3Yo4QyzFRpt"
+          }
+        ]
+      },
+      {
+        "recordPk": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3",
+        "modelId": "ladder/model-a",
+        "record": {
+          "modelHash": "79ccc74f053fb757f3d196bc2082942b6a1f60d833fbb98c2b71f5563181121e",
+          "runsScored": 17,
+          "totalCorrect": 510,
+          "totalItems": 544,
+          "bestCorrect": 30,
+          "bestItems": 32,
+          "bestRun": "GqmPssT3vqn9unCQGgMhAuiUbwBT4fBgmAwq2Xrc9XtG",
+          "bestBank": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+          "lastRun": "GqmPssT3vqn9unCQGgMhAuiUbwBT4fBgmAwq2Xrc9XtG",
+          "firstSeen": 1790974328,
+          "lastScored": 1790974436
+        },
+        "receipts": [
+          {
+            "pk": "5ewLA6Ct7w6sjA4WsNWBdL4ne2LPQjmHfzKmE3hitnCy",
+            "run": "ynt5oLJDheMJAvVZp677kWgo8ockxe2BHMy3yMPwx1L",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974328,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "HV7H84qFJh44Z8VrzNnkiJ9WyvVpMipKd3Sw379vyrdS",
+            "run": "28Sf43UKH6kaDQn6do6KmEYYhmHhEeZmcooH86HaCLox",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974329,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "2YJe4qi89DGKLbgc1dHThkSV5AgjZFpoeGRjaDD3s9ii",
+            "run": "2NMrrC2c9JbjFoFBAuJ1zuTwdW1AYqimi9z3vLKawcLb",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974331,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "BTrK3vDLYjZw8exL5tKjUfrjfeZPZ1zr269NML2aNsQo",
+            "run": "3HbXqtiZ3FM9X9cXhHtjomn16PLJaGaaRuEg4jLfwjqG",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974338,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "GaJVY76hx5KMDaoDa18UxVwRJZrmx9QXvW6qqfXXASEt",
+            "run": "3bRwwPMc6RMUaJAyNmyczkRXiiVjLaM5AqVaKizirtHS",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974339,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "GQhuCJPfFym2TTyP3ZpgRnLybELxPKmfhzNcNwkq7QwH",
+            "run": "4SHQrL8xNgmpL4ZX9r8WzMPNtNbSz6eRKzqvVwqjRrJ9",
+            "benchmark": "62RrhYXPNE3sRU78cnNVYsNzogBqSEkVd1YJMrzz8cia",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974346,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "ByKGUnG6jPyqvFtQ3agq96bZjRAc1hK7ofrZ35KTqRwL",
+            "run": "6E8VRaAYjLJpWhtKWvgHEYAwHGArDFns4P69yiZgjjMo",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974358,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "HpFRnc8qb3HuDyafy5UK88AnrjHkEjEo2HYuwscJhESs",
+            "run": "7grBtdWPnb9ZH34uPVnHVP5wVR3SSpimKfoarkTbhCEH",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974370,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "GLB7VNhMPNQXbztys6nLrstfpdAYDaH3tc5CjzPjDQGK",
+            "run": "7rcVqYB86cCnyWwB7kGKmUFNyfPFSPqQdcrxQjyCDpja",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974371,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "F1N15MGZrkqdBopto3nHSmPjdyVwW2tA6aCsawBAf26x",
+            "run": "8bCiwtUdg46Aso4aidzgGFUZDTYGhDL4dXYa3eQvMM2S",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974376,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "Bn25o2SSou79v8FyQcRZyDEcxc2LDrbhS61VLFZDPuN1",
+            "run": "9e48s2fqf9guL8wn9bMn8DKsA1vm5rhPESCP7Ytwkydm",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974381,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "J21G33R3bkKGrFu3EFTyGKku1sarPPDEK7YRe2SfPyUq",
+            "run": "AvLp8QdKoq963fU66B5JjB888ie9qDyFuWqJLfm5qTY8",
+            "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974392,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "3GgCXqJFLsbgVdKaGKogoag7Tz1Scrd3j5AWJY8zaM1w",
+            "run": "D35yoivKSqBsiLN6JqNeTKDpgwp3evhk6iwQL6xRE7gk",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974408,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "GVaLj64nCJmezV8Zsuf9tdWk1u6bL22tZLvi8N85uJ5d",
+            "run": "DGPVyumbciLbz1GG97wUBhDetmLP485iPeneSvsbQ5r1",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974410,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "36fv1wKRUC73LaHJJddp8gZuANyFuNcgbEeAxtR6bjuN",
+            "run": "GE3drjQnrGnsXHuwu9CaAMcfBtKEXPCJJ1xPrAsaXYVq",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974431,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "BcHHm9U4H8zhKa3fAAWWMehP8q3SM8E9XEaLmDxBfZFP",
+            "run": "GT3aZjSBYJXm9QdzxN7HdPXBYYwqMiGt8hpAUJPqVQDd",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974434,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          },
+          {
+            "pk": "14qzdL7AYVEZFuj3e5482J6ooc9f5o7L66AKh7AphjBo",
+            "run": "GqmPssT3vqn9unCQGgMhAuiUbwBT4fBgmAwq2Xrc9XtG",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 30,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974436,
+            "modelRecord": "A5Yj2wU1kYatWfS2KY5JAE5WVJrTYKjMvT1iAmQkeSf3"
+          }
+        ]
+      },
+      {
+        "recordPk": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6",
+        "modelId": "test/sweep-run",
+        "record": {
+          "modelHash": "24c66aa9de34cf300e8150ceb9bc65b75b9f0e88a9e17559bc459ce9d199095d",
+          "runsScored": 16,
+          "totalCorrect": 1024,
+          "totalItems": 1024,
+          "bestCorrect": 64,
+          "bestItems": 64,
+          "bestRun": "CFRtZMsmbUA7DbAqLzXaYtt5aiEXSDw3TkULScjLGHiB",
+          "bestBank": "A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr",
+          "lastRun": "J6RAx3tXxab5oDX7duCvk4wfNHHfWXNz9y4QKtZv4GcU",
+          "firstSeen": 1790974334,
+          "lastScored": 1790974444
+        },
+        "receipts": [
+          {
+            "pk": "87BGYUdnvtEZyJ2X52iYAnqhP4ZzfhY4KvxgQuDq8edX",
+            "run": "2vpyUQfnbVD4wmoyG4t3tTeXrrHK1XVHj5e9kJGa5QXo",
+            "benchmark": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974334,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "9aAy51i3R3T5DGvCswN9otnjv3AgYKNcKrkqbibQ12JW",
+            "run": "2uK8Pd8GpyyKFV3oxyg34N3NWxZvcAoWP8sv8HTmTzRu",
+            "benchmark": "2ARmVtk7qHgaogGPRaLyHim3amkJu2DFqW2QVJSZnED6",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974334,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "5wHmPfH6efVRa4M4jPvPtXyJRaxsGqLNrEyuA8X7yJUS",
+            "run": "3EPZJoWa3jBsDYTfcZkVVKJE6bwVQg5fNdC8tNL3eCDV",
+            "benchmark": "ErBrCuKMSqzSmfecqvNqfDJpFtoEvGWWDYbi28zXDYkz",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974337,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "EH6mQz1CXSQt1xA4UN3LrhRREATtZLQj8Nu4Spnte69K",
+            "run": "7GZztdB27hvMhR2wTEH3pTLeCcJV5NAbFgW1wYYUvmuW",
+            "benchmark": "B1kWPVm1o861mPV5VAApaCdwrxXLwfo7AwZPJhC5JYUi",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974368,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "7J7jRU4ZuN2vK1mrbHF5UMkATkHNguHiio4gNDxtBAez",
+            "run": "7b581nzYYQxE1gehMj5C5B41Yi7tfdUW4zC959VsCn4W",
+            "benchmark": "1RsmwbTNxP5SBS8MXwBPJkHbktdsMSMYGCBteXk7U75",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974369,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "3MRZtxDxvDEhgPHMJbfSht4y6LawcfV3uNNwKUrA4mY8",
+            "run": "8TTWj6cu22Wo3cgvTNWT6pW4kRgGNfKXBfVU5LVCeaun",
+            "benchmark": "BDnWoJsVNHAa2Fb9jCfaUBeXKx74bPCqoSBRJsqrJX5c",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974375,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "4bUsK7XKLghZKqZMxaWWnmvAPjLXrzgxwsj7LFUZRukC",
+            "run": "8XsUR1NyvZgRweUVgk6mCJEgvRfhsFLwpjFEwi8v4b9H",
+            "benchmark": "7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974376,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "H2tvRF1paxvQtmoJXmEaG5KyijtfEGU77m2wLpomSiLy",
+            "run": "93MNADSBif5ydNH9EdUSfPbvnbSP14R6L9ZjLxoLSGV2",
+            "benchmark": "28ogPX26aH6DGqnhiUDPSqAVeyCXfcmNbnyMBzJeBPS5",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974378,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "AsvgYvFZ5uvrSXgXBN4A7EvKyN9AQzhMAYKH2dWPYWkB",
+            "run": "9CBYHeEbhcEggMnjv61GVsZDccP4NKHvHvcmp5WUS4Sh",
+            "benchmark": "3C1dCBh4Qg7Uf3jHshq5vHAARAEcGGTEsNwqDMHKHLuV",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974379,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "3b9HTJfYEw6g9CkvbUXLkfbt6WpnsZFMeCsdbyPSQiah",
+            "run": "CFRtZMsmbUA7DbAqLzXaYtt5aiEXSDw3TkULScjLGHiB",
+            "benchmark": "A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974402,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "DqU4CYyoT9zdYPtQdSPX9KXnZp5rWhPkLz32f4iGGMVT",
+            "run": "DnDKzjxyH8Yi3Z3VtFfos2ddYx7e2GcXeYYrSV8ahbnV",
+            "benchmark": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974413,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "BsiUJg99GvYenTFP1JpEiFpHrm8g9zy7zF8bFLCCpfrH",
+            "run": "F8ibRw8swkCYyj875bmfMy7RPzw2t622m1EmumhdZ12a",
+            "benchmark": "HtnrezGoFZFgCsq6dv2QFsafRtKx1NQzGkMumjKgTkMQ",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974421,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "B5ZMcB7r5cKBca1cVwaBWqBoEZwmHeyhTgYTmSkVrRxx",
+            "run": "FiSUxCrb3pUp9fkgn95RpfLfV5D2HQQitqcBCYfkCZ4U",
+            "benchmark": "4pPHx9eVBpAhjo94WW2oLLXYo547jmQSq1QJW2PELyom",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974428,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "AoEsuFXKagQVBwhasjKjh8s3Z5KsbXdFdR6mVFbB9Zof",
+            "run": "HR2Pmp4LRA3TCaUr65ZMhPhkKTpYWZKbofDrugnHvud2",
+            "benchmark": "9juDu5ZsjgGEDZ23psNksAENkf5rwAyixTrebvpCS7Uo",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974440,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "EnzayAe36FrW9oB9kRhj3j2LQfQz1EfBaJi3qQ9tV7sd",
+            "run": "HZkFZWJf6nDzZrUFYBg65zJAfeV6hf3M8QmC9sANGUCG",
+            "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974441,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          },
+          {
+            "pk": "EcfL2NGaMB7XH3c4aEAncPr6tMXGAzUStmWA9i6edJkS",
+            "run": "J6RAx3tXxab5oDX7duCvk4wfNHHfWXNz9y4QKtZv4GcU",
+            "benchmark": "4mGzzTZMrbwxw5VBdBvrRgeU2sfgB7sojjQDFGngQWRj",
+            "correct": 64,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790974444,
+            "modelRecord": "Gdn6g8vPpxkDV7gFJRuqzzN5skqniwfo4MfSf5hts6V6"
+          }
+        ]
+      },
+      {
+        "recordPk": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB",
+        "modelId": "qwen2.5-3b-instruct",
+        "record": {
+          "modelHash": "e70dab371f91877d74453534d726f1449b53e660fee4549ae219cc0b05f7a102",
+          "runsScored": 3,
+          "totalCorrect": 23,
+          "totalItems": 96,
+          "bestCorrect": 9,
+          "bestItems": 32,
+          "bestRun": "4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2",
+          "bestBank": "BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z",
+          "lastRun": "GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi",
+          "firstSeen": 1790962105,
+          "lastScored": 1791026278
+        },
+        "receipts": [
+          {
+            "pk": "2WjFpDxcd6akHodS2ToeHR2v9MZVk8cm41vJQGBAyExv",
+            "run": "4biuMVncBjFZwgfdNSDvSZeQnCroypE6Yk1ygA2XKcy2",
+            "benchmark": "BNrsrF2Z4U8TpNinqsMck2t9DrijQ3gfLbF87P3gTP3Z",
+            "correct": 9,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790962105,
+            "modelRecord": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB"
+          },
+          {
+            "pk": "FAqvtSdYQpzjwW3jN1CiQSFdEPACY5rfwC66PwQXSkfV",
+            "run": "ucwXeKwU5yAnmREhVTQjawCSKrgVC2gjnkd1VDGo7MS",
+            "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+            "correct": 7,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974326,
+            "modelRecord": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB"
+          },
+          {
+            "pk": "2YncpZ3Fib8pCAmwUpnD4B3rDtGisjm2RAsqoWePD77d",
+            "run": "GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi",
+            "benchmark": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
+            "correct": 7,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1791026278,
+            "modelRecord": "7mAKsLaBqXcLZNso8EXbSUWFGcDZzsqq36xRfefvCYqB"
+          }
+        ]
+      },
+      {
+        "recordPk": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn",
+        "modelId": "test/oracle",
+        "record": {
+          "modelHash": "e59e599a88a99fcd579b00ba8701253c8c264d05e796c334d21796f7456d0bb7",
+          "runsScored": 18,
+          "totalCorrect": 810,
+          "totalItems": 1152,
+          "bestCorrect": 45,
+          "bestItems": 64,
+          "bestRun": "9g1hnfGoMAaXuPxdtnuHvjdmziHBGwpgegJBhbh8yzNS",
+          "bestBank": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+          "lastRun": "HjH5BHJGb8ko2x9e5qLr9gHeT7JTSyuvxB5YMcf72QRe",
+          "firstSeen": 1790974323,
+          "lastScored": 1790974443
+        },
+        "receipts": [
+          {
+            "pk": "3VHFbhe5kdDCUeUX4UCQmdfARbmGdx4Z5viiVZFBbqea",
+            "run": "BfY22YuvSKo6g8PBL44Zvv98gmsGAULV9aoygExnWy2",
+            "benchmark": "A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974323,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "AQexgo1A6Z2ffzmL1Yxwy4rgbYVzgcS1aWYkoMuBifp2",
+            "run": "UFSNVQsAUSWxbKQ1ziekGcVqxUsd6ojNpG1SZhb2J51",
+            "benchmark": "ErBrCuKMSqzSmfecqvNqfDJpFtoEvGWWDYbi28zXDYkz",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974323,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "HbkWxPK6VpqMYvFq67QC5NY2Mk4CzpQWnC71zYHNptyv",
+            "run": "2QGfCKZnvAMP9t1FTo5co9zYoCsomBcYma1ETogpqCab",
+            "benchmark": "2ARmVtk7qHgaogGPRaLyHim3amkJu2DFqW2QVJSZnED6",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974331,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "CGanNhxpWXW1xNDHe26hteni29w6zAbn7UGoHfgyhbAs",
+            "run": "4MXJ6zsJuEaM9y4N488xrB9dDGFYuqzTdFxEtm21mWa8",
+            "benchmark": "28ogPX26aH6DGqnhiUDPSqAVeyCXfcmNbnyMBzJeBPS5",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974346,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "H6zMKHCs693u95QgizQVzqEWBfTfPYRzRkCTvn4bWQ1d",
+            "run": "4owcQAPLx6ELeeZcoJouSaCjNNvKD3c1GDDwpRtspfMD",
+            "benchmark": "9VByiNFNGyaVBTv65jP1P4EBxsPLM29GQL75EvmPvW4U",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974348,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "AhqHikHEhVv8G1LPS5VuS2ePWfCiGBQYY3kchuFNjkBz",
+            "run": "5hjtBjSMTQRxr8HiSU8oTNTZTgoBcpvVDdaF4CTK4TAk",
+            "benchmark": "3C1dCBh4Qg7Uf3jHshq5vHAARAEcGGTEsNwqDMHKHLuV",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974352,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "BK33iSGeq86M3tLfgJUDWoQD7CF9SVAQdwnkbBHKnuCc",
+            "run": "763gszes4hBLQZsMhSVqAoNavks2aAaNzN3C9oNHqEfM",
+            "benchmark": "BDnWoJsVNHAa2Fb9jCfaUBeXKx74bPCqoSBRJsqrJX5c",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974366,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "2vMUG7RnWAE35gc2NaH7Gixv78tYCWvrMwzcmvWBNQNF",
+            "run": "9g1hnfGoMAaXuPxdtnuHvjdmziHBGwpgegJBhbh8yzNS",
+            "benchmark": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974382,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "7NuUTQCwB4teYbxnxaiae6R5qhe8cGu2eJRNu2ie7rjS",
+            "run": "9tyyiw4UofvpLhnL7khBKTB57TtCvVZoVLgRtRtFoKuk",
+            "benchmark": "8KG9gFRsYwtTv9xPhwU92ymeK4V3wKpgSMYH8w6TiM19",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974383,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "5L3QakUqrMY7R9stGUNtKm1MmZEJXAL6CpCMYFeT7Qvf",
+            "run": "A6pCRHsPgTg3kmU2janJ4pMKMmQcKWtKzHeanJZFuWYG",
+            "benchmark": "9juDu5ZsjgGEDZ23psNksAENkf5rwAyixTrebvpCS7Uo",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974385,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "7GkysBDrvyo7htRBdd4sYwiJcPt1RxDYZaZfNZkMpXop",
+            "run": "AwSiAfRzvekQCHvtTqnSfQHVSwuy74PJnNz9Rf4jekW9",
+            "benchmark": "1RsmwbTNxP5SBS8MXwBPJkHbktdsMSMYGCBteXk7U75",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974392,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "DLBZHFCk8MaKBNfJDT4Qjtt3gFWND4yfjWodUv2mi3kF",
+            "run": "BGv2jNdcSmLGiLDHK3ZMQFQnmMkzB23q2WgqDjz7EDSf",
+            "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974394,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "J2WscAxSDXsKAyDJMf5bV9VM9D4uw2ydqhPTY8jYCdiy",
+            "run": "CjzFYTXFceH7euo6o8WFVcvMZ1qnh5NmXuJjjtXQRVHE",
+            "benchmark": "4mGzzTZMrbwxw5VBdBvrRgeU2sfgB7sojjQDFGngQWRj",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974405,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "5FZpBCQMPEpPCvT3t74TUCT89DnM79xcjQiX56cUv2gz",
+            "run": "EFrYohP3qfSEkfRxZmwPe1ex5Q6JH1quKu7BP2o781o2",
+            "benchmark": "7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974417,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "8gp6c8FWRqd4CTmYVFBFyCnMnpVHjyf5i8GWjvtq6TpY",
+            "run": "FogPak5RW7usKdWewav7hSMuaEbv9e9d43u36cH41y3H",
+            "benchmark": "4pPHx9eVBpAhjo94WW2oLLXYo547jmQSq1QJW2PELyom",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974429,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "6PxyibxSx13G79E63pQM9MwCeXCmVvwSN78nDNjoEjyk",
+            "run": "HWuVmurTJXhBx7ahLAS9nKVB2sBNUrZ9w2sL2BWjm7xJ",
+            "benchmark": "HtnrezGoFZFgCsq6dv2QFsafRtKx1NQzGkMumjKgTkMQ",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974441,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "26fA1uQgFByupCm1sXeSZvzFANVh3FYiQYNdYM49FULQ",
+            "run": "HncF9SBsh6zUmpnKm7hhCNSfGNkU9aBtSM6Pizfd7itT",
+            "benchmark": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974443,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          },
+          {
+            "pk": "5LoYCiHa9U8ii796Kzk8H5QPdFoeUNdtswhyqRDcxf6d",
+            "run": "HjH5BHJGb8ko2x9e5qLr9gHeT7JTSyuvxB5YMcf72QRe",
+            "benchmark": "B1kWPVm1o861mPV5VAApaCdwrxXLwfo7AwZPJhC5JYUi",
+            "correct": 45,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974443,
+            "modelRecord": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+          }
+        ]
+      },
+      {
+        "recordPk": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL",
+        "modelId": "ladder/tie-a",
+        "record": {
+          "modelHash": "e06b2b681512a63a57682753bcb6100a5c464c7d4d78123b1b74e4b8db2186a8",
+          "runsScored": 17,
+          "totalCorrect": 425,
+          "totalItems": 544,
+          "bestCorrect": 25,
+          "bestItems": 32,
+          "bestRun": "7n3cpPfKq2CRimZn7izKK2cb5yAFLZ71AGQrUWPvnqv9",
+          "bestBank": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+          "lastRun": "HJZEYdxnT6SDH99AwfjpZL71Gp7fWMBicmjCBwRFQb3y",
+          "firstSeen": 1790974322,
+          "lastScored": 1790974438
+        },
+        "receipts": [
+          {
+            "pk": "Az631fPU4P9kJPkqMSxszxXB6LhSFnLcZuRA9YrmRogD",
+            "run": "8UWYNX1mKNPjAaSvTEYZR94jjk7rAn8B4X8ZsuS12CB",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974322,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "AAq96s4hVrP5Kom6tuA6xACqgZQoDFmyjogtyc6G7KXW",
+            "run": "XbsHhxrufPXsaiPZWr8BxYeJt8EGzi1EKNqAL5XXtHp",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974323,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "4fjy7bQmK2oqfxDkTKAeLvyHpZuPBBwtQqcp1JbmY9fd",
+            "run": "jKKKX2fQ7oFmitF23voYZfNxhhRna7FhTZ6b5RoVdKF",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974324,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "9NgVzbJrwX2ZxfpEUfxBPMGbLtq3UgaYJtG35fF7Cfdy",
+            "run": "38ZBjhRaNceTsFX9jQSgShbewcy8QNnEeovG1zrCUJrH",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974336,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "J283JdWau21t37ZGjtFgnjnvUUbs4B5cmpW3X3q4oBv5",
+            "run": "3AM6FSQ21dLYSXf1BG5MwZqdagSedgwfUHwnT8iyBMma",
+            "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974336,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "5qnaFpVxcYdW2eqBUPxVd3QV9tzczKsxYpwYA2S97Z2a",
+            "run": "4izA84cV677NnAASvYHynzYsDZytzv8uCVDRa1dtRqJm",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974347,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "8S8QVcWwKGCZTjm7jVWtYob8TiMatuAxpP4mBaWKCKac",
+            "run": "6msmowsC9jKHNheP2BB7ba58q4unjpnFGMyAgnGwik47",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974363,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "2X94kzxU7hQdUR1t8B888whkzC8ZMhMod7jtirWtpYgg",
+            "run": "7n3cpPfKq2CRimZn7izKK2cb5yAFLZ71AGQrUWPvnqv9",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974371,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "4V7RBhEQDxhXfn162vTTfx3nKHaTJjwG2jGgyyxHBWCJ",
+            "run": "83Yemw4R1Les1RmNhLQP83yKaKaFxddnLt4Nm7gQW3Ms",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974374,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "4H5zdN59LewBLSyqZGpk79vgiWRzsWYc2yepfpLEuvGG",
+            "run": "A6sxJXyRu2yktKZ4Tg2uDRCx29AapAeR7foEzE9Z43gj",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974385,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "93XoTNoEEV8M3eAekpZNMXN6EyfVJtoUpdd37498Gqwb",
+            "run": "B5oJ9VVa91MELRXKyi9W4faN3PwSXcKfZK7rWEbToGb9",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974393,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "AcvjRu2z8osMqPPrhsaJNwWQvMhXnj1nh23NCeNZyczf",
+            "run": "CgJk7TaUtaZ99Ftc2MdfvojSi3iQs7fN2tiEzPS7nB5R",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974404,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "EWvHrYNhYcBBC2Wg6pCvmGyFC53awqaLKDczzNYsuaYT",
+            "run": "D8NyDCx6q8HG9JXsMAN8z5LzqLscEHYQu5HrHWuWxNHg",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974408,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "AjsNTEiHbgihNy2cR8aCxscn4xZ3ymHTbRUwnLrxVwtX",
+            "run": "Dpxpshoodojo6XjfRgZp3P2P9mYi32BNrCQR32MizS3o",
+            "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974414,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "dRY2GUZqh3szai8s8m7qHQjZvaErLAs28BDyEBk89vm",
+            "run": "GK8uResVHuDtWyebAP9HiyxzJrtJ287g6bEEjJMqU3Mr",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974432,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "JAwfWPX9tfDkhDzQ9YZ7ZSR97JRTVKaEJFvdUPM8t7QJ",
+            "run": "GnxZre252H58Ge4S2t5L5h3n1R4MDzjhjfa9eh8xRFS1",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974436,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          },
+          {
+            "pk": "AhhdmYnpLEB8saCTWFrXJ5DsMTPPAVQeUvEKUUX4Kr67",
+            "run": "HJZEYdxnT6SDH99AwfjpZL71Gp7fWMBicmjCBwRFQb3y",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974438,
+            "modelRecord": "9BKxsSaXk8nL9dwSbLSkndfx2wzHz3vjXQjmB3qSYFgL"
+          }
+        ]
+      },
+      {
+        "recordPk": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi",
+        "modelId": "ladder/tie-b",
+        "record": {
+          "modelHash": "b3c00612b264452a9829bcf3c761312a90008d031877f3af90f0f34c75c179a7",
+          "runsScored": 16,
+          "totalCorrect": 400,
+          "totalItems": 512,
+          "bestCorrect": 25,
+          "bestItems": 32,
+          "bestRun": "DN2498PHuiTbgRnnKRcMoM5m5XBVfAaZqkZVabrqXUdz",
+          "bestBank": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+          "lastRun": "HYykDn62zVcpZEtHYG6i5oo6NH18fSbjm7QuyiTcAhf6",
+          "firstSeen": 1790974324,
+          "lastScored": 1790974441
+        },
+        "receipts": [
+          {
+            "pk": "KXDtySM6BAqXjLYT2XxJuPX5rJRPEXqJKZJvL9zazNR",
+            "run": "oFu96BcCtPkEYq4ZWv87QecGpe53RqE7wcdjs72DhN1",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974324,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "GFavysBakuAZVbJgBnTv32aNFQQS59zNoXP55r2Kxkhq",
+            "run": "uPN8GSkJBpwN39o4CeZ5W2tzd1jh3e23r1ZvznmSD9S",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974325,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "97p55o9rJXkb3A4UbuKqxdG8Uv5CzYDDBceRn65KP5j3",
+            "run": "zuRU23R56MHUnUSDDZXbDbwRkyfCjA4CpxaaoQLsgDg",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974328,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "6k5XNC9Zm37hDPnUpixniGLdwMez976yywfUB94n5Da6",
+            "run": "2aciR57xb4eZtxwUMPAT4BFD5sauVqrkd5n2TYQez7my",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974332,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "BrEepxXgzyc3oenoXynqtMpua7wEkzD8jdw2mo2vYU69",
+            "run": "3R6Rm5BpFiEmXWYBExnVf6KoBGUgAB7Avqr2amgRrPUT",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974338,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "7UKxNXJc5erNzGGf9Vn9nFDHdESvxKJvYkfHj5RpARGP",
+            "run": "4Hp2ai7jfedkB2yho2wongvoDwZYxn6LWoMiDyX1fxkK",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974345,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "99gPpe3RpcWiEb78jXykGWXQJng394TTpQgHYy2MtXsQ",
+            "run": "6GttKNoL4psWSiP6obyPGnmzzT4NAqxWV7NkyKZV8wLj",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974358,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "3rwtSp3m2HK5fY11UBiuNQjbzCApsfzrJUFudZb4E25k",
+            "run": "73XqANUu3X8PoQE8o5prBnjYVSFr9VnAy5vyNV59qtsD",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974365,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "faTZSHiTihPz42GYHVQg3eT31P7JKjsEzamytEKb3TL",
+            "run": "8yQLzy1shBhf2SNxdEpFxsXg8ssd9cfRx65DSea7nGiU",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974377,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "9AnV2PZFe7wX9F7ZYW5rF1R9W2XA4oLAeEnrNkMJNHuq",
+            "run": "Aga3p8H9VB2btecC59z7y57vd4rPjbrqYiQFWnnK5DEk",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974390,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "GYT4hfhJ7t1P9a5YSDgmCgYAdbmAXFpM2JFUxsE87ohz",
+            "run": "AkPpx2FTEffBeoHToykwEqQ9LkTVSyvYRcwoh6FXtw9j",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974391,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "2fsG8W362NMPqAQiDTRPoSCDrNA8hzGS7VMVEPtw8z5G",
+            "run": "DN2498PHuiTbgRnnKRcMoM5m5XBVfAaZqkZVabrqXUdz",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974411,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "2VnvogLxHTVxTQuhBUshSdfQkcADyzRQtqrYDoJgkNd5",
+            "run": "E9TbiS1mpy8R3zB3DufoF8g4GxrFvcXcWbjyzqaKRisV",
+            "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974415,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "3RARnVsrs1cF8zdqRhp6wgeWKAG7Fy1ipK73xik9G55i",
+            "run": "FQd1sQuCkKwJbfkfXZz9NPkuFpPGJSp4mJzKX7DuASSd",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974426,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "Bu1AftucBNfxiiTUeCQGA5gwvqHUyK38GQUYyqMoAAHo",
+            "run": "Gkrf3ADpt69mnt2r8wPedwt9YyugHsapz4eceL96L1cr",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974435,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          },
+          {
+            "pk": "4qLbk82tofCJCJEdeuGVs7GTAXikFgoUL7KEnaLEstLC",
+            "run": "HYykDn62zVcpZEtHYG6i5oo6NH18fSbjm7QuyiTcAhf6",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974441,
+            "modelRecord": "EJiSFZFhZV2k6yZopWsAFFcXNJpcik1qnmdzwGRuBhi"
+          }
+        ]
+      },
+      {
+        "recordPk": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B",
+        "modelId": "duel/model-a",
+        "record": {
+          "modelHash": "7df377d2ebf823fd58c5d543a7f159a4260658cb40d3b8c6886542e0c7bc3a35",
+          "runsScored": 16,
+          "totalCorrect": 400,
+          "totalItems": 512,
+          "bestCorrect": 25,
+          "bestItems": 32,
+          "bestRun": "A51HaQF8VGcnS5RdBNbrkMsVNkz5N1CdBLLeLtc8y5jd",
+          "bestBank": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+          "lastRun": "H29uQtgZyVs2NLvKK5ZRAZRFxMdQXSscpAsNLciGaJFs",
+          "firstSeen": 1790974322,
+          "lastScored": 1790974437
+        },
+        "receipts": [
+          {
+            "pk": "A2jwuTtGfMA8nJUTNFyPYNEimLcjoKCSeJh4x3Qz1iZL",
+            "run": "7HTGYgebGcHYNmJW5oDALDrg5qXtpHfRYz21VzRjGEz",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974322,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "5jbKxEWcAmkWt5gBY9NciAuZ41stXfK3uKPoi89k5p81",
+            "run": "23VcWGQ45GaqgvufJqzT7cFSXTL5Lcef273seQTXTg5N",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974328,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "XxEpXQ7QurpSygfkziYAhEpH3P3NHKNV2UT2jfCx7Az",
+            "run": "2dMsbX2avgW4NQeLwu5YVVVbdVEDKaxdjmzYstpZtg1C",
+            "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974333,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "Hrwkye3YeX2MqjqDjhE33F44UMZRVw75t7MmoLkt1tGz",
+            "run": "3AiRBH4pmurip1P6w7UC6LreURw6syo4WJHMejT6GppF",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974337,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "6HKDxETqdbLxv1nEk9KfHAbG8HihiMDzZBpcUw7qHCEw",
+            "run": "3aVeiqHVingUEv7jUCUwKMeq1vvD99gF73SSGcRVtRiD",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974339,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "DnNkNRvhDJBCqmaFmFuKEQaHrPavnP1NmGjhCTZQcc11",
+            "run": "5RnjsK9xfE2WPAE4m5FEzSWhhKa2aPEh7TumGcBdJS6B",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974349,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "7gdrRmYtfqs8kRwMgxzv9CzMgXvA8ZAD6GJQ1X61Ht2N",
+            "run": "5isjmiHHegB2HZdH9aiZHtWf1dNSW5nHxq26Tz89uN3m",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974352,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "AgJv2iMsnjcgJsi8W8GCoW8DXvrwRDMyHijYUxeqmSNL",
+            "run": "5wEyPSswKGgQBVxt4p3NqiwwDQveRCSEdtqvjGQtWwiB",
+            "benchmark": "62RrhYXPNE3sRU78cnNVYsNzogBqSEkVd1YJMrzz8cia",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974353,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "6ZgKDE9AukjYXo6pgbkJhfa15kTPrdexLnsyZXDJEpr2",
+            "run": "75VZBzegzJYwh4yPWSc9pYJs5M9JHiw2t8E3r4tx2iSQ",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974366,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "ENhhxzdE6YQjQECosEsPN7arBykRKknM7tDQKPmQTuVt",
+            "run": "9Ayta6NAj9h7ESVvwTNzBYgGPw56EqbfQww2RUdQe3K7",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974379,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "2WC5hsYK1HS5zaw8C5oVBepU1vzAY2QNBTD5PzBpLe7x",
+            "run": "A51HaQF8VGcnS5RdBNbrkMsVNkz5N1CdBLLeLtc8y5jd",
+            "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974384,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "AiGdktAoXJ1wiLbtFZreow1GEy5xfA3NtE9X7YpeDjkb",
+            "run": "AHJmA2Ys1BnPT8DPAQ9XivhqpqufF5aapHnxBzBms45o",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974386,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "EmXkrRQyuq2YHuTp5upeFXqsDAfzCsmMGqPos4dKAWqc",
+            "run": "CADWgBk8gYhFJVdVhwCKWaLPRv1tCxXwzZSSsQRLx8rw",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974400,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "2ZrDknCH6RvtcP6dc1dwxvcdPgQ5DG5fbBw6YADGApGk",
+            "run": "DkSvwxdvYqfTvUv1kCcaVY7qgYU7PwnRLp51TZnKTf6X",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974413,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "3yFq14WRbfz1F7AZE4Pt6Nu8j8DHftHtBRvXRDH7ETwE",
+            "run": "FQZtLqKWQ7peQQ155bekfjNEeUnq8yuSDaz4LQTfLj3N",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974426,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          },
+          {
+            "pk": "CNe2RbTPUHeCrZizRR6cwWUBn7Vu1LQHw9bmg7zYjYGN",
+            "run": "H29uQtgZyVs2NLvKK5ZRAZRFxMdQXSscpAsNLciGaJFs",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 25,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974437,
+            "modelRecord": "J1tp5D3NkVY4GhVxUDaLg59bppqQLkVM1PtZd4G7nW7B"
+          }
+        ]
+      },
+      {
+        "recordPk": "HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ",
+        "modelId": "mock/oracle-0.75",
+        "record": {
+          "modelHash": "c98a734437002ddff92f9ccefa56c60f220d62b32be21c74d6ea89163f21d444",
+          "runsScored": 2,
+          "totalCorrect": 77,
+          "totalItems": 96,
+          "bestCorrect": 53,
+          "bestItems": 64,
+          "bestRun": "BoEDCeg4jP9vCyaj2Q1Y9jVCeZd2rweFCJcmM2GNRvY9",
+          "bestBank": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+          "lastRun": "BoEDCeg4jP9vCyaj2Q1Y9jVCeZd2rweFCJcmM2GNRvY9",
+          "firstSeen": 1790974391,
+          "lastScored": 1790974397
+        },
+        "receipts": [
+          {
+            "pk": "AA1JqEVWuGTTZKaw3jwkNx2FFdjmJCRT4LtRHJR6SbJ4",
+            "run": "AvKWFnMW21Y4n6yskK8bPPHBLCoudyh3CRHvC55J1qj1",
+            "benchmark": "8UrSbSNgfoDSL8jWEsyuDrsap8meWuNkFZnLcTmpAAjq",
+            "correct": 24,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974391,
+            "modelRecord": "HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ"
+          },
+          {
+            "pk": "2Kvt5ryP8q5HgzLzbssZDGaTbEMKGfVGncStvrWGuAMB",
+            "run": "BoEDCeg4jP9vCyaj2Q1Y9jVCeZd2rweFCJcmM2GNRvY9",
+            "benchmark": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+            "correct": 53,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974397,
+            "modelRecord": "HtscGpPnjQD5U3ozWDDBQ5FMjXGiVnAbZpwM8A7iquEQ"
+          }
+        ]
+      },
+      {
+        "recordPk": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j",
+        "modelId": "qwen2.5-1.5b-instruct",
+        "record": {
+          "modelHash": "3b86b10a1040f263db098b2486b54a85466e7876fa1805c618ceb9c2709aa02a",
+          "runsScored": 3,
+          "totalCorrect": 9,
+          "totalItems": 96,
+          "bestCorrect": 5,
+          "bestItems": 32,
+          "bestRun": "55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk",
+          "bestBank": "GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N",
+          "lastRun": "Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7",
+          "firstSeen": 1790962325,
+          "lastScored": 1791037751
+        },
+        "receipts": [
+          {
+            "pk": "7R4uYNUyJZWw4A9c9BE3QKnX7C3BnoGuexWZppA9zoH6",
+            "run": "55iJanaGGPZ9veeVtRg4YcF5uwKuWB1M15TPV8r7Ddbk",
+            "benchmark": "GYsTaRBqa7iTFcFMYcWd1rdzc7UdBrBVrxx2txQsvo7N",
+            "correct": 5,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790962325,
+            "modelRecord": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j"
+          },
+          {
+            "pk": "6qagtXjcQbji93wYH2ANAZoj4jdiJ9BQ5KFjgPt2iPnu",
+            "run": "CjatpBGz5MTRqQ85vHsFuaRr16wkE6nfQavzTXGsLvAM",
+            "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+            "correct": 2,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974405,
+            "modelRecord": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j"
+          },
+          {
+            "pk": "D7EWMfdFv4ZWiEFerPR9rg7gi9M4vqgY7rJgQ9i5ZETE",
+            "run": "Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7",
+            "benchmark": "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp",
+            "correct": 2,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 1,
+            "recordedAt": 1791037751,
+            "modelRecord": "FQGc2nW7epZZFnF8qL6nCrwFbKP71UAU9LSpLpRQB79j"
+          }
+        ]
+      },
+      {
+        "recordPk": "GEuHM2EuDwjAKt3wiGNUv7xo8WpPfhw5HsmNg2nne4Xd",
+        "modelId": "test/registry-model-87070",
+        "record": {
+          "modelHash": "db0527ae75f1b019976ca774edc689ca8a3ab41fdb72395513f086d780f54908",
+          "runsScored": 2,
+          "totalCorrect": 64,
+          "totalItems": 128,
+          "bestCorrect": 48,
+          "bestItems": 64,
+          "bestRun": "GZpjgLpm9gK8ZTDaccdDHEfSnoRDpgD5A2VhuEL2anMM",
+          "bestBank": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+          "lastRun": "C5fFE4gZ28DhbMGfUhdypaXjPyjdDFGyKhuJrvuY6XTA",
+          "firstSeen": 1790979786,
+          "lastScored": 1790979797
+        },
+        "receipts": [
+          {
+            "pk": "2oMxHNWBhY8BQVuoJKcBdKPwNbXkAQFHxEH78X7CMqMj",
+            "run": "GZpjgLpm9gK8ZTDaccdDHEfSnoRDpgD5A2VhuEL2anMM",
+            "benchmark": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+            "correct": 48,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790979786,
+            "modelRecord": "GEuHM2EuDwjAKt3wiGNUv7xo8WpPfhw5HsmNg2nne4Xd"
+          },
+          {
+            "pk": "CpZ9cMFwPeb3LFYfhbKTvHmAwMCRqU4bfgbsQaJ8rtqh",
+            "run": "C5fFE4gZ28DhbMGfUhdypaXjPyjdDFGyKhuJrvuY6XTA",
+            "benchmark": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+            "correct": 16,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790979797,
+            "modelRecord": "GEuHM2EuDwjAKt3wiGNUv7xo8WpPfhw5HsmNg2nne4Xd"
+          }
+        ]
+      },
+      {
+        "recordPk": "8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ",
+        "modelId": "test/registry-model-35953",
+        "record": {
+          "modelHash": "2938369c3fb42f6d4b81472efa25317576c76e529acf26761ec5aff32d6564aa",
+          "runsScored": 2,
+          "totalCorrect": 64,
+          "totalItems": 128,
+          "bestCorrect": 48,
+          "bestItems": 64,
+          "bestRun": "67PexoYKbp99QAPqDQj2Ye7JrM8vjXG4NSns3w1mRRTn",
+          "bestBank": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+          "lastRun": "BU4wACQF2XWatRKqgE6VikRBvrTPeFS6pzFeGFSby2Ac",
+          "firstSeen": 1791027616,
+          "lastScored": 1791027623
+        },
+        "receipts": [
+          {
+            "pk": "CVuQoQqpgmh2cW7W2kQRsjs2mTHrUdMkCAWX3L7wDBkB",
+            "run": "67PexoYKbp99QAPqDQj2Ye7JrM8vjXG4NSns3w1mRRTn",
+            "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+            "correct": 48,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1791027616,
+            "modelRecord": "8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ"
+          },
+          {
+            "pk": "FB94cD5s8ApRp8gAb29hSS8Mrkg4ZS2bVbqcRrGAtjRb",
+            "run": "BU4wACQF2XWatRKqgE6VikRBvrTPeFS6pzFeGFSby2Ac",
+            "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+            "correct": 16,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1791027623,
+            "modelRecord": "8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ"
+          }
+        ]
+      },
+      {
+        "recordPk": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx",
+        "modelId": "test/priv-oracle",
+        "record": {
+          "modelHash": "96e41fae41c051e32fea740f40813396a54336d8836bd4a5b67ca11566cc291c",
+          "runsScored": 18,
+          "totalCorrect": 378,
+          "totalItems": 576,
+          "bestCorrect": 21,
+          "bestItems": 32,
+          "bestRun": "5bCFAaKeoHDXpckVSh2jrsqnFyq7toLHF2AKNhSekXJU",
+          "bestBank": "AxSAUBod4GhFM7Wkm3h4dyE98WS7Vv1VWEqs66LaDtAX",
+          "lastRun": "HvZ6VRUVPDG1Nqvr8wFEmo41XPPr8QEGXTrdej2Tkm6A",
+          "firstSeen": 1790974326,
+          "lastScored": 1790974444
+        },
+        "receipts": [
+          {
+            "pk": "GPGzwgZVSH3NorVG9AwRiJDqHdqC8gSuQJTFvMAidZJ",
+            "run": "vp5SVLqpotRjJRhL3PcvGFenNpVEAo8zmZskHyJ7tKY",
+            "benchmark": "B9mQnHdgGYSY8yYPshUizyDkJeN72PJmwdSxJusW3p6g",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974326,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "GApcESYw186DrN4pm12XanutMtSbCruW9kxcRvT5wDFq",
+            "run": "3tAcwYs95dMqGqykuEdFFoXXFCyegWRB6DPC9gULRwHy",
+            "benchmark": "2GkTwDJ5zsScEvzH8eWoCDXmCMg4WciF557971ixjcd7",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974341,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "AKfR9hkjUSDPi64XzqEQ8sDeMo49egnguAtXiESkzziv",
+            "run": "44B1Mwpm2f4zDvGYE8hkzB2s5wHetXQTJEtGbF9B8MiH",
+            "benchmark": "CVwBucWNGuGrmGEPHVf7fJEQHyVWEzDhDxsUkM9DPamg",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974343,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "5FW4JfxbYViKwEdG1wwmgiZUChEaZyMFMatdjMpDEZqG",
+            "run": "4HCAyWE1FVqo943HuZRu3wazZSbNADK8cLyRS5qtPmQy",
+            "benchmark": "AtuePj7sVFhvJ7LL9avHuLMWz7fwT3ehbdRKX3a24hso",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974344,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "2pfHdBnAspqmvjsBAxyKaMcG5Uuzn3f4SWusYyhSKgQ8",
+            "run": "5bCFAaKeoHDXpckVSh2jrsqnFyq7toLHF2AKNhSekXJU",
+            "benchmark": "AxSAUBod4GhFM7Wkm3h4dyE98WS7Vv1VWEqs66LaDtAX",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974351,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "4fSSUBe4BnqYhohoYNxf764s86bPP7kS6YSsGRZn178V",
+            "run": "6qzBhfv7omrpAVjTpy4mANQ6wWc14FFEK8iSXCg8vDaQ",
+            "benchmark": "BuKucMw1ZdyWUzTKFHFpKRsUE1MwrNzqiGkbiAiiUpMg",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974363,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "3xQeCFSWzBjZJL7bcvjHiMiFSQe7oZZZAB8pKoH2cuVB",
+            "run": "75ccYy2hTffHPx8GnfdPZyZPx2vZb7TTCtYoF4WNtyXq",
+            "benchmark": "Fzjoz62amxhqDXCieMUMbQZ7vNV1LqbEonjH9ZjV2FKE",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974366,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "DP8V14vCzDLwK3xHmwD7oSPvcn6ZfPWV3exaXn1trVFN",
+            "run": "8zYTxWFhyorkSkQf6J4VksojHURtbvznarqed2FmR6pH",
+            "benchmark": "EaaURxXojf5nvBkNJBaconf3D8nD1F5MqZrWaSgcXvJ6",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974378,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "6v5nJfPUh6XZx42WsyUPESZmwDmEsjchvc2Vf1Xk3yC4",
+            "run": "9nJMZfW6n3xxzjZKSyyVuDNibDKah2WAg2CobyynqR18",
+            "benchmark": "ARt4GdmzVNBgYG4HZKm12NaADi1x8YPrtGtWnND2Fpfi",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974382,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "Ea3BMKCg24KdpHvgCPiPeQtpjMyTnLaWU3qYmwi6b3t7",
+            "run": "BXpW4SK3DqoBcrXwhKpvtjDrpPTixFsJhLPAjtiyjAp2",
+            "benchmark": "BaFrkCYrrpqq4YNdDqnKNLs354XG7MAUx6VNk93w65Ke",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974395,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "6RN47gA8fzTdiAMJ948A1HUjYWCeygSY3w4CN9jqtWCH",
+            "run": "BZoqX7cRDDC8yQ6zpPMSoTWfim7TuijFzdz1Am9YfBA2",
+            "benchmark": "5fWFZgwKnP4y69oUVuPiNQ6KfF1Zej7NWKCt7aNYWssv",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974396,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "CX1BiXWpPW9ZEVdkEHH3KQVNcuoisDiWagwGJVxnjsV9",
+            "run": "BxHNyKa67ZweoWxd6KsMaQsaBEpyAgjHBymoKn4X8GwB",
+            "benchmark": "BEh3K6TLFjfzJeRtiHiYVz4xWP9JuxhSTZ13b1Dywoth",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974398,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "EC21utoZ1nDMgwL5MQa32fuyDUeM4Sn3ch1JvkjK4MqS",
+            "run": "CDuWb1nV2Y6UVeLGegYGczmbuDj6Vsx9zo7u2Usu17td",
+            "benchmark": "6GgzqWoVydGyFMvL4Bz9vvRBEhBiHC8pGEszNPcN5cGJ",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974401,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "GiJcmPFRechc6jLFBGBfRvwjeGPRyUUh7JMGku3SfuB5",
+            "run": "DewE13iins2HYHoJ3YdyBBNLneZEAkUHcC4t6rnPF7oi",
+            "benchmark": "2Ns6WLJ6G1sZhhyb18NMCsne262vMaLDPSzGT4maAoHZ",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974413,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "Ahw9b8oM4746Kkke2TxJhiz5WimQNSqihpSfZkHB6WjN",
+            "run": "DzDvgCav5tVpY61g1e1AVYhCifCB6dXb7LMfiWEAdktw",
+            "benchmark": "6EchdYUPVNBQ8PmawVLCc7fBFAZ57BHKcZ5HHXxWwsCE",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974415,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "HKjxLBccCNB3g27SaGo2A6Lzbny6JM7RqmHQtYWhrEmP",
+            "run": "EohEapLTqa1TrjNRyeaViCv83dyuqt6hPvuChwSsnGDu",
+            "benchmark": "inxkZjkUc4b9bpkPwv8BJbLmwe6R4uXSU14YVD4QxGJ",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974419,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "9Rw9XMWBGr1kLHLyyAtWv3Yb85A1gQsHmJjXsFa7ERmH",
+            "run": "Hh1RLso7uzsZUXmFYXLqUSTejEi3Y9ZQnez1AC6fGtym",
+            "benchmark": "8WnpfTdmPm8FkpmYGxw7mZXUDwD6SBib3G66vHvK3m4a",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974442,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          },
+          {
+            "pk": "6Gs6fLyUUABg3zZGhdnQWmhLiMetPdbzjBRuDBjJEx25",
+            "run": "HvZ6VRUVPDG1Nqvr8wFEmo41XPPr8QEGXTrdej2Tkm6A",
+            "benchmark": "BfWodNXoM4dWf9XK4d1hQVRg4HsL2zzHRpzb9x85CiFX",
+            "correct": 21,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974444,
+            "modelRecord": "5j7LE1ttdB2M3Ca2qWnTaUYaZQjBSQf7YZVym1C3RcLx"
+          }
+        ]
+      },
+      {
+        "recordPk": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s",
+        "modelId": "ladder/model-b",
+        "record": {
+          "modelHash": "2026a8da2195592bb8b47895874355721d15a6189f6b7789143afaf68cccf80a",
+          "runsScored": 17,
+          "totalCorrect": 340,
+          "totalItems": 544,
+          "bestCorrect": 20,
+          "bestItems": 32,
+          "bestRun": "9APq4S3qAhNb6ZuVHYndEEpz5jF7HXV5q88Y8Dhi8KsD",
+          "bestBank": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+          "lastRun": "GmPixNj1PwoQqogAnjyyxBJiZHMkevQbQgrciGNPnXN6",
+          "firstSeen": 1790974335,
+          "lastScored": 1790974436
+        },
+        "receipts": [
+          {
+            "pk": "7jHxsNMfm6fDdqZD6CMc7GZn8dxjtPQcPLjerEVhKpQ6",
+            "run": "2wTXQWG6EgGggNZt3T9bKCyJk46PtGze4h6AJ4T7JGPT",
+            "benchmark": "62RrhYXPNE3sRU78cnNVYsNzogBqSEkVd1YJMrzz8cia",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974335,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "BMLt8RjnWvR8wZWf2PF4tv1hQLYBApxELZFcVHNu5n5A",
+            "run": "41Hz5awrb4Wv64TbV3sxgSXtzxNHMMtTHG4ZtCADs26X",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974342,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "2n4gXEvk7CmdXiDNRFgw8sCYpvH72LHDKZoCdhEqUyRr",
+            "run": "4CGsrQQ9u1XFwGywy9cdaqdS7KmQgvKaA6QQWGYDczh2",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974343,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "HrLVrz6dz4ZCBpnybMJtCJyzLtt6n2sEmjALQczx8zSL",
+            "run": "4674xmqTuguuEnYY7H8aJeAjP8non4XLWFvSkbCxEpUG",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974343,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "7ur5Pp9tV9962LxgFBh2d8pYiFVoA68RiWywCrVN1xHv",
+            "run": "6eUGSBaUcwp5uQ5RPprkDHxCti8savjJ7gw73L8LZcpm",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974362,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "CiZRdTpHh9M1C6bXqTTd2iLjAiLZJncDEYxAH9fTuHAH",
+            "run": "7kgWrsjc78ydhCUMVCXmiSJTUa2ouDJCkS1qRQypBJL7",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974371,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "24AAEQ3tYSAk9BX5kmNyg4QpHPdJaNYaV54GT5TBVg8J",
+            "run": "9APq4S3qAhNb6ZuVHYndEEpz5jF7HXV5q88Y8Dhi8KsD",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974379,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "9A3mfRHxzf3hDsnG7JkHm2e42weHgfL7v95vv1ovAkWY",
+            "run": "9D7BeQ7w8jCxJFVyhcZYw4Jqg6Vg1k74EkJrhY8g2niL",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974380,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "JDNB6XDzkevkc6Z8FTqokMhDLFkgDjHENK3Ks3sJGLCb",
+            "run": "9wggbPzVrugDnK8dMPa5MszRNBVCzywmgmLVVJdSgszQ",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974384,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "9oX9ULs4KYLJ1fs4MbCH8WYwTMA9izqijJHkgF77nGYz",
+            "run": "BBEghhT4yzme2CwBxMVq1pziUGmYmpz7Et3xRdGHjbmr",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974394,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "BBTADCXD4ak3uYZFvQ6aBNgUFTm4td2pcpRAsqQuB4sP",
+            "run": "BMf8L3PvEws3KFiUJB5Vtdjm6ztKw5k2gjMducXWv5Dp",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974395,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "GX6LouqZxSa4gDMckW8UCfaXUBuFQ1ZBSHJd2nZkuavo",
+            "run": "DGD8nv2hxBTetGAQjNSsXshaG4bARWwZkVua5VzgkzPe",
+            "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974409,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "7tkd4FzXdhM3KtdGFAF7EcrgBDCjkjYhnT4AeDUEwVbh",
+            "run": "Et7vDahq8SuZiuxLNPqkRYJawqktQa532ztihaQhcjmd",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974421,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "2pPf9LUpiKTE2Wp9BY4J7Yn3ZuYLWiuGPpkxwSzTeuKZ",
+            "run": "FQEKJyzYuz396ZSuDPeeqUs1x4E2nPU56aSJX3DGm6vt",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974425,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "BgN2m4BWWs3Qet2c4dMYVDK6c84N84yXm7eWaTGtuDez",
+            "run": "FWUi3FY4sLBxpEN4HMbHZoWZZnvGzRN4HsYq7DW9sE4p",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974426,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "9ux5pqamdAci1UUzzPBYoX4MuvVRybe5af6rrLrGxXHq",
+            "run": "GLrfjqbcCvruFpR3uX8oCDC2We7FGQs5GrmEyUTxkSKG",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974432,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          },
+          {
+            "pk": "53MV9zd4JGPH894BdptAHwNpJP7j73AnNQcYKW2evRz2",
+            "run": "GmPixNj1PwoQqogAnjyyxBJiZHMkevQbQgrciGNPnXN6",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 20,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974436,
+            "modelRecord": "2nooMs62iy9cNoVsijEYxqLL4dgws3yc4SzNx3jm9Z4s"
+          }
+        ]
+      },
+      {
+        "recordPk": "EPdpCzZ1VEp9U3NfwS6fWCQccuegnGknwTGE8V2hMpxc",
+        "modelId": "test/bounty-wrong-payee",
+        "record": {
+          "modelHash": "d648a5400d544f3271cf5b896ed5a0c27eb9cd532d81d982714f0bfdd7be6d2c",
+          "runsScored": 4,
+          "totalCorrect": 160,
+          "totalItems": 256,
+          "bestCorrect": 40,
+          "bestItems": 64,
+          "bestRun": "FdWGQexKVpjcJJHnnz9NhqQdC26ocV4FMxyeTSzJcdLz",
+          "bestBank": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+          "lastRun": "FdWGQexKVpjcJJHnnz9NhqQdC26ocV4FMxyeTSzJcdLz",
+          "firstSeen": 1790974350,
+          "lastScored": 1790974428
+        },
+        "receipts": [
+          {
+            "pk": "8vnNWfrXrVJxep6CfhifHMxd99DkAgfP8rduXCzjRmy6",
+            "run": "5YtjabgjE9W1jsM5kszuAsP1TMtwvWcaREtoio25cxq4",
+            "benchmark": "7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974350,
+            "modelRecord": "EPdpCzZ1VEp9U3NfwS6fWCQccuegnGknwTGE8V2hMpxc"
+          },
+          {
+            "pk": "81UFDnVvJyvc2ADzkbHhwvPGC7miHgKceAvAGEggVcV6",
+            "run": "C3mBSQP1VBRsLVwrY3GZBuU4pk9Fb4DkKAZHjPcy8zqz",
+            "benchmark": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974398,
+            "modelRecord": "EPdpCzZ1VEp9U3NfwS6fWCQccuegnGknwTGE8V2hMpxc"
+          },
+          {
+            "pk": "D9cLkVFtE75AqBykgBaifhFe2k6L8T9RoGt8uMAR9uXN",
+            "run": "FNqBJfeGBXCEXaPoUWSKi72c8avvdK8rGYrZUNdBSj6c",
+            "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974422,
+            "modelRecord": "EPdpCzZ1VEp9U3NfwS6fWCQccuegnGknwTGE8V2hMpxc"
+          },
+          {
+            "pk": "2bxphZN4QoTeLJefiW71jbwyPntX1VY81Mr9uZrDuyLK",
+            "run": "FdWGQexKVpjcJJHnnz9NhqQdC26ocV4FMxyeTSzJcdLz",
+            "benchmark": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974428,
+            "modelRecord": "EPdpCzZ1VEp9U3NfwS6fWCQccuegnGknwTGE8V2hMpxc"
+          }
+        ]
+      },
+      {
+        "recordPk": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt",
+        "modelId": "test/bounty-claimant",
+        "record": {
+          "modelHash": "e0c00fcf69baa0fb8e297aada4871aa8ea7c2a48c36a5063284fefe9f48c82d9",
+          "runsScored": 18,
+          "totalCorrect": 720,
+          "totalItems": 1152,
+          "bestCorrect": 40,
+          "bestItems": 64,
+          "bestRun": "AWL6zHqka5rxckEkpMPpxhq3Q1Wit12eEzTkExYPCcsi",
+          "bestBank": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+          "lastRun": "Hh5oC2y7DA3UTaSYSzw4moXpXkYJhAUfc9ee54HehZHo",
+          "firstSeen": 1790974327,
+          "lastScored": 1790974442
+        },
+        "receipts": [
+          {
+            "pk": "5dbHzBNZLy9Nii77i4p4TS7jwMhLaNCmANwZSZgQS5ZE",
+            "run": "wAjE7YzaYWg2LLhqxjiwFqLTxM1qJoPiXp1AXcduvJv",
+            "benchmark": "B1kWPVm1o861mPV5VAApaCdwrxXLwfo7AwZPJhC5JYUi",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974327,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "DpzMXq28xNTyt7eJbhdLgpihcPMDbNk1YJFqi7Cj5Ner",
+            "run": "4HnaPd7gps3bCnB8C1wx5u8U8EyXKyikMNXa8iXTtZUG",
+            "benchmark": "1RsmwbTNxP5SBS8MXwBPJkHbktdsMSMYGCBteXk7U75",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974345,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "Db6FYcKDYX9VLGe9KLgyHDghGcoSGas5BpQtwjmKV1Se",
+            "run": "6PWLfxRGaurGz6EZgJMovZF3bh1s6thBgYBWzZjNSDYm",
+            "benchmark": "HtnrezGoFZFgCsq6dv2QFsafRtKx1NQzGkMumjKgTkMQ",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974359,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "Frfe7rSjFZoPeRiz9o2wKL9dTyWC3wzWXUxwoSZJ83dn",
+            "run": "6SsA83RCDDApNQttdZ843hK3rRP1iM6yre2MZ6Ym14iv",
+            "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974360,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "g8ED4Z37AZagyTmnmcDwcQJ1fnrsUNVHt6DcNmLTdkw",
+            "run": "6rSVR5bYXgJbv1AeKa25eXr8UxUiCBwhzPtmzMyQrZYL",
+            "benchmark": "ErBrCuKMSqzSmfecqvNqfDJpFtoEvGWWDYbi28zXDYkz",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974363,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "2MfVZSNruBCSLApP5wpZA4ZENS5HVE8Fa3gJtchbTjRD",
+            "run": "7bcXfGh1FymMJurDKE2CV748y2oToVQNMzxNYTGPNEY2",
+            "benchmark": "28ogPX26aH6DGqnhiUDPSqAVeyCXfcmNbnyMBzJeBPS5",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974370,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "5kereAbLP5Rwo5fJziZwkBZfYtbKbvtWWZcEJ8SJ5irk",
+            "run": "834excdsDe52vP8SaTvbPbLntK9oJAXtkTfZSRqTo2Bb",
+            "benchmark": "BDnWoJsVNHAa2Fb9jCfaUBeXKx74bPCqoSBRJsqrJX5c",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974373,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "HjCFfMsFF9J4q7M7ipqnskb1P1Wjtxs18mkv5oeQf3so",
+            "run": "8K2MuxaXUkbqSFGb51d1xv171kZbm7nVp7Qussre7w4n",
+            "benchmark": "A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974374,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "241wekGugFrCupAQ24AKQ8o8AfpErHBCrSUdzdvV3zXQ",
+            "run": "AWL6zHqka5rxckEkpMPpxhq3Q1Wit12eEzTkExYPCcsi",
+            "benchmark": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974386,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "771nRWXzUCePVMvB8gmoiNWaxq4N4bxmYyjV7HJowZ95",
+            "run": "Afa9kTeWZ3g2MjWXnvaEgcPqzhM3qFeKk5qjdPe9s9it",
+            "benchmark": "9juDu5ZsjgGEDZ23psNksAENkf5rwAyixTrebvpCS7Uo",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974387,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "9z9127KEtJwcdWWYkh39i5g1n8HEMpSF7DmQQSHqCwz7",
+            "run": "AfaBMDRaib47ithFDRkTRB7Cwo4UBTYsr7ThPZRipE4L",
+            "benchmark": "8KG9gFRsYwtTv9xPhwU92ymeK4V3wKpgSMYH8w6TiM19",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974387,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "AG5Barju9NLNjNn3fBLoq6cr1atmRVsLtvezjfkz2acR",
+            "run": "CBJgXZ8wpsEEgFHkkCQQysNeRUsk3dvwdtpZLn6CsS5T",
+            "benchmark": "3C1dCBh4Qg7Uf3jHshq5vHAARAEcGGTEsNwqDMHKHLuV",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974401,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "8Pc8rqU1Bt76MsBKmzWy9ZAeAf7xus8EqR9XGPvR3QJ1",
+            "run": "CnY8Pbt59RdaFTVW1pALdJmKLFj7ufxuKoPd65AcWKaZ",
+            "benchmark": "2ARmVtk7qHgaogGPRaLyHim3amkJu2DFqW2QVJSZnED6",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974406,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "FxFy1vgw6E2tof6iSKJzdDmzWujEM21zLuHyiqQZkiwy",
+            "run": "EE3S47f4rXUJwWLTD6kz1UhSRQSJfged8hZ5ngycoeJo",
+            "benchmark": "4mGzzTZMrbwxw5VBdBvrRgeU2sfgB7sojjQDFGngQWRj",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974416,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "9Wpnajc67RfBQyzKp8rVrQU9dUsU24UVja1wPoLVXKmT",
+            "run": "F6vn2hjc5gdpn4ynLatpZosFXuFw85XhkGNXMDgQQEtp",
+            "benchmark": "9VByiNFNGyaVBTv65jP1P4EBxsPLM29GQL75EvmPvW4U",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974421,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "9EcovjgHxJJ9UHSkoTXxq7FQHnDYJfzRxnSwVUJF4wuh",
+            "run": "GPz9fUdYkkr8jurNrGQzHgUC9YDDifZmw7oUf9oCjjWG",
+            "benchmark": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974433,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "85FFSAEovXNY1mjvDk8j29E13RotAhU1AMMtp1TDfcMr",
+            "run": "H8aQvZDbpbHiwHyJU66Ki5hd7xhdjWKZD3HNFMdTHjjj",
+            "benchmark": "4pPHx9eVBpAhjo94WW2oLLXYo547jmQSq1QJW2PELyom",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974438,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          },
+          {
+            "pk": "FscwxW35qm3mvfAGsTrwbsbJLdZUsMr6Msj97QuM4NUg",
+            "run": "Hh5oC2y7DA3UTaSYSzw4moXpXkYJhAUfc9ee54HehZHo",
+            "benchmark": "7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY",
+            "correct": 40,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974442,
+            "modelRecord": "HHwkRBhV2PVy6EhvTsXgM9oVKn1RUN9y1Vx7dj5sWJTt"
+          }
+        ]
+      },
+      {
+        "recordPk": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB",
+        "modelId": "duel/model-b",
+        "record": {
+          "modelHash": "c7b79a37a2ec9c645c22a85cf8ec7e5cb94e6fe4042515af72d41a3f1f7e86a7",
+          "runsScored": 16,
+          "totalCorrect": 304,
+          "totalItems": 512,
+          "bestCorrect": 19,
+          "bestItems": 32,
+          "bestRun": "CAoEgfLnMGFSkoDemEcBQDPVzxAPYq1dyvk7xQ8QXdhk",
+          "bestBank": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+          "lastRun": "J5EQ8HSDf2KRr5sP2cCFnZn9DJpVeycA3PJHxEfggD6u",
+          "firstSeen": 1790974338,
+          "lastScored": 1790974444
+        },
+        "receipts": [
+          {
+            "pk": "7vKzgXdQRvQQ9uBb8tf1AZfTQFdqRUarq3uxL9Lx2YU9",
+            "run": "3ZjGzeKrJa4dS4XYgQmoF8An9BLthwWAaLCauceUUoDK",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974338,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "HjFWnTFedYZ6GFVjXZE5BVF1j55z8ACns7KrP3DVB5hm",
+            "run": "3xNwk9Fy2KrUkEMfKeGzeVDJ5jDHtyUfoNmftod1ywb1",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974342,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "JDSpnBZZzXrxVbhG1JwVu9kTXWkczY41MAAZTxaDQrgf",
+            "run": "6gCvPSCS7cNbHJp4YFdzNkJiYUiidvk19JfaYS1ayeEt",
+            "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974362,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "2MgsWtfa15cGub9BKPR8mzAga1PoN9os3Eq8KUJzgE9i",
+            "run": "8NScp85y8KNex7h8WtZMfzpb8Ajw7teYozyK5Rp9bVvu",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974375,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "Hqc6bPsSqDgm9z458Hac8NjyjbSN4uK4g7DwnLE9fsKr",
+            "run": "A2XAduU11VFAe4SFbem4Fw23xywBgrFPFcNjvvUdrDXb",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974384,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "DEZwFnA1wB45xYywWLXWrgvGC5rTLjT6pipfges1WC2n",
+            "run": "C5cY4LRbL7Y8NyNF5hnKoszToqBnHhQSBDPgYdPoCQrk",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974399,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "2Fu3EYQiBPJQCiBgFS984fHqD5k1p1C6DxezJP6dSEDc",
+            "run": "CAoEgfLnMGFSkoDemEcBQDPVzxAPYq1dyvk7xQ8QXdhk",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974400,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "3CJbCxPkM5zrv6s7D3kGFLwFV37cNg5cjCJ81y9Q6iPu",
+            "run": "Ckff9sDaJkS9fjxTRYzXHhtdvg912cvvvrEAWXNBG3Kq",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974406,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "9MLzawUD9BzF1CDrBjQoaLHnpPwsUJcqFV57os4B9VSP",
+            "run": "CxdEWc2Rg7yymSohhoqm4wGRRYxVX1tLpq9pfCax2dkY",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974407,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "Z4JnWMGjPSCrGvuE9KZDkbda9Adz39W5pb4qjwcjiSj",
+            "run": "D5RM8mtgcX79phHuwyWkQ1WmQAvTcZP2qY9V4HxMxJvJ",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974408,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "ySXQsVT9aFLaGE3BoW4xMTEu2pd7iZDBKFptVpG2cwc",
+            "run": "DU2ER9FTSJdYb4UWuGsKtfmXTk2V1Rvp2Sd2Sq5yNpUb",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974411,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "GnXU2d6k2WrmxzW2xvnDNLvXRLcWw1ABfMCDoyRTdiq8",
+            "run": "EbXv6BWz96qqF5hb1uVe7bLWF4sSiZYUNhSmtw1AF2cZ",
+            "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974418,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "EKDsWVvmjhfBay8HtfYyLXJysVofpWQ1MLMNPyJ8mpxj",
+            "run": "Erpv2uxVMDeE7wkb6QUkxRu1Y24gDRFkpBBLkk1BWur2",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974420,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "69j811KTDudNtUSQSqTU5mpbkStQrnPYLAjNxfgEcvSN",
+            "run": "FzMZuZdLQp1E3UDGAYn5QTcC8tnYYuDgd5wWpaMGDtRq",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974430,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "8DjQ33ZNfMSZxzy5KNPTtPCfDjf8vCm6umrmgfZzfWQz",
+            "run": "GwyadQXNrn1eng6aKer7M5zvUvrwGRjd2mWqkNi7UUbH",
+            "benchmark": "62RrhYXPNE3sRU78cnNVYsNzogBqSEkVd1YJMrzz8cia",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974437,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          },
+          {
+            "pk": "8r6GbQpbk3Ko5BzF8eArD8rVSqVWF3EMSwBzQ3F5PMrK",
+            "run": "J5EQ8HSDf2KRr5sP2cCFnZn9DJpVeycA3PJHxEfggD6u",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974444,
+            "modelRecord": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+          }
+        ]
+      },
+      {
+        "recordPk": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK",
+        "modelId": "test/registry-model",
+        "record": {
+          "modelHash": "13df86ebdff45c9dcb250d88cf4d7af05e680390ccdd0c0d8cc074be7adfe7a0",
+          "runsScored": 3,
+          "totalCorrect": 112,
+          "totalItems": 192,
+          "bestCorrect": 48,
+          "bestItems": 64,
+          "bestRun": "J1zCYGJ7gWEm5MZEkBH3h3SrYyuqQNMmXi2sQ8nazTQp",
+          "bestBank": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+          "lastRun": "DiU9cKdJtraFLLYRcveY5SAEoRf1A6B4hBpdXqPN4Vwr",
+          "firstSeen": 1790957401,
+          "lastScored": 1790978456
+        },
+        "receipts": [
+          {
+            "pk": "5sSQxH3QP9MEBbptGzu16PovJkBsVpggNjtqUtdLtFGH",
+            "run": "J1zCYGJ7gWEm5MZEkBH3h3SrYyuqQNMmXi2sQ8nazTQp",
+            "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+            "correct": 48,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790957401,
+            "modelRecord": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK"
+          },
+          {
+            "pk": "DDptcfPTUj2a277Uf1dswQ4BXmrtSH6GdLEt6j94vD9J",
+            "run": "B6YGugnq95JxD4nbQh7fjVdD67Pbz5Fw5Pj7t6GHgPjC",
+            "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+            "correct": 16,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790957412,
+            "modelRecord": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK"
+          },
+          {
+            "pk": "Na6tUVP4ChTQBecwc5w3QtBSc7U8iN3ZuqDB5zJsmLz",
+            "run": "DiU9cKdJtraFLLYRcveY5SAEoRf1A6B4hBpdXqPN4Vwr",
+            "benchmark": "pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci",
+            "correct": 48,
+            "items": 64,
+            "vouched": 1,
+            "postReveal": 0,
+            "recordedAt": 1790978456,
+            "modelRecord": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK"
+          }
+        ]
+      },
+      {
+        "recordPk": "A121sfjRJm9xYknMCJfoApjbcLnfNEbt6neFYVL8fGM8",
+        "modelId": "mock/oracle-0.50",
+        "record": {
+          "modelHash": "c4c3eb2af60a5c55d11c4c59c23c66a08c2baafb87688e3c992b6dbec9c52444",
+          "runsScored": 1,
+          "totalCorrect": 32,
+          "totalItems": 64,
+          "bestCorrect": 32,
+          "bestItems": 64,
+          "bestRun": "2KXXoUrpBVmgxqcQdzuY2aT7k8vJn7Mtmmf9B4LybuYz",
+          "bestBank": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+          "lastRun": "2KXXoUrpBVmgxqcQdzuY2aT7k8vJn7Mtmmf9B4LybuYz",
+          "firstSeen": 1790974330,
+          "lastScored": 1790974330
+        },
+        "receipts": [
+          {
+            "pk": "77ywVsQXCpA7N7vCrHVUCgELisk1EpQRFbfoz7fYmkx5",
+            "run": "2KXXoUrpBVmgxqcQdzuY2aT7k8vJn7Mtmmf9B4LybuYz",
+            "benchmark": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+            "correct": 32,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974330,
+            "modelRecord": "A121sfjRJm9xYknMCJfoApjbcLnfNEbt6neFYVL8fGM8"
+          }
+        ]
+      },
+      {
+        "recordPk": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ",
+        "modelId": "test/gen-oracle",
+        "record": {
+          "modelHash": "e8d396576d8c08b26d7ec26a9fca1d826b9c0837b7f32f19a41c2f5f64a508c8",
+          "runsScored": 18,
+          "totalCorrect": 306,
+          "totalItems": 576,
+          "bestCorrect": 17,
+          "bestItems": 32,
+          "bestRun": "Gb42t18KJBHQkAZdwF22iJaQYSuybFd8sp8ZMZeWCSvn",
+          "bestBank": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+          "lastRun": "HJfKV8Fj57txXeumanUuyuoidTFyQpmipHUFauuqtu5F",
+          "firstSeen": 1790974325,
+          "lastScored": 1790974439
+        },
+        "receipts": [
+          {
+            "pk": "8AZRBqV6K2eAcR5KhpSwK2AUBf6S7tsNoAGRSnkrPorW",
+            "run": "sFeoFfTejtK3tQXRY69eM2SD1Qv5DJpTGQconz1dnyc",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974325,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "2ZBsw6spuUrQMYJ7ekKoPJhCxjx4P8hvJjvR325DWJQ2",
+            "run": "29BJMGWZp9bHRaSNYP76zigqwamTWMAa4VPoujBYuNgg",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974330,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "H4v7mhi3rXyqYHBoWNQSirUS8Hwz4UqCBM4K9au314qG",
+            "run": "2CN86oXwmG9D8b29oH1JgqyrJJm7xmtef14rpUHHnpuN",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974330,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "4ngWX1DVDNcy1PoUVxzMdwVK5pybL7Es4KuAdpUSbo7k",
+            "run": "2dvccohphLFseL8BAq8sKE28o869i7zbYRuTciZEDLtb",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974333,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "61FymNxGiAxRuSvxNVUPZqfHAFBKNjPSBxVzU56beb87",
+            "run": "32gWB8WLYxGxWF2b6Byj5Tum4KxWeX74iWM3KLB5PtE9",
+            "benchmark": "62RrhYXPNE3sRU78cnNVYsNzogBqSEkVd1YJMrzz8cia",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974335,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "3KJmwKgh75YsDLyEHqtxXNrHrKq6xAf2EG2iFYwRHRvn",
+            "run": "3chLPojMuN7YQvhvkWuZViSqBn6AXMznpvgxqxUxkkBp",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974340,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "2ezFm4w137HJ4odUBGvXKCELtYEijHXkuAZHbHQEqk1X",
+            "run": "4Vb8W9vDtvkAtK42gERX6KYbsrrH2dw32GNTmUkNz4Rv",
+            "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974346,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "7wJzY4ANmnw5dy6L3pSyZWYfdtRkQR2LvH8VPfreVbrZ",
+            "run": "76s3udRSNwu8FTGE2dgBda7nWtbM9YYZHp6g9SY4WS4W",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974367,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "GpFHvbTGXUPqJjfwzjdE2EdopZsPbcsomQq81DZKo4no",
+            "run": "7RUfQWHaUeKcRPdn4VhjbHV42bkoubr4JGqDuEEroeGD",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974369,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "ETYBSHF2fbMd9DNGVrfdWNjhSckhJxxiWhiJTw2bLtYH",
+            "run": "8GwkrbXtf55BktvM6u63zr1RARPTyumgU1poxJLmKh4r",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974374,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "CjnV9tRsK95dDABo5YaErBH4GeGBT1XVA2E6w9YwmePj",
+            "run": "BA1gmZQ5yHmyATXizXhs4QyhszvYuVzgihv2sXE5HXFx",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974394,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "9pK4gUo4KWUakieMqsGhPr2CgSFZTbzi9zusFg2nM8RF",
+            "run": "CPJfmABWjPt3tgFbQEfTEPxmd5VVSfR7nLGXnaVRRCPQ",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974403,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "2hxQFf1X3u8xpVc78cuPT9vbiTuBkWKVs6pm1Bb92Kij",
+            "run": "Chft7BuGQLKgT1s2dmCb51rsDYnErZEGc5PU444MGZTH",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974405,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "2yayKxkCs2TiKJ9DmTfLEc4miXRNK74M6zpSQ4YJr2VL",
+            "run": "Drqx5mphQpxFDdxaCEgde71GgBx1zn8nCrpbAcr1SNyj",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974414,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "Gx2tHdfu4fRCGMeQn5y9SsC8MdjVfrk5krSTcQ6nYDXq",
+            "run": "EnKyNGorWVW1hNJ3rx9P29yxRsYkBURc9PxVB4WPfs7n",
+            "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974419,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "3dD1VHrkBwtxPU4c3dobwJeZpmisdG3icsNXb1TW538q",
+            "run": "GBN7xLBzLxffTfxvsWrCwT4mzZ454r6AAGiVZKRWv3S2",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974431,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "2c5kBopoc4PbGqiquYWJzo1hcUYesj2B7d6CB8TGcJWd",
+            "run": "Gb42t18KJBHQkAZdwF22iJaQYSuybFd8sp8ZMZeWCSvn",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974434,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          },
+          {
+            "pk": "ER58LPgvbpSwxARaKZTHUfNbabJCwsCpNzsPKKJHwkev",
+            "run": "HJfKV8Fj57txXeumanUuyuoidTFyQpmipHUFauuqtu5F",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974439,
+            "modelRecord": "433spd15SM3ST8kAmKb9YhB4P7MhwHMNPB17RrqZobHJ"
+          }
+        ]
+      },
+      {
+        "recordPk": "CXt66U71eShBAX3k7ATCzcU6MokgTobVvKwBtmvTZ4Js",
+        "modelId": "qwen2.5-0.5b-instruct",
+        "record": {
+          "modelHash": "77ec8b2565cd4ff90d33956ecf41bb84c611df53059372f3a67ae696582f3572",
+          "runsScored": 1,
+          "totalCorrect": 0,
+          "totalItems": 32,
+          "bestCorrect": 0,
+          "bestItems": 0,
+          "bestRun": "11111111111111111111111111111111",
+          "bestBank": "11111111111111111111111111111111",
+          "lastRun": "DMf2vZaDhw1HfWZTmeDdjpPHkAVWK9TMU5ejLHZtAA31",
+          "firstSeen": 1790974410,
+          "lastScored": 1790974410
+        },
+        "receipts": [
+          {
+            "pk": "4wGjxVD3ZB23fzHeVeaKXqPBWQckpz5Vrg2bpTmxv3EU",
+            "run": "DMf2vZaDhw1HfWZTmeDdjpPHkAVWK9TMU5ejLHZtAA31",
+            "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+            "correct": 0,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974410,
+            "modelRecord": "CXt66U71eShBAX3k7ATCzcU6MokgTobVvKwBtmvTZ4Js"
+          }
+        ]
+      },
+      {
+        "recordPk": "HT5SbpWXhi9mUgQDn6Y8TiuBu29qFT9WsGPbt4cwKf1c",
+        "modelId": "llama-3.2-1b-instruct",
+        "record": {
+          "modelHash": "07b96f33ffe7e931fd8413f52a535bb8b4bea05e012ab1a47f94228f19a07ff8",
+          "runsScored": 1,
+          "totalCorrect": 0,
+          "totalItems": 32,
+          "bestCorrect": 0,
+          "bestItems": 0,
+          "bestRun": "11111111111111111111111111111111",
+          "bestBank": "11111111111111111111111111111111",
+          "lastRun": "HQJL9gjCJbS8t3hVKaLc8jmZfK9nvteb1JcKtUqLAHcw",
+          "firstSeen": 1790974439,
+          "lastScored": 1790974439
+        },
+        "receipts": [
+          {
+            "pk": "Am67xNmMnLJPv8nsCKBxgszHg9YdXruSTRb9PSwG9HFv",
+            "run": "HQJL9gjCJbS8t3hVKaLc8jmZfK9nvteb1JcKtUqLAHcw",
+            "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+            "correct": 0,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974439,
+            "modelRecord": "HT5SbpWXhi9mUgQDn6Y8TiuBu29qFT9WsGPbt4cwKf1c"
+          }
+        ]
+      },
+      {
+        "recordPk": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw",
+        "modelId": "ladder/tie-c",
+        "record": {
+          "modelHash": "bc7fe84833ba1acc5574e78fedd68ad576c7af28ab231d191be556d9c94d84a7",
+          "runsScored": 16,
+          "totalCorrect": 160,
+          "totalItems": 512,
+          "bestCorrect": 10,
+          "bestItems": 32,
+          "bestRun": "CYcGAf4eV2nRMBHgDAcah1WpBABF9iScpiDbQ7TLbVR5",
+          "bestBank": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+          "lastRun": "EmC5i7ataRyonHcygHv7K83dJsG8g7Uie5guGuF2C5mV",
+          "firstSeen": 1790974321,
+          "lastScored": 1790974418
+        },
+        "receipts": [
+          {
+            "pk": "H78nqmWFTMjR1AJbzdDGonZvJZWUwvTFkHjooupuWuFh",
+            "run": "13c3mZ5sgyBBCwkgHpT2GkPoxo3xx687DgCnpYzKaeVC",
+            "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974321,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "6FCEca7ojZn59N7s1mPPYM9k29dxyGbt4ghdumgHu5GH",
+            "run": "yXJsL2ikXpQGLUpbWXmUk7dDC9p3aqxPwLnx3firzmc",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974327,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "DbymZ2iTQtsTeUFX4M5su4qZ79uY2PmUKBXVLMqrKKkH",
+            "run": "2fdjeFAgPddfjoya16c4KoqwKzmuujnTWAyMfT8MmA42",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974333,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "3EmQ2FpLRh8J6j2dchccfHw4f4LJSMmoim6LjrzpvHse",
+            "run": "6HRP37Ez9Ze5S8TmrXTgWo2FkidhVPsMVaavzpDpzNRE",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974359,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "9r9HGkRwvhNGmggyTGf7Ca1yMFu1xyVgdKBPui2AzNLP",
+            "run": "73PcZGuArrvb3LoBKP4J26SDkJGSbKDSWWLR1rAWWMQ1",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974365,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "4mfZoXuvWBUeosjdwmPhkDNo7pUmQ6Jmn2gf9X6D3hjw",
+            "run": "7YFba95RpNjWCJE7s1yDdSDXBtWkWvfmZR3ChAYkC42c",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974369,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "Fvb95pXv8AZ9dmzFtLGmEV6umFRxFnJscZ3PJcZ8FkWX",
+            "run": "7wUKtq9iNeVSw6KsBgRWrVJhL9zRCU28q8AFdKwnfLQm",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974372,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "EcSi75wZ2ZtnoVC2Znv5KpVknD9LF2ChE4Vp4pCXHN8t",
+            "run": "83UC3MCbicZWLx7zciJHMYwZJfLRDVw6BrEwFb2sioUC",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974373,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "5njwMv253nRqtyMJGGjP4WhRDQdLmuJcyFPtuQqJEbEp",
+            "run": "9P8WSDggqfzQZRayaSySKDS3Y4Zo2EGsGo7T35asPE5J",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974380,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "9gY3unf13xpsqesM4ynEX5jMPAj1aT34WwuhgBATu7on",
+            "run": "9ek726Wi3epmJvHdoFhGFJtPbu33k2p6ocoW7TQBGBJj",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974382,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "NCx8QADDFScQX2xkx2UrjBMm4raVwNZz4EhaKqqKEzW",
+            "run": "B8E4zwDGuzNmNQmZFADtgvwWu4sdyywqrYMv5tCergGG",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974393,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "biyEX3VFAjKTQwjwsn5bhZoBcguALmp9VVffyG7jP5D",
+            "run": "C5GjnF38z1vkf1WCS4h1Uzn5xJVu9fhzFwQzA5vQmEZJ",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974399,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "oemZ1VN32PamRGM157iwz6ApC5Lp7U5bQXv7zC8MawV",
+            "run": "CHBX9KoMrrJN9gX6z5mYYs8unaMx7M3W1moELE2iEHwr",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974402,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "2i6cwScmHYuYMP1gZdfhozw9n5xgbT2KsrcQWeVpNsMB",
+            "run": "CYcGAf4eV2nRMBHgDAcah1WpBABF9iScpiDbQ7TLbVR5",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974404,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "3V2yGhtQJquZqFPLjkrc4yXHCeiNA68PRHvS1kdjUU3Q",
+            "run": "CzrdK1NjJoLhDyxaAifNCtRoqx662MHJ5Etn4cMBRRja",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974407,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          },
+          {
+            "pk": "FApSAnuf6ittDCsZxz9fTtYL1ekQ5zvBGEX7ZnCWtxzz",
+            "run": "EmC5i7ataRyonHcygHv7K83dJsG8g7Uie5guGuF2C5mV",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974418,
+            "modelRecord": "4zJ3oTGU7ZxMCxNqJqAyvoB8DnsfRpGoaWZqX722SjDw"
+          }
+        ]
+      },
+      {
+        "recordPk": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG",
+        "modelId": "ladder/model-c",
+        "record": {
+          "modelHash": "5aa0dc30466cc16e52dfe3ad6c2202e4af28374d6311c83e72b09dd7a6d70f0a",
+          "runsScored": 17,
+          "totalCorrect": 170,
+          "totalItems": 544,
+          "bestCorrect": 10,
+          "bestItems": 32,
+          "bestRun": "7Lgp8xJPhrj6BTeKFBrF3hbdVGUEac2yY2CyiJWT6EUt",
+          "bestBank": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+          "lastRun": "Fo6YvFSATcjWmBp7zhrhD5dQd8skhUVY9e4nRCtcZ5tW",
+          "firstSeen": 1790974340,
+          "lastScored": 1790974429
+        },
+        "receipts": [
+          {
+            "pk": "9gMpw1xzxutjaBcXpq6YVWXg8rG3rZH78d8UFhK3TBoY",
+            "run": "3obxoZmn21241R9y37yAYLKniysmXHqfwjSKKqbwdXwP",
+            "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974340,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "EBLY1rWVm8pH4E1FrtMQ3kqqtZxLZtRkRmhVmHAtyw8n",
+            "run": "5aCzjiWH1dwWFsQeTgAgGJgPpwByDGMrKkLdwR9jawsA",
+            "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974350,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "6YMdFHHJiY3Q4JjGB2QExGuxf7ZB96bZRH2W18kjvMc6",
+            "run": "62TPjdzFgkRRhUXih9hLJVC7PsPAjgLpdaxrFRuZtiL3",
+            "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974356,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "5Yuu6qJaf7k4ah3r8tD5y6gedqgMU4JhGcmBpVDLGMyb",
+            "run": "697vcDuh2FbotxV1q4igmMmBeuJoUDAcK9uBPMi71dcU",
+            "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974357,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "B98h7i5sGufFxqU2xxpEsTHr8wQ5AVN1ysfqrDSqdmTH",
+            "run": "6VwNVrYm81Yg4wF1cvLyYaTgqCf3jSSFF2qgf4r5waEz",
+            "benchmark": "62RrhYXPNE3sRU78cnNVYsNzogBqSEkVd1YJMrzz8cia",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974360,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "7NMe8ijUzJaEz2P24aQVVdtyKymuQkYmT5RT3ggvuAHe",
+            "run": "6Wifi4EZ6aqHboM5AbET8bfYhCrrYiTt4vSB3QbkcQVk",
+            "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974361,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "2VR6Nn25Cqaiz9atY9JnVM2vDaCYGEH1xh9rBXNLiiis",
+            "run": "7Lgp8xJPhrj6BTeKFBrF3hbdVGUEac2yY2CyiJWT6EUt",
+            "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974368,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "HcwQ8AM3DvMYmqVEpv33cDB6eDnudtXmM5n3nea5pTvG",
+            "run": "81oMw9fVq5DkWheaEJV9unHzees1jF2AUBDjE35nYqZ2",
+            "benchmark": "D15D5rEHJ9LKXxB1MzPjEbuPe9BzGLyu2LKoiyQeeLKB",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974372,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "DBWYrM2hHAwdb46stdUpXHFEc4W9R5UGGUZcWQqi7Te4",
+            "run": "8XkjJHYcWmTtXUcMycdZGivdz8DicpDijkFSMGQMYU1m",
+            "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974376,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "CLfxxuNVL9R2qxdi6NGC7ye9mwLhWoc7zY8yUcc9kUPV",
+            "run": "AX9TUriQWfExgd5Fp3Y8WftGnQSJEvwtAAPLPahehbik",
+            "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974387,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "3aCKaVwESKibavZCQ6uRSasai4Fq9oMPnEUqAQh6ydEG",
+            "run": "B54d2UJ4v5FWQqkJLzFdB9jiNYXUazxFdi4VZaouPzvf",
+            "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974392,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "3zFDEEP2jaDCJU7DWUgvUDeaf75tSGBHYAbyvgw6Dudp",
+            "run": "C7dbE15EuyMVqyG46V3Hm3oGt47JgBFk9QPyQWHETBS1",
+            "benchmark": "9wmxnqTgp9bG3E2SK1dBndMr1KWHX7HXRNKuvywFoeEf",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974400,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "D5MMYNi2bd7dyum5kySYtqk8Sh7HZrpRoB1wNF6KKt3H",
+            "run": "DFv3Ahpu3DbpJaAutrbjrniu1w1t8ixtStXmaSU7xKfD",
+            "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974409,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "3w3UMRnZqUHqjxByLgDAqUkB4w3McinwheQXgxBEm8yq",
+            "run": "EEbQecVzaMKazBwT2ZgrFakrhgy27y4DKL9aGJvnhVZa",
+            "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974416,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "8C4huNm86pJ6z1b4Cr291V7uYLCLfQGpKMKY3mhJZuTm",
+            "run": "EaZ7KXcfbGxHABFviVZxPgbmM6pu3CGgtcr2MLuCp4c8",
+            "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974417,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "2ZgzCWBkjcykVtEuFTmkTJQr6bpmy7wNVi24UeFmSofE",
+            "run": "FZWR3wkAASH2aghD1761VrcApyKTJVGT4pPoqfo1WaJj",
+            "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974427,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          },
+          {
+            "pk": "B7jzpXSrtbjqQUPd1Bggj3w9saiLdPPKwKBnre2cpw4F",
+            "run": "Fo6YvFSATcjWmBp7zhrhD5dQd8skhUVY9e4nRCtcZ5tW",
+            "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+            "correct": 10,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974429,
+            "modelRecord": "9MGzBaNedFEfyrMenBY1mTXCT1e7DyLjKyonNcRxtfEG"
+          }
+        ]
+      },
+      {
+        "recordPk": "uGbfq9L7DZATq7RFfG1JfsGopEuWSc4Xc4GzZe3tEfA",
+        "modelId": "mock/oracle-0.5",
+        "record": {
+          "modelHash": "e1d06fe57227d851b48e1ec757b593cf73e50c58b5e3e6dbc2ce93fcb0e6fa3b",
+          "runsScored": 2,
+          "totalCorrect": 32,
+          "totalItems": 64,
+          "bestCorrect": 17,
+          "bestItems": 32,
+          "bestRun": "oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh",
+          "bestBank": "DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx",
+          "lastRun": "CMQTohb1pi6XiaEo9UCuoZGFZLHUWQ319q8PrDj2oKkh",
+          "firstSeen": 1790974325,
+          "lastScored": 1790974403
+        },
+        "receipts": [
+          {
+            "pk": "H6s8YpUXLQ2zkqVQpVCJUJfEPAHHoSG1aB1HkhM2rnqn",
+            "run": "oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh",
+            "benchmark": "DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx",
+            "correct": 17,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974325,
+            "modelRecord": "uGbfq9L7DZATq7RFfG1JfsGopEuWSc4Xc4GzZe3tEfA"
+          },
+          {
+            "pk": "6pJ4fkhEAHRosb3n3GmWu1bymqiphr1GcQ2bh8tpcMJm",
+            "run": "CMQTohb1pi6XiaEo9UCuoZGFZLHUWQ319q8PrDj2oKkh",
+            "benchmark": "BHnDiakE2BPYrtGHWsRSazs31HoiojsTV8G99RNL66K7",
+            "correct": 15,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974403,
+            "modelRecord": "uGbfq9L7DZATq7RFfG1JfsGopEuWSc4Xc4GzZe3tEfA"
+          }
+        ]
+      },
+      {
+        "recordPk": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb",
+        "modelId": "delegate/runner-1",
+        "record": {
+          "modelHash": "99ad6e204e623491d46256ad44e42f5e9f0993cecc10e569d2f2a72c2a6fd610",
+          "runsScored": 18,
+          "totalCorrect": 342,
+          "totalItems": 576,
+          "bestCorrect": 19,
+          "bestItems": 32,
+          "bestRun": "5NBDKELvQmnEFGuShiLaqaEkMFhfkrvhQ9aqs3oA4bqh",
+          "bestBank": "2GkTwDJ5zsScEvzH8eWoCDXmCMg4WciF557971ixjcd7",
+          "lastRun": "GQCaS8spAroewdkFGdNQyrP2TYK6rrVkEALhr9V9rU9d",
+          "firstSeen": 1790974329,
+          "lastScored": 1790974433
+        },
+        "receipts": [
+          {
+            "pk": "B3qD3oh5zGut51w21iuZddReAXbe6DV6MmVGS1QmW79Y",
+            "run": "26G2nGKSppnqqVf1wLiDqDRjQYGY5439KN1xKEcrnYcU",
+            "benchmark": "8WnpfTdmPm8FkpmYGxw7mZXUDwD6SBib3G66vHvK3m4a",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974329,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "6RNFwnGyYhMjZxdYTpnDWygBDbshcByppxZ756F4ydeo",
+            "run": "2yG9kogZrLsqW3vUCarAAsB94zf68eedxCrT9npv9QMz",
+            "benchmark": "6GgzqWoVydGyFMvL4Bz9vvRBEhBiHC8pGEszNPcN5cGJ",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974335,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "67uySSRgp9d1iXkV3TcprwAMyEWiqKutZovZiJGBjj21",
+            "run": "3kgmF3Rz5yyQXfKFxMidrTsF736xFpzTtns9aLb3GHUF",
+            "benchmark": "Fzjoz62amxhqDXCieMUMbQZ7vNV1LqbEonjH9ZjV2FKE",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974340,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "7uYNRWWzCZREFbcSFWWaehRZ6BdkUxiDxzPKU5Z5p6ic",
+            "run": "4kWSoL1UbV4yCSFtDoxXJsz48wdBQQQ9TyWdgCx9G8BC",
+            "benchmark": "BaFrkCYrrpqq4YNdDqnKNLs354XG7MAUx6VNk93w65Ke",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974347,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "3KZRhaLsvRAnwkx7H9JQ4Bs72bePGNnrDyXSLySk5NBx",
+            "run": "5NBDKELvQmnEFGuShiLaqaEkMFhfkrvhQ9aqs3oA4bqh",
+            "benchmark": "2GkTwDJ5zsScEvzH8eWoCDXmCMg4WciF557971ixjcd7",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974348,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "Ed4hrLGsZC7Te3WiriSS4UhZQstgHqjw8yKob3NvnACN",
+            "run": "5GUgnaZ4akwByUrKHQe1FwsiJjKxEqdUYkM61B15WPhU",
+            "benchmark": "EaaURxXojf5nvBkNJBaconf3D8nD1F5MqZrWaSgcXvJ6",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974348,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "DqnRfAaauELZB3aSTCRddEGNkfawQdnJfgdQJr7Sv5Kx",
+            "run": "5S7BVzgaLdNwaFrgv7xhtEpMdap47nDd78Z93Hc4ENWT",
+            "benchmark": "BEh3K6TLFjfzJeRtiHiYVz4xWP9JuxhSTZ13b1Dywoth",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974349,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "BCMiPC1AQXymnBpvo2hPV7jFCgmABes7jR23161iHUbm",
+            "run": "63TutxkjwwgzjZYNibKu6rwZXefyN167kbH7ZjeAHcxy",
+            "benchmark": "B9mQnHdgGYSY8yYPshUizyDkJeN72PJmwdSxJusW3p6g",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974356,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "7duEdyDKo4Zmq4vcsNM1HYg7BoJtFX6fh5h9mXw8rUbk",
+            "run": "69wvPqabnqo5dwLKnnqnrkYnoYhZxSwvfZKfsZEH5PJ3",
+            "benchmark": "CVwBucWNGuGrmGEPHVf7fJEQHyVWEzDhDxsUkM9DPamg",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974357,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "7kc9Rd4KsT8bvUJ1jrTFFp1R5Ss3swQFB3z3URKySndz",
+            "run": "6ZNhKSEL8b9z6a7jrftTrDF1RvMSkt3xuiKPjecQD9Kq",
+            "benchmark": "AtuePj7sVFhvJ7LL9avHuLMWz7fwT3ehbdRKX3a24hso",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974361,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "8Z9vShrWfBKBr3Hr87w7ZGD1oCcoieiXWQZSL6LN9F1f",
+            "run": "785AnUfAJ92emPrHjhR1di8ZgNiqW2yAyFSXNUAsvvXw",
+            "benchmark": "inxkZjkUc4b9bpkPwv8BJbLmwe6R4uXSU14YVD4QxGJ",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974367,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "7x9WLHg45cqUkTMgwGSMYHTs8tR1iTUmAkSEFHT4qmBS",
+            "run": "9pzruRH2VdeXTMpQfrJnk6DfNjBQp794BSnA39mTZbxA",
+            "benchmark": "BuKucMw1ZdyWUzTKFHFpKRsUE1MwrNzqiGkbiAiiUpMg",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974383,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "6RoTJE6nVmx1CTi6N5UJz6hn5wnJqdb67ABEMc5PvGPo",
+            "run": "DKyYyeXSYwajPHJ5nVnxL85NVrc5YS4289Q1vbMTmrTc",
+            "benchmark": "5fWFZgwKnP4y69oUVuPiNQ6KfF1Zej7NWKCt7aNYWssv",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974410,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "6Kccv7gi2JQwMnJ8n6T4zaHBg1zeGHeao4XeeGMGRh2",
+            "run": "E4bwCtpTSfBYP5MFvKq93dRutrsArWAmpova3JVNRBpV",
+            "benchmark": "2Ns6WLJ6G1sZhhyb18NMCsne262vMaLDPSzGT4maAoHZ",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974415,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "4K1GJ5WHCGncbXKewfpmFzuZxDA9djLfDdqy1nfe3Qby",
+            "run": "Ef525HMai3pbDHvmsidyHAML8cgsz2q485JM1gwpkofD",
+            "benchmark": "BfWodNXoM4dWf9XK4d1hQVRg4HsL2zzHRpzb9x85CiFX",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974418,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "4FMAoomY5stDjyHbzPU5GGtdNNdhTeWT6aEuTtQP8bAr",
+            "run": "FFweHXr7efzcA4jdQVtiJTpK1guei6sa4EhkDjcxXQ7z",
+            "benchmark": "ARt4GdmzVNBgYG4HZKm12NaADi1x8YPrtGtWnND2Fpfi",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974422,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "9o9KANGz6BHzqwf5gim4T7WoaGQ9rpHH6mUrDt5MtLqP",
+            "run": "GHEU4vwsWZzVdCbGJtx9bUJnnKz2kmt5fWxLvn2U2sqf",
+            "benchmark": "AxSAUBod4GhFM7Wkm3h4dyE98WS7Vv1VWEqs66LaDtAX",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974431,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          },
+          {
+            "pk": "GPCbCBo8TdQQofrqerK7qoXuB2JsQ6qUnEKdi8PKNvvf",
+            "run": "GQCaS8spAroewdkFGdNQyrP2TYK6rrVkEALhr9V9rU9d",
+            "benchmark": "6EchdYUPVNBQ8PmawVLCc7fBFAZ57BHKcZ5HHXxWwsCE",
+            "correct": 19,
+            "items": 32,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974433,
+            "modelRecord": "EYTwcyJqYnMvi3WWfhzNgvkkKJquoFU7jEeTmE8SGyWb"
+          }
+        ]
+      },
+      {
+        "recordPk": "7irQFc6oMCSua79XajcGFSty9mn1ifxWR9rETf5T1pJo",
+        "modelId": "test/post-reveal-87070",
+        "record": {
+          "modelHash": "dffcec96d2396b3ad9ca91da1b2f0aa365f9100e9141510cef2fe9ef9fc54ef2",
+          "runsScored": 1,
+          "totalCorrect": 8,
+          "totalItems": 64,
+          "bestCorrect": 8,
+          "bestItems": 64,
+          "bestRun": "5hoTAUTGkiouRujgoujnGk5nWdTexaJCHPG66N17kHgv",
+          "bestBank": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+          "lastRun": "5hoTAUTGkiouRujgoujnGk5nWdTexaJCHPG66N17kHgv",
+          "firstSeen": 1790979809,
+          "lastScored": 1790979809
+        },
+        "receipts": [
+          {
+            "pk": "5pYBxR4syTHTer4BPtd6eSEb1NPuEtEHNr4siYmZZ8mX",
+            "run": "5hoTAUTGkiouRujgoujnGk5nWdTexaJCHPG66N17kHgv",
+            "benchmark": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+            "correct": 8,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 1,
+            "recordedAt": 1790979809,
+            "modelRecord": "7irQFc6oMCSua79XajcGFSty9mn1ifxWR9rETf5T1pJo"
+          }
+        ]
+      },
+      {
+        "recordPk": "Ag85QM2yhLMhHbW6sx9AmV7gcA8t5AVwds8Dd5pun812",
+        "modelId": "test/post-reveal-35953",
+        "record": {
+          "modelHash": "cd4f555165eeeede3b2e11ed4b5e9ff361b48bd6bfb570e01fa2bcf1648a5d77",
+          "runsScored": 1,
+          "totalCorrect": 8,
+          "totalItems": 64,
+          "bestCorrect": 8,
+          "bestItems": 64,
+          "bestRun": "7PotU4bHxkJiLgHEVF6Tvu2xnGF7qqLkoHLuSWFjdhyW",
+          "bestBank": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+          "lastRun": "7PotU4bHxkJiLgHEVF6Tvu2xnGF7qqLkoHLuSWFjdhyW",
+          "firstSeen": 1791027636,
+          "lastScored": 1791027636
+        },
+        "receipts": [
+          {
+            "pk": "AKAoaZncSUD9rMd19EeuLpoFLWARi6JZtuqPPcAYGVtN",
+            "run": "7PotU4bHxkJiLgHEVF6Tvu2xnGF7qqLkoHLuSWFjdhyW",
+            "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+            "correct": 8,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 1,
+            "recordedAt": 1791027636,
+            "modelRecord": "Ag85QM2yhLMhHbW6sx9AmV7gcA8t5AVwds8Dd5pun812"
+          }
+        ]
+      },
+      {
+        "recordPk": "FR8zRAjyvY5Lc9PxKRQYoDjJyHjm4awVTTtVBWgEpbLq",
+        "modelId": "test/post-reveal-scored",
+        "record": {
+          "modelHash": "a8ca90bc3641731579d30894d834afc06510ae006e91c52e993f51831759b6e0",
+          "runsScored": 1,
+          "totalCorrect": 8,
+          "totalItems": 64,
+          "bestCorrect": 8,
+          "bestItems": 64,
+          "bestRun": "6WEA81JtJrY8A44V9xXakQ42SWw8B5CBGn1RPeDnfo12",
+          "bestBank": "pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci",
+          "lastRun": "6WEA81JtJrY8A44V9xXakQ42SWw8B5CBGn1RPeDnfo12",
+          "firstSeen": 1790978471,
+          "lastScored": 1790978471
+        },
+        "receipts": [
+          {
+            "pk": "7kVzeDSqNCUH4PbxrMRV5n29DUAfg2g9LkbPPHL7SYF8",
+            "run": "6WEA81JtJrY8A44V9xXakQ42SWw8B5CBGn1RPeDnfo12",
+            "benchmark": "pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci",
+            "correct": 8,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 1,
+            "recordedAt": 1790978471,
+            "modelRecord": "FR8zRAjyvY5Lc9PxKRQYoDjJyHjm4awVTTtVBWgEpbLq"
+          }
+        ]
+      },
+      {
+        "recordPk": "81ETbEzdd1jeeuoohuEVgkmG6hQc9g4KJZF1hbnvcVMe",
+        "modelId": "mock/oracle-0.25",
+        "record": {
+          "modelHash": "cf85546b08e280812a7481410085e02e2675acf4c564102a0edf60ea12ca27fe",
+          "runsScored": 1,
+          "totalCorrect": 15,
+          "totalItems": 64,
+          "bestCorrect": 15,
+          "bestItems": 64,
+          "bestRun": "3rDuAPikABZTErCvDJSmHeC9yXsFtF6D9wx7JyXxXdU4",
+          "bestBank": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+          "lastRun": "3rDuAPikABZTErCvDJSmHeC9yXsFtF6D9wx7JyXxXdU4",
+          "firstSeen": 1790974341,
+          "lastScored": 1790974341
+        },
+        "receipts": [
+          {
+            "pk": "FF6ecpqYvDuVDyg6QvDYPmaJGMuUVWV2ZzZRcu9LG7wG",
+            "run": "3rDuAPikABZTErCvDJSmHeC9yXsFtF6D9wx7JyXxXdU4",
+            "benchmark": "AgZMx5WEM4RQhvBxFv5Fi5AY2oWpdgReFrNuma3gWphF",
+            "correct": 15,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974341,
+            "modelRecord": "81ETbEzdd1jeeuoohuEVgkmG6hQc9g4KJZF1hbnvcVMe"
+          }
+        ]
+      },
+      {
+        "recordPk": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH",
+        "modelId": "test/market-run",
+        "record": {
+          "modelHash": "9ad6c940dc8b303133251abea759fbf60a91dce334c0d5fd150e4edcdeea6ebf",
+          "runsScored": 10,
+          "totalCorrect": 100,
+          "totalItems": 640,
+          "bestCorrect": 10,
+          "bestItems": 64,
+          "bestRun": "FshbaWTC1friDG2Dqt3C4e6wDSJBzrDKNUjvRrWFuUdj",
+          "bestBank": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+          "lastRun": "GhJgj8eEuhzgTTsGfRUpgtNXXQjnyTEjErpLqyvCmrCY",
+          "firstSeen": 1790974332,
+          "lastScored": 1790974435
+        },
+        "receipts": [
+          {
+            "pk": "3tq4ro1oKAYt1PS8B75qU1BPWko75Z3xaaDKFgFHE68b",
+            "run": "2WpFtWUuMG7B5Vm6GhLyG66YTXkWhMi2FYFRb2i1CJbw",
+            "benchmark": "A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974332,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "3RFvw7PmgLwpn7RGVr1efj2nwd2CHSYLKkcEdU2sbJiG",
+            "run": "6czyK62388xEFXYjDMc79uWbbkvnyDFf4Qt2mL8SaT6H",
+            "benchmark": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974361,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "4FZ4KnnmZHdqyrubaHAz6AP28dsQPhMptk43JTSszc6h",
+            "run": "6ym9gCNaYVdCnC8QAHH9h5i3woz8tEpkYez9Q1emN6ci",
+            "benchmark": "3C1dCBh4Qg7Uf3jHshq5vHAARAEcGGTEsNwqDMHKHLuV",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974364,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "8h4FSna4qcYvHKuZv98TvNZkb9i47Cj6UfuW41cemMax",
+            "run": "8zHbUAtrZ2YFnqfP3dX1vmiUXyLxuiXSQo3vCC2xd1Pk",
+            "benchmark": "7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974377,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "CxeSX2UuGJJCz9VN4mmAdFnunMvHjisPa1UNcL652AtT",
+            "run": "9eePqfsyzP3Xw4zZTWJVkv2im8ZD24pte2e9KfirWMNW",
+            "benchmark": "8KG9gFRsYwtTv9xPhwU92ymeK4V3wKpgSMYH8w6TiM19",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974381,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "GzTFkk3CwPVFH7Dc3xsYjFnsUgKp9dT44xi3eibztfan",
+            "run": "DamJkTKC4fiyTs2bjTKGVW1n2FrWVtxYvjXGwD82Ldz3",
+            "benchmark": "9juDu5ZsjgGEDZ23psNksAENkf5rwAyixTrebvpCS7Uo",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974412,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "uRHkq8QLrQpwJTMd8FKCXtnin7LXZGi9GU4fo2fLHiR",
+            "run": "Et6kz7zETbKktrrmDxDJz85a3ck9tLV2gts4q7FRQaBu",
+            "benchmark": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974420,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "2XTxXnqD8LTHYpEceUmT1wdxfh8v2qRg9dGsFrsc2bqH",
+            "run": "FshbaWTC1friDG2Dqt3C4e6wDSJBzrDKNUjvRrWFuUdj",
+            "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974429,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "7RNbTp4bWnmJwnd2UFbGMP8PzZLpigMq53o8edxPZxbw",
+            "run": "GWEC9m2eHd7GoUSqowj9bkF3tDgYV5st8rPFSRxNKbWF",
+            "benchmark": "ErBrCuKMSqzSmfecqvNqfDJpFtoEvGWWDYbi28zXDYkz",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974434,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          },
+          {
+            "pk": "FLyXXACfDyfjgeyCxou3XAGGtScMyvBiPLzDhffiFonJ",
+            "run": "GhJgj8eEuhzgTTsGfRUpgtNXXQjnyTEjErpLqyvCmrCY",
+            "benchmark": "28ogPX26aH6DGqnhiUDPSqAVeyCXfcmNbnyMBzJeBPS5",
+            "correct": 10,
+            "items": 64,
+            "vouched": 0,
+            "postReveal": 0,
+            "recordedAt": 1790974435,
+            "modelRecord": "H5cdJx57dDutPUUMsF4XvwUdQysxq8GsZi8QPoVQPKQH"
+          }
+        ]
+      }
+    ],
+    "pairs": [
+      {
+        "a": "test/bounty-wrong-payee",
+        "b": "test/registry-model",
+        "shared": 1,
+        "deltaPp": 12.5,
+        "verdict": "a"
+      },
+      {
+        "a": "test/registry-model",
+        "b": "test/sweep-run",
+        "shared": 1,
+        "deltaPp": -50,
+        "verdict": "b"
+      },
+      {
+        "a": "test/market-run",
+        "b": "test/registry-model",
+        "shared": 1,
+        "deltaPp": -34.375,
+        "verdict": "b"
+      },
+      {
+        "a": "test/oracle",
+        "b": "test/registry-model",
+        "shared": 1,
+        "deltaPp": 20.3125,
+        "verdict": "a"
+      },
+      {
+        "a": "test/bounty-claimant",
+        "b": "test/registry-model",
+        "shared": 1,
+        "deltaPp": 12.5,
+        "verdict": "a"
+      },
+      {
+        "a": "test/post-reveal-scored",
+        "b": "test/registry-model",
+        "shared": 1,
+        "deltaPp": -62.5,
+        "verdict": "b"
+      },
+      {
+        "a": "qwen2.5-1.5b-instruct",
+        "b": "qwen2.5-3b-instruct",
+        "shared": 2,
+        "deltaPp": -15.625,
+        "verdict": "b"
+      },
+      {
+        "a": "qwen2.5-0.5b-instruct",
+        "b": "qwen2.5-3b-instruct",
+        "shared": 1,
+        "deltaPp": -21.875,
+        "verdict": "b"
+      },
+      {
+        "a": "llama-3.2-1b-instruct",
+        "b": "qwen2.5-3b-instruct",
+        "shared": 1,
+        "deltaPp": -21.875,
+        "verdict": "b"
+      },
+      {
+        "a": "qwen2.5-0.5b-instruct",
+        "b": "qwen2.5-1.5b-instruct",
+        "shared": 1,
+        "deltaPp": -6.25,
+        "verdict": "b"
+      },
+      {
+        "a": "llama-3.2-1b-instruct",
+        "b": "qwen2.5-1.5b-instruct",
+        "shared": 1,
+        "deltaPp": -6.25,
+        "verdict": "b"
+      },
+      {
+        "a": "ladder/model-b",
+        "b": "test/gen-oracle",
+        "shared": 17,
+        "deltaPp": 9.375,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-b",
+        "b": "ladder/tie-c",
+        "shared": 15,
+        "deltaPp": 31.25,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-b",
+        "b": "ladder/tie-a",
+        "shared": 16,
+        "deltaPp": -15.625,
+        "verdict": "b"
+      },
+      {
+        "a": "ladder/model-b",
+        "b": "ladder/model-c",
+        "shared": 17,
+        "deltaPp": 31.25,
+        "verdict": "a"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "ladder/model-b",
+        "shared": 15,
+        "deltaPp": 31.25,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-a",
+        "b": "ladder/model-b",
+        "shared": 17,
+        "deltaPp": 31.25,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-b",
+        "b": "ladder/model-b",
+        "shared": 15,
+        "deltaPp": -3.125,
+        "verdict": "b"
+      },
+      {
+        "a": "ladder/model-b",
+        "b": "ladder/tie-b",
+        "shared": 15,
+        "deltaPp": -15.625,
+        "verdict": "b"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "ladder/model-b",
+        "shared": 15,
+        "deltaPp": 15.625,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/tie-c",
+        "b": "test/gen-oracle",
+        "shared": 16,
+        "deltaPp": -21.875,
+        "verdict": "b"
+      },
+      {
+        "a": "ladder/tie-a",
+        "b": "test/gen-oracle",
+        "shared": 17,
+        "deltaPp": 25,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-c",
+        "b": "test/gen-oracle",
+        "shared": 17,
+        "deltaPp": -21.875,
+        "verdict": "b"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "test/gen-oracle",
+        "shared": 16,
+        "deltaPp": 40.625,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-a",
+        "b": "test/gen-oracle",
+        "shared": 17,
+        "deltaPp": 40.625,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-b",
+        "b": "test/gen-oracle",
+        "shared": 16,
+        "deltaPp": 6.25,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/tie-b",
+        "b": "test/gen-oracle",
+        "shared": 16,
+        "deltaPp": 25,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "test/gen-oracle",
+        "shared": 16,
+        "deltaPp": 25,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/tie-a",
+        "b": "ladder/tie-c",
+        "shared": 16,
+        "deltaPp": 46.875,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-c",
+        "b": "ladder/tie-c",
+        "shared": 15,
+        "deltaPp": 0,
+        "verdict": "tie"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "ladder/tie-c",
+        "shared": 16,
+        "deltaPp": 62.5,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-a",
+        "b": "ladder/tie-c",
+        "shared": 15,
+        "deltaPp": 62.5,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-b",
+        "b": "ladder/tie-c",
+        "shared": 14,
+        "deltaPp": 28.125,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/tie-b",
+        "b": "ladder/tie-c",
+        "shared": 16,
+        "deltaPp": 46.875,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "ladder/tie-c",
+        "shared": 14,
+        "deltaPp": 46.875,
+        "verdict": "a"
+      },
+      {
+        "a": "delegate/runner-1",
+        "b": "test/priv-oracle",
+        "shared": 18,
+        "deltaPp": -6.25,
+        "verdict": "b"
+      },
+      {
+        "a": "mock/oracle-0.25",
+        "b": "mock/oracle-0.50",
+        "shared": 1,
+        "deltaPp": -26.5625,
+        "verdict": "b"
+      },
+      {
+        "a": "mock/oracle-0.25",
+        "b": "mock/oracle-0.75",
+        "shared": 1,
+        "deltaPp": -59.375,
+        "verdict": "b"
+      },
+      {
+        "a": "ladder/model-c",
+        "b": "ladder/tie-a",
+        "shared": 16,
+        "deltaPp": -46.875,
+        "verdict": "b"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "ladder/tie-a",
+        "shared": 16,
+        "deltaPp": 15.625,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-a",
+        "b": "ladder/tie-a",
+        "shared": 16,
+        "deltaPp": 15.625,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-b",
+        "b": "ladder/tie-a",
+        "shared": 15,
+        "deltaPp": -18.75,
+        "verdict": "b"
+      },
+      {
+        "a": "ladder/tie-a",
+        "b": "ladder/tie-b",
+        "shared": 16,
+        "deltaPp": 0,
+        "verdict": "tie"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "ladder/tie-a",
+        "shared": 15,
+        "deltaPp": 0,
+        "verdict": "tie"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "ladder/model-c",
+        "shared": 15,
+        "deltaPp": 62.5,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-a",
+        "b": "ladder/model-c",
+        "shared": 17,
+        "deltaPp": 62.5,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-b",
+        "b": "ladder/model-c",
+        "shared": 15,
+        "deltaPp": 28.125,
+        "verdict": "a"
+      },
+      {
+        "a": "ladder/model-c",
+        "b": "ladder/tie-b",
+        "shared": 15,
+        "deltaPp": -46.875,
+        "verdict": "b"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "ladder/model-c",
+        "shared": 15,
+        "deltaPp": 46.875,
+        "verdict": "a"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "ladder/model-a",
+        "shared": 15,
+        "deltaPp": 0,
+        "verdict": "tie"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "duel/model-b",
+        "shared": 14,
+        "deltaPp": 34.375,
+        "verdict": "a"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "ladder/tie-b",
+        "shared": 16,
+        "deltaPp": 15.625,
+        "verdict": "a"
+      },
+      {
+        "a": "dark/model-a",
+        "b": "duel/model-a",
+        "shared": 14,
+        "deltaPp": 15.625,
+        "verdict": "a"
+      },
+      {
+        "a": "mock/oracle-0.50",
+        "b": "mock/oracle-0.75",
+        "shared": 1,
+        "deltaPp": -32.8125,
+        "verdict": "b"
+      },
+      {
+        "a": "duel/model-b",
+        "b": "ladder/model-a",
+        "shared": 15,
+        "deltaPp": -34.375,
+        "verdict": "b"
+      },
+      {
+        "a": "ladder/model-a",
+        "b": "ladder/tie-b",
+        "shared": 15,
+        "deltaPp": 15.625,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "ladder/model-a",
+        "shared": 15,
+        "deltaPp": -15.625,
+        "verdict": "b"
+      },
+      {
+        "a": "llama-3.2-1b-instruct",
+        "b": "qwen2.5-0.5b-instruct",
+        "shared": 1,
+        "deltaPp": 0,
+        "verdict": "tie"
+      },
+      {
+        "a": "duel/model-b",
+        "b": "ladder/tie-b",
+        "shared": 14,
+        "deltaPp": -18.75,
+        "verdict": "b"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "duel/model-b",
+        "shared": 16,
+        "deltaPp": 18.75,
+        "verdict": "a"
+      },
+      {
+        "a": "duel/model-a",
+        "b": "ladder/tie-b",
+        "shared": 14,
+        "deltaPp": 0,
+        "verdict": "tie"
+      },
+      {
+        "a": "test/bounty-wrong-payee",
+        "b": "test/sweep-run",
+        "shared": 4,
+        "deltaPp": -37.5,
+        "verdict": "b"
+      },
+      {
+        "a": "test/bounty-wrong-payee",
+        "b": "test/market-run",
+        "shared": 4,
+        "deltaPp": 46.875,
+        "verdict": "a"
+      },
+      {
+        "a": "test/bounty-wrong-payee",
+        "b": "test/oracle",
+        "shared": 4,
+        "deltaPp": -7.8125,
+        "verdict": "b"
+      },
+      {
+        "a": "test/bounty-claimant",
+        "b": "test/bounty-wrong-payee",
+        "shared": 4,
+        "deltaPp": 0,
+        "verdict": "tie"
+      },
+      {
+        "a": "test/market-run",
+        "b": "test/sweep-run",
+        "shared": 9,
+        "deltaPp": -84.375,
+        "verdict": "b"
+      },
+      {
+        "a": "test/oracle",
+        "b": "test/sweep-run",
+        "shared": 16,
+        "deltaPp": -29.6875,
+        "verdict": "b"
+      },
+      {
+        "a": "test/bounty-claimant",
+        "b": "test/sweep-run",
+        "shared": 16,
+        "deltaPp": -37.5,
+        "verdict": "b"
+      },
+      {
+        "a": "test/market-run",
+        "b": "test/oracle",
+        "shared": 10,
+        "deltaPp": -54.6875,
+        "verdict": "b"
+      },
+      {
+        "a": "test/bounty-claimant",
+        "b": "test/market-run",
+        "shared": 10,
+        "deltaPp": 46.875,
+        "verdict": "a"
+      },
+      {
+        "a": "test/bounty-claimant",
+        "b": "test/oracle",
+        "shared": 18,
+        "deltaPp": -7.8125,
+        "verdict": "b"
+      },
+      {
+        "a": "test/post-reveal-87070",
+        "b": "test/registry-model-87070",
+        "shared": 1,
+        "deltaPp": -37.5,
+        "verdict": "b"
+      },
+      {
+        "a": "test/post-reveal-35953",
+        "b": "test/registry-model-35953",
+        "shared": 1,
+        "deltaPp": -37.5,
+        "verdict": "b"
+      }
+    ]
+  }
+}

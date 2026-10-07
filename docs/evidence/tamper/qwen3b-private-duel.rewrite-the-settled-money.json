@@ -1,0 +1,83 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "rewrite the settled money",
+  "targetKind": "sealed-trail/v1",
+  "targetCard": "qwen3b-private-duel.json",
+  "expectFail": [
+    "venue binding",
+    "pool accounting"
+  ],
+  "forgedAt": "2026-10-07T16:22:18.629Z",
+  "forged": {
+    "kind": "sealed-trail/v1",
+    "generatedAt": "2026-10-07T15:50:15.428Z",
+    "source": "../../web/snapshot.json",
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "run": {
+      "pk": "76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ",
+      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
+      "index": 4,
+      "modelId": "qwen2.5-3b-instruct",
+      "status": 1,
+      "correct": 5,
+      "chunkCount": 1,
+      "postReveal": false,
+      "runner": "N4q2ySTQjpReARueScJJmj9nBaKZyiTQFU4erJxb77B",
+      "createdAt": 1790791659
+    },
+    "bank": {
+      "pk": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
+      "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "id": 10019,
+      "name": "sealed-pgen-v10019",
+      "kind": 2,
+      "itemsRoot": "27f9acdd6909b77d7c0294affcc18d3c2f1b2835886444f30fee3c9e4d450066"
+    },
+    "receipt": null,
+    "venues": [
+      {
+        "kind": "duel",
+        "pk": "EHiTUjmP6EijVoyGd4qoj6Qggjtoawk5xMLJ3MXrTdzW",
+        "seeds": {
+          "runA": "76kDLfXmJrWHjirJQQnWbrVkUZcWxVFLpu67E8D4cRSJ",
+          "runB": "9tsQCxRxapZjbq69c7oTmphU5h2RpQ4nuMcFk3m7HzvS",
+          "salt": 0
+        },
+        "status": 1,
+        "side": "a",
+        "resolvedScore": 327684,
+        "outcome": 0,
+        "nOutcomes": 3,
+        "edges": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "totals": [
+          150000001,
+          100000000,
+          40000000,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "verdict": {
+      "venuesTotal": 1,
+      "resolvedVenues": 1,
+      "scoreMismatches": 0,
+      "poolsLamports": 290000000
+    }
+  }
+}

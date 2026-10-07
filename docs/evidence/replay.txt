@@ -379,22 +379,22 @@ market escrow — 76.0750◎ cumulative stakes tracked across 303 venues + 37 bo
 $ sealed chain market live --snapshot ../../web/snapshot.json   (head -14)
 open venues — 28 accepting positions, soonest-close first
   ladder  4gx1VhwgTK9b… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 24.0d · expires in 24.0d
+    book 0.600◎ · bets close in 23.9d · expires in 23.9d
     sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
   ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
-    book 0.300◎ · bets close in 24.4d · expires in 24.4d
+    book 0.300◎ · bets close in 24.3d · expires in 24.3d
     sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
   ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 24.4d · expires in 24.4d
+    book 0.600◎ · bets close in 24.3d · expires in 24.3d
     sealed chain market quote 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN <outcome> <lamports>
   duel    GL4yEgmZPa5k… duel/model-a vs duel/model-b — who scores higher?
-    book 0.550◎ · bets close — · expires in 24.1d
+    book 0.550◎ · bets close — · expires in 24.0d
     sealed chain market quote GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv <outcome> <lamports>
   band    32B8aRsiEjhV… test/market-run — which of 2 band(s)?
 
 $ sealed chain market bounties --snapshot ../../web/snapshot.json   (head -10)
 37 bounties — 1 open (0 claimable right now):
-  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 576h  best-on-bank=64 (predates bounty — retroactivity wall)
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 574h  best-on-bank=64 (predates bounty — retroactivity wall)
   3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
@@ -668,7 +668,7 @@ sealed-grant/v1 — sealed-priv-panel.json
 GRANT VERIFIED — sealed-priv part 3 → viewer QwS93ebpYTw7… · 2 viewer(s) saw this exam · the answers never moved
 
 $ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 127 artifacts)
-scanning 155 candidate file(s) in ../../docs/evidence (recursive)
+scanning 166 candidate file(s) in ../../docs/evidence (recursive)
   SKIP acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json — not a sealed artifact
   SKIP acct-3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG.json — not a sealed artifact
   SKIP acct-4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1.json — not a sealed artifact
@@ -820,14 +820,25 @@ scanning 155 candidate file(s) in ../../docs/evidence (recursive)
   SKIP run-gen6932-real-artifact.json — not a sealed artifact
   SKIP run-real-99003-artifact.json — not a sealed artifact
   SKIP snapshot.json — not a sealed artifact
-  PASS trails/qwen3b-bounty-claim.json                sealed-trail/v1   — 7 checks
-  PASS trails/qwen3b-calibration.json                 sealed-trail/v1   — 7 checks
-  PASS trails/qwen3b-ladder-deadheat.json             sealed-trail/v1   — 7 checks
-  PASS trails/qwen3b-private-duel.json                sealed-trail/v1   — 6 checks
-ALL ARTIFACTS VERIFIED — 127 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 1× sealed-catalog/v1, 3× sealed-bank/v1, 1× sealed-board/v1, 2× sealed-bounty/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 2× sealed-grant/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 2× sealed-position/v1, 4× sealed-report/v1, 4× sealed-trail/v1
+  PASS tamper/board.inflate-a-receipt-s-score.json    sealed-tamper/v1  — 2 checks
+  PASS tamper/board.swap-the-1-rank.json              sealed-tamper/v1  — 2 checks
+  PASS tamper/board.un-vouch-an-attested-receipt.json sealed-tamper/v1  — 2 checks
+  PASS tamper/claimed-20of32.steal-the-bounty-below-threshold.json sealed-tamper/v1  — 2 checks
+  PASS tamper/min60-3runs.flip-a-model-s-gate-verdict.json sealed-tamper/v1  — 2 checks
+  PASS tamper/qwen3b-ladder-deadheat.rewrite-the-settled-money.json sealed-tamper/v1  — 2 checks
+  PASS tamper/qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json sealed-tamper/v1  — 2 checks
+  PASS tamper/qwen3b-private-duel.rewrite-the-settled-money.json sealed-tamper/v1  — 2 checks
+  PASS tamper/qwen3b-private-duel.substitute-the-oracle-rewrite-the-mpc-s-score.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-priv-first.redirect-the-disclosure-to-another-viewer.json sealed-tamper/v1  — 2 checks
+  PASS tamper/winning-band.inflate-a-winning-stake.json sealed-tamper/v1  — 2 checks
+  PASS trails/qwen3b-bounty-claim.json                sealed-trail/v1   — 10 checks
+  PASS trails/qwen3b-calibration.json                 sealed-trail/v1   — 10 checks
+  PASS trails/qwen3b-ladder-deadheat.json             sealed-trail/v1   — 10 checks
+  PASS trails/qwen3b-private-duel.json                sealed-trail/v1   — 9 checks
+ALL ARTIFACTS VERIFIED — 138 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 1× sealed-catalog/v1, 3× sealed-bank/v1, 1× sealed-board/v1, 2× sealed-bounty/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 2× sealed-grant/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 2× sealed-position/v1, 4× sealed-report/v1, 11× sealed-tamper/v1, 4× sealed-trail/v1
 
 $ sealed chain catalog --check   (the index proves itself complete)
-CATALOG COMPLETE — 126 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
+CATALOG COMPLETE — 137 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
 
 $ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
 diff ../../web/snapshot.json → ../../web/snapshot.json
@@ -841,7 +852,7 @@ fingerprint flagging THAT file mid-flight is the feature working.
 The committed copy passes (see scripts/verify-all.sh stage output).
 sealed-fingerprint/v1 — the whole evidence base as one hash
   snapshot.json     ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079
-  docs/evidence     f0e5bb3dab4914e943cf1479267cf966449795ac88b461807c583e50c05b2d70  (179 pinned file(s))
-  web bundle        d4e84781bfd4a7f647410174c7aa4c9910c5680ac63925177849dbf0b19e0e5c  (148 pinned file(s))
-  re-hash check     FAIL — 326/327 file(s) match · ../../docs/evidence/replay.txt
-  BUNDLE ROOT       5f7587c445286a2f3dbaddde66db9f6d8c03a1b02eff39bf045cf178f85398d4
+  docs/evidence     470ac23a041425e02e482de506800b1b8f49c35f8f971b2ca0d900bae0aa6f57  (191 pinned file(s))
+  web bundle        f853bc99d0fefba2cad93b18f93008f995976afb0957de94f603d919b8623b47  (160 pinned file(s))
+  re-hash check     FAIL — 349/351 file(s) match · ../../docs/evidence/replay.txt, ../../web/index.html
+  BUNDLE ROOT       f86a34b2956f1dade5979cfc2957506ecfadc8b8f6f57b4bfab31a86f87d3951

@@ -16,7 +16,7 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 |---|---|---|
 | **Insight / novelty** | The eval-honesty problem is that every trusted party in the loop can leak or rig. Sealed removes the trusted *data* party entirely: the questions are born in MPC, the answers never leave it, and disclosure is selective and recorded. | `docs/pitch.md`, README "Why" table |
 | **Product / execution** | Six Arcis circuits (reviewed line-by-line in docs/circuits.md) + two Anchor programs + TS harness + web explorer, all live: `seal_part`, `score_chunk`, `gen_part`, `gen_part_private`, `reveal_part`, `reshare_part`. | `encrypted-ixs/src/lib.rs`, `programs/sealed/src/lib.rs` |
-| **Does it work?** | `yarn test` — 17/17 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder + dark markets, capability bounties, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 57/57 unit. | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
+| **Does it work?** | `yarn test` — 17/17 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder + dark markets, capability bounties, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 67/67 unit. | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
 | **Real model evidence** | **Flagship — live in the bundled snapshot:** FOUR open-weights models (two families) raced an MPC-minted exam with zero external API — `qwen2.5-3b` 6/32 vs `qwen2.5-1.5b` **6/32 (a real dead-heat)** vs `llama-3.2-1b` 1/32 vs `qwen2.5-0.5b` 0/32; ladder `A4fMA7eK…` filled while all legs were *pending*, argmax resolved `result_mask=0b11` paying both co-leader backers pro-rata — plus a dark commit-reveal market on leg 0's run with sealed positions and a live forfeit (`scripts/ladder-local.sh`, `ladder-local.txt`). Also: `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 duel `7p32UT6s…` (`duel-local.txt`), the 1.5b scored **8/32 on a private bank** read only through `reshare_part` grants (`7S9ZmxrT…`, `unseen-local.txt`), and the **double-sealed composition**: private bank `8HHm4HgA…` (specs ciphertext-only) hosted a dark commit-reveal market `7TVjSaFD…` on the 3b's pending run — exam sealed + positions sealed + MPC score — resolved `>=5` on 5/32 with a sealed forfeit, then a full-book score-band market `497kuApd…` resolved `1–7` on the 0.5b's 2/32 (plus a live `all_backed` cancel `H3RGMd3N…` refunding gross) (`dark-local.txt`, `band-local*.txt`). **Every market primitive has now settled a real open-weights model's MPC-written score.** Newest (epoch-3, hardened build): a sponsor escrowed **0.1 SOL against "first proven run ≥ 6/32"** — an *independent* runner keypair ran `qwen2.5-3b` for real (local pre-score 7/32, MPC-agreed 7/32) and the **permissionless claim paid the operator** while the 1.5b's honest 2/32 sat below the threshold on the same bank (`real-bounty.txt`); a second real-model band market resolved bucket-0 on `llama-3.2-1b`'s MPC-confirmed **0/32** — the exam flunking a model is evidence too. Earlier gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (`HW5H5bT7…`), 64/64 on authored 25864 (`4uns99WD…`), a stale-artifact claim scored **1/64** (`3CKnMa8X…` — the anti-cheat boundary), and 35/35 on grant-only private bank `Fa4WS8B1…` (`9nfKSXnM…`). | `docs/evidence/` |
 | **Open-source / composability** | MIT-licensed, and the output is a public good: `Run.correct`, `ScoreLog`, and the `ModelRecord` registry are permissionless read surfaces — no CPI, no vendor key. `docs/integrate.md` gives the byte-accurate consumer guide (owner+discriminator gate, `post_reveal` tail-read, PDA seeds, honesty-flag semantics); the bundled `market` program IS the reference third-party consumer — it never sees items or ciphertext, only `Run.correct`. And `chain gate --min-pct 60 --vouched` is composability made executable: a capability policy over the registry, exit 0/1/2, pure `evalGate` so the same verdict replays off the committed snapshot — `--all` turns it into the registry filtered by policy, ranked. | `docs/integrate.md`, `programs/market/src/lib.rs` (`load_run`), `packages/harness/src/gate.ts` |
 | **Why crypto is load-bearing** | Solana = the commitment layer (roots, PDAs, market settlement). Arcium MPC = the only reason data can be on-chain yet unreadable. Without either, this is a database + a promise. | `docs/threat-model.md` |
@@ -60,7 +60,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
 #   ONE LINK, EVERY PROOF: https://josepha-mayo.github.io/sealed/?mega=1 —
 #   opens the page and runs the whole skeptic's suite while you watch:
-#   account audit → all 127 artifacts through their verifiers → every
+#   account audit → all 138 artifacts through their verifiers → every
 #   forgery attack in the lab, landing "EVERYTHING VERIFIED" in ~5s.
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
 #   demos itself: an auto-walk through all twenty-two stops with one-line
@@ -115,7 +115,7 @@ python3 -m http.server -d . 8788
 
 # 3. verify the suites yourself
 yarn test                      # 17/17 E2E
-yarn harness:test              # 57/57 unit
+yarn harness:test              # 67/67 unit
 
 # 3b. cryptographic audit of the evidence bundle — fully offline:
 #     re-derives every account's PDA, replays items_root commitment folds
@@ -335,16 +335,17 @@ yarn --cwd packages/harness cli chain grant --verify \
 #     which artifact.
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
   --snapshot ../../web/snapshot.json
-#         → ALL ARTIFACTS VERIFIED — 127 replayed, 28 skipped ·
+#         → ALL ARTIFACTS VERIFIED — 138 replayed, 28 skipped ·
 #           31× claim, 73× match, 3× policy, 4× report, 4× trail,
 #           3× bank, 2× position, 2× bounty, 2× grant,
-#           1× evidence-digest, 1× board, 1× catalog
+#           1× evidence-digest, 1× board, 1× catalog,
+#           11× sealed-tamper/v1 — the lie exhibit
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 127 committed artifacts
+#           verifier in-browser: all 138 committed artifacts
 #           through their own check lists, live progress
 
 # 2n. THE FORGERY LAB — don't trust the checks, run the attack. The
@@ -359,6 +360,24 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     replay · receipt PDAs · pool accounting · counts · run surface ·
 #     completeness · stake binding · account binding). The headless
 #     audit pins all twelve.
+
+# 2o. THE LIE EXHIBIT — we committed the forgeries themselves.
+#     docs/evidence/tamper/ holds eleven sealed-tamper/v1 cards — each
+#     IS a forged artifact (oracle substitution, settled-money rewrite,
+#     rank swap, bounty theft, viewer redirect, phantom receipts, stake
+#     inflation) wrapped with the check(s) it died at, recorded when it
+#     was minted. Verifying an exhibit replays the inner forgery against
+#     the REAL verifier and asserts it still dies at the same named
+#     check — the evidence base ships proof of its own skepticism:
+yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snapshot ../../web/snapshot.json
+#         → ALL 11 EXHIBITS VERIFIED — every committed forgery still
+#           rejected; the CLI mints them too:
+#           chain artifact <card> --tamper --exhibit <dir> --snapshot <f>
+#         → the explorer's "lie exhibit" section replays them in-page
+#           (verifyTamper routes the inner card through the real
+#           verifier and requires the rejection)
+#         → python3 scripts/verify.py --tamper covers the same ground
+#           in stdlib-only Python — five attacks, all caught
 
 # 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
 #     pinned file and prints BUNDLE ROOT: a single sha256 covering
@@ -375,11 +394,16 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     lands on the private exam card with the ciphertext fold replayed.
 #     The catalog itself is an artifact: ?card=artifacts.json replays
 #     sealed-catalog/v1 — the index proves it lists EVERY artifact
-#     (completeness + hash-pinning vs SHA256SUMS). CLI parity:
+#     (completeness + hash-pinning vs SHA256SUMS). Two more params:
+#     ?forge=<attack> runs a live lab attack and lands on FORGERY CAUGHT;
+#     ?tamper=<exhibit> replays a committed sealed-tamper/v1 lie, e.g.
+#       https://josepha-mayo.github.io/sealed/?tamper=qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json
+#     opens on EXHIBIT VERIFIED — the oracle-substituted trail card died
+#     at run binding, exactly as recorded when it was minted. CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
-#         → CATALOG COMPLETE — 126 artifact(s), every sealed-*/v1 file listed
+#         → CATALOG COMPLETE — 137 artifact(s), every sealed-*/v1 file listed
 yarn --cwd packages/harness cli chain fingerprint
-#         → re-hash check PASS — 324/324 · BUNDLE ROOT <64-hex sha256>
+#         → re-hash check PASS — 351/351 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 

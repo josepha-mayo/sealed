@@ -1,0 +1,53 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "redirect the disclosure to another viewer",
+  "targetKind": "sealed-grant/v1",
+  "targetCard": "sealed-priv-first.json",
+  "expectFail": [],
+  "forgedAt": "2026-10-07T16:22:24.110Z",
+  "forged": {
+    "kind": "sealed-grant/v1",
+    "generatedAt": "2026-10-07T14:12:14.972Z",
+    "source": "../../web/snapshot.json",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "grant": {
+      "pk": "FwMo7JSTu86TVQjdwuizCksnu5ve3s4ujb97QTw88euB",
+      "seeds": {
+        "bank": "5pMZYs5Ny978dBifpNmfF4MthtRENz6fnk6SGiTFjLfa",
+        "chunkIndex": 0,
+        "part": 0,
+        "viewer": "5Gcyd1ka9GHV5naFN8SxCijeazKJHtj5txPzP9UKEV1x"
+      },
+      "benchmark": "5pMZYs5Ny978dBifpNmfF4MthtRENz6fnk6SGiTFjLfa",
+      "chunkIndex": 0,
+      "part": 0,
+      "viewer": "5Gcyd1ka9GHV5naFN8SxCijeazKJHtj5txPzP9UKEV1x",
+      "encryptionKey": "5Gcyd1ka9GHV5naFN8SxCijeazKJHtj5txPzP9UKEV1E",
+      "nonce": "55781918657882244301500719859405595134",
+      "ciphertexts": [
+        "6jvYz3rEtFPEUL6Q3MtkvDWhMnmJd549QEvHLXKkSUBa",
+        "egmWNoFzsnsNqAbBtqTBbZYDiyVAnQene9nfjphih14"
+      ],
+      "sharedAt": "1790740131"
+    },
+    "bank": {
+      "pk": "5pMZYs5Ny978dBifpNmfF4MthtRENz6fnk6SGiTFjLfa",
+      "name": "sealed-priv",
+      "kind": 2,
+      "itemsRoot": "858709c261ce9798e5e5771e9e8724dc45be24989f0b2787ecbcce827a7014dc"
+    },
+    "panel": {
+      "grantsOnBank": 5,
+      "viewersOnBank": 2,
+      "viewersAllParts": 1
+    },
+    "verdict": {
+      "state": "disclosed",
+      "note": "part 0 of bank \"sealed-priv\" re-encrypted to viewer 5Gcyd1ka9GHV… inside MPC — only that x25519 key opens the specs; answers never moved"
+    }
+  }
+}

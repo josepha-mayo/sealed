@@ -4178,20 +4178,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     try { return JSON.parse(raw).kind ?? null; }
     catch { return raw.includes("sealed-report/v1") ? "sealed-report/v1" : null; }
   };
-  const ROUTES: Record<string, (f: string) => Promise<any>> = {
-    "sealed-claim/v1": (f) => chainProveVerify(f, undefined, json),
-    "sealed-policy/v1": (f) => gateCertVerify(f, json),
-    "sealed-match/v1": (f) => matchVerify(f, json),
-    "sealed-trail/v1": (f) => trailVerify(f, json, snapPath),
-    "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
-    "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
-    "sealed-board/v1": (f) => boardVerify(f, json, snapPath),
-    "sealed-bank/v1": (f) => bankVerify(f, json, snapPath),
-    "sealed-catalog/v1": (f) => catalogVerify(f, json),
-    "sealed-position/v1": (f) => positionVerify(f, json, snapPath),
-    "sealed-bounty/v1": (f) => bountyVerify(f, json, snapPath),
-    "sealed-grant/v1": (f) => grantVerify(f, json, snapPath),
-  };
+  const ROUTES = ARTIFACT_ROUTES(snapPath, json);
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
       !["index.json", "SHA256SUMS", "README.md"].includes(f);
@@ -4249,6 +4236,24 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   return route(target);
 }
 
+/** One route table — kind → its keyless verifier. Shared by the universal
+ *  verifier, the forgery lab, and tamper-exhibit replays. */
+const ARTIFACT_ROUTES = (snapPath?: string, json = false): Record<string, (f: string) => Promise<any>> => ({
+  "sealed-claim/v1": (f) => chainProveVerify(f, undefined, json),
+  "sealed-policy/v1": (f) => gateCertVerify(f, json),
+  "sealed-match/v1": (f) => matchVerify(f, json),
+  "sealed-trail/v1": (f) => trailVerify(f, json, snapPath),
+  "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
+  "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
+  "sealed-board/v1": (f) => boardVerify(f, json, snapPath),
+  "sealed-bank/v1": (f) => bankVerify(f, json, snapPath),
+  "sealed-catalog/v1": (f) => catalogVerify(f, json),
+  "sealed-position/v1": (f) => positionVerify(f, json, snapPath),
+  "sealed-bounty/v1": (f) => bountyVerify(f, json, snapPath),
+  "sealed-grant/v1": (f) => grantVerify(f, json, snapPath),
+  "sealed-tamper/v1": (f) => tamperCardVerify(f, json, snapPath),
+});
+
 /** `chain artifact --tamper <file>` — the forgery lab for the terminal:
  *  mutate the card's own fields, re-run its verifier, and prove each
  *  forgery dies. Same checks as the in-page lab and `verify.py --tamper`
@@ -4272,6 +4277,16 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
       else if (v?.totals?.length) v.totals[0] += 1;
       else if (v?.amount != null) v.amount += 1;
       else c.run.correct = (c.run.correct ?? 0) + 1; // no venues — forge the MPC's count itself
+    } },
+    { label: "substitute the oracle — rewrite the MPC's score", mutate: (c) => {
+      if (!c.run) return;
+      c.run.correct = (c.run.correct ?? 0) + 1;
+      const v = (c.venues ?? []).find((x: any) => x?.status === 1);
+      if (v) { // keep the card self-consistent — binding must still kill it
+        if (v.resolvedScore != null) v.resolvedScore += 1;
+        if (v.winningScore != null) v.winningScore += 1;
+        if (v.kind === "ladder" && v.legs?.[v.legIndex]) v.legs[v.legIndex].correct += 1;
+      }
     } },
   ],
   "sealed-evidence-digest/v1": [
@@ -4303,7 +4318,7 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
   ],
 };
 
-export async function artifactTamper(target: string, snapPath?: string, recursive = false) {
+export async function artifactTamper(target: string, snapPath?: string, recursive = false, exhibitDir?: string) {
   const { writeFileSync, mkdtempSync, statSync, readdirSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -4343,20 +4358,7 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
     return { ok: true, attacks: 0 };
   }
   const base = JSON.parse(raw);
-  const ROUTE: Record<string, (f: string) => Promise<any>> = {
-    "sealed-claim/v1": (f) => chainProveVerify(f, undefined, false),
-    "sealed-policy/v1": (f) => gateCertVerify(f, false),
-    "sealed-match/v1": (f) => matchVerify(f, false),
-    "sealed-trail/v1": (f) => trailVerify(f, false, snapPath),
-    "sealed-evidence-digest/v1": (f) => digestVerify(f, false, snapPath),
-    "sealed-board/v1": (f) => boardVerify(f, false, snapPath),
-    "sealed-bank/v1": (f) => bankVerify(f, false, snapPath),
-    "sealed-catalog/v1": (f) => catalogVerify(f, false),
-    "sealed-position/v1": (f) => positionVerify(f, false, snapPath),
-    "sealed-bounty/v1": (f) => bountyVerify(f, false, snapPath),
-    "sealed-grant/v1": (f) => grantVerify(f, false, snapPath),
-  };
-  const verify = ROUTE[kind];
+  const verify = ARTIFACT_ROUTES(snapPath, false)[kind];
   if (!verify) throw new Error(`no verifier route for ${kind}`);
   const dir = mkdtempSync(join(tmpdir(), "sealed-tamper-"));
   let caught = 0;
@@ -4368,11 +4370,36 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
     writeFileSync(fp, JSON.stringify(forged, null, 2));
     let ok = true, detail = "";
     const savedExit = process.exitCode;
-    console.log = () => {};
+    const lines: string[] = [];
+    console.log = (...a: any[]) => { lines.push(a.map(String).join(" ")); };
     try { const r = await verify(fp); ok = (r.ok ?? (r.fail === 0)) === true; }
     catch (e: any) { ok = false; detail = ` (${e?.message ?? e})`; }
     finally { console.log = orig; process.exitCode = savedExit; }
-    if (!ok) { caught++; console.log(`  FORGERY CAUGHT — ${defs[i].label}${detail}`); }
+    if (!ok) {
+      caught++;
+      console.log(`  FORGERY CAUGHT — ${defs[i].label}${detail}`);
+      // the lie exhibit: a sealed-tamper/v1 card IS the forged artifact,
+      // wrapped with the attack name + the check(s) it died at. Verifying
+      // the exhibit positively replays the rejection.
+      if (exhibitDir) {
+        const died = lines.filter((l) => /\bFAIL\b/.test(l))
+          .map((l) => l.replace(/^.*\bFAIL\b\s*/, "").split("—")[0].trim())
+          .filter(Boolean);
+        const exhibit = {
+          kind: "sealed-tamper/v1",
+          attack: defs[i].label,
+          targetKind: kind,
+          targetCard: target.split("/").pop(),
+          expectFail: died,
+          forgedAt: new Date().toISOString(),
+          forged,
+        };
+        const slug = defs[i].label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const out = `${exhibitDir}/${(target.split("/").pop() ?? "card").replace(/\.json$/, "")}.${slug}.json`;
+        writeFileSync(out, JSON.stringify(exhibit, null, 2) + "\n");
+        console.log(`    → exhibit written: ${out} (died at ${died.join(", ") || "thrown error"})`);
+      }
+    }
     else console.log(`  FORGERY ACCEPTED — ${defs[i].label} — THE VERIFIER TOOK A LIE`);
   }
   console.log(caught === defs.length
@@ -4380,6 +4407,48 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
     : `${caught}/${defs.length} caught — ${defs.length - caught} forgery(ies) verified`);
   if (caught !== defs.length) process.exitCode = 1;
   return { ok: caught === defs.length, attacks: defs.length, caught };
+}
+
+/** `sealed-tamper/v1` — the lie exhibit. The payload IS a forged artifact
+ *  (kind + attack + the checks it died at recorded at mint time). Verifying
+ *  an exhibit replays the forgery against the REAL verifier and asserts it
+ *  still dies at the same named check — proof, pinned in the bundle, that
+ *  the evidence base defends itself. A "fixed" forgery (one that now
+ *  verifies) FAILS the exhibit. */
+export async function tamperCardVerify(file: string, json = false, snapPath?: string) {
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-tamper/v1") throw new Error(`not a sealed-tamper/v1 exhibit (kind=${card.kind})`);
+  if (!card.forged || card.forged.kind !== card.targetKind)
+    throw new Error("exhibit carries no forged target card");
+  // the inner verifier must run in TEXT mode — json mode prints no
+  // "FAIL <check>" lines, and those names are what the exhibit asserts.
+  const route = ARTIFACT_ROUTES(snapPath, false)[card.targetKind];
+  if (!route) throw new Error(`no verifier route for ${card.targetKind}`);
+  const tmp = join(mkdtempSync(join(tmpdir(), "sealed-exhibit-")), "forged.json");
+  writeFileSync(tmp, JSON.stringify(card.forged, null, 2));
+  const lines: string[] = [];
+  const orig = console.log;
+  console.log = (...a: any[]) => { lines.push(a.map(String).join(" ")); };
+  let ok = true, err = "";
+  const saved = process.exitCode;
+  try { const r = await route(tmp); ok = (r.ok ?? (r.fail === 0)) === true; }
+  catch (e: any) { ok = false; err = String(e?.message ?? e); }
+  finally { console.log = orig; process.exitCode = saved; }
+  const died = lines.filter((l) => /\bFAIL\b/.test(l))
+    .map((l) => l.replace(/^.*\bFAIL\b\s*/, "").split("—")[0].trim()).filter(Boolean);
+  const expected: string[] = card.expectFail ?? [];
+  const named = expected.length === 0 || expected.some((x) => died.includes(x));
+  const pass = !ok && named;
+  if (!json) {
+    console.log(`  ${!ok ? "PASS" : "FAIL"} inner forgery rejected — the ${card.targetKind} verifier refused it${err ? ` (${err})` : ""}`);
+    for (const f of died.slice(0, 4)) console.log(`       died at: ${f}`);
+    console.log(`  ${named ? "PASS" : "FAIL"} named check — expected ${expected.join(", ") || "(any rejection)"}`);
+    console.log(`${pass ? "TAMPER EXHIBIT VERIFIED" : "EXHIBIT FAILED"} — "${card.attack}" on ${card.targetCard ?? "?"}`);
+  }
+  return { ok: pass, pass: pass ? 2 : 0, fail: pass ? 0 : 1 };
 }
 
 /** Walk an evidence tree and list every sealed artifact with a
@@ -4414,6 +4483,7 @@ async function scanArtifacts(dir: string) {
       case "sealed-bounty/v1": return `${raw.verdict?.state ?? (raw.bounty?.status === 1 ? "claimed" : "open")} · ${(Number(raw.bounty?.amount ?? 0) / 1e9).toFixed(3)} SOL · ≥${raw.bounty?.threshold ?? "?"}/${raw.bank?.capacity ?? "?"} — ${String(raw.bounty?.seeds?.sponsor ?? "").slice(0, 8)}…`;
       case "sealed-grant/v1": return `${raw.bank?.name ?? "?"} part ${raw.grant?.part ?? "?"} → ${String(raw.grant?.viewer ?? "").slice(0, 8)}… · ${raw.panel?.viewersOnBank ?? "?"} viewer(s)`;
       case "sealed-trail/v1": return `run ${String(raw.run?.pk ?? base).slice(0, 8)}… (${base})`;
+      case "sealed-tamper/v1": return `forgery: ${raw.attack ?? "?"} → ${raw.targetCard ?? base}`;
       default: return base;
     }
   };
@@ -7814,7 +7884,7 @@ export async function chainMain(cmd: string[], args: Args) {
     if (!target) throw new Error("usage: chain artifact <file|dir> [--recursive] [--tamper] [--snapshot <f>] [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless; --tamper forges it and proves the verifier catches the lie");
     if (args.tamper) {
       await artifactTamper(String(target), args.snapshot ? String(args.snapshot) : undefined,
-        Boolean(args.recursive));
+        Boolean(args.recursive), args.exhibit ? String(args.exhibit) : undefined);
     } else {
       await artifactVerify(String(target), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
         Boolean(args.recursive));

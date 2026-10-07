@@ -1,0 +1,69 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "inflate a winning stake",
+  "targetKind": "sealed-position/v1",
+  "targetCard": "winning-band.json",
+  "expectFail": [],
+  "forgedAt": "2026-10-07T16:22:50.354Z",
+  "forged": {
+    "kind": "sealed-position/v1",
+    "generatedAt": "2026-10-07T12:37:07.804Z",
+    "source": "web/snapshot.json",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "position": {
+      "pk": "2UzjxArKcQZ599MqpzHUFRsqhF7nGBGHEqXwtMDTK5AW",
+      "account": "position",
+      "seeds": {
+        "venue": "t82Q2fPEKuG3TNGiyaFqVQM6bbCkq9WsxiEr3tX1wyW",
+        "bettor": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc"
+      }
+    },
+    "stake": {
+      "amounts": [
+        "30000000",
+        "900000000",
+        "10000000",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    "venue": {
+      "pk": "t82Q2fPEKuG3TNGiyaFqVQM6bbCkq9WsxiEr3tX1wyW",
+      "kind": "band",
+      "seeds": {
+        "run": "HQJL9gjCJbS8t3hVKaLc8jmZfK9nvteb1JcKtUqLAHcw",
+        "salt": "88124"
+      },
+      "status": 1,
+      "outcome": 0,
+      "mask": null,
+      "tallied": null,
+      "totals": [
+        "30000000",
+        "60000000",
+        "10000000",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "poolTotal": null,
+      "winTotal": null,
+      "feeBps": 0
+    },
+    "verdict": {
+      "state": "payable",
+      "staked": "930000000",
+      "estPayout": "999000000",
+      "note": "outcome 0 — pro-rata"
+    }
+  }
+}

@@ -1721,3 +1721,28 @@ test("sealed-anchor/v1 — the committed notarization doc is internally consiste
   // after notarization) — verify-all's fingerprint stage reports it; the
   // unit suite stays offline-safe.
 });
+
+test("sealed-tamper/v1 — the lie exhibit replays: forged cards die at their recorded checks", async () => {
+  const { tamperCardVerify, artifactVerify } = await import("../src/chain.js");
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const dir = new URL("../../../docs/evidence/tamper/", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const files = readdirSync(dir).filter((f) => f.endsWith(".json") && f !== "index.json");
+    assert.ok(files.length >= 8, `expected the committed lie exhibit (got ${files.length})`);
+    for (const f of files) {
+      process.exitCode = 0;
+      const card = JSON.parse(readFileSync(`${dir}${f}`, "utf8"));
+      assert.equal(card.kind, "sealed-tamper/v1", f);
+      assert.ok(card.forged && card.forged.kind === card.targetKind, `${f}: forged payload must be a real artifact`);
+      const r = (await tamperCardVerify(`${dir}${f}`, true, snapPath)) as any;
+      assert.equal(r.ok, true, `${f}: the forgery must still be rejected`);
+      // and it routes through the universal verifier like any artifact
+      process.exitCode = 0;
+      const routed = (await artifactVerify(`${dir}${f}`, true, snapPath)) as any;
+      assert.equal(routed.ok ?? routed.fail === 0, true, `${f}: universal router must verify the exhibit`);
+    }
+  } finally { console.log = origLog; process.exitCode = 0; }
+});

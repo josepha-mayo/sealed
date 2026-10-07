@@ -17,7 +17,7 @@ a8b77ba902c15a996629ee99ae1f17e3a056c86d8de36b386418e0821b2d1987  ./acct-HW5H5bT
 d89d09b043820f3816d2464da8b85e0b92754db67d40db07b2554e46207d83ad  ./acct-HnM9ffHULWHBDAP4E8VaFFKRf7ckJCv9JMTvuGsSYkeL.json
 7a03c2dd181820f95872db7310d4630db4944000dee21fa29b58fcb7ee63ffd8  ./acct-VyAAjrsBiUkMumc8PqpA9nTzMyBsQ7uHMDf1AWQHFk3.json
 0f92df3cc6c204a44a756ab5044be1b2f50e3a018eb28c03ff4668d9e2ce97ed  ./acct-zbgZVGwLLvi9YcUsy3VZTpVLuw2qf6bHcdVsbZjEydj.json
-adafeb8797246894d516ee1beaa32df7cd00d80382a7ff510a2ab3bd79869ac3  ./artifacts.json
+f7fae73ba65b24dc544ce65ce85bfc6160536562f90e03c9cb05a07b8ce47385  ./artifacts.json
 266fa9904a385df504617ea5b818cf9e57003ffee2dd30e1eb786157a87794df  ./band-local-cancelled.txt
 8d778bd2fe275f53687f035d3f7f5a60ed645a2ba849e607db115f20b8bf93d9  ./band-local.txt
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
@@ -160,7 +160,7 @@ f09dd766837ac4b64f7d873a394ba5fa36b8005bd40d6f3305c5dbb826a0bb64  ./prove-gen-it
 c243c5f93d89156d8411c9b9352eef0cf012abdc71760397e12c22dea6cf0d57  ./real-bounty.txt
 5e818edfc0a0efeae88d590a4195b59ddfec0559b1e04a3cf043c1a245bb5ff7  ./record-local.txt
 28f399e71d688092e60e8cd3651b7312a2d9f5cf317fc55531455fd32586bcd2  ./records.txt
-04ef9f70ee6a8dee67e554afdf685706733aa0a84721c52b977760a6b166eeff  ./replay.txt
+0aa1b4fd5e7fb3a417e0cf699e780a975b330ff1257d3d9a74e92f331fb21ec6  ./replay.txt
 cb1812b5d2faf569f782bc78934a1a7e10dea92a7309828b415f5d4bc6aa0666  ./reports/llama-3.2-1b-instruct.md
 0b540b2b152e8743fb3b5f81bc476e16c6dc84b5dd99d285de7b508c635d4559  ./reports/qwen2.5-0.5b-instruct.md
 db76c83e616727758b434190293654f79f81264e09997d0e8ec19a6151cb7689  ./reports/qwen2.5-1.5b-instruct.md
@@ -170,6 +170,18 @@ aff12ca02fb6d2051e485cf60f3f9e9e0adc42b0f29d3fb3de4f8ba04d0eef58  ./run-25864-v2
 f56b8baf358d50565ba3e3ea070477556abf06cd9579b48119b4a2054b8dba39  ./run-gen6932-real-artifact.json
 7beef10868663385c299c12c4835671a26b252ba74d9f548e73e2bd96a0094f7  ./run-real-99003-artifact.json
 ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079  ./snapshot.json
+9d96b082f0ef9cd1c841ad314418d191a5d6fe478c6277f5ac0607d8f32c4286  ./tamper/board.inflate-a-receipt-s-score.json
+ab16ea2b37ba53207a82455ddfe54470aab05842809298826ab3a540ae798020  ./tamper/board.swap-the-1-rank.json
+a8a8fb796af5b74a27fb39eb52cbdc7e1a93cca606ec689f252ef6261db2159d  ./tamper/board.un-vouch-an-attested-receipt.json
+ba042e06df5ef7aa68637983bddd4ca3954526cc3be12235d3d1668799aa6faa  ./tamper/claimed-20of32.steal-the-bounty-below-threshold.json
+7f9e13ad2b916937ab02e668fb406262da0c681cc5c431252f968386b01b4b41  ./tamper/index.json
+919b49ac686148ffbc32e949b2e4a2e01437ed7cd6133b294fca76927a708aa0  ./tamper/min60-3runs.flip-a-model-s-gate-verdict.json
+79ab599f6f385d590fdf1b535cf56dae5ce8f6594f880486a7c79515ebf87a72  ./tamper/qwen3b-ladder-deadheat.rewrite-the-settled-money.json
+920e8f6459b7270eaf96c0a9ceaf27f5ca02320976ac64cdd7304aecc5f8d29b  ./tamper/qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json
+790bdd3fa76696e6218228a30784ed25cad9fdd6a548c99170ce5dccd4e068a7  ./tamper/qwen3b-private-duel.rewrite-the-settled-money.json
+727078142f2850b13f6f77459c6935e19f01113af2beb45544d2f434218b741a  ./tamper/qwen3b-private-duel.substitute-the-oracle-rewrite-the-mpc-s-score.json
+c740dc9bdb0551370065c9ec539bf27230a7e1982edfc5bf904dc8553818adfe  ./tamper/sealed-priv-first.redirect-the-disclosure-to-another-viewer.json
+d841c800f2ab1c914e3840fbbdfea16a4f0480a27a23d729baa23f416c6f93e2  ./tamper/winning-band.inflate-a-winning-stake.json
 238addb9cd00cdfa27af3fdf16b02e01f69a71d4615837259a89e5075a6575c8  ./trails/index.json
 4d1240f94fbd104fd03f02ed4f46951d00a9d5d9288c5a47ef5164a9aa89723b  ./trails/qwen3b-bounty-claim.json
 7518f413dff4c0c9293537e0399f96d3f142dfeac756ca11da8c1bc2b7e2ca6b  ./trails/qwen3b-calibration.json

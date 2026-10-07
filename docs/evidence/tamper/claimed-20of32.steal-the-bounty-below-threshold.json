@@ -1,0 +1,55 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "steal the bounty below threshold",
+  "targetKind": "sealed-bounty/v1",
+  "targetCard": "claimed-20of32.json",
+  "expectFail": [],
+  "forgedAt": "2026-10-07T16:22:20.859Z",
+  "forged": {
+    "kind": "sealed-bounty/v1",
+    "generatedAt": "2026-10-07T13:47:49.755Z",
+    "source": "web/snapshot.json",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "bounty": {
+      "pk": "51z6CJUDgE7Mc8hp1UvGrTUBEMgURv7eddPSNAymgTYd",
+      "seeds": {
+        "bank": "AWRZR3mqDjHJVuE1QZzDzWyL2J7RFwARqjcWYBwWswy7",
+        "sponsor": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+        "salt": "0"
+      },
+      "status": 1,
+      "threshold": 4,
+      "amount": "0",
+      "deadline": "1790868534",
+      "createdAt": "1790864934",
+      "winnerRun": "DMyCmrS3t2peZ56Jhe1xwtAGbKPLcopF3tnUBPKA9ci8",
+      "winningScore": 3
+    },
+    "bank": {
+      "pk": "AWRZR3mqDjHJVuE1QZzDzWyL2J7RFwARqjcWYBwWswy7",
+      "name": "sealed-gen-v24703",
+      "capacity": 32
+    },
+    "winner": {
+      "run": "DMyCmrS3t2peZ56Jhe1xwtAGbKPLcopF3tnUBPKA9ci8",
+      "runner": "CDZmYS4yHpHoL3rt1bNNG58fNPjFVuzTiZqtx7CX7R8W",
+      "benchmark": "AWRZR3mqDjHJVuE1QZzDzWyL2J7RFwARqjcWYBwWswy7",
+      "correct": 3,
+      "status": 1,
+      "createdAt": "1790864944",
+      "scoredMask": "1",
+      "firstPendingAt": "1790864948",
+      "allQueuedAt": "1790864948",
+      "postReveal": false
+    },
+    "verdict": {
+      "state": "claimed",
+      "amount": "0",
+      "note": "run DMyCmrS3t2pe… scored 20 ≥ threshold 4 — pot paid run.runner, no referee"
+    }
+  }
+}

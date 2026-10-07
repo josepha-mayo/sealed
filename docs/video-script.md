@@ -26,7 +26,7 @@ the whole arc end-to-end; this script splits it into narrated segments.
 | 1:50 | Resolution | `market resolve` → `claim` + leaderboard | "Permissionless settle straight off `Run.correct`. Winner withdraws. No oracle operator, no admin key." |
 | 1:55 | Audit beat | `chain reveal` + `chain verify`, then the hosted explorer's audit panel auto-running — green checks ending on the calibration rescore | "Need to audit a score? The authority declassifies answer *fingerprints* — never plaintext. And you don't have to trust this page: the hosted explorer re-derives every PDA, replays every resolution, and recomputes the MPC's arithmetic on a public calibration exam — in your browser, right now." |
 | 2:00 | Specimen beat | explorer calibration card: 32 rows, canonical answer vs two models' outputs, discrimination line | "This is a real exam the enclave sealed then revealed on purpose: qwen-3b scored 7 of 32, the 1.5b scored 2 — and the matrix shows exactly which five items separate them. Every hash on this table was recomputed live." |
-| 2:10 | The attack | forgery lab: press "forge a +1 score" — the mutated leaderboard card dies at the *aggregates* check, live | "Don't take our word for the checks — run the attack. Seven forgeries, seven named catches." |
+| 2:10 | The attack | forgery lab: press "forge a +1 score" — the mutated leaderboard card dies at the *aggregates* check, live | "Don't take our word for the checks — run the attack. Twelve canned attacks, twelve named catches — and the tamper/ exhibit pins eleven forged artifacts that verify by being REJECTED." |
 | 2:20 | The one hash | `chain fingerprint` → `BUNDLE ROOT`, then the devnet anchor receipt | "The whole evidence base — every bank, run, settlement, artifact — is one sha256, and that root is timestamped on Solana devnet. Change one byte of our evidence and the hash breaks." |
 | 2:30 | Close | leaderboard + grant trail | "A benchmark nobody can read, scored by nobody in particular — and a market that settles itself." |
 
@@ -95,7 +95,7 @@ the demo. Screen-record the hosted explorer only:
 | Time | Beat | Show | Say |
 |---|---|---|---|
 | 0:00 | One URL | https://josepha-mayo.github.io/sealed/?mega=1 | "One link — no wallet, no node, no RPC key. Watch the whole evidence base prove itself." |
-| 0:02 | The cascade | megares rows landing: account audit → 127 artifacts → forgery sweep | "Every account PDA re-derived, every committed proof replayed, every lab attack caught — in your browser, ~5 seconds." |
+| 0:02 | The cascade | megares rows landing: account audit → 138 artifacts → forgery sweep | "Every account PDA re-derived, every committed proof replayed, every lab attack caught — in your browser, ~5 seconds." |
 | 0:08 | The scoreboard | EVERYTHING VERIFIED — 13 audit passes · 12 artifact groups · 12/12 forgeries caught | "Nothing trusted — including the page itself: it re-hashes its own bytes against the manifest." |
 | 0:14 | The artifact | ?card= link: pick a bounty card, watch the account bind | "One JSON file is a whole claim — bounty, bettor, grant, exam — and it verifies itself against the chain bytes." |
 | 0:20 | The second language | `python3 scripts/verify.py` + `--tamper` | "Don't trust our TypeScript — ~330 lines of stdlib Python re-derives the same root and unpacks the account bytes itself." |

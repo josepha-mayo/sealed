@@ -342,13 +342,13 @@ for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /127\/127 artifacts replayed in-page/.test(bundleTxt) &&
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /138\/138 artifacts replayed in-page/.test(bundleTxt) &&
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
   /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt) &&
   /sealed-bank\/v1 — 3\/3/.test(bundleTxt) && /sealed-catalog\/v1 — 1\/1/.test(bundleTxt) &&
   /sealed-position\/v1 — 2\/2/.test(bundleTxt) && /sealed-bounty\/v1 — 2\/2/.test(bundleTxt) &&
-  /sealed-grant\/v1 — 2\/2/.test(bundleTxt);
-console.log(`in-page bundle replay — 127 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+  /sealed-grant\/v1 — 2\/2/.test(bundleTxt) && /sealed-tamper\/v1 — 11\/11/.test(bundleTxt);
+console.log(`in-page bundle replay — 138 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // the hero stat: SOL settled by MPC-written scores — must render a real
 // lamports total, not a blank cell.
@@ -395,7 +395,7 @@ if (!statOk) fails++;
 // fetch, route through the universal verifier, land on the verdict.
 {
   ctx.location.search = "?card=banks/sealed-gen.json";
-  await vm.runInContext("maybeAudit.__proto__ ? 0 : 0; window.__auditKey=''; maybeAudit()", ctx);
+  await vm.runInContext("maybeAudit.__proto__ ? 0 : 0; __deepLinksDone=false; maybeAudit()", ctx);
   await new Promise((r) => setTimeout(r, 400));
   const noteTxt = els.get("artifactnote")?.innerHTML ?? "";
   const bankTxt = (els.get("bankres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
@@ -409,8 +409,8 @@ if (!statOk) fails++;
 {
   const catTxt = (els.get("catalog")?.innerHTML ?? "");
   const catLinks = (catTxt.match(/\?card=/g) || []).length;
-  const catOk = /126 artifacts/.test(catTxt) && catLinks === 127 && /sealed-grant\/v1/.test(catTxt);
-  console.log(`in-page evidence catalog — ${catLinks} ?card= links across 8 kinds ${catOk ? "PASS" : "FAIL"}`);
+  const catOk = /137 artifacts/.test(catTxt) && catLinks === 138 && /sealed-tamper\/v1/.test(catTxt);
+  console.log(`in-page evidence catalog — ${catLinks} ?card= links across 13 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
 }
 // the 60-second judge path — the three hero buttons must actually work:
@@ -432,19 +432,36 @@ if (!statOk) fails++;
   els.get("catalogjson").value = readFileSync(join(ROOT, "web", "artifacts.json"), "utf8");
   await vm.runInContext("verifyCatalog()", ctx);
   const cv = (els.get("catres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-  const cvOk = /CATALOG VERIFIED/.test(cv) && /126 listed \/ 126 found/.test(cv) && /126\/126 paths pinned/.test(cv);
+  const cvOk = /CATALOG VERIFIED/.test(cv) && /137 listed \/ 137 found/.test(cv) && /137\/137 paths pinned/.test(cv);
   console.log(`in-page catalog verifier — the index proves itself ${cvOk ? "PASS" : "FAIL — " + cv.slice(0, 300)}`);
   if (!cvOk) fails++;
 }
 // the ?forge= deep link — a URL that runs the attack itself.
 {
   ctx.location.search = "?forge=phanrun";
-  await vm.runInContext("window.__auditKey=''; maybeAudit()", ctx);
+  await vm.runInContext("__deepLinksDone=false; maybeAudit()", ctx);
   await new Promise((r) => setTimeout(r, 500));
   const fr = await vm.runInContext("__forgeOut['phanrun']", ctx);
   const forgeLinkOk = fr?.state === "caught" && /run surface/.test(fr.check ?? "");
   console.log(`in-page ?forge= deep link — attack ran and died at a named check ${forgeLinkOk ? "PASS" : "FAIL"}`);
   if (!forgeLinkOk) fails++;
+  ctx.location.search = "?snapshot=bundled";
+}
+// the ?tamper= deep link — a URL that replays a committed forged artifact
+// and lands on FORGERY CAUGHT at the named check recorded at mint time.
+{
+  ctx.location.search = "?tamper=qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json";
+  await vm.runInContext("__deepLinksDone=false; maybeAudit()", ctx);
+  // trail verify is the heaviest inner check (ed25519 PDA math per venue) —
+  // poll until the exhibit lands its verdict.
+  let tr = "";
+  for (let i = 0; i < 40 && !/EXHIBIT (VERIFIED|FAILED)/.test(tr); i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    tr = (els.get("tamperres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+  }
+  const tamperLinkOk = /EXHIBIT VERIFIED/.test(tr) && /inner forgery rejected/.test(tr);
+  console.log(`in-page ?tamper= deep link — exhibit replayed, inner lie died at its named check ${tamperLinkOk ? "PASS" : "FAIL"}`);
+  if (!tamperLinkOk) fails++;
   ctx.location.search = "?snapshot=bundled";
 }
 // guided tour — the bar opens on the first stop with its caption, and
@@ -562,13 +579,13 @@ const gridOk = gridRows === 12 && /qwen2\.5-3b-instruct/.test(gridHtml) &&
 console.log(`in-page tournament grid — ${gridRows}×12 cells, signed deltas ${gridOk ? "PASS" : "FAIL"}`);
 if (!gridOk) fails++;
 // the one-click centerpiece — megaAudit() must cascade all three stages
-// (account audit, 127-artifact replay, full forgery sweep) into a final
+// (account audit, 138-artifact replay, full forgery sweep) into a final
 // EVERYTHING VERIFIED scoreboard.
 await vm.runInContext("megaAudit()", ctx);
 const megaHtml = els.get("megares")?.innerHTML ?? "";
 const megaStages = (megaHtml.match(/class="proof"/g) || []).length;
 const megaOk = megaStages === 3 && /EVERYTHING VERIFIED/.test(megaHtml) &&
-  /127/.test(els.get("bundleres")?.innerHTML ?? "");
+  /138/.test(els.get("bundleres")?.innerHTML ?? "");
 console.log(`in-page PROVE EVERYTHING — 3 stages cascade to the scoreboard ${megaOk ? "PASS" : "FAIL"}`);
 if (!megaOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);

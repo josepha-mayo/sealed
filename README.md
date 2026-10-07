@@ -25,7 +25,7 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # trail → its feed → a venue's book → an actor's P&L
 > yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
 >   --snapshot ../../web/snapshot.json
->                                  # THE one command — all 127 committed artifacts
+>                                  # THE one command — all 138 committed artifacts
 >                                  # (claims, matches, policies, trails, reports,
 >                                  # digest, board, exams, positions, bounties) replayed keyless; non-artifacts skipped
 > yarn --cwd packages/harness cli chain fingerprint
@@ -44,7 +44,7 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # forges each card kind, asserts the catch
 > ```
 >
-> **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) opens with a **60-second judge path** (verify the leaderboard card → watch a forgery die → replay all 127 proofs, three clicks), or take the whole thing with you: [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 5.8MB file that verifies offline, forever, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
+> **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) opens with a **60-second judge path** (verify the leaderboard card → watch a forgery die → replay all 138 proofs, three clicks), or take the whole thing with you: [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 5.8MB file that verifies offline, forever, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
 >
 > The second command is the one nobody else ships: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **bit-identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
 
@@ -310,7 +310,7 @@ sealed chain prove --all --out claims/ && sealed chain prove --verify claims/
                                                                      # the whole registry as verifiable artifacts — 31 cards, all replayed
 sealed chain prove --verify claim.json --min-pct 60 --min-runs 3       # verifier-composable — authentic AND sufficient for YOUR policy
 sealed chain report <model> --out report.md                          # sealed-report/v1 — the dossier as a printable document
-sealed chain artifact docs/evidence --recursive                      # THE one command — all 127 artifacts replayed, non-artifacts skipped
+sealed chain artifact docs/evidence --recursive                      # THE one command — all 138 artifacts replayed, non-artifacts skipped
 sealed chain fingerprint                                             # THE one hash — every pinned byte re-hashed → one BUNDLE ROOT
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence

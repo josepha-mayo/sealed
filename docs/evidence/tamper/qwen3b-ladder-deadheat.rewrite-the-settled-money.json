@@ -1,0 +1,117 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "rewrite the settled money",
+  "targetKind": "sealed-trail/v1",
+  "targetCard": "qwen3b-ladder-deadheat.json",
+  "expectFail": [
+    "venue binding",
+    "pool accounting"
+  ],
+  "forgedAt": "2026-10-07T16:22:16.648Z",
+  "forged": {
+    "kind": "sealed-trail/v1",
+    "generatedAt": "2026-10-07T15:50:13.750Z",
+    "source": "../../web/snapshot.json",
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "run": {
+      "pk": "5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw",
+      "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+      "index": 0,
+      "modelId": "qwen2.5-3b-instruct",
+      "status": 1,
+      "correct": 6,
+      "chunkCount": 1,
+      "postReveal": false,
+      "runner": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "createdAt": 1790767276
+    },
+    "bank": {
+      "pk": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+      "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+      "id": 87635,
+      "name": "sealed-gen-v87635",
+      "kind": 1,
+      "itemsRoot": "6c823331dafe10e108c5e1d1c6f75fb34e9f76e7692bffd857b2b530b154e933"
+    },
+    "receipt": null,
+    "venues": [
+      {
+        "kind": "dark",
+        "pk": "BrFdXAxYgqNHnkGzDJfRsnteDfYRTUD7T9pZMmoD6v3v",
+        "seeds": {
+          "run": "5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw",
+          "salt": 636
+        },
+        "status": 1,
+        "resolvedScore": 6,
+        "tallied": true,
+        "poolTotal": 180000001,
+        "winTotal": 110000000,
+        "revealedCount": 1,
+        "forfeitTotal": 70000000
+      },
+      {
+        "kind": "ladder",
+        "pk": "A4fMA7eKKC6gJ7pDJAaGJcmgYfWiA64mWxu4aUZmHMHw",
+        "seeds": {
+          "firstLeg": "5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw",
+          "salt": 635
+        },
+        "status": 1,
+        "legIndex": 0,
+        "legCount": 4,
+        "resultMask": 3,
+        "totals": [
+          170000000,
+          100000000,
+          80000000,
+          60000000,
+          0,
+          0,
+          0,
+          0
+        ],
+        "legs": [
+          {
+            "pk": "5YKpcbn5UF87gvSbq6PjbY5Sx3VCsDsPyK3m6BsVNsCw",
+            "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+            "index": 0,
+            "status": 1,
+            "correct": 6
+          },
+          {
+            "pk": "VYqznmpjmSdkknCpPGFJ2MjB7nyy8ckRbRDrRffxErL",
+            "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+            "index": 1,
+            "status": 1,
+            "correct": 6
+          },
+          {
+            "pk": "7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj",
+            "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+            "index": 2,
+            "status": 1,
+            "correct": 1
+          },
+          {
+            "pk": "BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7",
+            "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+            "index": 3,
+            "status": 1,
+            "correct": 0
+          }
+        ]
+      }
+    ],
+    "verdict": {
+      "venuesTotal": 2,
+      "resolvedVenues": 2,
+      "scoreMismatches": 0,
+      "poolsLamports": 590000000
+    }
+  }
+}

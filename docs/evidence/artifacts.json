@@ -1,7 +1,7 @@
 {
   "kind": "sealed-catalog/v1",
   "root": "../../docs/evidence",
-  "count": 126,
+  "count": 137,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
@@ -13,6 +13,7 @@
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
     "sealed-report/v1": 4,
+    "sealed-tamper/v1": 11,
     "sealed-trail/v1": 4
   },
   "artifacts": [
@@ -625,6 +626,61 @@
       "path": "reports/qwen2.5-3b-instruct.md",
       "kind": "sealed-report/v1",
       "title": "qwen2.5-3b-instruct"
+    },
+    {
+      "path": "tamper/board.inflate-a-receipt-s-score.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: inflate a receipt's score → board.json"
+    },
+    {
+      "path": "tamper/board.swap-the-1-rank.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: swap the #1 rank → board.json"
+    },
+    {
+      "path": "tamper/board.un-vouch-an-attested-receipt.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: un-vouch an attested receipt → board.json"
+    },
+    {
+      "path": "tamper/claimed-20of32.steal-the-bounty-below-threshold.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: steal the bounty below threshold → claimed-20of32.json"
+    },
+    {
+      "path": "tamper/min60-3runs.flip-a-model-s-gate-verdict.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: flip a model's gate verdict → min60-3runs.json"
+    },
+    {
+      "path": "tamper/qwen3b-ladder-deadheat.rewrite-the-settled-money.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: rewrite the settled money → qwen3b-ladder-deadheat.json"
+    },
+    {
+      "path": "tamper/qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: substitute the oracle — rewrite the MPC's score → qwen3b-ladder-deadheat.json"
+    },
+    {
+      "path": "tamper/qwen3b-private-duel.rewrite-the-settled-money.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: rewrite the settled money → qwen3b-private-duel.json"
+    },
+    {
+      "path": "tamper/qwen3b-private-duel.substitute-the-oracle-rewrite-the-mpc-s-score.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: substitute the oracle — rewrite the MPC's score → qwen3b-private-duel.json"
+    },
+    {
+      "path": "tamper/sealed-priv-first.redirect-the-disclosure-to-another-viewer.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: redirect the disclosure to another viewer → sealed-priv-first.json"
+    },
+    {
+      "path": "tamper/winning-band.inflate-a-winning-stake.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: inflate a winning stake → winning-band.json"
     },
     {
       "path": "trails/qwen3b-bounty-claim.json",
