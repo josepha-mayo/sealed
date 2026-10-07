@@ -241,6 +241,15 @@ if (!anyReportOk) fails++;
   const dropOk = note.includes("my-copy.json") && (els.get("bountyres")?.innerHTML ?? "").includes("BOUNTY VERIFIED");
   console.log(`in-page file-drop verifier — judge's own copy routed + verified ${dropOk ? "PASS" : "FAIL"}`);
   if (!dropOk) fails++;
+  // "forge this card" on the JUDGE'S bytes — the kind's canned mutation
+  // must offer itself on foreign input and die at a named check
+  const forgeLinkOk = /forgeThis\('claimwin'\)/.test(note);
+  await vm.runInContext("forgeThis('claimwin')", ctx);
+  await new Promise((r) => setTimeout(r, 600));
+  const ft = els.get("artifactnote")?.innerHTML ?? "";
+  const forgeThisOk = forgeLinkOk && /FORGERY CAUGHT/.test(ft) && /your bytes/i.test(ft);
+  console.log(`in-page forge-your-card — canned attack on the judge's bytes dies at a named check ${forgeThisOk ? "PASS" : "FAIL"}`);
+  if (!forgeThisOk) fails++;
   const forged = { ...JSON.parse(real), bounty: { ...JSON.parse(real).bounty, winningScore: 4 } };
   vm.runInContext(`__dropF = __dropFile("forged.json", ${JSON.stringify(JSON.stringify(forged))})`, ctx);
   await vm.runInContext("loadArtifactFile(__dropF)", ctx);

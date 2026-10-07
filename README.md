@@ -34,14 +34,22 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # notarized on devnet (docs/evidence-anchor.json
 >                                  # holds a memo tx whose payload IS the root —
 >                                  # verify via its explorer link, zero tooling)
-> python3 scripts/verify.py        # don't trust our TypeScript? ~700 lines of
->                                  # stdlib-only Python re-hashes everything,
->                                  # re-derives the PDAs with real ed25519 math,
->                                  # unpacks the account bytes itself, and
->                                  # replays the trail cards end-to-end
+> python3 scripts/verify.py        # don't trust our TypeScript? stdlib-only
+>                                  # Python re-hashes the bundle, re-derives
+>                                  # every PDA with real ed25519 math, unpacks
+>                                  # the raw account bytes itself, and replays
+>                                  # ALL 138 artifacts — board, claims,
+>                                  # matches, policies, trails, exams, digest
 > python3 scripts/verify.py --tamper
 >                                  # the verifier catches its own lies —
 >                                  # forges each card kind, asserts the catch
+> python3 scripts/verify.py --decrypt
+>                                  # a THIRD language reads the sealed exam —
+>                                  # x25519 + Rescue ported; the delegate's
+>                                  # grants decrypt and re-encrypt bit-exact
+> python3 scripts/verify.py --check-anchor
+>                                  # fetch the devnet memo tx over plain
+>                                  # JSON-RPC — the ledger carries the root
 > ```
 >
 > **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) opens with a **60-second judge path** (verify the leaderboard card → watch a forgery die → replay all 138 proofs, three clicks), or take the whole thing with you: [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).

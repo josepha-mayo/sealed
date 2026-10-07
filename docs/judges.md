@@ -468,6 +468,14 @@ python3 scripts/verify.py --decrypt
 #         → all four grants decrypt · 32 item specs recovered · sha256 of the
 #           spec set matches the JavaScript pin — the sealed exam is
 #           readable by three independent implementations
+#
+#     and --check-anchor fetches the devnet notarization back over plain
+#     JSON-RPC (stdlib urllib — no Solana SDK): the memo tx must carry
+#     the claimed BUNDLE ROOT, at the claimed slot, paid by the claimed
+#     wallet — then compared against the CURRENT tree:
+python3 scripts/verify.py --check-anchor
+#         → ANCHOR VERIFIED — memo, slot, blockTime, and fee payer all
+#           echo the anchor doc; the anchored root IS the current root
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     6.6MB file: the page, the snapshot, all 138 artifacts, both

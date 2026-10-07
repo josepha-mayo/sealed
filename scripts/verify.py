@@ -85,6 +85,12 @@ the 4 markdown reports — replays under this second implementation.
                                         # decrypt in stdlib Python, and
                                         # re-encryption reproduces the
                                         # committed ciphertext bytes
+  python3 scripts/verify.py --check-anchor
+                                        # the one networked mode: plain
+                                        # JSON-RPC over urllib fetches the
+                                        # devnet memo tx and proves the
+                                        # ledger carries the claimed
+                                        # BUNDLE ROOT — no Solana SDK
 """
 
 import base64
@@ -2263,9 +2269,83 @@ def tamper_demo():
     return all_ok
 
 
+def check_anchor():
+    """--check-anchor: fetch the notarization memo tx back from devnet and
+    prove the chain carries the claimed BUNDLE ROOT — stdlib urllib +
+    JSON-RPC only, no Solana SDK, no node. Mirrors `chain fingerprint
+    --check-anchor`; needs network (the only mode that is not offline)."""
+    import urllib.request
+    ok = True
+    a = json.loads((ROOT / "docs" / "evidence-anchor.json").read_text())
+    if a.get("kind") != "sealed-anchor/v1":
+        check("anchor doc", False, f"kind={a.get('kind')}")
+        return False
+    print(f"sealed-anchor/v1 — {a.get('signature', '?')[:24]}…")
+    url = a.get("cluster") or "https://api.devnet.solana.com"
+    body = json.dumps({
+        "jsonrpc": "2.0", "id": 1, "method": "getTransaction",
+        "params": [a["signature"], {"encoding": "json", "commitment": "confirmed",
+                                    "maxSupportedTransactionVersion": 0}],
+    }).encode()
+    try:
+        req = urllib.request.Request(url, data=body,
+                                     headers={"Content-Type": "application/json"})
+        res = json.loads(urllib.request.urlopen(req, timeout=30).read())
+    except Exception as e:
+        check("on-chain fetch", False, f"{url}: {e}")
+        return False
+    tx = res.get("result")
+    if not tx:
+        check("on-chain fetch", False, f"{a['signature']} not found on {url}")
+        return False
+    ok &= check("on-chain fetch", True,
+                f"tx found on {url.replace('https://', '')} — slot {tx.get('slot')}")
+    memo = None
+    for log in (tx.get("meta") or {}).get("logMessages") or []:
+        m = re.match(r'^Program log: Memo \(len \d+\): "(.*)"$', log)
+        if m:
+            memo = m.group(1)
+    ok &= check("memo on-chain", memo == a.get("memo"),
+                f'the ledger carries "{memo}" — timestamped slot {tx.get("slot")}'
+                if memo == a.get("memo") else f'got "{memo}", wanted "{a.get("memo")}"')
+    declared = f"sealed-fingerprint/v1 {a.get('bundleRoot')}"
+    ok &= check("root in memo", memo == declared,
+                "the memo embeds the claimed BUNDLE ROOT"
+                if memo == declared else f'memo="{memo}" ≠ "{declared}"')
+    sig = ((tx.get("transaction") or {}).get("signatures") or [None])[0]
+    ok &= check("signature echo", sig == a.get("signature"),
+                "tx.transaction.signatures[0] matches the anchor doc")
+    ok &= check("slot + blockTime echo",
+                tx.get("slot") == a.get("slot") and tx.get("blockTime") == a.get("blockTime"),
+                f"slot {tx.get('slot')} · blockTime {tx.get('blockTime')}"
+                if tx.get("slot") == a.get("slot") else
+                f"doc claims slot {a.get('slot')}, chain says {tx.get('slot')}")
+    keys = ((tx.get("transaction") or {}).get("message") or {}).get("accountKeys") or []
+    payer = keys[0] if keys and isinstance(keys[0], str) else \
+        (keys[0] or {}).get("pubkey") if keys else None
+    ok &= check("payer echo", payer == a.get("payer"),
+                f"fee payer {str(payer)[:16]}… is the anchoring wallet"
+                if payer == a.get("payer") else f"doc claims {a.get('payer')}, chain says {payer}")
+    # anchors go stale the moment evidence moves — compare against the CURRENT tree
+    sums = ROOT / "docs" / "evidence" / "SHA256SUMS"
+    man = ROOT / "web" / "MANIFEST"
+    cur = hashlib.sha256(
+        f"sealed-fingerprint/v1\n{manifest_root(sums)}\n{manifest_root(man)}\n"
+        .encode()).hexdigest()
+    ok &= check("anchor vs current", cur == a.get("bundleRoot"),
+                "the anchored root IS the current bundle root — evidence unchanged since notarization"
+                if cur == a.get("bundleRoot") else
+                f"DRIFT: anchored {a.get('bundleRoot', '')[:16]}… ≠ current {cur[:16]}… — re-anchor at freeze")
+    print("\n" + ("ANCHOR VERIFIED" if ok else "ANCHOR FAILED") +
+          f" — {a.get('signature')} on {url}")
+    return ok
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--tamper":
         sys.exit(0 if tamper_demo() else 1)
     if len(sys.argv) > 1 and sys.argv[1] == "--decrypt":
         sys.exit(0 if decrypt_demo() else 1)
+    if len(sys.argv) > 1 and sys.argv[1] == "--check-anchor":
+        sys.exit(0 if check_anchor() else 1)
     main()

@@ -42,12 +42,14 @@ jobs:
         run: node scripts/freshness.mjs
       - name: calibration rescore (recompute the MPC's arithmetic offline)
         run: node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json --run docs/evidence/calibration/run-artifact.json --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp --snapshot web/snapshot.json
-      - name: artifact replay — all 123 committed artifacts re-verify in one pass
+      - name: artifact replay — all 138 committed artifacts re-verify in one pass
         run: yarn --cwd packages/harness -s cli chain artifact ../../docs/evidence --recursive --snapshot ../../web/snapshot.json
       - name: bundle fingerprint — every manifest-pinned byte re-hashed
         run: yarn --cwd packages/harness -s cli chain fingerprint
       - name: second-language verdict — stdlib Python recomputes the root + re-derives PDAs
         run: python3 scripts/verify.py && python3 scripts/verify.py --tamper
+      - name: third-language sealed-exam read — Rescue+x25519 ported, grants decrypt bit-exact
+        run: python3 scripts/verify.py --decrypt
       - name: capsule freshness — standalone.html is a byte-current mirror of the pinned bundle
         run: node scripts/gen-standalone.mjs --check
       - name: submission pre-flight

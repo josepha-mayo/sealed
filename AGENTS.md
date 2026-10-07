@@ -62,7 +62,11 @@ parimutuel markets resolved from `Run.correct`.
   MDS, key-schedule permute, CTR mode) — and decrypts the demo
   delegate's ShareGrants a third way; re-encrypting the plaintext
   reproduces the committed ciphertext bytes bit-exact, and the 32-spec
-  digest matches decrypt-grants-test.mjs's pin.
+  digest matches decrypt-grants-test.mjs's pin. `--check-anchor` is the
+  one networked mode — plain JSON-RPC over stdlib urllib fetches the
+  devnet memo tx and proves the ledger carries the claimed BUNDLE ROOT
+  (memo text, slot, blockTime, fee payer all echoed back), then diffs
+  it against the current tree — no Solana SDK.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.

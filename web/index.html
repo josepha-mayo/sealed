@@ -2664,10 +2664,33 @@ function verifyAnyArtifact() {
     document.getElementById(r[0]).value = raw;
     const cardLink = window.__cardSrc && /^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(window.__cardSrc)
       ? ` · shareable verdict: <a href="?card=${encodeURIComponent(window.__cardSrc)}">?card=${esc(window.__cardSrc)}</a>` : "";
-    note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below${cardLink}`;
+    const fk = Object.keys(FORGE_DEFS).find((k) => FORGE_DEFS[k].ta === r[0]);
+    const forgeLink = fk ? ` · <a href="#" onclick="forgeThis('${fk}');return false">⚔ forge this card</a> — mutate your bytes, watch the check die` : "";
+    note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below${cardLink}${forgeLink}`;
     document.getElementById(r[1]).scrollIntoView({ behavior: "smooth", block: "start" });
     r[2]();
   } catch (e) { note.innerHTML = ` — <span style="color:var(--err)">${esc(e.message ?? String(e))}</span>`; }
+}
+
+// forge a card the JUDGE dropped (not a committed file): apply the kind's
+// canned mutation to the textarea's current bytes and re-run its verifier —
+// the same named check must fire on foreign bytes, not just our fixtures.
+async function forgeThis(k) {
+  const d = FORGE_DEFS[k], note = document.getElementById("artifactnote");
+  const ta = document.getElementById(d.ta);
+  try {
+    const c = d.mutate(JSON.parse(ta.value));
+    ta.value = JSON.stringify(c);
+    note.innerHTML = ` — <b>forged copy of YOUR card</b>: ${esc(d.label)} — re-verifying…`;
+    await d.verify();
+    const m = (document.getElementById(d.res).innerHTML ?? "")
+      .match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
+    note.innerHTML = m
+      ? ` — <span class="pill cancelled">FORGERY CAUGHT</span> ${esc(d.label)} died at the <b>${esc(m[1].trim())}</b> check — on your bytes, not ours`
+      : ` — <span style="color:var(--err)">NOT CAUGHT — the verifier accepted the forgery</span>`;
+  } catch (e) {
+    note.innerHTML = ` — <span class="kv">mutation ${esc(d.label)} doesn't apply to this card's shape (${esc(e.message ?? String(e))})</span>`;
+  }
 }
 
 // The in-page mirror of `chain artifact <tree> --recursive`: fetch every
