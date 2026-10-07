@@ -1443,6 +1443,45 @@ test("sealed-board/v1 — the leaderboard card replays end-to-end; a flipped ran
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("sealed-bank/v1 — the exam card replays: PDAs, the items_root fold, and the full surface; a phantom run fails", async () => {
+  const { bankProve, bankVerify } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    // generated bank — re-mint reproduces the committed card, fold verifies
+    const tmp = join(mkdtempSync(join(tmpdir(), "sealed-bank-")), "b.json");
+    const fresh = (await bankProve("2cwT4xY7e6UDFePX7tB5PoiihJDfFT2kEqefayVtMVxZ", tmp, snapPath)) as any;
+    const committed = JSON.parse(readFileSync(new URL("../../../docs/evidence/banks/sealed-gen.json", import.meta.url).pathname, "utf8"));
+    assert.equal(JSON.stringify({ ...fresh, generatedAt: "", source: "" }),
+      JSON.stringify({ ...committed, generatedAt: "", source: "" }));
+    const ok = (await bankVerify(tmp, false, snapPath)) as any;
+    assert.equal(ok.fail, 0);
+    assert.equal(ok.pass, 8);
+    // the PRIVATE bank's ciphertext fold replays too — no key needed
+    const tmp2 = join(mkdtempSync(join(tmpdir(), "sealed-bankp-")), "b.json");
+    await bankProve("5pMZYs5Ny978dBifpNmfF4MthtRENz6fnk6SGiTFjLfa", tmp2, snapPath);
+    const okp = (await bankVerify(tmp2, false, snapPath)) as any;
+    assert.equal(okp.fail, 0);
+    // a phantom run fails the run surface (PDA derivation + completeness)
+    const tampered = JSON.parse(readFileSync(tmp, "utf8"));
+    tampered.runs.push({ ...tampered.runs[0], index: 999, pk: "11111111111111111111111111111111" });
+    const bad = join(mkdtempSync(join(tmpdir(), "sealed-bankb-")), "bad.json");
+    writeFileSync(bad, JSON.stringify(tampered));
+    process.exitCode = 0;
+    const r2 = (await bankVerify(bad, false, snapPath)) as any;
+    assert.equal(r2.fail > 0, true);
+    process.exitCode = 0;
+    // routes through the universal verifier
+    const { artifactVerify } = await import("../src/chain.js");
+    const routed = (await artifactVerify(tmp, false, snapPath)) as any;
+    assert.equal(routed.fail, 0);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+
 test("sealed-fingerprint/v1 — the bundle root re-hashes every pinned file and breaks on a one-bit change", async () => {
   const { chainFingerprint } = await import("../src/chain.js");
   const { readFileSync, writeFileSync, mkdtempSync, mkdirSync } = await import("node:fs");

@@ -249,8 +249,30 @@ const boardTamperTxt = (els.get("boardres")?.innerHTML ?? "").replace(/<[^>]+>/g
 const boardTamperOk = /BOARD FAILED/.test(boardTamperTxt);
 console.log(`in-page board tamper case — swapped rank rejected ${boardTamperOk ? "PASS" : "MISSED FAIL"}`);
 if (!boardTamperOk) fails++;
+// the exam card — bank PDA, the items_root fold replayed in landing order
+// from decoded chunk bytes, and the full run/receipt/disclosure surface.
+await vm.runInContext("loadBank('sealed-gen.json')", ctx);
+await new Promise((r) => setTimeout(r, 60));
+await vm.runInContext("verifyBank()", ctx);
+await new Promise((r) => setTimeout(r, 150));
+const bankTxt = (els.get("bankres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const bankOk = /BANK VERIFIED/.test(bankTxt) && /bank PDA/.test(bankTxt) &&
+  /items_root fold/.test(bankTxt) && /run surface/.test(bankTxt) && /snapshot binding/.test(bankTxt);
+console.log(`in-page bank verifier — committed sealed-bank card ${bankOk ? "PASS" : "FAIL"}`);
+if (!bankOk) console.log(`  bankres: ${bankTxt.slice(0, 900)}`);
+if (!bankOk) fails++;
+// the PRIVATE bank's ciphertext fold replays too — no key needed
+await vm.runInContext("loadBank('sealed-priv.json')", ctx);
+await new Promise((r) => setTimeout(r, 60));
+await vm.runInContext("verifyBank()", ctx);
+await new Promise((r) => setTimeout(r, 150));
+const bankPrivTxt = (els.get("bankres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
+const bankPrivOk = /BANK VERIFIED/.test(bankPrivTxt) && /re-folded in landing order/.test(bankPrivTxt);
+console.log(`in-page bank verifier — private-bank ciphertext fold ${bankPrivOk ? "PASS" : "FAIL"}`);
+if (!bankPrivOk) console.log(`  bankres: ${bankPrivTxt.slice(0, 900)}`);
+if (!bankPrivOk) fails++;
 // the forgery lab — every canned attack must die at a named check.
-for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts"]) {
+for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun"]) {
   await vm.runInContext(`forge(${JSON.stringify(k)})`, ctx);
   await new Promise((r) => setTimeout(r, 400));
   const r = await vm.runInContext(`__forgeOut[${JSON.stringify(k)}]`, ctx);
@@ -263,10 +285,11 @@ for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /117\/117 artifacts replayed in-page/.test(bundleTxt) &&
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /120\/120 artifacts replayed in-page/.test(bundleTxt) &&
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
-  /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt);
-console.log(`in-page bundle replay — 117 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+  /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt) &&
+  /sealed-bank\/v1 — 3\/3/.test(bundleTxt);
+console.log(`in-page bundle replay — 120 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // the hero stat: SOL settled by MPC-written scores — must render a real
 // lamports total, not a blank cell.
@@ -312,7 +335,7 @@ const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/17/.test(tourStep2) &&
+const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/18/.test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;

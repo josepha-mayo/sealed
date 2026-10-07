@@ -74,7 +74,8 @@ emit "gate --certify-verify docs/evidence/policies/min60-3runs.json" "gate --cer
 emit "prove --verify docs/evidence/claims/qwen2.5-3b-instruct.json" "prove --verify ../../docs/evidence/claims/qwen2.5-3b-instruct.json"
 emit "prove --verify docs/evidence/claims/ladder_model-a.json --min-pct 20" "prove --verify ../../docs/evidence/claims/ladder_model-a.json --min-pct 20"
 emit "board --verify docs/evidence/board.json $SNAP   (the leaderboard as a card)" "board --verify ../../docs/evidence/board.json $SNAP"
-emit "artifact docs/evidence --recursive $SNAP   (the one command — 117 artifacts)" "artifact ../../docs/evidence --recursive $SNAP"
+emit "bank --verify docs/evidence/banks/sealed-priv.json $SNAP   (the exam as a card — ciphertext fold, no key)" "bank --verify ../../docs/evidence/banks/sealed-priv.json $SNAP"
+emit "artifact docs/evidence --recursive $SNAP   (the one command — 120 artifacts)" "artifact ../../docs/evidence --recursive $SNAP"
 emit "diff web/snapshot.json web/snapshot.json   (integrity self-check)" "diff ../../web/snapshot.json ../../web/snapshot.json"
 {
   printf '\n$ sealed chain fingerprint   (the one hash — every pinned byte re-checked)\n'

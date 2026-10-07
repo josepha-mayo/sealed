@@ -1,0 +1,102 @@
+{
+  "kind": "sealed-bank/v1",
+  "generatedAt": "2026-10-07T11:08:48.637Z",
+  "source": "../../web/snapshot.json",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ"
+  },
+  "bank": {
+    "pk": "5pMZYs5Ny978dBifpNmfF4MthtRENz6fnk6SGiTFjLfa",
+    "authority": "4RUW4pDm38PEoVAfGe61vCbQLEJdbA9t5Je6kswmyhDc",
+    "id": 20176,
+    "name": "sealed-priv",
+    "kind": 2,
+    "items": 32,
+    "chunkCount": 1,
+    "chunksSealed": 1,
+    "itemsRoot": "858709c261ce9798e5e5771e9e8724dc45be24989f0b2787ecbcce827a7014dc",
+    "feeLamports": 0,
+    "runCount": 2,
+    "revealCount": 0,
+    "createdAt": 1790740088,
+    "status": 1
+  },
+  "chunks": {
+    "public": [],
+    "private": [
+      {
+        "pk": "H7uoTrgcMMhsfWJUoiASvYC43hn98jzvcGeGUYe9civc",
+        "index": 0,
+        "partsWritten": 15,
+        "mintOrder": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    ]
+  },
+  "runs": [
+    {
+      "pk": "6KEdZ8f1m1P4Sz9tuHmGv8WJkzKaLDyRBvLnS7md4jss",
+      "index": 0,
+      "modelId": "test/priv-oracle",
+      "status": 1,
+      "correct": 21,
+      "postReveal": 0,
+      "scoredMask": 1,
+      "finalizedAt": 1790740116
+    },
+    {
+      "pk": "956voAupVKsgf1bSrMy3ahTMugkfXLkkMxvHR2kU5MCm",
+      "index": 1,
+      "modelId": "delegate/runner-1",
+      "status": 1,
+      "correct": 19,
+      "postReveal": 0,
+      "scoredMask": 1,
+      "finalizedAt": 1790740150
+    }
+  ],
+  "receipts": [],
+  "reveals": [],
+  "grants": [
+    {
+      "pk": "FwMo7JSTu86TVQjdwuizCksnu5ve3s4ujb97QTw88euB",
+      "chunkIndex": 0,
+      "part": 0,
+      "viewer": "5Gcyd1ka9GHV5naFN8SxCijeazKJHtj5txPzP9UKEV1E",
+      "sharedAt": 1790740131
+    },
+    {
+      "pk": "43MinSTWASRg5aieS96xnZ1D5o9utb7eMpqkjFNsi2XQ",
+      "chunkIndex": 0,
+      "part": 0,
+      "viewer": "5NeYQKJ17YiZj99RF3PP5uihyzh3884iY6mRPWvgfaSV",
+      "sharedAt": 1790740136
+    },
+    {
+      "pk": "FgHfbjPYYCkfQ9sWj4kwNMJwcv3dorvrcH5qokLVCVj8",
+      "chunkIndex": 0,
+      "part": 1,
+      "viewer": "5NeYQKJ17YiZj99RF3PP5uihyzh3884iY6mRPWvgfaSV",
+      "sharedAt": 1790740139
+    },
+    {
+      "pk": "ECrKcPcBUN5wLyFvJ9EmHeDfSjt6McBkXqg6jNFEk7Ba",
+      "chunkIndex": 0,
+      "part": 2,
+      "viewer": "5NeYQKJ17YiZj99RF3PP5uihyzh3884iY6mRPWvgfaSV",
+      "sharedAt": 1790740142
+    },
+    {
+      "pk": "HwJNkU4BTVYmGGY9pf6z1AH1poUZJS871juXG59QPHxt",
+      "chunkIndex": 0,
+      "part": 3,
+      "viewer": "5NeYQKJ17YiZj99RF3PP5uihyzh3884iY6mRPWvgfaSV",
+      "sharedAt": 1790740145
+    }
+  ],
+  "snapshot": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079"
+}

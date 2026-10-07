@@ -219,17 +219,17 @@ masks re-derive, pool accounting recomputes. Four committed cards in
 the same checks in-page.
 `chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json]` is
 the universal verifier — auto-detects any
-`sealed-claim|policy|match|trail|report|evidence-digest|board/v1`
+`sealed-claim|policy|match|trail|report|evidence-digest|board|bank/v1`
 payload and
 routes it to the right replay. A directory verifies every artifact in
-it, mixing kinds freely; `--recursive` walks the whole tree (117
+it, mixing kinds freely; `--recursive` walks the whole tree (120
 artifacts in `docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any
 failure; non-artifact files are skipped, not failed). Reports need
 `--snapshot` (or live RPC) to re-mint their bound claim card; digests
 and board cards need it to replay against the decoded accounts. The explorer's
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
-in-browser — all 117 committed artifacts driven through their own
+in-browser — all 120 committed artifacts driven through their own
 in-page check lists with live progress, ending in the bundle root.
 `chain board --prove <f> --snapshot <f2>` mints `sealed-board/v1` —
 the paired-evidence leaderboard as a portable card (record identities,
@@ -238,9 +238,22 @@ verdict, W-L-T tallies, the Wilson-LCB order, and the snapshot binding);
 `chain board --verify <f>` replays all seven checks keyless, and the
 explorer's "verify the leaderboard card" section replays the same
 in-page (committed: `docs/evidence/board.json`, served at `web/board.json`).
+`chain bank <pk|name> --prove <f> --snapshot <f2>` mints
+`sealed-bank/v1` — the exam as a portable card: the bank PDA and every
+declared field, all item-chunk PDAs (`items`/`pitems` seeds), the
+`items_root` fold replayed from the pinned chunk bytes in `mint_order`
+landing order (`genItemsFold` over spec bytes for generated banks,
+`privItemsFold` over ciphertext+nonce for private banks — the private
+commitment verifies without the key), and the run/receipt/reveal/grant
+surfaces completeness-checked against the snapshot. `chain bank
+--verify <f|dir>` replays all eight checks keyless (committed: three
+cards at `docs/evidence/banks/` — one per commitment regime — served
+at `web/banks/`; the explorer's "verify an exam card" replays the same
+in-page). Snapshot-only by design: a card that can't bind to pinned
+bytes isn't evidence.
 `chain fingerprint` reduces the entire evidence base to one sha256 —
 `BUNDLE ROOT` = sha256 over the evidence + web manifests after
-re-hashing every pinned file (296 entries; exit 1 on any mismatch).
+re-hashing every pinned file (304 entries; exit 1 on any mismatch).
 The in-page replay prints the same root, so the terminal and the
 browser agree on one hash for the whole submission.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`

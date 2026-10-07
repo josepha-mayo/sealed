@@ -181,6 +181,8 @@ async function main() {
   sealed chain diff <a.json> <b.json>                      two bundles — account deltas + both integrity verdicts
   sealed chain feed [--limit N] [--type a,b] [--since t] [--pk k] [--model id] [--bank b]  the activity stream — runs, venues, resolutions in time order
   sealed chain bank <pk|name>                              one benchmark's dossier — spec, runs, venues, reveals
+  sealed chain bank <pk|name> --prove <f> --snapshot <f>    mint sealed-bank/v1 — the exam as a verifiable artifact
+  sealed chain bank --verify <file|dir> [--snapshot f]      replay a bank card — PDAs, items_root fold, full surface
   sealed chain wallet <pk>                                 one address's footprint — banks, runs, venues, positions, grants
   sealed chain runs [--bank b] [--model m] [--min-pct n] [--attested] [--post-reveal]  # the run substrate — who scored what where
   sealed chain compare <A> <B>                             head-to-head on shared benchmarks, paired deltas

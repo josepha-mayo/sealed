@@ -42,13 +42,14 @@ import {
   privBankFromSpecs,
   privItemsRoot,
   renderPrompt,
+  specBytes,
   unpackSpecs,
   type ItemChunkState,
   type ItemSpec,
   type PrivItemChunkState,
 } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
-import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex } from "./hash.js";
+import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex, genItemsFold, privItemsFold } from "./hash.js";
 import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type GateCheck, type ScoreReceipt } from "./gate.js";
 import { classifyBoard, proven, type BoardRun } from "./board.js";
 import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount } from "./snapshot.js";
@@ -2699,6 +2700,276 @@ export async function boardVerify(file: string, json = false, snapPath?: string)
   return { ok, pass, fail };
 }
 
+/** `chain bank <pk> --prove <f>` — mint `sealed-bank/v1`: one exam as a
+ *  portable evidence card. Claims/boards cover the model axis, trails the
+ *  money axis — the bank card covers the EXAM axis: the items_root
+ *  commitment, every item-chunk PDA that fed the fold (in true landing
+ *  order), and the complete run/reveal/grant surface the bank provably
+ *  has. Snapshot-only: a card that can't bind to pinned bytes isn't
+ *  evidence. */
+export async function bankProve(bankKey: string, out: string, snapPath?: string) {
+  if (!snapPath) throw new Error("bank cards are snapshot-only — the exam they claim must be pinned bytes");
+  const snap = loadSnapshotJson(snapPath);
+  const ss = decodeSnapshotSection(snap, "sealed");
+  const spid = sealedProgramId();
+  const banks = snapOf(ss, "Benchmark");
+  const bank = banks.find((x) => x.publicKey.toBase58() === bankKey || x.account.name === bankKey);
+  if (!bank) throw new Error(`no benchmark named/addressed ${bankKey} in snapshot`);
+  const pk = bank.publicKey.toBase58();
+  const B = bank.account as any;
+  const onBank = (a: any) => (a.account.benchmark as PublicKey)?.toBase58() === pk;
+  const items = snapOf(ss, "ItemChunk").filter(onBank)
+    .map((c) => ({ pk: c.publicKey.toBase58(), index: Number(c.account.index),
+      partsWritten: Number(c.account.partsWritten), mintOrder: (c.account.mintOrder as any[]).map(Number) }))
+    .sort((a, b) => a.index - b.index);
+  const privs = snapOf(ss, "PrivItemChunk").filter(onBank)
+    .map((c) => ({ pk: c.publicKey.toBase58(), index: Number(c.account.index),
+      partsWritten: Number(c.account.partsWritten), mintOrder: (c.account.mintOrder as any[]).map(Number) }))
+    .sort((a, b) => a.index - b.index);
+  const runs = snapOf(ss, "Run").filter(onBank)
+    .map((r) => ({ pk: r.publicKey.toBase58(), index: Number(r.account.index), modelId: String(r.account.modelId),
+      status: Number(r.account.status), correct: Number(r.account.correct), postReveal: Number(r.account.postReveal ?? 0),
+      scoredMask: Number(r.account.scoredMask ?? 0), finalizedAt: Number(r.account.finalizedAt ?? 0) }))
+    .sort((a, b) => a.index - b.index);
+  const receipts = snapOf(ss, "ScoreLog").filter(onBank)
+    .map((l) => ({ pk: l.publicKey.toBase58(), run: (l.account.run as PublicKey).toBase58(),
+      modelRecord: (l.account.modelRecord as PublicKey).toBase58(),
+      correct: Number(l.account.correct), items: Number(l.account.items),
+      vouched: Number(l.account.vouchedAtRecord ?? 0), postReveal: Number(l.account.postReveal ?? 0),
+      recordedAt: Number(l.account.recordedAt) }))
+    .sort((a, b) => a.recordedAt - b.recordedAt || a.pk.localeCompare(b.pk));
+  const reveals = snapOf(ss, "Reveal").filter(onBank)
+    .map((r) => ({ pk: r.publicKey.toBase58(), chunkIndex: Number(r.account.chunkIndex),
+      part: Number(r.account.part), revealedAt: Number(r.account.revealedAt) }))
+    .sort((a, b) => a.chunkIndex - b.chunkIndex || a.part - b.part);
+  const grants = snapOf(ss, "ShareGrant").filter(onBank)
+    .map((g) => ({ pk: g.publicKey.toBase58(), chunkIndex: Number(g.account.chunkIndex),
+      part: Number(g.account.part), viewer: new PublicKey(g.account.viewer).toBase58(),
+      sharedAt: Number(g.account.sharedAt) }))
+    .sort((a, b) => a.chunkIndex - b.chunkIndex || a.part - b.part || a.viewer.localeCompare(b.viewer));
+  const card = {
+    kind: "sealed-bank/v1",
+    generatedAt: new Date().toISOString(),
+    source: snapPath,
+    programs: { sealed: spid.toBase58() },
+    bank: {
+      pk, authority: (B.authority as PublicKey).toBase58(), id: Number(B.id),
+      name: String(B.name), kind: Number(B.kind), items: Number(B.chunkCount) * CHUNK,
+      chunkCount: Number(B.chunkCount), chunksSealed: Number(B.chunksSealed),
+      itemsRoot: Buffer.from(B.itemsRoot).toString("hex"),
+      feeLamports: Number(B.feeLamports), runCount: Number(B.runCount),
+      revealCount: Number(B.revealCount ?? 0), createdAt: Number(B.createdAt), status: Number(B.status),
+    },
+    chunks: { public: items, private: privs },
+    runs, receipts, reveals, grants,
+    snapshot: createHash("sha256").update(readFileSync(snapPath)).digest("hex"),
+  };
+  writeFileSync(out, JSON.stringify(card, null, 2) + "\n");
+  console.log(`wrote ${out} — sealed-bank/v1: ${B.name} · ${items.length + privs.length} item chunks · ${runs.length} runs · ${receipts.length} receipts · ${reveals.length} reveals · ${grants.length} grants; verify: chain bank --verify ${out} --snapshot ${snapPath}`);
+  return card;
+}
+
+/** `chain bank --verify <f> [--snapshot f2]` — replay a sealed-bank/v1
+ *  card: bank PDA + fields, every item-chunk PDA, the items_root fold
+ *  re-run from the pinned account bytes in landing order (generated:
+ *  spec bytes; private: ciphertext+nonce — authored banks carry no
+ *  on-chain fold to replay), and the full run/receipt/reveal/grant
+ *  surface checked for completeness against the snapshot. */
+export async function bankVerify(file: string, json = false, snapPath?: string): Promise<any> {
+  const { statSync, readdirSync } = await import("node:fs");
+  if (statSync(file).isDirectory()) {
+    let okAll = true, n = 0;
+    for (const f of readdirSync(file).filter((x) => x.endsWith(".json") && x !== "index.json").sort()) {
+      const r = await bankVerify(`${file}/${f}`, json, snapPath); okAll &&= r.ok; n++;
+    }
+    if (!json) console.log(`${okAll ? "ALL VERIFIED" : "FAILED"} — ${n} bank card(s)`);
+    return { ok: okAll, pass: n, fail: okAll ? 0 : n };
+  }
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-bank/v1") throw new Error("not a sealed-bank/v1 artifact");
+  const spid = sealedProgramId();
+  const lines: string[] = [];
+  let pass = 0, fail = 0;
+  const note = (ok: boolean, label: string, detail = "") => { lines.push(`${ok ? "✓" : "✗"} ${label}${detail ? ` — ${detail}` : ""}`); ok ? pass++ : fail++; };
+
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const raw = new Map<string, Buffer>((snap?.sealed ?? []).map((e: any) => [e.pubkey, Buffer.from(e.data, "base64")]));
+
+  // [1] bank identity — PDA re-derives from [benchmark, authority, u32le(id)].
+  const [bankPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("benchmark"), new PublicKey(card.bank.authority).toBuffer(), u32le(card.bank.id)], spid);
+  note(bankPda.toBase58() === card.bank.pk, "bank PDA", `[benchmark, authority, id=${card.bank.id}] → ${card.bank.pk.slice(0, 8)}…`);
+
+  // [2] chunk set — every listed chunk PDA re-derives, and the card's
+  // enumeration is COMPLETE vs the snapshot (no chunk can hide).
+  let cBad = 0;
+  for (const c of card.chunks.public) {
+    const [pda] = PublicKey.findProgramAddressSync([Buffer.from("items"), bankPda.toBuffer(), u16le(c.index)], spid);
+    if (pda.toBase58() !== c.pk) cBad++;
+  }
+  for (const c of card.chunks.private) {
+    const [pda] = PublicKey.findProgramAddressSync([Buffer.from("pitems"), bankPda.toBuffer(), u16le(c.index)], spid);
+    if (pda.toBase58() !== c.pk) cBad++;
+  }
+  let complete = true, bound = 0;
+  if (ss) {
+    const onBank = (a: any) => (a.account.benchmark as PublicKey)?.toBase58() === card.bank.pk;
+    const realI = snapOf(ss, "ItemChunk").filter(onBank), realP = snapOf(ss, "PrivItemChunk").filter(onBank);
+    const cardSet = new Set([...card.chunks.public, ...card.chunks.private].map((c: any) => c.pk));
+    const realSet = new Set([...realI, ...realP].map((c) => c.publicKey.toBase58()));
+    complete = cardSet.size === realSet.size && [...cardSet].every((k) => realSet.has(k));
+    for (const [list, real] of [[card.chunks.public, realI], [card.chunks.private, realP]] as const) {
+      const rMap = new Map(real.map((c) => [c.publicKey.toBase58(), c]));
+      for (const c of list) {
+        const r = rMap.get(c.pk);
+        if (r && Number(r.account.index) === c.index && Number(r.account.partsWritten) === c.partsWritten &&
+            JSON.stringify((r.account.mintOrder as any[]).map(Number)) === JSON.stringify(c.mintOrder)) bound++;
+      }
+    }
+  }
+  note(cBad === 0 && complete && (!ss || bound === card.chunks.public.length + card.chunks.private.length),
+    "chunk set", `${card.chunks.public.length} items + ${card.chunks.private.length} pitems PDAs re-derive${ss ? ` · ${bound} field-bound · complete` : ""}`);
+
+  // [3] items_root — replay the on-chain fold from the PINNED account
+  // bytes in mint_order landing sequence. Generated banks fold spec
+  // bytes; private banks fold ciphertexts+nonces — both proofs that the
+  // commitment equals exactly these chunks, nothing else.
+  let foldMsg = "no snapshot — fold not replayed", foldOk = !!snapPath;
+  if (snapPath) {
+    const foldable = card.chunks.public.length ? card.chunks.public : card.chunks.private;
+    const priv = !card.chunks.public.length && card.chunks.private.length > 0;
+    if (!foldable.length) {
+      foldMsg = `authored bank — items_root is an externally-committed merkle root (no on-chain fold); bound to account field`;
+      foldOk = true;
+    } else {
+      try {
+        const steps: { seq: number; ci: number; part: number; bytes: Uint8Array }[] = [];
+        for (const c of foldable) {
+          const buf = raw.get(c.pk);
+          if (!buf) { foldOk = false; foldMsg = `chunk ${c.pk.slice(0, 8)}… not in snapshot`; break; }
+          const st = priv ? decodePrivItemChunk(buf) : decodeItemChunk(buf);
+          for (let part = 0; part * PART < CHUNK; part++) {
+            if (!(st.partsWritten & (1 << part))) continue;
+            const bytes = priv
+              ? (() => { const s = st as PrivItemChunkState; const e = new Uint8Array(2 * 32 + 16);
+                  for (let k = 0; k < 2; k++) e.set(s.ciphertexts[part * 2 + k], k * 32);
+                  const nb = new Uint8Array(16); let n = s.nonces[part];
+                  for (let i = 0; i < 16; i++) { nb[i] = Number(n & 0xffn); n >>= 8n; }
+                  e.set(nb, 64); return e; })()
+              : (() => { const s = st as ItemChunkState; const b = new Uint8Array(PART * 5);
+                  for (let k = 0; k < PART; k++) b.set(specBytes(s.specs[part * PART + k]), k * 5); return b; })();
+            steps.push({ seq: st.mintOrder[part], ci: c.index, part, bytes });
+          }
+        }
+        if (foldOk) {
+          let root: Uint8Array = new Uint8Array(32);
+          for (const s of steps.sort((a, b) => a.seq - b.seq))
+            root = priv ? privItemsFold(root, s.ci, s.part, s.bytes) : genItemsFold(root, s.ci, s.part, s.bytes);
+          const got = Buffer.from(root).toString("hex");
+          foldOk = got === card.bank.itemsRoot;
+          foldMsg = `${steps.length} parts re-folded in landing order → ${got.slice(0, 12)}… ${got === card.bank.itemsRoot ? "== items_root" : `!= items_root ${card.bank.itemsRoot.slice(0, 12)}…`}`;
+        }
+      } catch (e) { foldOk = false; foldMsg = `fold replay threw: ${(e as Error).message}`; }
+    }
+  }
+  note(foldOk, "items_root fold", foldMsg);
+
+  // [4] bank fields — every declared field equals the decoded account.
+  let fBad = 0;
+  if (ss) {
+    const real = snapOf(ss, "Benchmark").find((x) => x.publicKey.toBase58() === card.bank.pk)?.account;
+    if (!real) fBad++;
+    else {
+      const cmp = (a: any, b: any) => String(a) === String(b);
+      if (!cmp(real.authority.toBase58(), card.bank.authority) || !cmp(real.id, card.bank.id) ||
+          !cmp(real.name, card.bank.name) || !cmp(real.kind, card.bank.kind) ||
+          !cmp(real.chunkCount, card.bank.chunkCount) || !cmp(real.chunksSealed, card.bank.chunksSealed) ||
+          Buffer.from(real.itemsRoot).toString("hex") !== card.bank.itemsRoot ||
+          !cmp(real.feeLamports, card.bank.feeLamports) || !cmp(real.runCount, card.bank.runCount) ||
+          !cmp(real.revealCount ?? 0, card.bank.revealCount) || !cmp(real.createdAt, card.bank.createdAt) ||
+          !cmp(real.status, card.bank.status)) fBad++;
+    }
+    note(fBad === 0, "bank fields", "authority · id · name · kind · counts · items_root · fee · status all equal the decoded account");
+  }
+
+  // [5] run surface — PDAs re-derive + completeness vs snapshot.
+  let rBad = 0;
+  for (const r of card.runs) {
+    const [pda] = PublicKey.findProgramAddressSync([Buffer.from("run"), bankPda.toBuffer(), u64le(BigInt(r.index))], spid);
+    if (pda.toBase58() !== r.pk) rBad++;
+  }
+  let rBound = 0;
+  if (ss) {
+    const realRuns = new Map(snapOf(ss, "Run").filter((r) => (r.account.benchmark as PublicKey).toBase58() === card.bank.pk)
+      .map((r) => [r.publicKey.toBase58(), r]));
+    if (realRuns.size !== card.runs.length) rBad++;
+    for (const r of card.runs) {
+      const real = realRuns.get(r.pk)?.account;
+      if (real && Number(real.index) === r.index && String(real.modelId) === r.modelId &&
+          Number(real.status) === r.status && Number(real.correct) === r.correct &&
+          Number(real.postReveal ?? 0) === r.postReveal) rBound++;
+      else rBad++;
+    }
+  }
+  note(rBad === 0, "run surface", `${card.runs.length} runs — PDAs re-derive${ss ? ` · ${rBound} field-bound · complete` : ""}`);
+
+  // [6] disclosure surface — reveals + grants re-derive and enumerate
+  // completely: the card claims "this is EVERYTHING disclosed on this exam".
+  let dBad = 0;
+  for (const r of card.reveals) {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("reveal"), bankPda.toBuffer(), u16le(r.chunkIndex), Uint8Array.of(r.part)], spid);
+    if (pda.toBase58() !== r.pk) dBad++;
+  }
+  for (const g of card.grants) {
+    const [pda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("grant"), bankPda.toBuffer(), u16le(g.chunkIndex), Uint8Array.of(g.part), new PublicKey(g.viewer).toBuffer()], spid);
+    if (pda.toBase58() !== g.pk) dBad++;
+  }
+  if (ss) {
+    const onBank = (a: any) => (a.account.benchmark as PublicKey)?.toBase58() === card.bank.pk;
+    if (snapOf(ss, "Reveal").filter(onBank).length !== card.reveals.length) dBad++;
+    if (snapOf(ss, "ShareGrant").filter(onBank).length !== card.grants.length) dBad++;
+  }
+  note(dBad === 0, "disclosure surface", `${card.reveals.length} reveals + ${card.grants.length} grants — PDAs re-derive${ss ? " · counts complete" : ""}`);
+
+  // [7] receipts — every ScoreLog on this bank enumerated + field-bound.
+  let lBad = 0;
+  if (ss) {
+    const real = new Map(snapOf(ss, "ScoreLog").filter((l) => (l.account.benchmark as PublicKey).toBase58() === card.bank.pk)
+      .map((l) => [l.publicKey.toBase58(), l]));
+    if (real.size !== card.receipts.length) lBad++;
+    for (const l of card.receipts) {
+      const r = real.get(l.pk)?.account;
+      if (!r || (r.run as PublicKey).toBase58() !== l.run ||
+          (r.modelRecord as PublicKey).toBase58() !== l.modelRecord ||
+          Number(r.correct) !== l.correct || Number(r.items) !== l.items ||
+          Number(r.vouchedAtRecord ?? 0) !== l.vouched || Number(r.postReveal ?? 0) !== l.postReveal ||
+          Number(r.recordedAt) !== l.recordedAt) lBad++;
+    }
+  }
+  note(!ss || lBad === 0, "receipt surface", `${card.receipts.length} score receipts on this bank — field-bound${ss ? " · complete" : ""}`);
+
+  // [8] snapshot binding.
+  if (snapPath) {
+    const digest = createHash("sha256").update(readFileSync(snapPath)).digest("hex");
+    note(digest === card.snapshot, "snapshot binding", `sha256(${basename(snapPath)}) == card.snapshot`);
+  }
+
+  const ok = fail === 0;
+  if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
+  else {
+    console.log(`sealed-bank/v1 — ${basename(file)}`);
+    for (const l of lines) console.log(`  ${l}`);
+    console.log(ok
+      ? `BANK VERIFIED — ${card.bank.name} · ${card.chunks.public.length + card.chunks.private.length} chunks · ${card.runs.length} runs · ${card.reveals.length} reveals · ${card.grants.length} grants`
+      : "BANK FAILED");
+  }
+  if (!ok) process.exitCode = 1;
+  return { ok, pass, fail };
+}
+
 /** `chain compare --matrix [--top N] [--min-shared K]` — the N×N
  *  tournament table: every pair's shared-bank verdict as a cell.
  *  Leaderboards tell you who's ahead; the grid shows WHO beat WHOM —
@@ -3381,6 +3652,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
     "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
     "sealed-board/v1": (f) => boardVerify(f, json, snapPath),
+    "sealed-bank/v1": (f) => bankVerify(f, json, snapPath),
   };
   if (statSync(target).isDirectory()) {
     const isArtifactFile = (f: string) => (f.endsWith(".json") || f.endsWith(".md")) &&
@@ -6782,6 +7054,15 @@ export async function chainMain(cmd: string[], args: Args) {
     return;
   }
   if (sub === "bank") {
+    if (args.verify) {
+      await bankVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
+    if (args.prove) {
+      if (!args.snapshot) throw new Error("bank cards claim a pinned ledger — pass --snapshot <f>");
+      await bankProve(String(cmd[1] ?? ""), String(args.prove), String(args.snapshot));
+      return;
+    }
     await bankShow(String(cmd[1] ?? ""), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
     return;
   }

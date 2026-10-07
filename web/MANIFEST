@@ -1,4 +1,8 @@
-b9c616ddd2cd07faa1475b4ddaac25bc331d96fb79d5db44ebc97bf5764999b8  ./SHA256SUMS
+f03e33c227890cd01a28d1fa6134feddcef55a34ee80cace8d5a670f09bc7c97  ./SHA256SUMS
+7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
+0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json
+db7c424be2ec98137a1dfd38fe7377d61fa4b0166cb813e3c29f87d250c42eb2  ./banks/sealed-priv.json
+cac90190b6e5b1b8933bac468c18efe2e14b35465588bba2ce7e3930279fe3a3  ./banks/sealed-test.json
 debf82b008d50d4f1fca8c37ab1528aeb4e3c4f8d38ffae9bee0e626f4cbca49  ./board.json
 8931f035672887dce836f5d53fe11790fa3c23f669eb4406560fa7f3cfa19ebd  ./calibration/bank.json
 3d5b6b008634a78c3bd5a371827dd834ca9c28659a57438cdaf5d40433574bd2  ./calibration/run-artifact-15b.json
@@ -37,7 +41,7 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
 fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
-2a52d3c942d6a6f9573492dd51a88061a8d705743b62f60f7d86cae0faae9ec4  ./index.html
+405f8a96e6d2dfeb177536eb6c1c971d84d911cf3a0a3accd7865c4c2ea6ecae  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json

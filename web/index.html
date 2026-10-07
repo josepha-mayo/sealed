@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="A benchmark whose answer key was never written down, scored by nobody in particular — MPC-generated exams, on-chain score receipts, and prediction markets that settle without a referee. Replay the whole evidence base keyless.">
 <meta property="og:title" content="Sealed — the leaderboard you don't have to trust">
-<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 117 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base.">
+<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 120 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://josepha-mayo.github.io/sealed/">
 <meta name="twitter:card" content="summary">
@@ -86,7 +86,7 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -115,7 +115,7 @@
 
 <h2 id="sec-artifact">verify anything</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/v1</code>, <code>sealed-policy/v1</code>, <code>sealed-match/v1</code>, <code>sealed-trail/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
+  <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
   <textarea id="artifactjson" rows="6" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}'></textarea>
   <button onclick="verifyAnyArtifact()">verify artifact</button>
   <span id="artifactnote" class="kv"></span>
@@ -197,6 +197,17 @@
   <div id="boardres"></div>
 </div>
 
+<h2 id="sec-bankcard">verify an exam card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the exam itself as evidence — a <code>sealed-bank/v1</code> card (<code>chain bank &lt;pk&gt; --prove</code> mints it) binds one benchmark&#8217;s entire footprint: the <code>items_root</code> commitment re-folded part-by-part from the pinned chunk bytes in landing order (spec bytes for generated banks, ciphertext+nonce for private ones — no key needed to prove the commitment), every item-chunk and run PDA re-derived, and the full reveal/grant surface checked for completeness. The private card is the sharpest one: the commitment verifies <i>without decrypting anything</i>. Same checks as <code>chain bank --verify</code>.</div>
+  <div><select id="bankpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed exam card —</option></select>
+  <button onclick="loadBank(document.getElementById('bankpick').value || 'sealed-gen.json')">load card</button>
+  <span class="kv">three committed cards — one per commitment regime: authored · generated · private</span></div>
+  <div><textarea id="bankjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-bank/v1",…}'></textarea></div>
+  <button onclick="verifyBank()">verify exam card</button>
+  <div id="bankres"></div>
+</div>
+
 <h2 id="sec-forge">the forgery lab — try to break it</h2>
 <div class="card">
   <div class="kv" style="margin-bottom:8px">don&#8217;t take the checks on faith — <b>run the attack</b>. Each button mutates a committed artifact the way a cheater would, then hands the forged card straight to the same in-page verifier. Every forgery must die at a named check; if one ever says VERIFIED, the artifact scheme is broken. The full check list renders in the target section below the verdict.</div>
@@ -208,6 +219,7 @@
     <button onclick="forge('phantom')">mint a phantom receipt</button>
     <button onclick="forge('pool')">inflate a settled pool</button>
     <button onclick="forge('counts')">re-age the ledger</button>
+    <button onclick="forge('phanrun')">mint a phantom run</button>
   </div>
   <div id="forgeres"></div>
 </div>
@@ -2378,6 +2390,20 @@ async function loadTrailIndex() {
   } catch (e) { /* picker stays on the default option */ }
 }
 loadTrailIndex();
+async function loadBankIndex() {
+  const sel = document.getElementById("bankpick");
+  if (!sel) return;
+  try {
+    const r = await fetch("banks/index.json");
+    if (!r.ok) throw new Error(String(r.status));
+    for (const f of await r.json()) {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = f.replace(/\.json$/, "");
+      sel.appendChild(o);
+    }
+  } catch (e) { /* picker stays on the default option */ }
+}
+loadBankIndex();
 // universal artifact router — mirrors `chain artifact <file>`: detect the
 // sealed-*/v1 kind, hand the payload to that kind's verifier + section.
 function verifyAnyArtifact() {
@@ -2395,9 +2421,10 @@ function verifyAnyArtifact() {
       "sealed-report/v1": ["reportjson", "sec-report", verifyReport],
       "sealed-evidence-digest/v1": ["digestjson", "sec-digest", verifyDigest],
       "sealed-board/v1": ["boardjson", "sec-boardcard", verifyBoard],
+      "sealed-bank/v1": ["bankjson", "sec-bankcard", verifyBank],
     };
     const r = kind ? ROUTE[kind] : null;
-    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/v1)`; return; }
+    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1)`; return; }
     document.getElementById(r[0]).value = raw;
     note.innerHTML = ` — detected <code>${esc(kind)}</code>, routed to its verifier below`;
     document.getElementById(r[1]).scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2418,6 +2445,7 @@ async function replayBundle() {
     ["matches", "matchjson", "matchres", verifyMatch, "sealed-match/v1"],
     ["trails", "trailjson", "trailres", verifyTrail, "sealed-trail/v1"],
     ["reports", "reportjson", "reportres", verifyReport, "sealed-report/v1"],
+    ["banks", "bankjson", "bankres", verifyBank, "sealed-bank/v1"],
   ];
   const rows = [];
   let total = 0, passed = 0, checks = 0;
@@ -2850,6 +2878,186 @@ async function verifyBoard() {
   }
 }
 
+async function loadBank(name) {
+  const ta = document.getElementById("bankjson");
+  try {
+    const r = await fetch(`banks/${name}`);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text();
+  } catch (e) { ta.value = ""; document.getElementById("bankres").innerHTML = `<div class="kv">committed card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+// sealed-bank/v1 verifier — mirrors `chain bank --verify`: the exam as
+// portable evidence. The bank PDA re-derives from [benchmark, authority,
+// id]; every item/priv chunk PDA re-derives and the enumeration must be
+// complete vs the decoded accounts; the items_root commitment re-folds
+// part-by-part in mint_order landing sequence (generated banks fold spec
+// bytes — "sealed/v1/genitems\0"; private banks fold ciphertext+nonce —
+// "sealed/v1/privitems\0", no key needed); and the run/receipt/reveal/
+// grant surfaces field-compare against the decoded accounts.
+async function verifyBank() {
+  const res = document.getElementById("bankres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("bankjson").value);
+    if (c.kind !== "sealed-bank/v1") throw new Error(`not a sealed-bank/v1 card (kind=${c.kind ?? "?"})`);
+    const A = window.__audit;
+    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
+    const u16 = (n) => { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, n, true); return b; };
+    const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
+    const u64 = (n) => { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b; };
+    const cat = (...xs) => { const n = xs.reduce((s, x) => s + x.length, 0), o = new Uint8Array(n); let p = 0; for (const x of xs) { o.set(x, p); p += x.length; } return o; };
+
+    // [1] bank PDA — [benchmark, authority, u32le(id)].
+    const bankPda = pdaB([utf8("benchmark"), pkB(c.bank.authority), u32(c.bank.id)], spid);
+    bankPda === c.bank.pk
+      ? pass("bank PDA", `[benchmark, authority, id=${c.bank.id}] → ${short(c.bank.pk)}`)
+      : fail("bank PDA", `re-derived ${short(bankPda)} ≠ declared ${short(c.bank.pk)}`);
+
+    // [2] chunk set — PDAs re-derive + COMPLETE vs the decoded accounts.
+    let cBad = 0;
+    for (const ch of c.chunks.public ?? [])
+      if (pdaB([utf8("items"), pkB(c.bank.pk), u16(ch.index)], spid) !== ch.pk) cBad++;
+    for (const ch of c.chunks.private ?? [])
+      if (pdaB([utf8("pitems"), pkB(c.bank.pk), u16(ch.index)], spid) !== ch.pk) cBad++;
+    const realI = A.itemChunks.filter(x => x.bench === c.bank.pk), realP = A.privChunks.filter(x => x.bench === c.bank.pk);
+    const cardSet = new Set([...(c.chunks.public ?? []), ...(c.chunks.private ?? [])].map(x => x.pk));
+    const realSet = new Set([...realI, ...realP].map(x => x.pk));
+    const complete = cardSet.size === realSet.size && [...cardSet].every(k => realSet.has(k));
+    let bound = 0;
+    for (const [list, real] of [[c.chunks.public ?? [], realI], [c.chunks.private ?? [], realP]]) {
+      const rm = new Map(real.map(x => [x.pk, x]));
+      for (const ch of list) {
+        const r = rm.get(ch.pk);
+        if (r && r.index === ch.index && r.partsWritten === ch.partsWritten &&
+            JSON.stringify(r.mintOrder) === JSON.stringify(ch.mintOrder)) bound++;
+      }
+    }
+    const nChunks = (c.chunks.public?.length ?? 0) + (c.chunks.private?.length ?? 0);
+    (cBad === 0 && complete && bound === nChunks)
+      ? pass("chunk set", `${c.chunks.public?.length ?? 0} items + ${c.chunks.private?.length ?? 0} pitems PDAs re-derive · ${bound} field-bound · complete`)
+      : fail("chunk set", `${cBad} bad PDAs · ${bound}/${nChunks} field-bound · ${complete ? "" : "NOT "}complete`);
+
+    // [3] items_root — re-fold from the decoded chunk bytes in landing order.
+    {
+      const foldable = (c.chunks.public?.length ? c.chunks.public : c.chunks.private) ?? [];
+      const priv = !(c.chunks.public?.length) && (c.chunks.private?.length > 0);
+      if (!foldable.length) {
+        pass("items_root fold", "authored bank — items_root is an externally-committed merkle root (no on-chain fold); bound to account field");
+      } else {
+        const dom = new Uint8Array([...utf8(priv ? "sealed/v1/privitems" : "sealed/v1/genitems"), 0]);
+        const chMap = new Map([...A.itemChunks, ...A.privChunks].map(x => [x.pk, x]));
+        const steps = [];
+        let foldErr = "";
+        for (const ch of foldable) {
+          const st = chMap.get(ch.pk);
+          if (!st) { foldErr = `chunk ${short(ch.pk)} not decoded`; break; }
+          for (let part = 0; part < 4; part++) {
+            if (!(st.partsWritten & (1 << part))) continue;
+            const bytes = priv
+              ? cat(st.ciphertexts.slice(part * 64, part * 64 + 64), st.nonces.slice(part * 16, part * 16 + 16))
+              : (() => { const b = new Uint8Array(40);
+                  for (let k = 0; k < 8; k++) { const s = st.specs[part * 8 + k]; b.set([s.a, s.b, s.c, s.op0, s.op1], k * 5); }
+                  return b; })();
+            steps.push({ seq: st.mintOrder[part], ci: ch.index, part, bytes });
+          }
+        }
+        if (foldErr) fail("items_root fold", foldErr);
+        else {
+          let root = new Uint8Array(32);
+          for (const s of steps.sort((a, b) => a.seq - b.seq))
+            root = await sha(cat(dom, root, u16(s.ci), new Uint8Array([s.part]), s.bytes));
+          const got = hex(root);
+          got === c.bank.itemsRoot
+            ? pass("items_root fold", `${steps.length} parts re-folded in landing order → ${got.slice(0, 12)}… == items_root`)
+            : fail("items_root fold", `${steps.length} parts → ${got.slice(0, 12)}… ≠ ${String(c.bank.itemsRoot).slice(0, 12)}… — the commitment doesn't fold from these chunks`);
+        }
+      }
+    }
+
+    // [4] bank fields — every declared field equals the decoded account.
+    {
+      const real = A.benches.find(b => b.pk === c.bank.pk);
+      const cmp = (a, b) => String(a) === String(b);
+      const bad = !real || real.authority !== c.bank.authority || real.id !== c.bank.id ||
+        real.name !== c.bank.name || real.kind !== c.bank.kind ||
+        real.chunkCount !== c.bank.chunkCount || real.chunksSealed !== c.bank.chunksSealed ||
+        real.itemsRoot !== c.bank.itemsRoot || !cmp(real.feeLamports, c.bank.feeLamports) ||
+        !cmp(real.runCount, c.bank.runCount) || (A.reveals.filter(r => r.bench === c.bank.pk).length) !== c.bank.revealCount ||
+        real.createdAt !== c.bank.createdAt || real.status !== c.bank.status;
+      !bad ? pass("bank fields", "authority · id · name · kind · counts · items_root · fee · status all equal the decoded account")
+        : fail("bank fields", "declared bank fields differ from the decoded Benchmark account");
+    }
+
+    // [5] run surface — PDAs re-derive + completeness + field binding.
+    {
+      let rBad = 0, rBound = 0;
+      const realRuns = new Map(A.runs.filter(r => r.benchmark === c.bank.pk).map(r => [r.pk, r]));
+      if (realRuns.size !== (c.runs ?? []).length) rBad++;
+      for (const r of c.runs ?? []) {
+        if (pdaB([utf8("run"), pkB(c.bank.pk), u64(r.index)], spid) !== r.pk) { rBad++; continue; }
+        const real = realRuns.get(r.pk);
+        if (real && Number(real.index) === r.index && real.modelId === r.modelId &&
+            real.status === r.status && real.correct === r.correct &&
+            Number(real.postReveal ? 1 : 0) === r.postReveal) rBound++;
+        else rBad++;
+      }
+      rBad === 0
+        ? pass("run surface", `${(c.runs ?? []).length} runs — PDAs re-derive · ${rBound} field-bound · complete`)
+        : fail("run surface", `${rBad} run(s) mismatch — ${rBound}/${(c.runs ?? []).length} field-bound`);
+    }
+
+    // [6] disclosure surface — reveals + grants re-derive, counts complete.
+    {
+      let dBad = 0;
+      for (const r of c.reveals ?? [])
+        if (pdaB([utf8("reveal"), pkB(c.bank.pk), u16(r.chunkIndex), new Uint8Array([r.part])], spid) !== r.pk) dBad++;
+      for (const g of c.grants ?? [])
+        if (pdaB([utf8("grant"), pkB(c.bank.pk), u16(g.chunkIndex), new Uint8Array([g.part]), pkB(g.viewer)], spid) !== g.pk) dBad++;
+      if (A.reveals.filter(r => r.bench === c.bank.pk).length !== (c.reveals ?? []).length) dBad++;
+      if (A.grants.filter(g => g.bench === c.bank.pk).length !== (c.grants ?? []).length) dBad++;
+      dBad === 0
+        ? pass("disclosure surface", `${(c.reveals ?? []).length} reveals + ${(c.grants ?? []).length} grants — PDAs re-derive · counts complete`)
+        : fail("disclosure surface", `${dBad} disclosure row(s) mismatch`);
+    }
+
+    // [7] receipts — every ScoreLog on this bank enumerated + field-bound.
+    {
+      let lBad = 0, lBound = 0;
+      const real = new Map(A.scoreLogs.filter(l => l.benchmark === c.bank.pk).map(l => [l.pk, l]));
+      if (real.size !== (c.receipts ?? []).length) lBad++;
+      for (const l of c.receipts ?? []) {
+        const r = real.get(l.pk);
+        if (r && r.run === l.run && r.modelRecord === l.modelRecord &&
+            r.correct === l.correct && r.items === l.items &&
+            Number(r.vouched ?? 0) === l.vouched && Number(r.postReveal ?? 0) === l.postReveal &&
+            r.recordedAt === l.recordedAt) lBound++;
+        else lBad++;
+      }
+      lBad === 0
+        ? pass("receipt surface", `${(c.receipts ?? []).length} score receipts — field-bound · complete`)
+        : fail("receipt surface", `${lBad} receipt(s) differ from decoded ScoreLogs`);
+    }
+
+    // [8] snapshot binding — the card must name THIS bundle's bytes.
+    {
+      const snapSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await fetch("snapshot.json").then(r => { if (!r.ok) throw new Error("snapshot.json not reachable"); return r.text(); })))));
+      snapSha === c.snapshot
+        ? pass("snapshot binding", `sha256 ${snapSha.slice(0, 16)}… matches the card — bound to THESE bytes`)
+        : fail("snapshot binding", `bundle sha256 ${snapSha.slice(0, 16)}… ≠ declared ${String(c.snapshot).slice(0, 16)}… — this card describes a different ledger`);
+    }
+
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BANK VERIFIED" : "BANK FAILED"}</b> — ${esc(c.bank?.name ?? "?")} · ${nChunks} chunks · ${(c.runs ?? []).length} runs · ${(c.reveals ?? []).length} reveals · ${(c.grants ?? []).length} grants</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
 // the forgery lab — each attack mutates a committed artifact the way a
 // cheater would, then runs it through the same in-page verifier. The
 // output names the check that caught it; a forgery surviving would
@@ -2870,6 +3078,9 @@ const FORGE_DEFS = {
              mutate: (c) => { c.venues[0].poolTotal += 1; return c; } },
   counts:  { label: "re-age the ledger", file: "digest.json", ta: "digestjson", res: "digestres", sec: "sec-digest", verify: verifyDigest,
              mutate: (c) => { c.counts.runs = 9999; return c; } },
+  phanrun: { label: "mint a phantom run on an exam", file: "banks/sealed-gen.json", ta: "bankjson", res: "bankres", sec: "sec-bankcard", verify: verifyBank,
+             mutate: (c) => { const r = JSON.parse(JSON.stringify(c.runs[0]));
+               r.index = 999; r.pk = r.pk.slice(0, -1) + (r.pk.endsWith("x") ? "y" : "x"); c.runs.push(r); return c; } },
 };
 const __forgeOut = {};
 async function forge(k) {
@@ -3020,11 +3231,12 @@ const TOUR_STOPS = [
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
-  ["sec-artifact", "verify anything — then 'replay the whole bundle': 117 committed artifacts"],
+  ["sec-artifact", "verify anything — then 'replay the whole bundle': 120 committed artifacts"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-trail", "the money followed the MPC score — the custody trail, proven"],
   ["sec-digest", "the whole ledger as one document: every count and ledger row re-checked against the bytes you're looking at"],
   ["sec-boardcard", "the leaderboard itself is a portable artifact: ranking, receipts, and pairwise evidence replayed in one card"],
+  ["sec-bankcard", "the exam is evidence too: the items_root commitment re-folds from the chunk bytes — even the private bank proves its commitment without a key"],
   ["sec-forge", "finally — don't trust the checks, run the attack: every forgery dies at a named check"],
 ];
 let __tourIx = -1, __tourTimer = 0;
