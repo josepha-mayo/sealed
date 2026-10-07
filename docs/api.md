@@ -209,14 +209,21 @@ venue's score against `Run.correct`** (duel `resolved_score` unpacked
 `(a << 16) | b`), so a settlement that disagreed with the run would
 print ✗ MISMATCH, not get trusted.
 `chain trail <run-pk> --prove <file>` mints a `sealed-trail/v1` card —
-the money-trail as portable evidence: run/bank/receipt/venue PDA seeds
-plus every settlement field. `chain trail --verify <file|dir> [--json]`
-replays it keyless — every address re-derives, every resolved venue's
-stored score re-checks against `Run.correct`, ladder leg PDAs + argmax
-masks re-derive, pool accounting recomputes. Four committed cards in
-`docs/evidence/trails/` cover every venue kind (mirrored at
-`web/trails/`); the explorer's "verify a trail card" section replays
-the same checks in-page.
+the money-trail as portable evidence: run/bank/receipt/venue PDA seeds,
+every settlement field, `snapshotSha256`, and for dark venues
+`winTotal`/`revealedCount`/`tallied` plus `forfeitTotal` = Σ stake on
+positions whose `revealed` byte never left the 255 sentinel.
+`chain trail --verify <file|dir> [--snapshot <f>] [--json]` replays it
+keyless — every address re-derives, every resolved venue's stored score
+re-checks against `Run.correct`, ladder leg PDAs + argmax masks
+re-derive, pool accounting recomputes. With `--snapshot` it also binds
+every card field to the DECODED account bytes — run fields, the
+seeds-vs-account echo, escrow amounts, and each ladder leg's own Run —
+so a self-consistent forgery still dies at account binding. Four
+committed cards in `docs/evidence/trails/` cover every venue kind
+(mirrored at `web/trails/`); the explorer's "verify a trail card"
+section replays the same checks in-page, and `verify.py`'s trail loop
+replays the whole thing a second time in stdlib Python.
 `chain artifact <file|dir|url> [--recursive] [--snapshot <f>] [--json]` is
 the universal verifier. A hosted `?card=` deep link pastes straight into
 the terminal — `chain artifact "https://josepha-mayo.github.io/sealed/?card=board.json"`

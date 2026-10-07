@@ -1247,7 +1247,7 @@ test("sealed-match/v1 — mint, verify, and a flipped verdict fails", async () =
 test("sealed-trail/v1 — mint, verify, and a mutated pool fails", async () => {
   const { trailProve, trailVerify } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
-  const { writeFileSync, mkdtempSync } = await import("node:fs");
+  const { readFileSync, writeFileSync, mkdtempSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
   const origLog = console.log;
@@ -1261,17 +1261,26 @@ test("sealed-trail/v1 — mint, verify, and a mutated pool fails", async () => {
     assert.equal(card.venues.length, 2);
     assert.deepEqual(card.venues.map((v: any) => v.kind).sort(), ["dark", "ladder"]);
     assert.equal(card.verdict.resolvedVenues, 2);
-    const ok = (await trailVerify(good)) as any;
+    const ok = (await trailVerify(good, false, snapPath)) as any;
     assert.equal(ok.fail, 0);
     card.verdict.poolsLamports += 1;
     const bad = join(dir, "bad.json");
     writeFileSync(bad, JSON.stringify(card));
     process.exitCode = 0;
-    await trailVerify(bad);
+    await trailVerify(bad, false, snapPath);
     assert.equal(process.exitCode, 1);
     process.exitCode = 0;
+    // a consistent lie about the run's score must die at run binding —
+    // the bytes disagree even when the card's arithmetic is coherent
+    const liar = JSON.parse(readFileSync(good, "utf8"));
+    liar.run.correct += 1;
+    const bad2 = join(dir, "liar.json");
+    writeFileSync(bad2, JSON.stringify(liar));
+    const rLiar = (await trailVerify(bad2, false, snapPath)) as any;
+    assert.equal(rLiar.fail > 0, true);
+    process.exitCode = 0;
     // dir batch mode
-    const batch = (await trailVerify(new URL("../../../docs/evidence/trails", import.meta.url).pathname)) as any;
+    const batch = (await trailVerify(new URL("../../../docs/evidence/trails", import.meta.url).pathname, false, snapPath)) as any;
     assert.equal(batch.ok, true);
     assert.equal(batch.cards.length, 4);
   } finally { console.log = origLog; process.exitCode = 0; }
@@ -1626,6 +1635,37 @@ test("sealed-bank/v1 — the exam card replays: PDAs, the items_root fold, and t
     const { artifactVerify } = await import("../src/chain.js");
     const routed = (await artifactVerify(tmp, false, snapPath)) as any;
     assert.equal(routed.fail, 0);
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+
+test("artifact --tamper — the CLI forgery lab: every canned attack dies at a named check", async () => {
+  const { artifactTamper } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const cards = [
+      "docs/evidence/board.json",
+      "docs/evidence/matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json",
+      "docs/evidence/claims/qwen2.5-3b-instruct.json",
+      "docs/evidence/trails/qwen3b-ladder-deadheat.json",
+      "docs/evidence/digest.json",
+      "docs/evidence/banks/sealed-gen.json",
+      "docs/evidence/artifacts.json",
+      "docs/evidence/positions/winning-band.json",
+      "docs/evidence/positions/sealed-dark.json",
+      "docs/evidence/bounties/claimed-20of32.json",
+      "docs/evidence/grants/sealed-priv-first.json",
+      "docs/evidence/policies/min60-3runs.json",
+    ];
+    for (const rel of cards) {
+      process.exitCode = 0;
+      const f = new URL(`../../../${rel}`, import.meta.url).pathname;
+      const r = (await artifactTamper(f, snapPath)) as any;
+      assert.equal(r.ok, true, `${rel}: a forgery verified`);
+      assert.equal(r.caught, r.attacks);
+      process.exitCode = 0;
+    }
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 

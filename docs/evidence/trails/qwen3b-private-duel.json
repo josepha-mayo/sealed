@@ -1,7 +1,8 @@
 {
   "kind": "sealed-trail/v1",
-  "generatedAt": "2026-10-06T16:59:36.702Z",
+  "generatedAt": "2026-10-07T15:50:15.428Z",
   "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
   "programs": {
     "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
     "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"

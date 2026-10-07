@@ -2771,7 +2771,7 @@ async function replayBundle() {
 // receipt PDAs re-derive, every venue PDA re-derives under the market
 // program, each resolved settlement replays against Run.correct, ladder
 // argmax masks re-derive from embedded legs, and pool accounting recomputes.
-function verifyTrail() {
+async function verifyTrail() {
   const res = document.getElementById("trailres");
   const rows = [];
   const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
@@ -2779,6 +2779,12 @@ function verifyTrail() {
   try {
     const c = JSON.parse(document.getElementById("trailjson").value);
     if (c.kind !== "sealed-trail/v1") throw new Error(`not a sealed-trail/v1 card (kind=${c.kind})`);
+    if (c.snapshotSha256) {
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+      gotSha === c.snapshotSha256
+        ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… matches the card — bound to THESE account bytes`)
+        : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}… — this card describes a different ledger`);
+    }
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs.sealed), mpid = new PK(c.programs.market);
     pdaB([utf8("run"), pkB(c.run.benchmark), u64le(c.run.index)], spid) === c.run.pk
@@ -2802,6 +2808,49 @@ function verifyTrail() {
     }).length;
     vOk === c.venues.length ? pass("venue PDAs", `${vOk}/${c.venues.length} re-derived`)
       : fail("venue PDAs", `${vOk}/${c.venues.length} re-derived`);
+    // account binding — the card's fields must equal the decoded account
+    // bytes, not merely be self-consistent (the CLI does the same replay).
+    {
+      const A = window.__audit;
+      const runA = A?.runs.find(r => r.pk === c.run.pk);
+      (!A || !runA) ? fail("run binding", "run not in the loaded snapshot")
+      : (String(runA.correct) === String(c.run.correct) && String(runA.status) === String(c.run.status) &&
+         runA.runner === c.run.runner && String(runA.modelId) === c.run.modelId &&
+         runA.benchmark === c.run.benchmark && !!runA.postReveal === !!c.run.postReveal)
+        ? pass("run binding", "correct · status · runner · model · bank · post_reveal equal the decoded Run")
+        : fail("run binding", "run fields differ from the decoded account bytes");
+      let bOk = 0;
+      const vtype = { band: "markets", duel: "markets", dark: "darkMarkets", ladder: "ladders", bounty: "bounties" };
+      for (const v of c.venues) {
+        const a = (A?.[vtype[v.kind]] ?? []).find(x => x.pk === v.pk);
+        if (!a) { fail(`venue ${v.pk.slice(0, 8)}`, `${v.kind} account not in snapshot`); continue; }
+        const eqs = (x, y) => String(x) === String(y);
+        const seedOk = v.kind === "band" ? a.run === v.seeds.run && eqs(a.salt, v.seeds.salt)
+          : v.kind === "duel" ? a.run === v.seeds.runA && a.runB === v.seeds.runB && eqs(a.salt, v.seeds.salt)
+          : v.kind === "dark" ? a.run === v.seeds.run && eqs(a.salt, v.seeds.salt)
+          : v.kind === "ladder" ? a.legs[0] === v.seeds.firstLeg && eqs(a.salt, v.seeds.salt) && a.legs[v.legIndex] === c.run.pk
+          : a.bank === v.seeds.bank && a.sponsor === v.seeds.sponsor && eqs(a.salt, v.seeds.salt);
+        const moneyOk = v.kind === "bounty" ? eqs(v.amount, a.amount)
+          : v.kind === "dark"
+            ? eqs(v.poolTotal, a.poolTotal) && eqs(v.winTotal, a.winTotal) && eqs(v.revealedCount, a.revealedCount) &&
+              !!v.tallied === !!a.tallied &&
+              eqs(v.forfeitTotal, (A.darkPositions ?? []).filter(p => p.market === v.pk && p.revealed == null)
+                .reduce((s, p) => s + Number(p.amount), 0))
+          : v.totals ? JSON.stringify(v.totals) === JSON.stringify((a.totals ?? []).map(Number))
+          : eqs(v.poolTotal ?? 0, a.poolTotal ?? 0);
+        const scoreOk = v.kind === "bounty"
+          ? eqs(v.status, a.status) && eqs(v.threshold, a.threshold) &&
+            (a.status === 1 ? eqs(v.winningScore, a.winningScore) && v.winnerRun === a.winnerRun : true)
+          : v.kind === "ladder"
+            ? eqs(v.status, a.status) && eqs(v.legCount, a.legCount) &&
+              (a.status === 1 ? eqs(v.resultMask, a.resultMask) : true)
+            : eqs(v.status, a.status) && (a.status === 1 ? eqs(v.resolvedScore, a.resolvedScore) : true) &&
+              (v.outcome == null || a.status !== 1 || eqs(v.outcome, a.outcome));
+        seedOk && moneyOk && scoreOk ? bOk++ : fail(`venue ${v.pk.slice(0, 8)}`, `${v.kind} field(s) differ from account bytes`);
+      }
+      A && (bOk === c.venues.length ? pass("venue binding", `${bOk}/${c.venues.length} venue accounts field-bound`)
+        : fail("venue binding", `${bOk}/${c.venues.length} field-bound`));
+    }
     const resolved = c.venues.filter(v => v.status === 1);
     const sOk = resolved.filter(v =>
       v.kind === "band" ? v.resolvedScore === c.run.correct

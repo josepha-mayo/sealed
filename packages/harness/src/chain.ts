@@ -52,7 +52,7 @@ import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex, genItemsFold, privItemsFold } from "./hash.js";
 import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type GateCheck, type ScoreReceipt } from "./gate.js";
 import { classifyBoard, proven, type BoardRun } from "./board.js";
-import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount } from "./snapshot.js";
+import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount, type SnapMap } from "./snapshot.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -3868,12 +3868,13 @@ export async function trailProve(runPkStr: string, out: string, snapPath?: strin
   const sm = snap ? decodeSnapshotSection(snap, "market") : null;
   const sealedAcct = () => (sealedProgram().program.account as any);
   const marketAcct = () => (marketProgram().market.account as any);
-  const [runs, banks, logs, markets, darks, ladders, bounties]: SnapAccount[][] = ss
+  const [runs, banks, logs, markets, darks, ladders, bounties, darkPoss]: SnapAccount[][] = ss
     ? [snapOf(ss, "Run"), snapOf(ss, "Benchmark"), snapOf(ss, "ScoreLog"),
-       snapOf(sm!, "Market"), snapOf(sm!, "DarkMarket"), snapOf(sm!, "Ladder"), snapOf(sm!, "Bounty")]
+       snapOf(sm!, "Market"), snapOf(sm!, "DarkMarket"), snapOf(sm!, "Ladder"), snapOf(sm!, "Bounty"), snapOf(sm!, "DarkPosition")]
     : await Promise.all([
         sealedAcct().run.all(), sealedAcct().benchmark.all(), sealedAcct().scoreLog.all(),
-        marketAcct().market.all(), marketAcct().darkMarket.all(), marketAcct().ladder.all(), marketAcct().bounty.all()]);
+        marketAcct().market.all(), marketAcct().darkMarket.all(), marketAcct().ladder.all(), marketAcct().bounty.all(),
+        marketAcct().darkPosition.all()]);
   const run = runs.find((r) => r.publicKey.equals(runPk));
   if (!run) throw new Error(`no run at ${runPkStr}`);
   const R = run.account as any;
@@ -3899,10 +3900,17 @@ export async function trailProve(runPkStr: string, out: string, snapPath?: strin
   for (const d of darks) {
     const D = d.account as any;
     if (!(D.run as PublicKey).equals(runPk)) continue;
+    // forfeited stake is real: every dark position on this venue that never
+    // revealed (revealed = 255 sentinel — it stores the revealed BUCKET, not
+    // a bool). Never-revealed stake forfeits into the pot at finalize.
+    const forfeit = darkPoss
+      .filter((p) => (p.account.market as PublicKey).equals(d.publicKey) && num((p.account as any).revealed) === 255)
+      .reduce((s, p) => s + num((p.account as any).amount), 0);
     venues.push({ kind: "dark", pk: d.publicKey.toBase58(),
       seeds: { run: b58(D.run), salt: num(D.salt) },
       status: num(D.status), resolvedScore: num(D.resolvedScore), tallied: !!D.tallied,
-      poolTotal: num(D.poolTotal), revealedCount: num(D.revealedCount), forfeitTotal: num(D.forfeitTotal) });
+      poolTotal: num(D.poolTotal), winTotal: num(D.winTotal),
+      revealedCount: num(D.revealedCount), forfeitTotal: forfeit });
   }
   for (const l of ladders) {
     const L = l.account as any;
@@ -3942,6 +3950,7 @@ export async function trailProve(runPkStr: string, out: string, snapPath?: strin
     kind: "sealed-trail/v1",
     generatedAt: new Date().toISOString(),
     source: snapPath ?? "live",
+    snapshotSha256: snapPath ? createHash("sha256").update(readFileSync(snapPath)).digest("hex") : null,
     programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
     run: { pk: runPkStr, benchmark: b58(R.benchmark), index: num(R.index), modelId: String(R.modelId),
       status: num(R.status), correct: num(R.correct), chunkCount: num(R.chunkCount),
@@ -3963,9 +3972,11 @@ export async function trailProve(runPkStr: string, out: string, snapPath?: strin
 }
 
 /** The per-card trail verifier shared by single-file and directory modes. */
-function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void) {
+function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void,
+  snap?: { ss: SnapMap; sm: SnapMap; sha256?: string }) {
   const sealedId = new PublicKey(card.programs.sealed);
   const marketId = new PublicKey(card.programs.market);
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
   const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
   const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
   const pk = (s: string) => new PublicKey(s);
@@ -3980,6 +3991,9 @@ function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: s
     if (!ok) fails.push(what);
     ok ? pass++ : fail++;
   };
+  if (snap?.sha256 && card.snapshotSha256)
+    check("snapshot binding", snap.sha256 === card.snapshotSha256,
+      `sha256 ${card.snapshotSha256.slice(0, 16)}… pins the card to this exact account set`);
   check("run PDA", dv([Buffer.from("run"), pk(card.run.benchmark).toBuffer(), u64le(card.run.index)]) === card.run.pk,
     `${card.run.pk.slice(0, 12)}… = [run, bank, u64le(${card.run.index})]`);
   if (card.bank)
@@ -3999,6 +4013,60 @@ function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: s
     else rows.push({ what: `venue ${v.pk.slice(0, 8)}`, ok: false, detail: `${v.kind} PDA mismatch` });
   }
   check("venue PDAs", vOk === card.venues.length, `${vOk}/${card.venues.length} re-derived`);
+  // account binding — the card's fields must equal the decoded account
+  // bytes, not merely be self-consistent. A trail card that lies about
+  // the run's score or a venue's escrow dies here.
+  if (snap) {
+    const runA = snapOf(snap.ss, "Run").find((x) => x.publicKey.toBase58() === card.run.pk)?.account as any;
+    check("run binding", !!runA &&
+      String(runA.correct) === String(card.run.correct) &&
+      String(runA.status) === String(card.run.status) &&
+      String(runA.runner) === card.run.runner &&
+      String(runA.modelId) === card.run.modelId &&
+      String(runA.benchmark) === card.run.benchmark &&
+      String(!!runA.postReveal) === String(card.run.postReveal),
+      "correct · status · runner · model · bank · post_reveal equal the decoded Run");
+    const venueType: Record<string, string> = { band: "Market", duel: "Market", dark: "DarkMarket", ladder: "Ladder", bounty: "Bounty" };
+    const darkPoss = snapOf(snap.sm, "DarkPosition");
+    let bOk = 0, bN = 0;
+    const eq = (a: any, b: any) => String(a) === String(b);
+    for (const v of card.venues) {
+      const acct = snapOf(snap.sm, venueType[v.kind] ?? "").find((x) => x.publicKey.toBase58() === v.pk)?.account as any;
+      if (!acct) { rows.push({ what: `venue ${v.pk.slice(0, 8)}`, ok: false, detail: `${v.kind} account not in snapshot` }); continue; }
+      bN++;
+      const b58a = (x: any) => x?.toBase58 ? x.toBase58() : String(x);
+      // the account's own fields must equal the declared seeds — a card
+      // can't claim a salt/run/sponsor that differs from what the account
+      // actually stores.
+      const seedOk = v.kind === "band" ? b58a(acct.run) === v.seeds.run && eq(acct.salt, v.seeds.salt)
+        : v.kind === "duel" ? b58a(acct.run) === v.seeds.runA && b58a(acct.runB) === v.seeds.runB && eq(acct.salt, v.seeds.salt)
+        : v.kind === "dark" ? b58a(acct.run) === v.seeds.run && eq(acct.salt, v.seeds.salt)
+        : v.kind === "ladder" ? b58a((acct.legs as any[])[0]) === v.seeds.firstLeg && eq(acct.salt, v.seeds.salt) &&
+            b58a((acct.legs as any[])[v.legIndex]) === card.run.pk
+        : b58a(acct.bank) === v.seeds.bank && b58a(acct.sponsor) === v.seeds.sponsor && eq(acct.salt, v.seeds.salt);
+      const moneyOk = v.kind === "bounty" ? eq(v.amount, acct.amount)
+        : v.kind === "dark"
+          ? eq(v.poolTotal, acct.poolTotal) && eq(v.winTotal, acct.winTotal) &&
+            eq(v.revealedCount, acct.revealedCount) && eq(!!v.tallied, !!acct.tallied) &&
+            eq(v.forfeitTotal, darkPoss
+              .filter((p) => (p.account.market as PublicKey).equals(pk(v.pk)) && num((p.account as any).revealed) === 255)
+              .reduce((s, p) => s + num((p.account as any).amount), 0))
+          : v.totals ? eq(JSON.stringify(v.totals), JSON.stringify((acct.totals as any[]).map((t: any) => Number(t))))
+          : eq(v.poolTotal ?? 0, acct.poolTotal ?? 0);
+      const scoreOk = v.kind === "bounty"
+        ? eq(v.status, acct.status) && eq(v.threshold, acct.threshold) &&
+          (acct.status === 1 ? eq(v.winningScore, acct.winningScore) && eq(v.winnerRun, acct.winnerRun) : true)
+        : v.kind === "ladder"
+          ? eq(v.status, acct.status) && eq(v.legCount, acct.legCount) &&
+            (acct.status === 1 ? eq(v.resultMask, acct.resultMask) : true)
+          : eq(v.status, acct.status) &&
+            (acct.status === 1 ? eq(v.resolvedScore, acct.resolvedScore) : true) &&
+            (v.outcome == null || acct.status !== 1 || eq(v.outcome, acct.outcome));
+      if (seedOk && moneyOk && scoreOk) bOk++;
+      else rows.push({ what: `venue ${v.pk.slice(0, 8)}`, ok: false, detail: `${v.kind} field(s) differ from account bytes` });
+    }
+    check("venue binding", bOk === bN && bN === card.venues.length, `${bOk}/${card.venues.length} venue accounts field-bound`);
+  }
   const resolved = card.venues.filter((v: any) => v.status === 1);
   let sOk = 0;
   for (const v of resolved) {
@@ -4039,8 +4107,11 @@ function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: s
 
 /** `chain trail --verify <file|dir>` — replay a sealed-trail/v1 card keyless.
  *  A directory batch-verifies every *.json card in it (index.json skipped). */
-export async function trailVerify(file: string, json = false) {
+export async function trailVerify(file: string, json = false, snapPath?: string) {
   const { statSync, readdirSync } = await import("node:fs");
+  const snap = snapPath ? { ss: decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed"),
+    sm: decodeSnapshotSection(loadSnapshotJson(snapPath), "market"),
+    sha256: createHash("sha256").update(readFileSync(snapPath)).digest("hex") } : undefined;
   if (statSync(file).isDirectory()) {
     const files = readdirSync(file).filter((f) => f.endsWith(".json") && f !== "index.json").sort();
     if (!files.length) throw new Error(`no trail cards (*.json) in ${file}`);
@@ -4051,7 +4122,7 @@ export async function trailVerify(file: string, json = false) {
       try {
         const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
         if (card.kind !== "sealed-trail/v1") throw new Error(`kind=${card.kind}`);
-        const r = verifyTrailCard(card);
+        const r = verifyTrailCard(card, undefined, snap);
         results.push({ file: f, model: card.run?.modelId ?? null, ok: r.ok, pass: r.pass, fail: r.fail, fails: r.fails });
         if (!json) console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(36)} ${card.run?.modelId ?? "?"} ${card.run?.correct}/${(card.run?.chunkCount ?? 0) * 32} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
         okAll &&= r.ok;
@@ -4064,7 +4135,7 @@ export async function trailVerify(file: string, json = false) {
   }
   const card = JSON.parse(readFileSync(file, "utf8"));
   if (card.kind !== "sealed-trail/v1") throw new Error(`not a sealed-trail/v1 file (kind=${card.kind})`);
-  const r = verifyTrailCard(card, (what, ok, detail) => { if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); });
+  const r = verifyTrailCard(card, (what, ok, detail) => { if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); }, snap);
   const verdict = r.fail === 0 ? "TRAIL VERIFIED" : "TRAIL FAILED";
   if (json) console.log(JSON.stringify({ file, kind: card.kind, run: card.run.pk, model: card.run.modelId,
     verified: r.fail === 0, checks: r.rows, pass: r.pass, fail: r.fail, verdict: card.verdict }));
@@ -4111,7 +4182,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     "sealed-claim/v1": (f) => chainProveVerify(f, undefined, json),
     "sealed-policy/v1": (f) => gateCertVerify(f, json),
     "sealed-match/v1": (f) => matchVerify(f, json),
-    "sealed-trail/v1": (f) => trailVerify(f, json),
+    "sealed-trail/v1": (f) => trailVerify(f, json, snapPath),
     "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
     "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
     "sealed-board/v1": (f) => boardVerify(f, json, snapPath),
@@ -4173,9 +4244,142 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog|position|bounty/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog|position|bounty|grant/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
+}
+
+/** `chain artifact --tamper <file>` — the forgery lab for the terminal:
+ *  mutate the card's own fields, re-run its verifier, and prove each
+ *  forgery dies. Same checks as the in-page lab and `verify.py --tamper`
+ *  — three surfaces, three languages of attack. */
+const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]> = {
+  "sealed-board/v1": [
+    { label: "inflate a receipt's score", mutate: (c) => { c.models[0].receipts[0].correct += 1; } },
+    { label: "swap the #1 rank", mutate: (c) => { const t = c.ranking[0]; c.ranking[0] = c.ranking[1]; c.ranking[1] = t; } },
+    { label: "un-vouch an attested receipt", mutate: (c) => { const l = c.models.flatMap((m: any) => m.receipts).find((x: any) => x.vouched === 1); l.vouched = 0; } },
+  ],
+  "sealed-match/v1": [
+    { label: "flip the head-to-head verdict", mutate: (c) => { c.verdict.winner = c.verdict.winner === "a" ? "b" : "a"; } },
+  ],
+  "sealed-claim/v1": [
+    { label: "mint a phantom receipt", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0])); r.correct += 1; c.receipts.push(r); } },
+  ],
+  "sealed-trail/v1": [
+    { label: "rewrite the settled money", mutate: (c) => {
+      const v = (c.venues ?? []).find((v: any) => v && (v.poolTotal != null || (v.totals ?? []).length || v.amount != null));
+      if (v?.poolTotal != null) v.poolTotal += 1;
+      else if (v?.totals?.length) v.totals[0] += 1;
+      else if (v?.amount != null) v.amount += 1;
+      else c.run.correct = (c.run.correct ?? 0) + 1; // no venues — forge the MPC's count itself
+    } },
+  ],
+  "sealed-evidence-digest/v1": [
+    { label: "re-age the ledger", mutate: (c) => { c.counts.runs = 9999; } },
+  ],
+  "sealed-bank/v1": [
+    { label: "mint a phantom run on the exam", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.runs[0])); r.correct = (r.correct ?? 0) + 1; c.runs.push(r); } },
+  ],
+  "sealed-catalog/v1": [
+    { label: "erase an artifact from the index", mutate: (c) => { c.artifacts.splice(3, 1); c.count -= 1; } },
+  ],
+  "sealed-bounty/v1": [
+    { label: "steal the bounty below threshold", mutate: (c) => {
+      if (c.winner) { c.winner.correct = c.bounty.threshold - 1; c.bounty.winningScore = c.bounty.threshold - 1; }
+      else { c.bounty.threshold = 0; } // open bounty — drop the bar so anyone qualifies
+    } },
+  ],
+  "sealed-grant/v1": [
+    { label: "redirect the disclosure to another viewer", mutate: (c) => { const v = c.grant.viewer; c.grant.viewer = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x"); c.grant.seeds.viewer = c.grant.viewer; } },
+  ],
+  "sealed-policy/v1": [
+    { label: "flip a model's gate verdict", mutate: (c) => { const m = c.models.find((m: any) => !m.verdict.pass); m.verdict.pass = true; m.verdict.reason = "forged"; } },
+  ],
+  "sealed-position/v1": [
+    { label: "inflate a winning stake", mutate: (c) => {
+      if (c.stake.amounts) { c.stake.amounts[1] = "900000000"; c.verdict.estPayout = "999000000"; c.verdict.staked = "930000000"; }
+      else { c.stake.amount = String(BigInt(c.stake.amount) * 2n); if (c.verdict.staked) c.verdict.staked = c.stake.amount; }
+    } },
+  ],
+};
+
+export async function artifactTamper(target: string, snapPath?: string, recursive = false) {
+  const { writeFileSync, mkdtempSync, statSync, readdirSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  // dir mode: attack every artifact that has a canned forgery — the whole
+  // evidence tree proves it can't be lied to, one pass.
+  if (statSync(target).isDirectory()) {
+    const files: string[] = [];
+    const walk = (d: string, depth: number) => {
+      for (const f of readdirSync(d).sort()) {
+        const full = join(d, f);
+        if (statSync(full).isDirectory()) { if (recursive && depth < 3) walk(full, depth + 1); continue; }
+        if (!f.endsWith(".json") || ["index.json", "SHA256SUMS"].includes(f)) continue;
+        try { const k = JSON.parse(readFileSync(full, "utf8")).kind; if (k && TAMPER_DEFS[k]) files.push(full); } catch {}
+      }
+    };
+    walk(target, 0);
+    if (!files.length) throw new Error(`no artifacts with canned attacks in ${target}`);
+    console.log(`sealed-tamper/v1 — attacking ${files.length} artifact(s) in ${target}${recursive ? " (recursive)" : ""}`);
+    let allOk = true, attacks = 0;
+    for (const f of files) {
+      const r = await artifactTamper(f, snapPath) as any;
+      allOk &&= r.ok; attacks += r.attacks;
+    }
+    console.log(`\n${allOk ? "ALL FORGERIES CAUGHT" : "SOME FORGERY PASSED"} — ${attacks} attack(s) across ${files.length} artifact(s)`);
+    if (!allOk) process.exitCode = 1;
+    return { ok: allOk, attacks, artifacts: files.length };
+  }
+  const raw = readFileSync(target, "utf8");
+  let kind: string | null = null;
+  try { kind = JSON.parse(raw).kind ?? null; }
+  catch { if (raw.includes("sealed-report/v1")) kind = "sealed-report/v1"; }
+  if (!kind) throw new Error(`not a sealed artifact: ${target}`);
+  const defs = TAMPER_DEFS[kind];
+  console.log(`sealed-tamper/v1 — ${kind} · ${defs?.length ?? 0} canned attack(s)`);
+  if (!defs?.length) {
+    console.log("  (no canned mutations for this kind — markdown reports are replayed wholesale)");
+    return { ok: true, attacks: 0 };
+  }
+  const base = JSON.parse(raw);
+  const ROUTE: Record<string, (f: string) => Promise<any>> = {
+    "sealed-claim/v1": (f) => chainProveVerify(f, undefined, false),
+    "sealed-policy/v1": (f) => gateCertVerify(f, false),
+    "sealed-match/v1": (f) => matchVerify(f, false),
+    "sealed-trail/v1": (f) => trailVerify(f, false, snapPath),
+    "sealed-evidence-digest/v1": (f) => digestVerify(f, false, snapPath),
+    "sealed-board/v1": (f) => boardVerify(f, false, snapPath),
+    "sealed-bank/v1": (f) => bankVerify(f, false, snapPath),
+    "sealed-catalog/v1": (f) => catalogVerify(f, false),
+    "sealed-position/v1": (f) => positionVerify(f, false, snapPath),
+    "sealed-bounty/v1": (f) => bountyVerify(f, false, snapPath),
+    "sealed-grant/v1": (f) => grantVerify(f, false, snapPath),
+  };
+  const verify = ROUTE[kind];
+  if (!verify) throw new Error(`no verifier route for ${kind}`);
+  const dir = mkdtempSync(join(tmpdir(), "sealed-tamper-"));
+  let caught = 0;
+  const orig = console.log;
+  for (let i = 0; i < defs.length; i++) {
+    const forged = JSON.parse(JSON.stringify(base));
+    defs[i].mutate(forged);
+    const fp = join(dir, `forged-${i}.json`);
+    writeFileSync(fp, JSON.stringify(forged, null, 2));
+    let ok = true, detail = "";
+    const savedExit = process.exitCode;
+    console.log = () => {};
+    try { const r = await verify(fp); ok = (r.ok ?? (r.fail === 0)) === true; }
+    catch (e: any) { ok = false; detail = ` (${e?.message ?? e})`; }
+    finally { console.log = orig; process.exitCode = savedExit; }
+    if (!ok) { caught++; console.log(`  FORGERY CAUGHT — ${defs[i].label}${detail}`); }
+    else console.log(`  FORGERY ACCEPTED — ${defs[i].label} — THE VERIFIER TOOK A LIE`);
+  }
+  console.log(caught === defs.length
+    ? `ALL ${caught} FORGERIES CAUGHT — the verifier rejects its own lies`
+    : `${caught}/${defs.length} caught — ${defs.length - caught} forgery(ies) verified`);
+  if (caught !== defs.length) process.exitCode = 1;
+  return { ok: caught === defs.length, attacks: defs.length, caught };
 }
 
 /** Walk an evidence tree and list every sealed artifact with a
@@ -7607,9 +7811,14 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "artifact") {
     const target = cmd[1] ?? args.file;
-    if (!target) throw new Error("usage: chain artifact <file|dir> [--recursive] [--snapshot <f>] [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless");
-    await artifactVerify(String(target), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
-      Boolean(args.recursive));
+    if (!target) throw new Error("usage: chain artifact <file|dir> [--recursive] [--tamper] [--snapshot <f>] [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless; --tamper forges it and proves the verifier catches the lie");
+    if (args.tamper) {
+      await artifactTamper(String(target), args.snapshot ? String(args.snapshot) : undefined,
+        Boolean(args.recursive));
+    } else {
+      await artifactVerify(String(target), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined,
+        Boolean(args.recursive));
+    }
     return;
   }
   if (sub === "fingerprint") {
@@ -7877,7 +8086,8 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "trail") {
     if (args.verify || cmd[1] === "--verify") {
-      await trailVerify(String(args.verify ?? cmd[2]), Boolean(args.json));
+      await trailVerify(String(args.verify ?? cmd[2]), Boolean(args.json),
+        args.snapshot ? String(args.snapshot) : undefined);
       return;
     }
     const run = cmd[1] ?? args.run;

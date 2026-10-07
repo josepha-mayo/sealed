@@ -175,7 +175,7 @@ if (!matchTamperOk) fails++;
 // dark market AND the 4-model ladder dead-heat. A mutated pool must fail.
 await vm.runInContext("loadTrail()", ctx);
 await new Promise((r) => setTimeout(r, 50));
-vm.runInContext("verifyTrail()", ctx);
+await vm.runInContext("verifyTrail()", ctx);
 await new Promise((r) => setTimeout(r, 50));
 const trailTxt = (els.get("trailres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
 const trailOk = /TRAIL VERIFIED/.test(trailTxt) && /2 venue/.test(trailTxt) &&
@@ -183,7 +183,7 @@ const trailOk = /TRAIL VERIFIED/.test(trailTxt) && /2 venue/.test(trailTxt) &&
 console.log(`in-page trail-card verifier — committed qwen3b ladder-deadheat card ${trailOk ? "PASS" : "FAIL"}`);
 if (!trailOk) fails++;
 els.get("trailjson").value = els.get("trailjson").value.replace(/("poolsLamports": )(\d+)/, (m, p, n) => p + (Number(n) + 1));
-vm.runInContext("verifyTrail()", ctx);
+await vm.runInContext("verifyTrail()", ctx);
 await new Promise((r) => setTimeout(r, 50));
 const trailTamperTxt = (els.get("trailres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
 const trailTamperOk = /TRAIL FAILED/.test(trailTamperTxt) && /pool accounting/.test(trailTamperTxt);

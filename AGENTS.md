@@ -43,10 +43,16 @@ parimutuel markets resolved from `Run.correct`.
   as `chain fingerprint`), matches it against docs/evidence-anchor.json,
   re-derives the committed position/venue/bounty/grant PDAs with real
   ed25519 curve math (bump iteration + RFC8032 off-curve rejection),
-  AND struct-unpacks the raw account bytes itself (Bounty / ShareGrant /
-  Position / DarkPosition) — the field binding is checked against the
-  bytes, so a decoder bug in snapshot.ts can't launder a forged card.
-  No node, no pip, no RPC — proof the evidence is language-agnostic.
+  AND struct-unpacks the raw account bytes itself (Run / Market /
+  DarkMarket / Ladder / Bounty / ShareGrant / Position / DarkPosition —
+  discriminators derived via sha256("account:Name"), not hardcoded) —
+  the field binding is checked against the bytes, so a decoder bug in
+  snapshot.ts can't launder a forged card. The trail loop replays whole
+  `sealed-trail/v1` cards end-to-end (leg runs bound independently,
+  dark forfeits recomputed from DarkPosition bytes, settlements vs the
+  DECODED Run.correct). No node, no pip, no RPC — proof the evidence is
+  language-agnostic. `--tamper` forges each card family and asserts the
+  catch at a named check.
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.
@@ -103,7 +109,11 @@ parimutuel markets resolved from `Run.correct`.
   position/bounty/grant/catalog/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 127 artifacts in one pass). `chain catalog` prints the
+  replays all 127 artifacts in one pass). `chain artifact <file>
+  --tamper` is the CLI forgery lab: kind-aware mutations re-run the
+  verifier and MUST fail — a forged card that verifies exits 1 (all
+  12 JSON kinds carry canned attacks; the harness test pins all 12).
+  `chain catalog` prints the
   evidence table of contents (every artifact grouped by kind with a
   title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json
   + the served mirror web/artifacts.json) and `--check` proves the
@@ -216,9 +226,14 @@ parimutuel markets resolved from `Run.correct`.
   `Run.correct` — duels unpack `resolved_score = (a << 16) | b` (a is the
   `run` field's score; bands store `correct` directly). `--prove <file>`
   mints `sealed-trail/v1` (the money-trail as a portable card — every
-  PDA seed + settlement field); `trail --verify <file|dir>` replays it
-  keyless. 4 committed cards in docs/evidence/trails/ + web/trails/
-  cover every venue kind.
+  PDA seed + settlement field + `snapshotSha256`; dark venues carry
+  `winTotal`/`revealedCount`/`tallied` and `forfeitTotal` = Σ stake on
+  DarkPositions whose `revealed` byte is still the 255 sentinel).
+  `trail --verify <file|dir> [--snapshot]` replays it keyless; WITH a
+  snapshot it additionally binds every card field to decoded account
+  bytes (run fields, seeds-vs-account echo, escrow amounts, leg runs) —
+  consistency-only without one. 4 committed cards in
+  docs/evidence/trails/ + web/trails/ cover every venue kind.
 
 ## Localnet
 

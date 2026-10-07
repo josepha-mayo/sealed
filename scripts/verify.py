@@ -31,6 +31,12 @@ Checks:
      Position layouts), and every card field is compared against the
      bytes, not against TypeScript's decode. A decoder bug in
      snapshot.ts can no longer launder a forged card.
+  9. sealed-trail/v1 money-trails replay end-to-end: run + bank +
+     receipt PDAs, every venue PDA (band/duel/dark/ladder/bounty),
+     run field binding, venue field binding (incl. ladder LEG runs
+     decoded independently and dark forfeit sums recomputed from
+     DarkPosition bytes), settlements replayed against the DECODED
+     Run.correct — not the card's claim.
 """
 
 import base64
@@ -289,6 +295,120 @@ def main():
                     and dec["sharedAt"] == int(card["grant"]["sharedAt"]),
                     "all eight ShareGrant fields unpacked from account bytes")
 
+    for card_path in sorted((ROOT / "docs" / "evidence" / "trails").glob("*.json")):
+        if card_path.name == "index.json":
+            continue
+        card = json.loads(card_path.read_text())
+        name = card_path.name
+        ok &= check(f"{name}: kind", card.get("kind") == "sealed-trail/v1")
+        ok &= check(f"{name}: snapshot binding",
+                    card.get("snapshotSha256") == snap_hash, snap_hash[:16] + "…")
+        spid = card["programs"]["sealed"]
+        mpid = card["programs"]["market"]
+        r = card["run"]
+        ok &= check(f"{name}: run PDA",
+                    b58encode_check(pda([b"run", b58decode(r["benchmark"]), u64le(r["index"])], spid) or b"", r["pk"]),
+                    "[run, bank, u64le(index)]")
+        if card.get("bank"):
+            b = card["bank"]
+            ok &= check(f"{name}: bank PDA",
+                        b58encode_check(pda([b"benchmark", b58decode(b["authority"]),
+                                             struct.pack("<I", int(b["id"]))], spid) or b"", b["pk"]))
+        if card.get("receipt"):
+            ok &= check(f"{name}: receipt PDA",
+                        b58encode_check(pda([b"scorelog", b58decode(r["pk"])], spid) or b"",
+                                        card["receipt"]["pk"]),
+                        "[scorelog, run]")
+
+        # run binding — decode the Run's raw bytes, not the card's claims.
+        raw = find_account(SNAP["sealed"], r["pk"], disc("Run"))
+        dr = decode_run(raw) if raw else None
+        ok &= check(f"{name}: run binding",
+                    dr is not None and dr["correct"] == r["correct"]
+                    and dr["status"] == r["status"] and dr["runner"] == r["runner"]
+                    and dr["modelId"] == r["modelId"] and dr["benchmark"] == r["benchmark"]
+                    and dr["postReveal"] == bool(r["postReveal"]),
+                    "correct · status · runner · model · bank · post_reveal unpacked")
+
+        v_ok, v_n = 0, 0
+        for v in card["venues"]:
+            v_n += 1
+            s = v["seeds"]
+            seeds = ([b"market", b58decode(s["run"]), u64le(s["salt"])] if v["kind"] == "band"
+                     else [b"duel", b58decode(s["runA"]), b58decode(s["runB"]), u64le(s["salt"])] if v["kind"] == "duel"
+                     else [b"dark", b58decode(s["run"]), u64le(s["salt"])] if v["kind"] == "dark"
+                     else [b"ladder", b58decode(s["firstLeg"]), u64le(s["salt"])] if v["kind"] == "ladder"
+                     else [b"bounty", b58decode(s["bank"]), b58decode(s["sponsor"]), u64le(s["salt"])])
+            if not b58encode_check(pda(seeds, mpid) or b"", v["pk"]):
+                continue
+            vtype = {"band": "Market", "duel": "Market", "dark": "DarkMarket",
+                     "ladder": "Ladder", "bounty": "Bounty"}[v["kind"]]
+            raw = find_account(SNAP["market"], v["pk"], disc(vtype))
+            if raw is None:
+                continue
+            if v["kind"] in ("band", "duel"):
+                a = decode_market(raw)
+                seed_ok = (a["run"] == s.get("run", s.get("runA"))
+                           and str(a["salt"]) == str(s["salt"])
+                           and (v["kind"] != "duel" or a["runB"] == s["runB"]))
+                money_ok = a["totals"] == [int(x) for x in v["totals"]]
+                score_ok = (a["status"] == v["status"]
+                            and (a["status"] != 1 or (a["resolvedScore"] == v["resolvedScore"]
+                                 and a["outcome"] == v["outcome"])))
+            elif v["kind"] == "dark":
+                a = decode_dark_market(raw)
+                seed_ok = a["run"] == s["run"] and str(a["salt"]) == str(s["salt"])
+                forfeit = sum(p["amount"] for p in dark_positions(SNAP["market"], v["pk"]))
+                money_ok = (a["poolTotal"] == int(v["poolTotal"]) and a["winTotal"] == int(v["winTotal"])
+                            and a["revealedCount"] == v["revealedCount"] and a["tallied"] == bool(v["tallied"])
+                            and forfeit == int(v["forfeitTotal"]))
+                score_ok = a["status"] == v["status"] and (a["status"] != 1 or a["resolvedScore"] == v["resolvedScore"])
+            elif v["kind"] == "ladder":
+                a = decode_ladder(raw)
+                seed_ok = (a["legs"][0] == s["firstLeg"] and str(a["salt"]) == str(s["salt"])
+                           and a["legs"][v["legIndex"]] == r["pk"])
+                money_ok = a["totals"] == [int(x) for x in v["totals"]]
+                score_ok = (a["status"] == v["status"] and a["legCount"] == v["legCount"]
+                            and (a["status"] != 1 or a["resultMask"] == v["resultMask"]))
+                # every leg's run fields bound to its own decoded account
+                for leg in v.get("legs", []):
+                    lr = find_account(SNAP["sealed"], leg["pk"], disc("Run"))
+                    ld = decode_run(lr) if lr else None
+                    money_ok = money_ok and ld is not None and ld["correct"] == leg["correct"] \
+                        and ld["status"] == leg["status"] and ld["benchmark"] == leg["benchmark"] \
+                        and ld["index"] == leg["index"]
+            else:
+                a = decode_bounty(raw)
+                seed_ok = (a["bank"] == s["bank"] and a["sponsor"] == s["sponsor"]
+                           and str(a["salt"]) == str(s["salt"]))
+                money_ok = a["amount"] == int(v["amount"])
+                score_ok = (a["status"] == v["status"] and a["threshold"] == v["threshold"]
+                            and (a["status"] != 1 or (a["winningScore"] == v["winningScore"]
+                                 and a["winnerRun"] == v["winnerRun"])))
+            if seed_ok and money_ok and score_ok:
+                v_ok += 1
+        ok &= check(f"{name}: venue binding", v_ok == v_n,
+                    f"{v_ok}/{v_n} venue PDAs + account fields bound (incl. leg runs)")
+
+        # settlement replay — against the DECODED score, not the card's
+        resolved = [v for v in card["venues"] if v["status"] == 1]
+        s_ok = sum(
+            1 for v in resolved
+            if (v["resolvedScore"] if v["kind"] in ("band", "dark")
+                else (v["resolvedScore"] >> 16 if v["side"] == "a" else v["resolvedScore"] & 0xffff) if v["kind"] == "duel"
+                else v["winningScore"] if v["kind"] == "bounty"
+                else v["legs"][v["legIndex"]]["correct"]) == (dr["correct"] if dr else -1))
+        ok &= check(f"{name}: settlements from decoded Run.correct",
+                    s_ok == len(resolved), f"{s_ok}/{len(resolved)} replayed")
+        pools = sum(sum(v["totals"]) if v.get("totals") else int(v.get("poolTotal") or 0)
+                    for v in card["venues"])
+        vd = card["verdict"]
+        ok &= check(f"{name}: verdict summary",
+                    vd["venuesTotal"] == v_n and vd["resolvedVenues"] == len(resolved)
+                    and vd["poolsLamports"] == pools
+                    and vd["scoreMismatches"] == len(resolved) - s_ok,
+                    f"{pools} lamports · {len(resolved)}/{v_n} resolved · 0 mismatch")
+
     print(f"\n{'ALL VERIFIED' if ok else 'FAILED'} — independent Python replay "
           f"agrees on BUNDLE ROOT {root[:16]}…" if ok else "\nFAILED")
     sys.exit(0 if ok else 1)
@@ -318,11 +438,16 @@ def b58encode(raw: bytes) -> str:
 # The snapshot is raw {pubkey, data-b64}. These unpack Anchor layouts the
 # same way the on-chain program does — a bug in snapshot.ts's decoder would
 # show up here as a field mismatch, not propagate into a forged card.
+def disc(name: str) -> bytes:
+    # Anchor's rule: sha256("account:" + Name)[:8] — derived, not a table.
+    return sha256(b"account:" + name.encode())[:8]
+
+
 DISC = {
-    "bounty": bytes.fromhex("ed1069c61345f2ea"),
-    "shareGrant": bytes.fromhex("a47067c1839cb4c0"),
-    "position": bytes.fromhex("aabc8fe47a40f7d0"),
-    "darkPosition": bytes.fromhex("d8c18faeae9d7715"),
+    "bounty": disc("Bounty"),
+    "shareGrant": disc("ShareGrant"),
+    "position": disc("Position"),
+    "darkPosition": disc("DarkPosition"),
 }
 
 
@@ -377,11 +502,98 @@ def decode_position(d):
 
 def decode_dark_position(d):
     # disc8 market32 bettor32 bump amount u64 commitment32 revealed u8
+    # (revealed = the BUCKET index; 255 = never revealed)
     return {
         "market": b58encode(d[8:40]), "bettor": b58encode(d[40:72]),
         "amount": int.from_bytes(d[73:81], "little"),
         "commitment": d[81:113].hex(),
         "revealed": d[113],
+    }
+
+
+def dark_positions(section, market_b58):
+    """All unrevealed dark positions on a venue — the forfeit pool."""
+    out = []
+    for a in section:
+        d = base64.b64decode(a["data"])
+        if d[:8] == DISC["darkPosition"] and d[113] == 255:
+            p = decode_dark_position(d)
+            if p["market"] == market_b58:
+                out.append(p)
+    return out
+
+
+def decode_run(d):
+    # disc8 benchmark32 runner32 index u64 bump status chunkCount u16
+    # pending u64 scored u64 correct u32 created i64 finalized i64
+    # harness32 outputs32 modelId str tail-flags…
+    ml = int.from_bytes(d[184:188], "little")
+    tail = 188 + ml
+    post = False
+    if tail + 9 <= len(d):
+        tail += 9   # attested u8 + attestedAt i64
+    if tail + 8 <= len(d):
+        tail += 8   # pendingSince
+    if tail + 8 <= len(d):
+        tail += 8   # firstPendingAt
+    if tail + 8 <= len(d):
+        tail += 8   # everQueuedMask
+    if tail + 8 <= len(d):
+        tail += 8   # allQueuedAt
+    if tail + 1 <= len(d):
+        post = d[tail] != 0
+    return {
+        "benchmark": b58encode(d[8:40]), "runner": b58encode(d[40:72]),
+        "index": int.from_bytes(d[72:80], "little"),
+        "status": d[81],
+        "correct": int.from_bytes(d[100:104], "little"),
+        "modelId": d[188:188 + ml].decode(),
+        "postReveal": post,
+    }
+
+
+def decode_market(d):
+    # disc8 authority32 run32 benchmark32 runIndex u64 salt u64 n u8
+    # edges[7]u32 bump status outcome totals[8]u64 resolvedScore u32
+    # created/resolved i64 runB32 fee tail…
+    return {
+        "authority": b58encode(d[8:40]), "run": b58encode(d[40:72]),
+        "benchmark": b58encode(d[72:104]),
+        "salt": int.from_bytes(d[112:120], "little"),
+        "status": d[150], "outcome": d[151],
+        "totals": [int.from_bytes(d[152 + 8 * i:160 + 8 * i], "little") for i in range(8)],
+        "resolvedScore": int.from_bytes(d[216:220], "little"),
+        "runB": b58encode(d[236:268]) if len(d) >= 268 else None,
+    }
+
+
+def decode_dark_market(d):
+    # disc8 authority32 run32 benchmark32 runIndex u64 salt u64 n u8
+    # edges[7]u32 bump status outcome pool u64 winTotal u64
+    # revealedCount u32 resolvedScore u32 ts i64×4 fee tail tallied u8
+    return {
+        "authority": b58encode(d[8:40]), "run": b58encode(d[40:72]),
+        "salt": int.from_bytes(d[112:120], "little"),
+        "status": d[150], "outcome": d[151],
+        "poolTotal": int.from_bytes(d[152:160], "little"),
+        "winTotal": int.from_bytes(d[160:168], "little"),
+        "revealedCount": int.from_bytes(d[168:172], "little"),
+        "resolvedScore": int.from_bytes(d[172:176], "little"),
+        "tallied": len(d) > 234 and d[234] == 1,
+    }
+
+
+def decode_ladder(d):
+    # disc8 authority32 benchmark32 legs[8]×32 legCount u8 salt u64
+    # bump status resultMask u8 resolvedScore u32 totals[8]u64 …
+    return {
+        "authority": b58encode(d[8:40]),
+        "legs": [b58encode(d[72 + 32 * i:104 + 32 * i]) for i in range(8)],
+        "legCount": d[328],
+        "salt": int.from_bytes(d[329:337], "little"),
+        "status": d[338], "resultMask": d[339],
+        "resolvedScore": int.from_bytes(d[340:344], "little"),
+        "totals": [int.from_bytes(d[344 + 8 * i:352 + 8 * i], "little") for i in range(8)],
     }
 
 
@@ -431,6 +643,28 @@ def tamper_demo():
     caught = derived is None or derived != b58decode(forged["grant"]["pk"])
     all_ok &= check("viewer redirect (regrant to [7;32])", caught,
                     'forgery dies at "grant PDA"' if caught else "FORGERY PASSED")
+
+    # 4. trail money rewrite — inflate a dark venue's escrow; the decoded
+    #    DarkMarket bytes disagree no matter how consistent the card is.
+    card = json.loads((ROOT / "docs/evidence/trails/qwen3b-ladder-deadheat.json").read_text())
+    forged = copy.deepcopy(card)
+    v = next(x for x in forged["venues"] if x["kind"] == "dark")
+    v["poolTotal"] = int(v["poolTotal"]) + 1
+    raw = find_account(msec, v["pk"], disc("DarkMarket"))
+    a = decode_dark_market(raw) if raw else None
+    caught = a is None or a["poolTotal"] != int(v["poolTotal"])
+    all_ok &= check("settled-money rewrite (poolTotal +1)", caught,
+                    'forgery dies at "venue binding"' if caught else "FORGERY PASSED")
+
+    # 5. score substitution — the classic oracle attack: rewrite the MPC's
+    #    correct count. The decoded Run bytes hold the real one.
+    forged = copy.deepcopy(card)
+    forged["run"]["correct"] = forged["run"]["correct"] + 1
+    raw = find_account(SNAP["sealed"], forged["run"]["pk"], disc("Run"))
+    dr = decode_run(raw) if raw else None
+    caught = dr is None or dr["correct"] != forged["run"]["correct"]
+    all_ok &= check("oracle substitution (correct +1)", caught,
+                    'forgery dies at "run binding"' if caught else "FORGERY PASSED")
 
     print("\n" + ("ALL FORGERIES CAUGHT — the Python verifier rejects its own lies"
                   if all_ok else "FORGERY LAB FAILED — a forged card verified"))

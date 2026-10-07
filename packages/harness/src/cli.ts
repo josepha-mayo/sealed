@@ -192,7 +192,7 @@ async function main() {
   sealed chain compare --match-verify <file|dir> [--json]  replay match card(s) keyless — PDAs + verdicts recomputed bit-exact
   sealed chain trail <run> --prove <file>               mint a sealed-trail/v1 card — the money-trail as portable evidence
   sealed chain trail --verify <file|dir> [--json]       replay trail card(s) keyless — every PDA + settlement recomputed vs Run.correct
-  sealed chain artifact <file|dir|url> [--recursive] [--json] THE universal verifier — auto-detects any sealed-*/v1 artifact and replays it keyless; --recursive replays a whole evidence tree; a hosted ?card= URL verifies straight from the link
+  sealed chain artifact <file|dir|url> [--recursive] [--tamper] [--json] THE universal verifier — auto-detects any sealed-*/v1 artifact and replays it keyless; --recursive replays a whole evidence tree; a hosted ?card= URL verifies straight from the link; --tamper forges the card in-place and proves the verifier catches every lie
   sealed chain catalog [--dir docs/evidence]                 the evidence table of contents — every artifact grouped by kind with titles
   sealed chain catalog --emit                               write sealed-catalog/v1 (docs/evidence/artifacts.json + web/artifacts.json) — the index is itself verifiable
   sealed chain catalog --check | --verify <f>               prove the committed index is complete — an unlisted artifact fails

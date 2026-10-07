@@ -23,7 +23,7 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
   --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
   --snapshot web/snapshot.json
 
-say "5/8 whole-tree artifact replay — one recursive pass, 123 artifacts, non-artifacts skipped"
+say "5/8 whole-tree artifact replay — one recursive pass, 127 artifacts, non-artifacts skipped"
 yarn --cwd packages/harness -s cli chain artifact \
   ../../docs/evidence --recursive --snapshot ../../web/snapshot.json
 
@@ -33,6 +33,10 @@ scripts/web-manifest.sh check
 
 say "6b. second-language verdict — Python (stdlib-only) recomputes the root + re-derives PDAs"
 python3 scripts/verify.py && python3 scripts/verify.py --tamper
+
+say "6bb. CLI forgery lab — the verifier catches its own lies (TypeScript)"
+yarn --cwd packages/harness -s cli chain artifact \
+  ../../docs/evidence/board.json --tamper --snapshot ../../web/snapshot.json
 
 say "6c. the capsule — standalone.html is a byte-fresh mirror of the pinned bundle"
 node scripts/gen-standalone.mjs --check

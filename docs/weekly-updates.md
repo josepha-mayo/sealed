@@ -146,5 +146,12 @@ deadline.
   anchor, re-derives four seed shapes of PDA with real ed25519
   off-curve math, and struct-unpacks the account bytes itself — a
   decoder bug on our side can't launder a forged card.
+- 10s: the forgery lab is now a three-surface demo — the explorer's
+  12 attacks, `python3 scripts/verify.py --tamper`, and
+  `chain artifact <card> --tamper` (kind-aware mutations on the
+  TypeScript side, every lie asserted to die at a named check).
+- 10s: one link runs the whole demo — `?mega=1` cascades the account
+  audit, all 127 artifact replays, and the full forgery sweep to
+  EVERYTHING VERIFIED in ~5s, live in the judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256 — timestamped on Solana itself."

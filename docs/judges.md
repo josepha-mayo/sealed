@@ -265,9 +265,11 @@ yarn --cwd packages/harness cli chain compare --match-verify ../../docs/evidence
 #     MPC-written score, not a client's say-so. Four committed cards
 #     cover every venue kind — the flagship: qwen2.5-3b's 6/32 that
 #     settled a dark market AND won a 4-model ladder dead-heat.
-yarn --cwd packages/harness cli chain trail --verify ../../docs/evidence/trails
+yarn --cwd packages/harness cli chain trail --verify ../../docs/evidence/trails --snapshot ../../web/snapshot.json
 #         → ALL TRAILS VERIFIED — run/bank/receipt/venue PDAs
-#           re-derived, settlements replayed vs Run.correct, ladder
+#           re-derived, every card FIELD bound to decoded account
+#           bytes (run score, escrow amounts, leg runs, forfeit sums),
+#           settlements replayed vs the decoded Run.correct, ladder
 #           argmax mask + pool accounting recomputed
 
 # 3m. THE EXAM CARD — a sealed-bank/v1 card binds one benchmark's whole
@@ -411,6 +413,13 @@ python3 scripts/verify.py
 #     asserts every forgery dies at a named check:
 python3 scripts/verify.py --tamper
 #         → ALL FORGERIES CAUGHT — the Python verifier rejects its own lies
+#
+#     The TypeScript CLI has the same lab — kind-aware mutations, each
+#     asserted to die:  `chain artifact <card> --tamper`
+yarn --cwd packages/harness cli chain artifact ../../docs/evidence/board.json \
+  --tamper --snapshot ../../web/snapshot.json
+#         → 3 attacks on the leaderboard card (score/rank/vouch),
+#           ALL FORGERIES CAUGHT — the verifier rejects its own lies
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     5.8MB file: the page, the snapshot, all 125 artifacts, both
