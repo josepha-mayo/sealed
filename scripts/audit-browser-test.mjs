@@ -268,6 +268,12 @@ const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /117\/117 artifacts replay
   /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt);
 console.log(`in-page bundle replay — 117 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
+// the hero stat: SOL settled by MPC-written scores — must render a real
+// lamports total, not a blank cell.
+const statM = /<b class="score">([\d.]+)<\/b> SOL settled by MPC/.exec(rendered);
+const statOk = !!statM && Number(statM[1]) > 0;
+console.log(`hero stat — "SOL settled by MPC, no referee" renders ${statOk ? "PASS" : "FAIL"}`);
+if (!statOk) fails++;
 // cross-surface agreement: the in-page bundle root must equal the recipe
 // `chain fingerprint` computes — sha256(SHA256SUMS) || sha256(MANIFEST).
 {

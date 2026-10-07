@@ -878,6 +878,12 @@ function renderAll(sealedAccs, marketAccs) {
     + ladders.reduce((s, l) => s + l.totals.reduce((x, t) => x + Number(t), 0), 0)
     + darkMarkets.reduce((s, m) => s + Number(m.poolTotal), 0)
     + bounties.reduce((s, b) => s + Number(b.amount), 0);
+  // the headline: lamports moved through venues that RESOLVED — every
+  // resolved pool paid out on Run.correct, not an operator's word.
+  const settledLamports = markets.filter(m => m.status === 1).reduce((s, m) => s + m.totals.reduce((x, t) => x + Number(t), 0), 0)
+    + ladders.filter(l => l.status === 1).reduce((s, l) => s + l.totals.reduce((x, t) => x + Number(t), 0), 0)
+    + darkMarkets.filter(m => m.status === 1).reduce((s, m) => s + Number(m.poolTotal), 0)
+    + bounties.filter(b => b.status !== 0).reduce((s, b) => s + Number(b.amount), 0);
   // protocol revenue actually collected across every venue kind.
   const feesLamports = markets.reduce((s, m) => s + Number(m.feesAccrued), 0)
     + ladders.reduce((s, l) => s + Number(l.feesAccrued), 0)
@@ -894,6 +900,7 @@ function renderAll(sealedAccs, marketAccs) {
     [mintedPriv, "private · ciphertext-only"],
     [grants.length, "disclosure grants"],
     [reveals.length, "audit reveals"],
+    [sol(settledLamports), "SOL settled by MPC — no referee"],
     [sol(potLamports), "SOL escrowed across venues"],
     [sol(feesLamports), "protocol fees collected"],
     [lats.length ? `${fmtSecs(qp(50))} / ${fmtSecs(qp(95))}` : 0, "MPC latency p50 / p95"],
@@ -1056,7 +1063,8 @@ function renderAll(sealedAccs, marketAccs) {
     window.__h2hCell = cell;
     h += `<div class="card"><b>paired-evidence leaderboard</b> — <span class="kv">W-L-T over shared benchmarks only (<span class="mono">chain compare --all</span>): ${totalPairs - unranked}/${totalPairs} pairs rankable, <b>${unranked} disjoint — an aggregate table would still rank them</b></span>
       <div class="kv" style="margin-top:4px"><label><input type="checkbox" id="h2hWilson" onclick="sortH2H(this.checked)"> rank by Wilson 95% LCB of win-rate (<span class="mono">--wilson</span>) — thin records stop outranking proven ones</label>
-      · <label><input type="checkbox" id="h2hGrid" onclick="runH2HGrid(this.checked)"> tournament grid (<span class="mono">compare --matrix</span>) — who beat whom, cell = row−col Δpp</label></div>
+      · <label><input type="checkbox" id="h2hGrid" onclick="runH2HGrid(this.checked)"> tournament grid (<span class="mono">compare --matrix</span>) — who beat whom, cell = row−col Δpp</label>
+      · <a href="#sec-boardcard" onclick="loadBoard().then(verifyBoard);return true">verify this ranking →</a> the whole table is a sealed-board/v1 artifact — replay it keyless</div>
       <table style="margin-top:6px"><thead><tr><th>#</th><th>model</th><th>W–L–T</th><th>ΣΔpp</th><th>95% LCB</th><th>shared-bank results</th></tr></thead><tbody id="h2hBody"></tbody></table>
       <div id="h2hGridOut"></div></div>`;
   }
