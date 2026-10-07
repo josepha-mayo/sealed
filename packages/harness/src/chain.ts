@@ -4158,9 +4158,14 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   if (/^https?:\/\//.test(target)) {
     const u = new URL(target);
     const card = u.searchParams.get("card");
+    const tamper = u.searchParams.get("tamper");
     if (card !== null) {
       if (!/^[a-zA-Z0-9._/-]+\.(json|md)$/.test(card)) throw new Error(`unsafe ?card= path: ${card}`);
       target = new URL(card, u).href; // resolve against the page's directory
+    } else if (tamper !== null) {
+      // ?tamper=<file> — the lie-exhibit deep link resolves to tamper/<file>
+      if (!/^[a-zA-Z0-9._-]+\.json$/.test(tamper)) throw new Error(`unsafe ?tamper= path: ${tamper}`);
+      target = new URL(`tamper/${tamper}`, u).href;
     }
     if (!json) console.log(`fetching ${target}`);
     const r = await fetch(target);
@@ -4322,6 +4327,22 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
   const { writeFileSync, mkdtempSync, statSync, readdirSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
+  // URL targets — the same deep links as artifactVerify: fetch the hosted
+  // bytes to a temp file and forge those, not a committed fixture.
+  if (/^https?:\/\//.test(target)) {
+    const u = new URL(target);
+    const card = u.searchParams.get("card");
+    if (card !== null) {
+      if (!/^[a-zA-Z0-9._/-]+\.(json|md)$/.test(card)) throw new Error(`unsafe ?card= path: ${card}`);
+      target = new URL(card, u).href;
+    }
+    console.log(`fetching ${target}`);
+    const r = await fetch(target);
+    if (!r.ok) throw new Error(`HTTP ${r.status} — ${target}`);
+    const tmp = join(mkdtempSync(join(tmpdir(), "sealed-url-")), target.split("/").pop() ?? "artifact.json");
+    writeFileSync(tmp, await r.text());
+    return artifactTamper(tmp, snapPath, false, exhibitDir);
+  }
   // dir mode: attack every artifact that has a canned forgery — the whole
   // evidence tree proves it can't be lied to, one pass.
   if (statSync(target).isDirectory()) {
