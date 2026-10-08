@@ -139,7 +139,7 @@ deadline.
 - 10s: the table of contents is evidence too — `artifacts.json` is a
   `sealed-catalog/v1` card; `chain catalog --check` proves the index
   lists EVERY artifact (completeness vs a fresh scan + sha256 pinning),
-  so the 126-card set can't be silently edited down.
+  so the 138-artifact set can't be silently edited down.
 - 10s: don't trust our TypeScript? `python3 scripts/verify.py` is a
   second implementation — stdlib-only Python that re-hashes both
   manifests, recomputes the same BUNDLE ROOT, matches the devnet

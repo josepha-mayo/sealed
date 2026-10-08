@@ -40,6 +40,12 @@ const truth = {
 truth.venues = truth.bandDuel + truth.ladders + truth.darks + truth.bounties;
 truth.resolutions = truth.resBandDuel + truth.resLadders + truth.resDarks + truth.resBounties;
 
+// test-suite counts, derived from the files themselves — a doc claiming
+// "N/N unit" or "N/N mocha|E2E" goes stale the moment a test lands
+const countTests = (f) => (readFileSync(f, "utf8").match(/^\s*(?:it|test)\(/gm) || []).length;
+truth.unit = countTests("packages/harness/test/harness.test.ts");
+truth.e2e = countTests("tests/sealed.ts");
+
 // Anchored claims. Each: [regex, expected]. Only numbers written in these
 // exact phrasings are checked — everything else is ignored on purpose.
 const claims = [
@@ -64,6 +70,10 @@ const claims = [
   // spelled-out guided-tour stop count ("twenty-four captioned stops"
   // in the hero; "all twenty-four stops" in judges.md)
   [/(twenty-\w+|thirty-\w+|\d+)\s+stops\b/g, 24],
+  // test-suite tallies: "67/67 unit", "46/46 unit tests", "17/17 mocha",
+  // "unit-tested N/N" — N must equal itself AND the counted suite size
+  [/(\d+)\/\1\s+(?:harness\s+)?(?:unit|suite)\b/g, truth.unit],
+  [/(\d+)\/\1\s+(?:mocha|E2E)\b/g, truth.e2e],
 ];
 
 const WORDS = {

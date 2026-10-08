@@ -144,8 +144,8 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > bound instead of raw wins, and `chain watch` ticks the ledger live.
 > Then the surfaces nobody else has: `chain market sharps` ranks bettor
 > track records on realized P&L and reports the book's anonymity set
-> honestly (126 positions, almost all one-position wallets — no repeat
-> records survives); `chain market escrow` reconciles every staked
+> honestly (126 resolved bettors, almost all one-position wallets — no
+> repeat records survives); `chain market escrow` reconciles every staked
 > lamport to its obligation bucket, balanced to the lamport (76.075◎ in,
 > in-play / owed / contingent / bounty / settled-out, zero dead money);
 > `chain anomalies` runs twelve hostile checks on its own bundle (the
