@@ -436,7 +436,7 @@ yarn --cwd packages/harness cli chain fingerprint \
 #           after notarization — we re-anchor at freeze)
 
 # 3o. THE SECOND-LANGUAGE VERDICT — don't trust our TypeScript? Re-run
-#     the whole integrity chain in stdlib-only Python (~1,900 lines —
+#     the whole integrity chain in stdlib-only Python (~2,500 lines —
 #     every check, zero deps): re-hash both manifests, recompute the
 #     BUNDLE ROOT, match the devnet anchor doc, re-derive every
 #     artifact's PDAs with real ed25519 curve math (bump iteration +
