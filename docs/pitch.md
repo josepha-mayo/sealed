@@ -154,5 +154,5 @@ And the evidence isn't a folder of promises — it is one hash. `chain
 fingerprint` re-hashes all 351 manifest-pinned files and prints a single
 `BUNDLE ROOT`; the explorer's bundle replay recomputes the same root
 in-browser after driving all 138 committed artifacts through their own
-verifiers. Terminal and browser agree, or the bundle is dirty. Nobody
-else's submission ends in a sha256.
+verifiers. Terminal and browser agree, or the bundle is dirty. The
+submission ends in a sha256 — not a promise.

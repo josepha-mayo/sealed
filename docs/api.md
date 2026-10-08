@@ -374,7 +374,7 @@ the whole registry as verifiable artifacts — and `chain prove --verify
 exit 1 on any failure). The committed bundle ships all 31 registry cards
 in `docs/evidence/claims/` (mirrored at `web/claims/`, each
 sha256-pinned in `web/MANIFEST`), and the explorer's "verify a claim
-card" section replays the same 9 checks in-page for any of them —
+card" section replays the same 10 checks in-page for any of them —
 `qwen2.5-3b-instruct`'s card, for example, is a public audit trail no
 one had to ask permission for.
 

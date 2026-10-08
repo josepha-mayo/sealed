@@ -141,7 +141,8 @@ classifier (`board.ts`) that turns the account set into a keeper
 inventory — claimable bounties (same `bounty_qualifies` gates the program
 enforces: bank match, retroactivity wall, runner ≠ sponsor, threshold,
 finalized-or-proven, not post-reveal), resolvable markets and ladders
-(the ladder gate is `!still_moving` per leg, not `resolve_by`), resolved
+(the ladder gate is `ladder_resolvable` — `!still_moving` per leg, plus
+`resolve_by` when no leg ever started), resolved
 darks awaiting `finalize_dark`, and sweepable expiries annotated
 settle-vs-refund. Every read command also takes `--snapshot
 web/snapshot.json` — `packages/harness/src/snapshot.ts` decodes the

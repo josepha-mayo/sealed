@@ -72,7 +72,18 @@ after sealing, and nobody can fabricate a score.
   specs `Enc<Shared>` to the authority — prompts are then confidential to
   whoever holds that wallet, while answers remain MXE-sealed. The residual
   trust is that the authority doesn't publish the decrypted prompts (they
-  hold the questions but still cannot produce answer plaintext). Markets on
+  hold the questions but still cannot produce answer plaintext).
+  **Mint-time caveat**: `mint_part` draws specs via
+  `ArcisRNG::gen_public_integer_from_width` — circuit-*public* values,
+  meaning the specs (and derived answers) exist as plaintext inside the
+  executing MXE nodes for the duration of the mint computation. On-chain
+  readers see only ciphertext, but an honest-but-curious node (or its
+  execution log) saw the exam at birth. "The answer key never exists"
+  therefore means *never exists outside the cluster's t-of-n umbrella*;
+  for generated banks the umbrella is additionally momentary (mint only).
+  If Arcis ever exposes secret-shared draws, `specs.to_arcis()` is the
+  migration path — `reshare_part` already proves that shape works.
+  Markets on
   private-bank runs ("unseen-exam" markets, `scripts/unseen.sh`) inherit a
   second disclosed assumption: bettors can verify *that* an exam exists,
   is ciphertext-bound (`items_root` folds the ciphertext), and was scored
@@ -169,11 +180,15 @@ after sealing, and nobody can fabricate a score.
   partial: `correct` is monotone non-decreasing in landed chunks, so under
   argmax a partial can only understate a leg, never inflate it (unlike
   score-band truncation, which can land a chosen low bucket). Resolution is
-  gated by the unified `still_moving` check — a leg inside either window
-  (first-queue `first_pending_at + 24h`, or post-commit `all_queued_at +
-  24h`, both write-once) blocks rather than forfeits, before AND after
-  `resolve_by` — `resolve_by` advertises the end to bettors, it is not a
-  forfeit switch. Bets latch at `closes_at` (required — an open-ended board
+  gated by `ladder_resolvable`: the unified `still_moving` check per leg —
+  a leg inside either window (first-queue `first_pending_at + 24h`, or
+  post-commit `all_queued_at + 24h`, both write-once) blocks rather than
+  forfeits, before AND after `resolve_by` — PLUS one deadline gate: a race
+  where no leg ever started cannot resolve before `resolve_by` (argmax on
+  all-zero forfeits is a full mask → wash cancel; without the gate anyone
+  could insta-cancel a fresh ladder next slot — found in our own security
+  audit, fixed + regression-tested). Past `resolve_by` that same call is
+  the ladder's expiry path: all-forfeit → cancel → full refunds. Bets latch at `closes_at` (required — an open-ended board
   on a public leg list invites sniping) or the first leg leaving pending,
   whichever is earlier. Disclosed residual: an authority can pack the board
   with dormant-runner "ringer" legs whose backers' stake flows to live legs
@@ -293,7 +308,20 @@ after sealing, and nobody can fabricate a score.
   dust stay locked. Deliberate for now: sweeping unclaimed stake would be
   the bigger evil. A claim-window + `close_market` that sweeps only the
   remainder is a small extension.
-- **Fee/griefing economics** — run fees are collected but not yet distributed.
+- **Fee/griefing economics** — `create_run` pays `fee_lamports` directly to
+  the benchmark authority; per-venue `claim_fee` skims market `fee_bps` to
+  the venue authority. There is no protocol-level treasury or fee split.
+- **`void_*` cancellations emit no events** — `void_market`/`void_duel`/
+  `void_ladder`/`void_dark` flip status to CANCELLED silently. Expire-path
+  cancels emit the resolved events (that gap was found and fixed); the
+  authority-initiated voids don't — an event-indexed venue would read
+  "open" forever. Account state is the source of truth; a `Voided` event
+  is a trivial addition queued for the next program build.
+- **Creator-PDA squatting** — venue seeds are `[kind, run(s), salt]`
+  without the creator's key, so a front-runner can squat a victim's
+  intended `(run, salt)` pair and force a re-salt. No funds at risk (the
+  squatter owns their own venue); bounties already include `sponsor` in
+  seeds. Cheap hardening: add `authority` to venue seeds.
 - **Multi-authority benchmarks** — the bank has a single authority today.
 
 ## Adversarial market analysis — the attacks this class usually dies to

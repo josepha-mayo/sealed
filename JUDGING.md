@@ -15,9 +15,10 @@ Three paths, fastest first:
 2. **One line, zero clone** — `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote`
    downloads a single stdlib file that fetches all 351 pinned bytes
    itself and replays the entire evidence base in a third language.
-3. **The full path** — `docs/judges.md` is the 10-minute walk mapped to
-   the rubric (program tests, the MPC-rescore proof, forgery lab,
-   capsule, devnet anchor).
+3. **The full path** — `docs/judges.md` is the rubric-mapped deep-dive
+   (program tests, the MPC-rescore proof, forgery lab, capsule, devnet
+   anchor; ~40 min hands-on plus a localnet toolchain if you rebuild
+   everything).
 
 **Trust nothing:** the whole bundle folds to one sha256
 (`chain fingerprint`), notarized on devnet via a memo tx

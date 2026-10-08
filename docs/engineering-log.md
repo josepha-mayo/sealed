@@ -42,6 +42,17 @@ nothing is a claim.
 - **Unbacked buckets.** A resolving market with any unbacked bucket cancels
   to gross refunds instead of stranding the pot (`expire_dark`'s
   empty-pool fast-path rides the same rule).
+- **The fresh-ladder insta-cancel.** `resolve_ladder` gated on
+  `still_moving` per leg — and a never-queued leg is never "still moving",
+  so a race whose legs had ALL never started passed the gate immediately.
+  argmax on all-zero forfeits produces a full mask → wash cancel — meaning
+  anyone could permissionlessly cancel a just-created ladder in the next
+  slot, repeatably, for one tx. Found by a parallel security audit of the
+  market program; `ladder_resolvable` now additionally requires
+  `now > resolve_by` when no leg ever started — the same call past the
+  deadline stays the ladder's expiry path (all-forfeit → refund all).
+  Regression test `ladder_resolve_gate_blocks_unstarted_race` pins the
+  gate both sides of the deadline plus the started-leg escape.
 
 ## Verifier-side findings (the audit auditing itself)
 
@@ -124,8 +135,8 @@ gaps in the verifiers, not just in the programs:
   dead-ends (ladder-position deep links throwing, a copy button that
   claimed success with no clipboard, "null" leaking into file://
   verdict links). The audit-of-the-audit also turned up stale counts
-  docs never could have caught alone: 123→138 artifacts, 12→16 grants
-  on the private-duel bank, anomaly severities 1/6/3 → 2/8/2.
+  docs never could have caught alone: 123→138 artifacts, a 12→16 grant
+  panel on the private-duel bank, anomaly severities 1/6/3 → 2/8/2.
 
 ## Operational war stories (the parts docs never show)
 

@@ -68,8 +68,8 @@
 </head>
 <body>
 <h1>SEALED</h1>
-<div class="sub">sealed benchmark oracle &middot; answers encrypted in Arcium MPC &middot; scores posted by the cluster &middot; markets resolve on <code>Run.correct</code></div>
-<div class="sub kv"><a href="https://github.com/josepha-mayo/sealed">repo</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/judges.md">judge guide</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/integrate.md">compose on Run.correct</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/engineering-log.md">engineering log</a></div>
+<div class="sub"><b>A benchmark whose answer key was never written down, scored by nobody in particular.</b></div>
+<div class="sub kv">items minted &amp; scored inside Arcium MPC &middot; scores written on-chain by the cluster's callback &middot; markets settle on <code>Run.correct</code> &middot; <a href="https://github.com/josepha-mayo/sealed">repo</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/judges.md">judge guide</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/integrate.md">compose on Run.correct</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/engineering-log.md">engineering log</a></div>
 
 <div class="cfg">
   <input id="rpc" size="42"> <button onclick="connectLive()">connect</button>
@@ -82,27 +82,32 @@
 <div id="diffres"></div>
 <div id="err"></div>
 <div class="nav">
-  <a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-grantcard">disclosure</a><a href="#sec-catalog">catalog</a><a href="#sec-tampercard" style="color:var(--warn)">lie exhibit</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <span class="kv">ledger:</span><a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a>
+  <span class="kv">proof:</span><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-tampercard" style="color:var(--warn)">lie exhibit</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#sec-catalog">catalog</a>
+  <span class="kv">cards:</span><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-grantcard">disclosure</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
 <div class="card hero" style="margin-top:10px">
-  <div class="kv" style="margin-bottom:6px"><b>60-second judge path</b> — no wallet, no RPC, nothing trusted:</div>
+  <div class="kv" style="margin-bottom:6px"><b>This page audits itself.</b> No wallet, no RPC, nothing trusted — every score below was written by the MPC cluster's callback, and you can recount any of them right here:</div>
   <div>
-    <button onclick="quickVerify()">① verify the leaderboard card</button>
-    <button onclick="quickForge()">② watch a forgery die</button>
-    <button onclick="quickReplay()">③ replay all 138 proofs</button>
-    <button onclick="megaAudit()" style="border-color:var(--acc)">④ PROVE EVERYTHING</button>
-    <button onclick="quickDecrypt(this)">⑤ read the sealed exam</button>
-    <span class="kv">or <a href="#" onclick="startTour();return false">take the guided tour</a> — twenty-four captioned stops</span>
+    <button onclick="megaAudit()" style="border-color:var(--acc)">▶ PROVE EVERYTHING — one click (~8s)</button>
+    <span class="kv">audit → all 138 artifacts replayed → 12 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (24 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
     <div id="megares" style="margin-top:8px"></div>
+  </div>
+  <div style="margin-top:6px">
+    <span class="kv">piecemeal:</span>
+    <button onclick="quickVerify()">verify the leaderboard card</button>
+    <button onclick="quickForge()">watch a forgery die</button>
+    <button onclick="quickDecrypt(this)">read the sealed exam</button>
+    <button onclick="quickReplay()">replay all 138 proofs</button>
   </div>
 </div>
 <div id="out"></div>
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline: <code>node scripts/verify.mjs</code>. <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 138 artifacts + its own verifiers as ONE offline file</div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 138 artifacts + its own verifiers as ONE offline file</div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -133,6 +138,37 @@
   <div class="kv" style="margin-top:10px">…or replay <b>every committed artifact</b> — the in-page mirror of <code>chain artifact docs/evidence --recursive</code>. Each file below runs through its own verifier above: every PDA re-derived, every verdict replayed, nothing trusted.</div>
   <button onclick="replayBundle()">replay the whole bundle</button>
   <div id="bundleres"></div>
+</div>
+
+<h2 id="sec-forge">the forgery lab — try to break it</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">don&#8217;t take the checks on faith — <b>run the attack</b>. Each button mutates a committed artifact the way a cheater would, then hands the forged card straight to the same in-page verifier. Every forgery must die at a named check; if one ever says VERIFIED, the artifact scheme is broken. The full check list renders in the target section below the verdict.</div>
+  <div>
+    <button onclick="forge('score')">forge a +1 score</button>
+    <button onclick="forge('rank')">swap the #1 rank</button>
+    <button onclick="forge('vouch')">un-vouch an attested receipt</button>
+    <button onclick="forge('verdict')">flip a head-to-head verdict</button>
+    <button onclick="forge('phantom')">mint a phantom receipt</button>
+    <button onclick="forge('pool')">inflate a settled pool</button>
+    <button onclick="forge('counts')">re-age the ledger</button>
+    <button onclick="forge('phanrun')">mint a phantom run</button>
+    <button onclick="forge('toc')">erase an artifact from the index</button>
+    <button onclick="forge('payout')">inflate a winning stake</button>
+    <button onclick="forge('claimwin')">steal the bounty</button>
+    <button onclick="forge('regrant')">redirect a disclosure</button>
+  </div>
+  <div id="forgeres"></div>
+</div>
+
+<h2 id="sec-tampercard">the lie exhibit — committed forgeries that verify by failing</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">a <code>sealed-tamper/v1</code> card IS the forgery — a deliberately mutated artifact, pinned in the bundle, with the check(s) it died at recorded when it was minted. Verifying an exhibit replays the forged card against the <b>real</b> verifier and asserts it still dies at the same named check — so the evidence base ships proof of its own skepticism. If a "forgery" ever verified, the exhibit FAILS. Same replay as <code>chain artifact &lt;exhibit&gt;</code>.</div>
+  <div><select id="tamperpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed forgery —</option></select>
+  <button onclick="loadTamper(document.getElementById('tamperpick').value)">load exhibit</button>
+  <span class="kv"><span id="tampercount">committed forgeries</span> — oracle substitution, pool rewrite, rank swap, bounty theft, viewer redirect, verdict flip, phantom receipts</span></div>
+  <div><textarea id="tamperjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-tamper/v1",…}'></textarea></div>
+  <button onclick="verifyTamper()">verify exhibit — the inner card MUST be rejected</button>
+  <div id="tamperres"></div>
 </div>
 
 <h2 id="sec-catalog">the evidence catalog</h2>
@@ -260,37 +296,6 @@
   <div id="grantres"></div>
 </div>
 
-<h2 id="sec-tampercard">the lie exhibit — committed forgeries that verify by failing</h2>
-<div class="card">
-  <div class="kv" style="margin-bottom:8px">a <code>sealed-tamper/v1</code> card IS the forgery — a deliberately mutated artifact, pinned in the bundle, with the check(s) it died at recorded when it was minted. Verifying an exhibit replays the forged card against the <b>real</b> verifier and asserts it still dies at the same named check — so the evidence base ships proof of its own skepticism. If a "forgery" ever verified, the exhibit FAILS. Same replay as <code>chain artifact &lt;exhibit&gt;</code>.</div>
-  <div><select id="tamperpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed forgery —</option></select>
-  <button onclick="loadTamper(document.getElementById('tamperpick').value)">load exhibit</button>
-  <span class="kv">ten committed forgeries — oracle substitution, pool rewrite, rank swap, bounty theft, viewer redirect, verdict flip, phantom receipts</span></div>
-  <div><textarea id="tamperjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-tamper/v1",…}'></textarea></div>
-  <button onclick="verifyTamper()">verify exhibit — the inner card MUST be rejected</button>
-  <div id="tamperres"></div>
-</div>
-
-<h2 id="sec-forge">the forgery lab — try to break it</h2>
-<div class="card">
-  <div class="kv" style="margin-bottom:8px">don&#8217;t take the checks on faith — <b>run the attack</b>. Each button mutates a committed artifact the way a cheater would, then hands the forged card straight to the same in-page verifier. Every forgery must die at a named check; if one ever says VERIFIED, the artifact scheme is broken. The full check list renders in the target section below the verdict.</div>
-  <div>
-    <button onclick="forge('score')">forge a +1 score</button>
-    <button onclick="forge('rank')">swap the #1 rank</button>
-    <button onclick="forge('vouch')">un-vouch an attested receipt</button>
-    <button onclick="forge('verdict')">flip a head-to-head verdict</button>
-    <button onclick="forge('phantom')">mint a phantom receipt</button>
-    <button onclick="forge('pool')">inflate a settled pool</button>
-    <button onclick="forge('counts')">re-age the ledger</button>
-    <button onclick="forge('phanrun')">mint a phantom run</button>
-    <button onclick="forge('toc')">erase an artifact from the index</button>
-    <button onclick="forge('payout')">inflate a winning stake</button>
-    <button onclick="forge('claimwin')">steal the bounty</button>
-    <button onclick="forge('regrant')">redirect a disclosure</button>
-  </div>
-  <div id="forgeres"></div>
-</div>
-<div id="tourbar" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--card);border-top:1px solid var(--acc);padding:10px 16px;font-size:13px">
   <span id="tourcap" class="kv"></span>
   <span style="float:right">
     <span id="tourstep" class="kv"></span>
@@ -302,7 +307,7 @@
 
 <script>
 // Local base58 + a minimal PublicKey shim: the explorer renders snapshots and
-// verifies proofs even when the web3.js CDN is unreachable — only live-RPC
+// verifies proofs even when the vendored web3.js is missing — only live-RPC
 // calls (load(), Connection in verify) need the real library.
 const B58A = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const B58M = Object.fromEntries([...B58A].map((c, i) => [c, BigInt(i)]));
@@ -781,7 +786,7 @@ async function load() {
   if (window.__snapFrozen) return; // a manually loaded snapshot stays frozen
   document.getElementById("err").textContent = "";
   if (!window.__loadedOnce) document.getElementById("out").innerHTML = `<div class="card kv">connecting to ${esc(url)}…</div>`;
-  if (!window.solanaWeb3) { document.getElementById("err").textContent = "web3.js CDN unreachable — live RPC needs it; snapshot loading still works"; return; }
+  if (!window.solanaWeb3) { document.getElementById("err").textContent = "vendored web3.js not loaded — live RPC needs it; snapshot loading still works"; return; }
   const conn = new solanaWeb3.Connection(url, "confirmed");
   clusterTag = clusterOf(url);
   document.getElementById("net").textContent = " LIVE — " + url;
@@ -1014,12 +1019,15 @@ function renderAll(sealedAccs, marketAccs) {
 
   // ---- hero: the confidentiality paradox, in one strip ----
   const heroCt = privChunks.find(c => c.partsWritten)?.cts0 || chunks.find(c => c.partsSealed)?.cts && hex(chunks.find(c => c.partsSealed).cts.slice(0, 64));
-  const heroRun = finalized.sort((a, b) => Number(b.finalizedAt) - Number(a.finalizedAt))[0];
+  // Prefer a real-model run for the hero — fixture ids (test/, mock/, …)
+  // are honest evidence but a bad first impression.
+  const heroPool = finalized.filter(r => !/^(test|mock|ladder|dark|duel|band|bounty|phantom)\//.test(r.modelId));
+  const heroRun = (heroPool.length ? heroPool : finalized).sort((a, b) => Number(b.finalizedAt) - Number(a.finalizedAt))[0];
   if (heroCt || heroRun) {
     const heroItems = heroRun ? (benches.find(x => x.pk === heroRun.benchmark)?.chunkCount ?? heroRun.chunkCount) * 32 : 0;
-    h += `<div class="card hero"><div class="herohead">questions &amp; answer keys exist only as MPC ciphertext — yet every score is cryptographically proven</div><div class="herorow">`;
+    h += `<div class="card hero"><div class="herohead">a sealed exam exists only as MPC ciphertext — yet the cluster still wrote the score on-chain</div><div class="herorow">`;
     if (heroCt) h += `<div class="herocell"><div class="herolabel">all the chain holds</div><div class="mono heroct">${heroCt.slice(0, 64)}…</div><div class="kv">Rescue / x25519 — no plaintext spec or answer key on-chain</div></div>`;
-    if (heroRun) h += `<div class="heroarrow">→</div><div class="herocell"><div class="herolabel">what's proven anyway</div><div class="score" style="font-size:26px">${heroRun.correct}/${heroItems || "?"} ✓</div><div class="kv">${esc(heroRun.modelId)} · committed pre-scoring · MPC-verified${heroRun.attested ? " · authority-attested" : ""}</div></div>`;
+    if (heroRun) h += `<div class="heroarrow">→</div><div class="herocell"><div class="herolabel">what's proven anyway</div><div class="score" style="font-size:26px">${heroRun.correct}/${heroItems || "?"} ✓</div><div class="kv">${esc(heroRun.modelId)} · committed pre-scoring · written by the cluster's callback${heroRun.attested ? " · authority-attested" : ""}</div></div>`;
     h += `</div></div>`;
   }
   h += `<div class="card statcard">` + stats.map(([v, l]) => `<span class="kv"><b class="score">${v}</b> ${l}</span>`).join("") + `</div>`;
@@ -2199,7 +2207,7 @@ function verifyClaim() {
   try {
     const c = JSON.parse(document.getElementById("claimjson").value);
     if (c.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 card (kind=${c.kind})`);
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs.sealed), mpid = new PK(c.programs.market);
     const drv = (seeds, pid) => pdaB(seeds, pid);
     // [1] identity: every PDA re-derives
@@ -2341,7 +2349,7 @@ function verifyCert() {
   try {
     const c = JSON.parse(document.getElementById("certjson").value);
     if (c.kind !== "sealed-policy/v1") throw new Error(`not a sealed-policy/v1 cert (kind=${c.kind})`);
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs.sealed);
     const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
     const p = c.policy ?? {};
@@ -2423,7 +2431,7 @@ function verifyMatch() {
   try {
     const c = JSON.parse(document.getElementById("matchjson").value);
     if (c.kind !== "sealed-match/v1") throw new Error(`not a sealed-match/v1 card (kind=${c.kind})`);
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs.sealed);
     const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
     pdaB([utf8("modelrec"), hex2u8(c.a.seeds.modelHash)], spid) === c.a.recordPk
@@ -2622,6 +2630,8 @@ renderCatalog();
 fetch("tamper/index.json").then(r => r.ok ? r.json() : []).then(files => {
   const sel = document.getElementById("tamperpick");
   if (!sel || !Array.isArray(files)) return;
+  const tc = document.getElementById("tampercount");
+  if (tc) tc.textContent = `${files.length} committed forgeries`;
   for (const f of files) {
     const o = document.createElement("option");
     o.value = f;
@@ -2796,7 +2806,7 @@ async function forgeThis(k) {
 // so a check that renders here is the check that ran.
 async function replayBundle() {
   const res = document.getElementById("bundleres");
-  if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI recursive verifier works without it)</div>`; return; }
+  if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI recursive verifier works without it)</div>`; return; }
   const KINDS = [
     ["claims", "claimjson", "claimres", verifyClaim, "sealed-claim/v1"],
     ["policies", "certjson", "certres", verifyCert, "sealed-policy/v1"],
@@ -2929,7 +2939,7 @@ async function verifyTrail() {
         ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… matches the card — bound to THESE account bytes`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}… — this card describes a different ledger`);
     }
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs.sealed), mpid = new PK(c.programs.market);
     pdaB([utf8("run"), pkB(c.run.benchmark), u64le(c.run.index)], spid) === c.run.pk
       ? pass("run PDA", `${c.run.pk.slice(0, 12)}… = [run, bank, u64le(${c.run.index})]`)
@@ -3074,7 +3084,7 @@ async function verifyReport() {
     const wantHash = md.match(/claim-card content sha256 `([0-9a-f]{64})`/)?.[1];
     const recordPk = md.match(/record PDA `([1-9A-HJ-NP-Za-km-z]{32,44})`/)?.[1];
     if (!model || !wantHash || !recordPk) throw new Error("malformed report — missing model header, card sha256, or record PDA line");
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     // fetch the bound card — by convention it's served at claims/<slug>.json
     const slug = model.replace(/[^A-Za-z0-9._-]+/g, "_");
     const cr = await fetch(`claims/${slug}.json`);
@@ -3198,7 +3208,7 @@ async function verifyBoard() {
     if (c.kind !== "sealed-board/v1") throw new Error(`not a sealed-board/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
     if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
     const wilsonLcb = (w, n, z = 1.96) => n <= 0 ? 0 :
       100 * ((w / n + z * z / (2 * n)) - z * Math.sqrt((w / n * (1 - w / n) + z * z / (4 * n)) / n)) / (1 + z * z / n);
@@ -3335,7 +3345,7 @@ async function verifyBank() {
     if (c.kind !== "sealed-bank/v1") throw new Error(`not a sealed-bank/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
     if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
     const u16 = (n) => { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, n, true); return b; };
     const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
@@ -3513,7 +3523,7 @@ async function verifyPosition() {
     if (c.kind !== "sealed-position/v1") throw new Error(`not a sealed-position/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
     if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
-    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the CDN (the CLI verifier works without it)</div>`; return; }
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const mpid = new PK(c.programs?.market ?? MARKET_PID.toString());
     const venuePk = c.venue.pk, bettor = c.position.seeds.bettor;
     const u64 = (n) => u64le(n);
@@ -3955,7 +3965,7 @@ async function verify() {
         // (3) account exists but fails owner/disc checks — hard fail below.
         let rpcOk = false, info = null;
         try {
-          if (!window.solanaWeb3) throw new Error("web3 CDN unreachable");
+          if (!window.solanaWeb3) throw new Error("vendored web3.js not loaded");
           const conn = new solanaWeb3.Connection(rpcIn.value.trim(), "confirmed");
           info = await conn.getAccountInfo(runKey);
           rpcOk = true;
@@ -4237,7 +4247,7 @@ async function runAudit(force) {
 
     // [2] PDA re-derivation — needs real web3.js (sha256 + ed25519).
     if (!canPda()) {
-      skip("PDA derivation", "web3.js CDN unreachable — only this check needs it");
+      skip("PDA derivation", "vendored web3.js not loaded — only this check needs it");
     } else {
       let bad = 0;
       const chk = (want, got) => { if (want !== got) bad++; };
@@ -4832,8 +4842,13 @@ function runCompare() {
 }
 
 // `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.
+// On a hosted origin (github.io) the pinned bundle IS the ledger — skip the
+// localnet attempt entirely so first paint isn't an error banner; `?rpc=`
+// or the connect button still goes live explicitly.
 const snapUrl = params.get("snapshot");
+const hosted = !["localhost", "127.0.0.1", ""].includes(location.hostname) && !params.get("rpc");
 if (snapUrl) loadSnapshotUrl(snapUrl);
+else if (hosted) loadSnapshotUrl("snapshot.json");
 else { load(); setInterval(load, 15000); }
 </script>
 </body>

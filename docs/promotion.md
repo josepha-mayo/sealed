@@ -88,112 +88,65 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > blind or through selective-disclosure grants, MPC tallies the score, and
 > Solana markets resolve permissionlessly off the number it writes.
 >
-> What's on-chain now: 503 runs across 120 banks, 340 venues over six
-> settlement primitives — score-band, head-to-head duels, K-way ladder
-> races (dead-heat pro-rata, 3–8 legs), unseen-exam markets that price a
-> run on a bank nobody can read, dark commit-reveal markets where the
-> bettor's side is a sha256 commitment, and escrowed capability bounties
-> that pay the first MPC-proven run over a threshold. Every primitive has
-> settled a real open-weights model's score — four local models raced an
-> MPC-minted exam (qwen2.5-3b and 1.5b dead-heated at 6/32; the ladder
-> paid pro-rata), gpt-oss-20b scored 64/64 on a bank whose answer key
-> never existed in plaintext, and a stale-artifact "64/64" claim scored
-> 1/64 — the chain doesn't trust self-reports. A persistent model registry
-> (`ModelRecord` + `ScoreLog` receipts) turns those runs into a
-> capability record any program can gate on — `chain gate` evaluates a
-> policy (min accuracy / min items / vouched-only / Wilson lower bound /
-> no-post-reveal) with exit 0/1/2, and `chain history` replays a model's
-> receipt trajectory (a regression detector). Operations are
-> permissionless end-to-end: `chain market board` inventories what a
-> keeper can act on (claimable bounties, resolvable venues, tallyable
-> darks, sweepable expiries — mirroring the on-chain
-> still_moving/proven gates), `chain market sweep --watch` is the
-> keeper daemon that executes all of it, and `chain market positions`
-> is the bettor-side book with estimated payouts. The explorer renders
-> the same keeper board in-page — on the bundled ledger it flags 36
-> actionable venues. And every read surface — `board`, `gate`,
-> `history`, `compare`, `records`, `banks`, `positions` — takes
-> `--snapshot web/snapshot.json` to replay the committed evidence bundle
-> keyless: the CLI and the explorer agree bit-for-bit on a file you can
-> download and diff. `chain compare` goes further than a leaderboard:
-> it joins receipts by benchmark — "does A beat B on the SAME exams?"
-> — and `compare --all` tallies every pair's shared-bank result into a
-> W-L-T table where disjoint coverage counts as unranked, not assumed
-> (on this ledger: 392/465 pairs share nothing — the paired ranking
-> tells a different story than aggregate accuracy, which is the point).
-> `chain stats` compresses the honesty story into one screen: ledger
-> counts, escrow, MPC latency p50/p95 — and two verdicts recomputed
-> inline, all 31 registry aggregates bit-exact from receipts and all 201
-> resolutions matching `Run.correct`, exit 1 on a violation. `chain runs`
-> is the substrate index underneath it, and `chain items` regenerates an
-> entire MPC-minted exam from raw on-chain chunks — items_root fold
-> re-verified, keyless. `chain tour` narrates all of it in one command —
-> seven stops through live-picked exhibits, ending on what the stakes
-> believe: `chain market odds`/`sentiment`/`champions` pool the books
-> into per-model implied probabilities, expected scores, and settlement
-> records, `chain market divergence` shows where the money disagrees
-> with the receipts (the flagship: a model 0W-8L on evidence still
-> priced #3), `chain market calibration` grades the closing books
-> (87% favorite hit-rate, Brier better than uniform), `chain matrix`
-> renders the capability grid — models × most-run banks — `chain market
-> live` is the bettor's board of venues still taking positions, `chain
-> market quote` simulates a stake before it exists (the program's own
-> parimutuel math), `chain search` resolves any pasted pubkey to its
-> dossier, `chain model` fuses all four model lenses plus matrix
-> coverage into one page, `compare --all --wilson` ranks by 95% lower
-> bound instead of raw wins, and `chain watch` ticks the ledger live.
-> Then the surfaces nobody else has: `chain market sharps` ranks bettor
-> track records on realized P&L and reports the book's anonymity set
-> honestly (126 resolved bettors, almost all one-position wallets — no
-> repeat records survives); `chain market escrow` reconciles every staked
-> lamport to its obligation bucket, balanced to the lamport (76.075◎ in,
-> in-play / owed / contingent / bounty / settled-out, zero dead money);
-> `chain anomalies` runs twelve hostile checks on its own bundle (the
-> disclosed post-reveal runs and the records they prop up are the two
-> warns); `chain gate --sweep`
-> drops the single-threshold assumption — every record's "frontier" is
-> the strictest line it survives; and `chain prove` mints the actual
-> deliverable — a portable `sealed-claim/v1` card per model where every
-> PDA re-derives keyless and every verdict replays. `chain prove --all`
-> ships the entire registry that way: 31 committed cards, `chain prove
-> --verify claims/` replays all 279 checks — and `--verify <card>
-> --min-pct N` re-grades a card against the *caller's* policy (authentic
-> AND sufficient in one verdict). The governance artifact follows the
-> same pattern: `chain gate --all --cert` mints `sealed-policy/v1`
-> certificates (two committed: a 60%-3runs admission and a strict
-> vouched 70% — the strict one honestly returns 27 no-evidence),
-> `chain report` prints the dossier as a card-hash-pinned document,
-> `chain gate <model> --why` autopsies the binding constraint,
-> `chain market unclaimed` names every owed claimant, and
-> `chain banks --depth` sorts exams by lamports moved. The capper:
-> `chain artifact docs/evidence --recursive` replays all 138 committed
-> artifacts in one pass (claims, matches, policies, trails, reports,
-> positions, bounties, grants, banks, the board, the digest, the catalog,
-> and the committed forgeries — thirteen portable kinds, one universal
-> verifier), and `chain fingerprint` folds every manifest-pinned byte
-> into a single `BUNDLE ROOT` sha256 the terminal and the explorer agree
-> on.
+> On the evidence ledger: **503 runs · 340 venues across six settlement
+> primitives · 4 real open-weights models** (a dead-heat ladder paid both
+> co-leaders pro-rata; a stale-artifact "64/64" claim scored **1/64** —
+> the chain does not trust self-reports) **· a sealed private exam**
+> readable only by delegate grant — and all of it folds to **one sha256
+> notarized on devnet**.
 >
-> Verify it yourself in three minutes: the hosted explorer replays the
-> entire ledger in your browser — PDA derivation, Merkle folds, all 201
-> market resolutions re-derived from `Run.correct`, the 31-record
-> registry replayed bit-exact from 292 receipts — plus a public
-> calibration exam where the page recomputes the MPC score per item,
-> an in-page claim-card verifier (pick any of the 31 committed cards, set YOUR policy thresholds on it,
-> all sha256-pinned in the bundle MANIFEST), a skeptic's-checklist
-> panel, the policy sweep, the escrow ledger, and a "diff…" button that
-> shows added/removed/mutated accounts when you drop any bundle.
-> Or don't run anything: `docs/evidence/replay.txt` is a captured
-> transcript of the same commands.
-> No install, no trust in us.
+> Verify it in seconds, not trust: the explorer's **`?mega=1`** link runs
+> the entire audit in your browser (~8s) — every account's PDA re-derived,
+> all 138 artifacts replayed, 12 forgeries dying at named checks, the
+> sealed exam decrypted in-page. Or `curl …/verify.py | python3 - --remote`
+> — one stdlib file re-verifies all 351 served bytes, zero clone. The
+> forgery lab lets you run the attacks yourself.
 >
-> Honest status: both programs live on devnet and byte-verified against
-> this repo (`verify-deployed.sh` — MATCH, MATCH); the shared Arcium devnet
-> cluster's callback outage stalls new bank flows upstream — every flow
-> is proven on the committed localnet evidence bundle.
+> The depth is real: `market sharps` reports the 125-wallet anonymity set
+> honestly, `market escrow` reconciles every lamport, `chain anomalies`
+> runs twelve hostile checks on our own bundle and prints the warns,
+> `chain gate --sweep` maps every model's surviving policy frontier, and
+> portable `sealed-*/v1` evidence cards cover every actor — claims,
+> matches, trails, positions, bounties, grants, the board itself.
+>
+> Honest status: both programs live on devnet and byte-verified
+> (`verify-deployed.sh` — MATCH, MATCH); the shared Arcium devnet
+> cluster's callback outage stalls new flows upstream — everything is
+> proven on the committed localnet evidence bundle.
 >
 > Repo: github.com/josepha-mayo/sealed · Explorer:
 > josepha-mayo.github.io/sealed · Judge guide: docs/judges.md
+
+### Command inventory (reference — the detail behind the post)
+
+- On-chain surface: six settlement primitives — score-band, head-to-head
+  duels, K-way ladder races (dead-heat pro-rata, 3-8 legs), unseen-exam
+  markets, dark commit-reveal (bettor side is a sha256), escrowed
+  capability bounties paying the winning run's operator. All settled
+  real-model MPC scores.
+- Model registry: `ModelRecord` + `ScoreLog` receipts → `chain gate`
+  policy evaluation (min-accuracy/min-items/vouched-only/Wilson/no-post-
+  reveal, exit 0/1/2), `chain history` as regression detector.
+- Keeper ops: `chain market board` (36 actionable venues on the bundle),
+  `chain market sweep --watch` keeper daemon, `market positions`,
+  `market unclaimed` names every owed claimant.
+- Analytics: `market odds`/`sentiment`/`champions`/`divergence`
+  (evidence-vs-conviction), `market calibration` (Brier vs uniform),
+  `matrix` capability grid, `compare --all --wilson` (392/465 pairs
+  share no bank — paired ranking != aggregate), `banks --depth`.
+- Verifier chain: `chain stats` replays 31 aggregates + 201 resolutions
+  inline, `chain items` regenerates an MPC-minted exam from raw chunks,
+  `chain artifact docs/evidence --recursive` replays all 138 artifacts,
+  `chain fingerprint` folds everything to one BUNDLE ROOT. `chain prove`
+  mints `sealed-claim/v1` cards (31 committed, `--verify claims/`
+  replays 279 checks; `--min-pct N` re-grades against caller policy);
+  `chain gate --cert` mints `sealed-policy/v1` (two committed); trails,
+  reports, positions, bounties, grants, bank, digest, catalog cards all
+  replay keyless. `chain tour` narrates the ledger; `watch` ticks it
+  live; `chain search` resolves any pubkey to its dossier.
+- Explorer mirrors all of it in-page plus: the 24-stop tour, per-kind
+  card verifiers, policy sweep, escrow ledger, diff-any-bundle button,
+  and the tamper exhibits.
 
 Numbers must stay in sync with web/snapshot.json — re-check against
 `node scripts/verify.mjs` output before posting.

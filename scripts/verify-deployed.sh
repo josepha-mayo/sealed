@@ -27,6 +27,23 @@ for pair in "sealed:$SEALED_PID" "market:$MARKET_PID"; do
     echo "FAIL  $name — could not dump $pid from $CLUSTER"
     fail=1; continue
   fi
+  # `solana program dump` returns the whole ProgramData data segment. After a
+  # `program extend` (needed when a new build outgrows the old allocation)
+  # the account is longer than the ELF — the tail is zero padding, not
+  # program bytes. Truncate to the local .so length, but only when every
+  # trailing byte is 0x00 — a nonzero tail means the account carried extra
+  # data and the comparison must stay strict.
+  local_len=$(stat -c%s "$so")
+  dump_len=$(stat -c%s "$dump")
+  if (( dump_len > local_len )); then
+    tail_len=$(( dump_len - local_len ))
+    if tail -c "$tail_len" "$dump" | tr -d '\0' | grep -q .; then
+      echo "FAIL  $name — ProgramData is ${tail_len}B longer than the ELF and the tail is NON-ZERO (unexpected account state)"
+      fail=1; continue
+    fi
+    head -c "$local_len" "$dump" > "$dump.elf" && mv "$dump.elf" "$dump"
+    echo "  note: ProgramData extended — ${tail_len}B zero tail stripped before hashing"
+  fi
   onchain="$(sha256sum "$dump" | cut -d' ' -f1)"
   local_sha="$(sha256sum "$so" | cut -d' ' -f1)"
   if [[ "$onchain" == "$local_sha" ]]; then

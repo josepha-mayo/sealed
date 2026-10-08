@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Sealed — independent evidence verifier (stdlib-only Python).
+"""Sealed — second-language evidence verifier (stdlib-only Python).
 
-This is deliberately a SECOND implementation: the TypeScript harness and
+This is deliberately a SEPARATE implementation: the TypeScript harness and
 the in-browser verifier replay every check in full; this file proves the
 evidence base is language-agnostic — no node_modules, no pip install,
 no RPC. If this script and `chain fingerprint` agree on the BUNDLE ROOT,
-the bundle is self-consistent under two independent implementations.
+the bundle is self-consistent under two implementations that must agree.
 
   python3 scripts/verify.py            # run from the repo root
 
@@ -325,28 +325,559 @@ def main():
 
     # account census — every snapshot account's discriminator must be a
     # known class, including the ones only decoders elsewhere consume
-    # (AnswerChunk ciphertexts, Arcium's SignPda). An unrecognized account
-    # type silently evaporating is a verifier bug, not a pass.
+    # (AnswerChunk ciphertexts, Arcium's SignPda), AND every known class
+    # must unpack under its owning decoder: an account that fails to parse
+    # silently evaporating is a verifier bug, not a pass. The same pass
+    # builds the per-class maps the snapshot-wide sweeps below run on —
+    # the decode-and-classify stage of scripts/verify.mjs, ported.
+    SIGN_DISC = bytes.fromhex("d69d7a72752cd64a")  # Arcium SignPdaAccount
     KNOWN_DISCS = {
         disc(n) for n in (
             "Benchmark", "Run", "ScoreLog", "ModelRecord", "Reveal",
             "ShareGrant", "ItemChunk", "PrivItemChunk", "AnswerChunk",
             "Market", "DarkMarket", "Ladder", "Bounty", "Position",
             "DarkPosition")
-    } | {bytes.fromhex("d69d7a72752cd64a")}  # Arcium SignPdaAccount
-    census, unknown = {}, 0
-    for a in SNAP.get("sealed", []) + SNAP.get("market", []):
+    } | {SIGN_DISC}
+    census, unknown, undecoded = {}, 0, 0
+    benches, runs, item_chunks, priv_chunks = {}, {}, [], []
+    chunks, reveals, grants = [], [], []
+    records, scorelogs, sign_pda = {}, {}, None
+    markets, ladders, darks = {}, [], {}
+    dark_pos, positions, bounties = [], [], []
+    for a in SNAP.get("sealed", []):
         d = base64.b64decode(a["data"])
-        if d[:8] in KNOWN_DISCS:
-            census[d[:8]] = census.get(d[:8], 0) + 1
-        else:
+        dd = d[:8]
+        if dd not in KNOWN_DISCS:
             unknown += 1
+            continue
+        census[dd] = census.get(dd, 0) + 1
+        try:
+            if dd == disc("Benchmark"):
+                benches[a["pubkey"]] = decode_benchmark(d)
+            elif dd == disc("Run"):
+                runs[a["pubkey"]] = decode_run(d)
+            elif dd == disc("ItemChunk"):
+                ic = decode_item_chunk(d)
+                item_chunks.append({"pk": a["pubkey"], "bench": b58encode(d[8:40]),
+                                    "index": ic["index"], "dec": ic, "raw": d})
+            elif dd == disc("PrivItemChunk"):
+                pc = decode_priv_item_chunk(d)
+                priv_chunks.append({"pk": a["pubkey"], "bench": b58encode(d[8:40]),
+                                    "index": pc["index"], "dec": pc, "raw": d})
+            elif dd == disc("Reveal"):
+                rv = decode_reveal(d)
+                reveals.append({"pk": a["pubkey"], "bench": rv["benchmark"],
+                                "chunk": rv["chunk"], "part": rv["part"],
+                                "revealedAt": rv["revealedAt"]})
+            elif dd == disc("ShareGrant"):
+                g = decode_share_grant(d)
+                grants.append({"pk": a["pubkey"], "bench": g["benchmark"],
+                               "chunk": g["chunkIndex"], "part": g["part"],
+                               "viewer": g["viewer"]})
+            elif dd == disc("AnswerChunk"):
+                chunks.append({"pk": a["pubkey"], "bench": b58encode(d[8:40]),
+                               "index": int.from_bytes(d[40:42], "little")})
+            elif dd == disc("ModelRecord"):
+                records[a["pubkey"]] = decode_model_record(d)
+            elif dd == disc("ScoreLog"):
+                scorelogs[a["pubkey"]] = decode_scorelog(d)
+            elif dd == SIGN_DISC:
+                sign_pda = a["pubkey"]
+            else:
+                raise ValueError("market-class account in the sealed section")
+        except Exception as e:
+            undecoded += 1
+            print(f"    ! unparseable sealed account {a['pubkey']}: {e}")
+    for a in SNAP.get("market", []):
+        d = base64.b64decode(a["data"])
+        dd = d[:8]
+        if dd not in KNOWN_DISCS:
+            unknown += 1
+            continue
+        census[dd] = census.get(dd, 0) + 1
+        try:
+            if dd == disc("Market"):
+                m = decode_market(d)
+                m["duel"] = bool(m["runB"]) and m["runB"] != NULL_PK
+                markets[a["pubkey"]] = m
+            elif dd == disc("Ladder"):
+                l = decode_ladder(d)
+                l["legs"] = l["legs"][:l["legCount"]]
+                ladders.append({**l, "pk": a["pubkey"]})
+            elif dd == disc("DarkMarket"):
+                darks[a["pubkey"]] = decode_dark_market(d)
+            elif dd == disc("DarkPosition"):
+                dark_pos.append({**decode_dark_position(d), "pk": a["pubkey"]})
+            elif dd == disc("Bounty"):
+                bounties.append({**decode_bounty(d), "pk": a["pubkey"]})
+            elif dd == disc("Position"):
+                positions.append({**decode_position(d), "pk": a["pubkey"]})
+            else:
+                raise ValueError("sealed-class account in the market section")
+        except Exception as e:
+            undecoded += 1
+            print(f"    ! unparseable market account {a['pubkey']}: {e}")
     total = sum(census.values()) + unknown
-    ok &= check("account census", unknown == 0,
+    ok &= check("account census", unknown == 0 and undecoded == 0,
                 f"{total} accounts · {len(census)} known discriminator classes "
                 f"({census.get(disc('AnswerChunk'), 0)} MPC answer chunks "
-                f"+ Arcium sign PDA included) — none unrecognized"
-                if unknown == 0 else f"{unknown} account(s) with unknown discriminators")
+                f"+ Arcium sign PDA included) — all decoded, none unrecognized"
+                if unknown == 0 and undecoded == 0
+                else f"{unknown} unknown discriminator(s) + "
+                     f"{undecoded} unparseable account(s)")
+
+    # --- snapshot-wide sweeps (ported from scripts/verify.mjs) ------------
+    # The same battery the TypeScript verifier runs over the WHOLE decoded
+    # snapshot: PDA re-derivation for every account, run-mask invariants,
+    # items_root commitment folds, market resolutions as pure functions of
+    # MPC-written scores, bounty claims, the capability registry replayed
+    # from its receipts, referential integrity, bundled Merkle proofs, and
+    # the post_reveal flag report — all against the bytes decoded above.
+    spid = SNAP.get("meta", {}).get("programs", {}).get("sealed")
+    mpid = SNAP.get("meta", {}).get("programs", {}).get("market")
+
+    # [2] PDA re-derivation — every account must sit at its seed-derived
+    # address (17 seed shapes, real ed25519 off-curve bump iteration).
+    pda_bad = 0
+
+    def pda_check(want, seeds, pid, what):
+        nonlocal pda_bad
+        got = pda(seeds, pid)
+        got = b58encode(got) if got is not None else None
+        if got != want:
+            pda_bad += 1
+            print(f"    ! {what}: want {want} got {got}")
+
+    for pkk, b in benches.items():
+        pda_check(pkk, [b"benchmark", b58decode(b["authority"]),
+                        struct.pack("<I", b["id"])], spid, f"benchmark {b['id']}")
+    for c in item_chunks:
+        pda_check(c["pk"], [b"items", b58decode(c["bench"]),
+                            struct.pack("<H", c["index"])], spid, f"items {c['index']}")
+    for c in priv_chunks:
+        pda_check(c["pk"], [b"pitems", b58decode(c["bench"]),
+                            struct.pack("<H", c["index"])], spid, f"pitems {c['index']}")
+    for c in chunks:
+        pda_check(c["pk"], [b"chunk", b58decode(c["bench"]),
+                            struct.pack("<H", c["index"])], spid, f"chunk {c['index']}")
+    for pkk, r in runs.items():
+        pda_check(pkk, [b"run", b58decode(r["benchmark"]), u64le(r["index"])],
+                  spid, f"run {r['index']}")
+    for r in reveals:
+        pda_check(r["pk"], [b"reveal", b58decode(r["bench"]),
+                            struct.pack("<H", r["chunk"]), bytes([r["part"]])],
+                  spid, f"reveal {r['chunk']}/{r['part']}")
+    for g in grants:
+        pda_check(g["pk"], [b"grant", b58decode(g["bench"]),
+                            struct.pack("<H", g["chunk"]), bytes([g["part"]]),
+                            b58decode(g["viewer"])], spid, f"grant {g['chunk']}/{g['part']}")
+    for pkk, m in markets.items():
+        plain = b58encode(pda([b"market", b58decode(m["run"]),
+                               u64le(m["salt"])], mpid) or b"")
+        duel = (b58encode(pda([b"duel", b58decode(m["run"]), b58decode(m["runB"]),
+                              u64le(m["salt"])], mpid) or b"") if m["duel"] else None)
+        if pkk != plain and pkk != duel:
+            pda_bad += 1
+            print(f"    ! market {pkk}: neither [market,run,salt] nor [duel,a,b,salt]")
+    for l in ladders:
+        pda_check(l["pk"], [b"ladder", b58decode(l["legs"][0]), u64le(l["salt"])],
+                  mpid, "ladder")
+    for pkk, dm in darks.items():
+        pda_check(pkk, [b"dark", b58decode(dm["run"]), u64le(dm["salt"])],
+                  mpid, "dark market")
+    for b in bounties:
+        pda_check(b["pk"], [b"bounty", b58decode(b["bank"]), b58decode(b["sponsor"]),
+                            u64le(b["salt"])], mpid, "bounty")
+    for p in dark_pos:
+        found = any(b58encode(pda([b"darkpos", b58decode(p["market"]),
+                                   b58decode(p["bettor"]), u64le(s)], mpid) or b"") == p["pk"]
+                    for s in range(4096))
+        if not found:
+            pda_bad += 1
+            print(f"    ! darkpos {p['pk']}: no pos_salt 0..4095 derives it")
+    for p in positions:
+        pda_check(p["pk"], [b"position", b58decode(p["market"]),
+                            b58decode(p["bettor"])], mpid, "position")
+    for pkk, m in records.items():
+        pda_check(pkk, [b"modelrec", bytes.fromhex(m["modelHash"])], spid,
+                  f"modelrec {m['modelId']}")
+    for pkk, l in scorelogs.items():
+        pda_check(pkk, [b"scorelog", b58decode(l["run"])], spid,
+                  f"scorelog {l['run'][:8]}")
+    if sign_pda:
+        pda_check(sign_pda, [b"ArciumSignerAccount"], spid, "SignPdaAccount")
+    ok &= check("PDA derivation", pda_bad == 0,
+                "every account re-derives to its own address" if pda_bad == 0
+                else f"{pda_bad} mismatches — snapshot contains accounts "
+                     "the program could never have written")
+
+    # [3] run invariants — masks, capacity, finalization, parent bank.
+    run_bad = 0
+    for pkk, r in runs.items():
+        # guard: old-layout runs carry no ever_queued_mask tail — the subset
+        # check is skipped when the field was never written (mjs [3]).
+        if r["everQueuedMask"] and (r["scoredMask"] & ~r["everQueuedMask"]):
+            run_bad += 1
+            print(f"    ! run {pkk}: scored bits never queued")
+        if r["correct"] > bin(r["scoredMask"]).count("1") * 32:
+            run_bad += 1
+            print(f"    ! run {pkk}: correct {r['correct']} exceeds scored capacity")
+        if r["status"] == 1 and r["pendingMask"]:
+            run_bad += 1
+            print(f"    ! run {pkk}: finalized with pending bits")
+        if r["benchmark"] not in benches:
+            run_bad += 1
+            print(f"    ! run {pkk}: parent benchmark absent")
+    ok &= check("run invariants", run_bad == 0,
+                f"{len(runs)} runs: scored⊆queued, correct≤capacity, "
+                "finalized⇒no pending" if run_bad == 0 else f"{run_bad} violations")
+
+    # [4] items_root commitment replay — every generated/private bank's
+    # stored root re-folded from chunk bytes in mint_order landing sequence
+    # (gen banks fold the 40 spec bytes; private banks fold ciphertexts+nonce).
+    fold_bad = folded = 0
+    for pkk, b in benches.items():
+        if b["kind"] == 0:
+            continue
+        steps = []
+        for c in (item_chunks if b["kind"] == 1 else priv_chunks):
+            if c["bench"] != pkk:
+                continue
+            dec = c["dec"]
+            for part in range(4):
+                if not (dec["partsWritten"] & (1 << part)):
+                    continue
+                enc = (b"".join(bytes(t) for t in dec["specs"][part * 8:part * 8 + 8])
+                       if b["kind"] == 1 else
+                       b"".join(dec["ciphertexts"][part * 2 + k] for k in range(2))
+                       + dec["nonces"][part].to_bytes(16, "little"))
+                steps.append((dec["mintOrder"][part], c["index"], part, enc))
+        if not steps:
+            print(f"  note  bank {pkk[:8]} — no minted parts in snapshot")
+            continue
+        fold_root = b"\x00" * 32
+        for _seq, ci, part, enc in sorted(steps, key=lambda s: (s[0], s[1], s[2])):
+            fold_root = (gen_items_fold(fold_root, ci, part, enc) if b["kind"] == 1
+                         else priv_items_fold(fold_root, ci, part, enc))
+        if fold_root.hex() == b["itemsRoot"]:
+            folded += 1
+        else:
+            fold_bad += 1
+            print(f"    ! bank {pkk}: fold {fold_root.hex()[:16]}… "
+                  f"!= stored {b['itemsRoot'][:16]}…")
+    ok &= check("items_root folds", fold_bad == 0,
+                f"{folded} banks replayed bit-exact"
+                if fold_bad == 0 else f"{fold_bad} mismatches")
+
+    # [5] market resolutions are pure functions of MPC-written scores.
+    m_bad = m_checked = 0
+    for pkk, m in markets.items():
+        r = runs.get(m["run"])
+        if r is None:
+            print(f"  note  market {pkk[:8]} — run not in snapshot")
+            continue
+        if m["status"] != 1:
+            continue
+        m_checked += 1
+        if m["duel"]:
+            rb = runs.get(m["runB"])
+            if rb is None:
+                print(f"  note  duel {pkk[:8]} — runB missing")
+                continue
+            expect = 0 if r["correct"] > rb["correct"] else \
+                1 if rb["correct"] > r["correct"] else 2
+            packed = (r["correct"] << 16) | rb["correct"]
+            if m["outcome"] != expect or m["resolvedScore"] != packed:
+                m_bad += 1
+                print(f"    ! duel {pkk}: outcome {m['outcome']} != {expect} "
+                      f"or packed {m['resolvedScore']} != {packed}")
+        else:
+            if m["resolvedScore"] != r["correct"]:
+                m_bad += 1
+                print(f"    ! market {pkk}: resolvedScore {m['resolvedScore']} "
+                      f"!= run.correct {r['correct']}")
+            if m["outcome"] != outcome_of(m["edges"], m["n"], r["correct"]):
+                m_bad += 1
+                print(f"    ! market {pkk}: outcome {m['outcome']} != band "
+                      f"{outcome_of(m['edges'], m['n'], r['correct'])} "
+                      f"for score {r['correct']}")
+    ok &= check("score-band + duel purity", m_bad == 0,
+                f"{m_checked} resolved markets re-derived" if m_bad == 0
+                else f"{m_bad} resolutions don't match MPC scores")
+
+    l_bad = l_checked = 0
+    for l in ladders:
+        if l["status"] != 1:
+            continue
+        l_checked += 1
+        scores = [runs.get(lp, {}).get("correct") for lp in l["legs"]]
+        if None in scores:
+            print(f"  note  ladder {l['pk'][:8]} — leg run missing from snapshot")
+            continue
+        mx = max(scores)
+        expect = sum((1 << i) for i, s in enumerate(scores) if s == mx)
+        if l["resultMask"] != expect:
+            l_bad += 1
+            print(f"    ! ladder {l['pk']}: mask {l['resultMask']} "
+                  f"!= argmax {expect} over {scores}")
+    ok &= check("ladder argmax masks", l_bad == 0,
+                f"{l_checked} ladders re-derived" if l_bad == 0
+                else f"{l_bad} mismatches")
+
+    d_bad = d_checked = 0
+    for pkk, dm in darks.items():
+        if dm["status"] not in (1, 2):  # resolved or cancelled
+            continue
+        r = runs.get(dm["run"])
+        if dm["status"] == 1 and r:
+            d_checked += 1
+            if dm["resolvedScore"] != r["correct"] or \
+                    dm["outcome"] != outcome_of(dm["edges"], dm["n"], r["correct"]):
+                d_bad += 1
+                print(f"    ! dark {pkk}: outcome/score mismatch")
+        pos = [p for p in dark_pos if p["market"] == pkk]
+        # positions close on claim — open revealed positions can only ever be
+        # a subset of the lifetime revealed_count.
+        rev = [p for p in pos if p["revealed"] != 255]
+        if len(rev) > dm["revealedCount"]:
+            d_bad += 1
+            print(f"    ! dark {pkk}: {len(rev)} open revealed "
+                  f"> lifetime revealedCount {dm['revealedCount']}")
+        for p in rev:
+            if p["revealed"] >= dm["n"]:
+                d_bad += 1
+                print(f"    ! darkpos {p['pk']}: revealed outcome "
+                      f"{p['revealed']} >= n {dm['n']}")
+        if dm["winTotal"] > dm["poolTotal"]:
+            d_bad += 1
+            print(f"    ! dark {pkk}: winTotal > pool")
+    ok &= check("dark-market accounting", d_bad == 0,
+                f"{d_checked} resolved darks re-derived; "
+                "revealedCount/wintotal consistent" if d_bad == 0
+                else f"{d_bad} violations")
+
+    # Claimed under the pre-guard binary (the self-deal guard
+    # `runner != sponsor` shipped after this claim landed). Grandfathered as
+    # historical evidence; any NEW self-deal claim fails hard.
+    GRANDFATHERED_BOUNTIES = {"EJzXf3q4pRddNcqHWFiSWfBEntwaKGUqPx8cWH1aiBSc"}
+    b_bad = b_checked = 0
+    for b in bounties:
+        if b["status"] != 1:
+            continue  # only claimed bounties carry assertions
+        b_checked += 1
+        r = runs.get(b["winnerRun"])
+        if r is None:
+            b_bad += 1
+            print(f"    ! bounty {b['pk']}: winner_run {b['winnerRun']} absent")
+            continue
+        if r["benchmark"] != b["bank"]:
+            b_bad += 1
+            print(f"    ! bounty {b['pk']}: winner run is on a different bank")
+        if r["correct"] < b["threshold"]:
+            b_bad += 1
+            print(f"    ! bounty {b['pk']}: winning score {r['correct']} "
+                  f"< threshold {b['threshold']}")
+        if b["winningScore"] != r["correct"]:
+            b_bad += 1
+            print(f"    ! bounty {b['pk']}: winningScore {b['winningScore']} "
+                  f"!= run.correct {r['correct']}")
+        if r["createdAt"] < b["createdAt"]:
+            b_bad += 1
+            print(f"    ! bounty {b['pk']}: winner run predates the bounty "
+                  "(retroactive claim)")
+        if r["runner"] == b["sponsor"]:
+            if b["pk"] in GRANDFATHERED_BOUNTIES:
+                print(f"    note bounty {b['pk']}: self-claimed under "
+                      "pre-guard binary — rejected by current code")
+            else:
+                b_bad += 1
+                print(f"    ! bounty {b['pk']}: winner run's runner IS "
+                      "the sponsor (self-deal)")
+    ok &= check("bounty claims", b_bad == 0,
+                f"{b_checked} claimed bounties re-verified against winner runs"
+                if b_bad == 0 else f"{b_bad} violations")
+
+    # [5b] capability registry — every ScoreLog binds to its run, every
+    # ModelRecord replays bit-exact from its receipts.
+    reg_bad = reg_checked = 0
+    for pkk, l in scorelogs.items():
+        r = runs.get(l["run"])
+        if r is None:
+            reg_bad += 1
+            print(f"    ! scorelog {pkk}: run {l['run']} absent")
+            continue
+        if l["correct"] != r["correct"] or l["items"] != r["chunkCount"] * 32:
+            reg_bad += 1
+            print(f"    ! scorelog {pkk}: snapshotted score "
+                  f"{l['correct']}/{l['items']} != run "
+                  f"{r['correct']}/{r['chunkCount'] * 32}")
+        if l["benchmark"] != r["benchmark"]:
+            reg_bad += 1
+            print(f"    ! scorelog {pkk}: benchmark != run's")
+        want_rec = b58encode(
+            pda([b"modelrec", sha256(r["modelId"].encode())], spid) or b"")
+        if l["modelRecord"] != want_rec:
+            reg_bad += 1
+            print(f"    ! scorelog {pkk}: model_record not derived "
+                  "from sha256(run.model_id)")
+        if l["postReveal"] != (1 if r["postReveal"] else 0):
+            reg_bad += 1
+            print(f"    ! scorelog {pkk}: post_reveal {l['postReveal']} != "
+                  f"immutable run flag {1 if r['postReveal'] else 0}")
+        # vouched is a record-time snapshot and attestation is monotone —
+        # a 1 must still be attested today; a 0 only means "not yet at
+        # record time" (Run.attested IS tail-parsed here, unlike mjs).
+        if l["vouched"] and not r["attested"]:
+            reg_bad += 1
+            print(f"    ! scorelog {pkk}: vouched receipt but run is "
+                  "not attested")
+    for pkk, m in records.items():
+        reg_checked += 1
+        if sha256(m["modelId"].encode()).hex() != m["modelHash"]:
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: model_hash != sha256(model_id)")
+        logs = sorted((l for l in scorelogs.values() if l["modelRecord"] == pkk),
+                      key=lambda l: l["recordedAt"])
+        if len(logs) != m["runsScored"]:
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: runs_scored {m['runsScored']} "
+                  f"!= {len(logs)} receipts")
+        tc = sum(l["correct"] for l in logs)
+        ti = sum(l["items"] for l in logs)
+        if tc != m["totalCorrect"] or ti != m["totalItems"]:
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: totals "
+                  f"{m['totalCorrect']}/{m['totalItems']} != replayed {tc}/{ti}")
+        # On-chain keeps the FIRST-LANDED argmax (accuracy, then correct).
+        # Same-second receipts make landing order unrecoverable from the
+        # snapshot, so verify the stored best is ANY member of the optimal
+        # set — the invariant is optimality, not which optimal run won.
+        bc = bi = 0
+        for l in logs:
+            nc, ni = l["correct"], l["items"]
+            if nc * bi > bc * ni or (nc * bi == bc * ni and nc > bc):
+                bc, bi = nc, ni
+        w = next((l for l in logs
+                  if l["correct"] == bc and l["items"] == bi
+                  and l["run"] == m["bestRun"]), None)
+        if m["bestCorrect"] != bc or m["bestItems"] != bi:
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: best {m['bestCorrect']}/"
+                  f"{m['bestItems']} != replayed optimum {bc}/{bi}")
+        if bc == 0:
+            # every receipt scored 0 — the on-chain best legitimately
+            # stays default
+            if m["bestRun"] != NULL_PK or m["bestBank"] != NULL_PK:
+                reg_bad += 1
+                print(f"    ! modelrec {pkk}: zero-score record but "
+                      f"best_run set to {m['bestRun'][:8]}")
+        elif w is None:
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: best_run {m['bestRun'][:8]} "
+                  "is not an optimal receipt")
+        elif m["bestBank"] != w["benchmark"]:
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: best_bank mismatch")
+        if m["lastScored"] != max((l["recordedAt"] for l in logs), default=None):
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: last_scored != max recorded_at")
+        if m["firstSeen"] != min((l["recordedAt"] for l in logs), default=None):
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: first_seen != min recorded_at")
+        if not any(l["run"] == m["lastRun"] and l["recordedAt"] == m["lastScored"]
+                   for l in logs):
+            reg_bad += 1
+            print(f"    ! modelrec {pkk}: last_run not the latest receipt")
+    ok &= check("capability registry", reg_bad == 0,
+                f"{reg_checked} records replayed bit-exact from "
+                f"{len(scorelogs)} receipts" if reg_bad == 0
+                else f"{reg_bad} violations — aggregates don't match receipts")
+
+    # [6] cross-references — every inter-account link must resolve.
+    x_bad = 0
+    for pkk, m in markets.items():
+        if m["run"] not in runs:
+            x_bad += 1
+    for b in bounties:
+        if b["bank"] not in benches:
+            x_bad += 1
+        if b["status"] == 1 and b["winnerRun"] not in runs:
+            x_bad += 1
+    for l in ladders:
+        for leg in l["legs"]:
+            if leg not in runs:
+                x_bad += 1
+    for c in item_chunks + priv_chunks + chunks:
+        if c["bench"] not in benches:
+            x_bad += 1
+    for r in reveals:
+        if r["bench"] not in benches:
+            x_bad += 1
+    for pkk, l in scorelogs.items():
+        if l["modelRecord"] not in records:
+            x_bad += 1
+    ok &= check("referential integrity", x_bad == 0,
+                "every market/chunk/reveal/registry link resolves"
+                if x_bad == 0 else f"{x_bad} dangling links")
+
+    # [7] Merkle proof files — docs/evidence/prove-*.json re-verified
+    # end-to-end: leaf hash → sibling fold → outputsRoot → the run account.
+    pf_bad = pf_ok = 0
+    D_COUT, D_NODE = b"sealed/v1/chunkout\x00", b"\x01"
+    for f in sorted((ROOT / "docs" / "evidence").glob("prove-*.json")):
+        try:
+            p = json.loads(f.read_text())
+            outs = [int(x) for x in p["chunkOutputs"]]
+            while len(outs) < 32:
+                outs.append(0)
+            h = sha256(D_COUT + struct.pack("<H", int(p["chunkIndex"]))
+                       + b"".join(u64le(o) for o in outs))
+            i = int(p["chunkIndex"])
+            for s in p["proof"]:
+                sb = bytes.fromhex(s)
+                h = sha256(D_NODE + (h + sb if i % 2 == 0 else sb + h))
+                i >>= 1
+            root_ok = h.hex() == p["outputsRoot"]
+            slot_ok = int(p["outputHash"]) == \
+                int(p["chunkOutputs"][int(p["itemIndex"]) % 32])
+            run = runs.get(p.get("runPda"))
+            chain_ok = run["outputsRoot"] == p["outputsRoot"] if run else None
+            if root_ok and slot_ok and chain_ok is not False:
+                pf_ok += 1
+            else:
+                pf_bad += 1
+                print(f"    ! {f.name}: root={root_ok} slot={slot_ok} "
+                      f"chain={chain_ok}")
+        except Exception as e:
+            pf_bad += 1
+            print(f"    ! {f.name}: {e}")
+    ok &= check("merkle proofs", pf_bad == 0,
+                f"{pf_ok} proof files verify end-to-end"
+                if pf_bad == 0 else f"{pf_bad} failed")
+
+    # [8] post_reveal flags — the on-chain F1 flag vs timestamp inference:
+    # flagged runs must be explainable by the bank's first reveal (the flag
+    # is authoritative; inference only has to EXPLAIN it — flagged ⊆
+    # inferred; unflagged same-second runs remain legitimate).
+    reveal_by_bench = {}
+    for r in reveals:
+        reveal_by_bench.setdefault(r["bench"], []).append(r)
+    flag_bad = 0
+    for bench, rs in reveal_by_bench.items():
+        min_t = min(r["revealedAt"] for r in rs)
+        bench_runs = [(pk, r) for pk, r in runs.items() if r["benchmark"] == bench]
+        inferred = {pk for pk, r in bench_runs if r["createdAt"] >= min_t}
+        flagged = {pk for pk, r in bench_runs if r["postReveal"]}
+        disagree = len(flagged - inferred)
+        if disagree:
+            flag_bad += 1
+            print(f"    ! bank {bench}: {disagree} flagged run(s) "
+                  "not explainable by timestamps")
+        print(f"  note  bank {bench[:8]} — {len(rs)} reveal(s) — "
+              f"{len(flagged)} flagged on-chain, {len(inferred)} inferred")
+    ok &= check("post_reveal flags", flag_bad == 0,
+                "on-chain flags consistent with reveal timestamps"
+                if flag_bad == 0 else f"{flag_bad} inconsistencies")
 
     for card_path in card_iter(ROOT / "docs" / "evidence" / "positions", kind="sealed-position/v1"):
         if card_path.name == "index.json":
@@ -1510,6 +2041,16 @@ def priv_items_fold(root, chunk_index, part, enc_bytes):
                   + struct.pack("<H", chunk_index) + bytes([part]) + enc_bytes)
 
 
+def decode_reveal(d):
+    # disc8 benchmark32 chunk u16 part u8 bump revealed_at i64 hashes[8]u64
+    if len(d) < 52:
+        raise ValueError("truncated Reveal")
+    return {"benchmark": b58encode(d[8:40]),
+            "chunk": int.from_bytes(d[40:42], "little"),
+            "part": d[42],
+            "revealedAt": int.from_bytes(d[44:52], "little", signed=True)}
+
+
 def decode_run(d):
     # disc8 benchmark32 runner32 index u64 bump status chunkCount u16
     # pending u64 scored u64 correct u32 created i64 finalized i64
@@ -1540,10 +2081,13 @@ def decode_run(d):
         "benchmark": b58encode(d[8:40]), "runner": b58encode(d[40:72]),
         "index": int.from_bytes(d[72:80], "little"),
         "status": d[81],
+        "chunkCount": int.from_bytes(d[82:84], "little"),
+        "pendingMask": int.from_bytes(d[84:92], "little"),
         "scoredMask": int.from_bytes(d[92:100], "little"),
         "correct": int.from_bytes(d[100:104], "little"),
         "createdAt": int.from_bytes(d[104:112], "little", signed=True),
         "finalizedAt": int.from_bytes(d[112:120], "little", signed=True),
+        "outputsRoot": d[152:184].hex(),
         "modelId": d[188:188 + ml].decode(),
         "attested": attested,
         "pendingSince": pending_since,
@@ -1562,6 +2106,8 @@ def decode_market(d):
         "authority": b58encode(d[8:40]), "run": b58encode(d[40:72]),
         "benchmark": b58encode(d[72:104]),
         "salt": int.from_bytes(d[112:120], "little"),
+        "n": d[120],
+        "edges": [int.from_bytes(d[121 + 4 * i:125 + 4 * i], "little") for i in range(7)],
         "status": d[150], "outcome": d[151],
         "totals": [int.from_bytes(d[152 + 8 * i:160 + 8 * i], "little") for i in range(8)],
         "resolvedScore": int.from_bytes(d[216:220], "little"),
@@ -1577,6 +2123,8 @@ def decode_dark_market(d):
     return {
         "authority": b58encode(d[8:40]), "run": b58encode(d[40:72]),
         "salt": int.from_bytes(d[112:120], "little"),
+        "n": d[120],
+        "edges": [int.from_bytes(d[121 + 4 * i:125 + 4 * i], "little") for i in range(7)],
         "status": d[150], "outcome": d[151],
         "poolTotal": int.from_bytes(d[152:160], "little"),
         "winTotal": int.from_bytes(d[160:168], "little"),
@@ -1590,13 +2138,24 @@ def decode_dark_market(d):
 
 def decode_model_record(d):
     # disc8 model_hash32 model_id str runs_scored u32 total_correct u64
-    # total_items u64 best_* …
+    # total_items u64 best_correct u32 best_items u32 best_run32
+    # best_bank32 last_run32 first_seen i64 last_scored i64 bump
     ml = int.from_bytes(d[40:44], "little")
     o = 44 + ml
-    return {"modelId": d[44:o].decode(),
+    if o + 140 > len(d):
+        raise ValueError("truncated ModelRecord")
+    return {"modelHash": d[8:40].hex(),
+            "modelId": d[44:o].decode(),
             "runsScored": int.from_bytes(d[o:o + 4], "little"),
             "totalCorrect": int.from_bytes(d[o + 4:o + 12], "little"),
-            "totalItems": int.from_bytes(d[o + 12:o + 20], "little")}
+            "totalItems": int.from_bytes(d[o + 12:o + 20], "little"),
+            "bestCorrect": int.from_bytes(d[o + 20:o + 24], "little"),
+            "bestItems": int.from_bytes(d[o + 24:o + 28], "little"),
+            "bestRun": b58encode(d[o + 28:o + 60]),
+            "bestBank": b58encode(d[o + 60:o + 92]),
+            "lastRun": b58encode(d[o + 92:o + 124]),
+            "firstSeen": int.from_bytes(d[o + 124:o + 132], "little", signed=True),
+            "lastScored": int.from_bytes(d[o + 132:o + 140], "little", signed=True)}
 
 
 def decode_ladder(d):
@@ -1612,6 +2171,14 @@ def decode_ladder(d):
         "totals": [int.from_bytes(d[344 + 8 * i:352 + 8 * i], "little") for i in range(8)],
         "resolveBy": int.from_bytes(d[442:450], "little", signed=True) if len(d) >= 450 else 0,
     }
+
+
+def outcome_of(edges, n, score):
+    # band bucket index: the first edge strictly above the score (verify.mjs).
+    i = 0
+    while i < n - 1 and score >= edges[i]:
+        i += 1
+    return i
 
 
 HARD_CAP_SECS = 24 * 3600

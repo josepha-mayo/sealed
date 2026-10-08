@@ -155,6 +155,8 @@ fn bounty_qualifies(r: &Run, b: &Bounty, now: i64) -> bool {
         && r.created_at >= b.created_at
         // A sponsor's own run can't claim — otherwise "X beat the bounty"
         // evidence could be self-dealt: post bounty, run own model, claim.
+        // (Pubkey-only, so sybil-able like duels' RunnersMustDiffer — it
+        // blocks the one-wallet case; a determined sponsor can fund an alt.)
         && r.runner != b.sponsor
         && r.correct >= b.threshold
         // Finalized, or a committed run past its landing window — same
@@ -257,6 +259,26 @@ fn ladder_leg_score(r: &Run) -> u32 {
     } else {
         0
     }
+}
+
+/// Whether a ladder may resolve at all right now. Beyond the per-leg
+/// `still_moving` windows, a race where NO leg ever started has no result
+/// to discover: argmax on all-zero forfeits yields a full mask → wash
+/// cancel, so without this gate anyone could insta-cancel a fresh ladder
+/// next slot — a repeatable venue DoS for the cost of one tx. Past
+/// `resolve_by` the same call doubles as the ladder's expiry path:
+/// all-forfeit → cancel → everyone refunds.
+fn ladder_resolvable(legs: &[Run], now: i64, resolve_by: i64) -> bool {
+    if legs.iter().any(|r| still_moving(r, now)) {
+        return false;
+    }
+    if legs
+        .iter()
+        .all(|r| r.first_pending_at == 0 && r.all_queued_at == 0 && r.scored_mask == 0)
+    {
+        return now > resolve_by;
+    }
+    true
 }
 
 /// Bitmask of legs tied at the max score (dead-heat). `scores[i]` maps to
@@ -963,9 +985,10 @@ pub mod market {
         require!(m.status == MARKET_OPEN, ErrorCode::MarketNotOpen);
         let legs = load_legs(m, ctx.remaining_accounts)?;
         let now = Clock::get()?.unix_timestamp;
-        for r in &legs {
-            require!(!still_moving(r, now), ErrorCode::LegsStillMoving);
-        }
+        require!(
+            ladder_resolvable(&legs, now, m.resolve_by),
+            ErrorCode::LegsStillMoving
+        );
         let scores: Vec<u32> = legs.iter().map(ladder_leg_score).collect();
         settle_ladder(m, &scores)
     }
@@ -1831,9 +1854,11 @@ pub struct Ladder {
     /// window invites last-second sniping on leaked leg state.
     pub closes_at: i64,
     /// Advertised settlement deadline for bettors. Resolution is gated by
-    /// `still_moving` alone — a leg inside either landing window blocks
-    /// resolve even past `resolve_by` (one bounded window per leg), and a
-    /// leg past both windows settles at whatever landed, partial included.
+    /// `ladder_resolvable`: a leg inside either landing window blocks
+    /// resolve even past `resolve_by` (one bounded window per leg), a leg
+    /// past both windows settles at whatever landed (partial included),
+    /// and a race where no leg ever started can't resolve before this
+    /// deadline — the all-forfeit wash belongs to the expiry path.
     pub resolve_by: i64,
 }
 
@@ -2908,6 +2933,33 @@ mod tests {
         assert_eq!(ladder_leg_score(&uncommitted), 30);
         assert_eq!(ladder_leg_score(&inflight), 0);
         assert_eq!(ladder_leg_score(&never_queued), 0);
+    }
+
+    /// The insta-cancel fix: a race whose legs ALL never queued can't
+    /// resolve before `resolve_by` (argmax on all-zero forfeits is a full
+    /// mask → wash cancel = venue DoS). Past the deadline the same path is
+    /// the expiry: all-forfeit cancels and refunds. A started leg (even a
+    /// dead one) lifts the gate — mixed fields settle normally.
+    #[test]
+    fn ladder_resolve_gate_blocks_unstarted_race() {
+        let now = 1_000_000i64;
+        let cap = EXPIRE_HARD_CAP_SECS;
+        let rb = now + 3600;
+        let fresh = || run(0, 0, 0, 0, 0, 0);
+        // All legs unstarted, before deadline → blocked (the grief vector).
+        assert!(!ladder_resolvable(&[fresh(), fresh(), fresh()], now, rb));
+        // …and immediately after creation, even *at* the deadline's edge.
+        assert!(!ladder_resolvable(&[fresh(), fresh()], rb, rb));
+        // Past resolve_by → allowed through to settle_ladder, which
+        // cancels on the all-forfeit full mask (the expire-equivalent).
+        assert!(ladder_resolvable(&[fresh(), fresh()], rb + 1, rb));
+        // One leg ever queued long ago (now past cap) → race ran; the gate
+        // lifts and forfeits score 0 against the landed legs.
+        let dead_leg = run(0, now - 2 * cap, 1, 1, now - 2 * cap, 0);
+        assert!(ladder_resolvable(&[dead_leg, fresh()], now, rb));
+        // A leg still inside its landing window blocks resolve regardless.
+        let inflight = run(0, now - 60, 0, 1, 0, 0);
+        assert!(!ladder_resolvable(&[inflight, fresh()], now, rb));
     }
 
     /// dark_commitment: deterministic, binding on every field — the same

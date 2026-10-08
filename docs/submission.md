@@ -103,8 +103,8 @@ since been wiped and redeployed during hardening. The evidence bundle in
   inventory — claimable bounties (mirroring `bounty_qualifies`:
   finalized-or-proven runs, retroactivity wall, runner ≠ sponsor,
   post-reveal exclusion — the claim command prefilled), resolvable
-  markets/ladders (the ladder gate is `!still_moving` per leg, not
-  `resolve_by` — a race of dormant legs resolves early), resolved darks
+  markets/ladders (the ladder gate is `ladder_resolvable` — `!still_moving`
+  per leg, plus `resolve_by` when no leg ever started), resolved darks
   awaiting `finalize_dark`, and sweepable expiries annotated with
   `expire_decision`'s settle-vs-refund outcome. `chain market sweep`
   executes every action the board lists — bounty pots still pay the

@@ -5,87 +5,45 @@
 
 **A benchmark whose answer key was never written down, scored by nobody in particular.**
 
-Sealed is a referee for AI-capability claims. Benchmark items can be **minted inside the MPC cluster itself** — drawn from `ArcisRNG`, answered and fingerprinted in-circuit, and stored encrypted to the cluster key. The answer key never exists in plaintext anywhere on Earth: there is nothing to leak, sell, or subpoena. Models are scored inside an [Arcium](https://arcium.com) MPC cluster; the score is written to Solana by the cluster's callback, not by us. Anyone can build a market on "does model X clear 70% on Sealed v1 by date D" and settle it without trusting a leaderboard operator.
+Sealed is a referee for AI-capability claims. Benchmark items can be **minted inside the MPC cluster itself** — drawn from `ArcisRNG` (the cluster's RNG), answered and fingerprinted in-circuit, and stored encrypted to the cluster key. For generated banks, no answer key ever exists — not in this repo, not in a KMS, not even with the author. Models are scored inside an [Arcium](https://arcium.com) multi-party-computation cluster — nodes jointly compute the score without any single node seeing the exam — and the score is written to Solana by the cluster's callback, not by us.
+
+**And the score is a settlement source:** anyone can build a market on "does model X clear 70% on Sealed v1 by date D" that resolves itself — no referee, no oracle operator.
+
+It already caught a cheat: a run claiming 64/64 was scored **1/64** by the cluster — the chain never trusts self-reported numbers.
 
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 Why this *has* to be Arcium MPC — and not ZK, TEE, or hashed answers —
 is argued in [docs/arcium.md](docs/arcium.md).
 
-> **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. **Live explorer: [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/)** — renders every bank, run, market, and Merkle proof straight from the committed on-chain snapshot, then **re-audits it in your browser**: every account's PDA re-derived, every `items_root` fold replayed bit-exact, every market resolution re-computed — no localnet, nothing trusted. With `arcium localnet` running, `scripts/demo.sh` runs the whole flow end-to-end.
+> ## Judge it yourself — pick your depth
 >
-> **Verify the whole submission in ~60 seconds** (clone → one block → every claim recomputed):
+> - **8 seconds, zero setup:** [josepha-mayo.github.io/sealed/**?mega=1**](https://josepha-mayo.github.io/sealed/?mega=1) — one click re-derives every account's PDA (program-derived address — identity that recomputes, no private key), replays all 138 proofs, watches 12 forgeries die at named checks, **decrypts the sealed exam in your browser**, then prints a copyable verdict: `EVERYTHING VERIFIED`.
+> - **60 seconds, no clone:** `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — one downloaded stdlib file re-hashes all 351 pinned bytes off the *hosted site*, re-derives every PDA with real ed25519 math, unpacks the raw account bytes itself, and lands on the same devnet-anchored root.
+> - **10 minutes, full depth:** [docs/judges.md](docs/judges.md) — the rubric-mapped path: rescore the MPC's own arithmetic, run the forgery lab yourself, decrypt the private exam three ways.
+>
+> <details><summary><b>The cloned-repo block</b> (~60s after install — every claim recomputed)</summary>
 >
 > ```bash
 > yarn install --frozen-lockfile
 > node scripts/verify.mjs            # 12 PASS / 0 FAIL — the entire ledger re-derives offline
-> node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
->   --run docs/evidence/calibration/run-artifact.json \
->   --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp \
->   --snapshot web/snapshot.json     # 7 PASS / 0 FAIL — the MPC's own arithmetic, reproduced
-> yarn --cwd packages/harness cli chain tour --snapshot web/snapshot.json
->                                  # the project demos itself: stats → a run's custody
->                                  # trail → its feed → a venue's book → an actor's P&L
 > yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
 >   --snapshot ../../web/snapshot.json
->                                  # THE one command — all 138 committed artifacts
->                                  # (claims, matches, policies, trails, reports,
->                                  # digest, board, exams, positions, bounties) replayed keyless; non-artifacts skipped
+>                                  # all 138 committed artifacts replayed keyless
 > yarn --cwd packages/harness cli chain fingerprint
->                                  # THE one hash — every manifest-pinned byte
->                                  # re-checked → a single BUNDLE ROOT,
->                                  # notarized on devnet (docs/evidence-anchor.json
->                                  # holds a memo tx whose payload IS the root —
->                                  # verify via its explorer link, zero tooling)
-> python3 scripts/verify.py        # don't trust our TypeScript? stdlib-only
->                                  # Python re-hashes the bundle, re-derives
->                                  # every PDA with real ed25519 math, unpacks
->                                  # the raw account bytes itself, and replays
->                                  # ALL 138 artifacts — board, claims,
->                                  # matches, policies, trails, exams, digest
-> python3 scripts/verify.py --tamper
->                                  # the verifier catches its own lies —
->                                  # forges each card kind, asserts the catch
-> python3 scripts/verify.py --decrypt
->                                  # a THIRD language reads the sealed exam —
->                                  # x25519 + Rescue ported; the delegate's
->                                  # grants decrypt and re-encrypt bit-exact
-> python3 scripts/verify.py --check-anchor
->                                  # fetch the devnet memo tx over plain
->                                  # JSON-RPC — the ledger carries the root
-> python3 scripts/verify.py --rescore
->                                  # the MPC's arithmetic in a THIRD
->                                  # language — fingerprints, Reveal PDAs,
->                                  # outputs_root merkle, recount == 7/32
-> python3 scripts/verify.py --card docs/evidence/board.json
->                                  # YOUR file, third language — the
->                                  # committed card replays solo; an
->                                  # edited copy dies at a named check
-> python3 scripts/verify.py --remote
->                                  # NO CLONE AT ALL — mirrors every
->                                  # pinned byte from the hosted site +
->                                  # raw.githubusercontent into temp and
->                                  # runs the same pass on THOSE bytes:
->                                  # what a browser downloads re-hashes
->                                  # to the anchored root
-> python3 scripts/verify.py --all  # every Python proof, one command:
->                                  # replay → forgery lab → decrypt →
->                                  # rescore → live devnet anchor check
+>                                  # one hash over every pinned byte → BUNDLE ROOT,
+>                                  # notarized on devnet (docs/evidence-anchor.json)
+> python3 scripts/verify.py --all  # every third-language proof in one command:
+>                                  # replay → forgery lab → decrypt → rescore → anchor
+> bash scripts/verify-all.sh       # or: the entire gate, one command
 > ```
 >
-> The zero-install form — one downloaded stdlib file verifies all 351
-> pinned bytes itself (no git, no pip, just python3):
+> </details>
 >
-> ```bash
-> curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote
-> ```
+> **Honest status:** the full loop is proven end-to-end on Arcium localnet and both programs are byte-verified on devnet; the shared devnet MPC cluster is currently withholding callbacks (a probe ran 40 attempts over 7.5h — disclosed in [docs/judges.md](docs/judges.md)). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
 >
-> **Or one command for all of it:** `bash scripts/verify-all.sh` — every
-> check above plus the headless browser audit, the forgery sweep, the
-> manifests, and the anchor-drift check, ending on the BUNDLE ROOT hash.
+> **Judge shortcut:** [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever — its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
 >
-> **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) opens with a **60-second judge path** (verify the leaderboard card → watch a forgery die → replay all 138 proofs → prove everything → **read the sealed exam** — the committed throwaway delegate key decrypts the private bank's grants in your browser and the questions render; the answers never move), or take the whole thing with you: [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
->
-> The second command is the one nobody else ships: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **bit-identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
+> The rescore step (inside `--all`, or standalone via `scripts/rescore.mjs`) is the one most submissions can't run: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
 
 ![Full demo: MPC-minted bank → private bank → selective disclosure → 3 runners → binary/band/duel/ladder markets → settle + claim](docs/demo.gif)
 
@@ -274,7 +232,7 @@ encrypted-ixs/          Arcis circuits: seal_part, score_chunk, gen_part, gen_pa
 programs/sealed/        Anchor program (Arcium MXE): registry, chunks, runs, callbacks
 programs/market/        Anchor program: parimutuel markets resolving on Run.correct
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
-web/index.html          leaderboard + proof explorer (single file, web3.js via CDN, reads any RPC)
+web/index.html          leaderboard + proof explorer (single file, web3.js vendored, reads any RPC)
 tests/                  end-to-end test on Arcium localnet
 scripts/                demo.sh (full judge demo), judge-demo.sh (the 90-second keyless audit — verify.py + all 138 artifacts + forgery lab + tamper exhibits + third-language decrypt + MPC rescore + fingerprint, recorded as docs/audit.gif), dark.sh (sealed-position market on a private bank), duel-real.sh (head-to-head on a fresh MPC-minted exam), duel-local.sh (two real local models duel — llama.cpp endpoints, zero external API), ladder-local.sh (four real models race — dead-heat + dark leg), dark-local.sh (double-sealed: dark market on a private exam's real-model run), band-local.sh (score-band on a sealed exam), bounty-local.sh (capability bounty: first-to-beat pot pays the winning run's operator, FCFS), real-bounty-claim.sh (a real open-weights model earning a bounty through MPC proof), unbrick-demo.sh (grief a PDA with dust → permissionless `unbrick_pda` reclaim → init lands), record-local.sh (real local model → MPC score → `record_score` enrolls it in the on-chain capability registry), cu-sweep.sh + measure-cu.mjs (per-instruction compute-unit table in docs/costs.md), merge-snapshot.mjs (fold a post-wipe ledger's accounts into the committed evidence snapshot), serve-local.sh (four llama.cpp endpoints), unseen.sh (market on a never-published exam), ladder8.sh (max-width race), real-unseen-run.sh (real model on a grant-only exam), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts, verify.mjs (offline cryptographic audit of the evidence snapshot — same suite runs in-browser on the hosted explorer), rescore.mjs (independent MPC-score recomputation on the calibration bank — plaintext answers public on purpose), audit-browser-test.mjs (headless regression for the in-page audit), decrypt-grants-test.mjs (offline regression for the explorer's in-browser ShareGrant decryption — runs the vendored RescueCipher against the committed snapshot), check-post-reveal.mjs (standalone F1 repro), verify-deployed.sh (dumps on-chain program bytes and sha256-compares them to the local build — "deployed" only counts when they match), check-submission.mjs (submission pre-flight + plaintext-leak scan over the tracked tree), verify.py (SECOND-LANGUAGE verdict — stdlib-only Python re-hashes both manifests, recomputes BUNDLE ROOT, matches the devnet anchor, and replays EVERY committed artifact end-to-end — 134/134 JSON across all 12 kinds + the 4 markdown reports: positions, bounties, grants, trails, all 73 head-to-head cards, all 31 model claims, the leaderboard, policy certs (evalGate ported), the catalog's own index, bank dossiers (the items_root MPC fold re-derived — private banks fold ciphertexts+nonces), the whole-ledger digest, and the 11 committed forgeries which MUST be rejected), re-derives every PDA with real ed25519 curve math, and struct-unpacks all 14 account layouts itself; --tamper forges each card kind and asserts the catch; --decrypt ports the Rescue cipher + x25519 into stdlib Python so the delegate's ShareGrants decrypt a third way — re-encryption reproduces the committed ciphertext bytes bit-exact; --check-anchor fetches the devnet memo over plain JSON-RPC (no Solana SDK); --rescore reproduces the MPC's own calibration arithmetic — fingerprints, Reveal PDAs, outputs_root merkle, recount — no node, no pip)
 ```

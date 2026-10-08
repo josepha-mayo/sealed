@@ -3271,9 +3271,11 @@
             "name": "resolve_by",
             "docs": [
               "Advertised settlement deadline for bettors. Resolution is gated by",
-              "`still_moving` alone — a leg inside either landing window blocks",
-              "resolve even past `resolve_by` (one bounded window per leg), and a",
-              "leg past both windows settles at whatever landed, partial included."
+              "`ladder_resolvable`: a leg inside either landing window blocks",
+              "resolve even past `resolve_by` (one bounded window per leg), a leg",
+              "past both windows settles at whatever landed (partial included),",
+              "and a race where no leg ever started can't resolve before this",
+              "deadline — the all-forfeit wash belongs to the expiry path."
             ],
             "type": "i64"
           }

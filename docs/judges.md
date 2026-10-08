@@ -1,4 +1,4 @@
-# Judge's fast path — evaluating Sealed in ~10 minutes
+# Judge's path — evaluating Sealed at your chosen depth
 
 Every claim below is verifiable. Nothing here requires trusting us.
 
@@ -24,7 +24,24 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 | **Market fit / viability** | Per-run fees to the benchmark authority are live (`create_run` transfers `fee_lamports`); market take-rate is live too (`fee_bps` at resolution, `claim_fee`). Six novel settlement primitives ship here: **run duels** (head-to-head "does A outscore B", bets latch on either leg's first scoring queue, `RunnersMustDiffer` anti-sybil), **ladder races** (K-way argmax over 3–8 bound runs — dead-heat pro-rata ties, legs that land nothing forfeit at 0 while landed partials count, any-leg betting latch), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: specs are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), **dark commit-reveal markets** (a bettor's side is a `sha256` commitment — sealed until they choose to reveal; no-show winners forfeit into the pot, zero-reveals cancel to gross refunds, `scripts/dark.sh`), **capability bounties** (a sponsor escrows SOL against "first proven run ≥ threshold" — the pot pays the winning run's *operator*, not a bettor; permissionless claim, `runner ≠ sponsor` anti-self-deal, `scripts/bounty-local.sh`), and **committed-settle expiry** (`all_queued_at` + 24h landing window — a stalled run refunds only if the runner never committed every chunk; no transaction can both commit and expire). Any venue resolves permissionlessly off `Run.correct` — the referee is infrastructure, not a vendor. And `chain market board`/`sweep` makes no-operator liveness executable: a read-only scan lists claimable bounties, resolvable venues, tallyable darks and sweepable expiries — `sweep` executes every permissionless action it finds (bounty pots still pay the winning run's *operator*, never the sweeper), and the explorer renders the same classification in-page over the bundled ledger (36 actionable venues flagged). | `programs/market`, `docs/submission.md`, `packages/harness/src/board.ts` |
 | **Honesty / craft** | `docs/engineering-log.md` is the adversarial-review receipt trail — the JIT-commit freeze-win, dormant-runner free exit, post-reveal stuffing, stale-artifact 1/64, claim-fee solvency ordering, leg reordering — each found in our own review, each with a regression test. The devnet note is recorded truthfully: the shared Arcium devnet cluster finalizes computations but is withholding callback txs during an outage. Both hardened builds ARE deployed — `scripts/verify-deployed.sh` dumps each on-chain ELF and shows sha256-match against this repo's `target/deploy/*.so` (MATCH ×2). Every localnet flow is reproducible meanwhile. | `docs/submission.md` "Devnet note" |
 
-## 3-minute reproduction
+## Reproduction & deep-dive — pick your depth
+
+**Genuinely three steps, no repo needed:**
+
+1. Open [the hosted explorer's `?mega=1`](https://josepha-mayo.github.io/sealed/?mega=1) — the whole audit runs itself in ~8s.
+2. `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — re-verify all 351 pinned bytes from one stdlib file.
+3. Read the verdict — if you want the full localnet rebuild, continue below.
+
+**Cloned the repo instead?** The two load-bearing commands are
+`yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive --snapshot ../../web/snapshot.json`
+(all 138 artifacts replayed keyless — step 3p) and
+`python3 scripts/verify.py --all`
+(every third-language proof in one shot — step 3u).
+
+---
+
+**Full localnet reproduction** (the steps below are the deep-dive —
+lettered a–v, expect ~40 minutes plus toolchain setup).
 
 Prereqs: Solana CLI, Docker (the arx nodes), Anchor + the arcium toolchain
 (`scripts/setup-wsl.sh` provisions all of it), and a wallet:
@@ -77,7 +94,9 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #       every commitment fold replayed, every market resolution recomputed,
 #       AND the calibration rescore: the MPC's arithmetic reproduced
 #       bit-for-bit in your browser (7/32, run GnrRt5GU…).
-#       Should read "13 pass · 0 fail" with twenty-seven reveal-burn notes.
+#       Should read "13 pass · 0 fail" with twenty-seven reveal-burn notes
+#       (the page adds the calibration rescore as its 13th check — the CLI
+#       verifier prints 12).
 #     - "public calibration specimen": the actual 32-item exam rendered in
 #       the page — prompt, canonical answer, the model's own reply (hover for
 #       its full reasoning), and a per-row check that the recomputed answer
@@ -233,7 +252,7 @@ yarn --cwd packages/harness cli chain prove --verify ../../docs/evidence/claims
 #         → or verify ANY of them IN THE EXPLORER: open the hosted page,
 #           scroll to "verify a claim card", pick from the 31-card dropdown
 #           (each sha256-pinned in the bundle MANIFEST), verify — the same
-#           9 checks run in-page (PDA checks need the web3.js CDN)
+#           10 checks run in-page (PDA checks need the vendored web3.js bundle)
 
 # 3h. THE GOVERNANCE ARTIFACT — a policy certificate. Claim cards prove a
 #     model; a sealed-policy/v1 certificate proves a DECISION: the policy
@@ -270,7 +289,7 @@ yarn --cwd packages/harness cli chain compare --match-verify ../../docs/evidence
 #         → ALL MATCHES VERIFIED — 73 cards batch-replayed, exit 1 on
 #           any violation (index.json skipped)
 #         → same replay in the explorer: scroll to "verify a match
-#           card", pick from the 73-card dropdown — 9 checks in-page
+#           card", pick from the 73-card dropdown — 10 checks in-page
 
 # 3k. THE MONEY TRAIL — a sealed-trail/v1 card binds one run's whole
 #     lifecycle: bank commitment → MPC score → receipt → every venue
@@ -419,6 +438,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snap
 #     delegate key (questions only — answers never move). CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
 #         → CATALOG COMPLETE — 137 artifact(s), every sealed-*/v1 file listed
+#           (the catalog doesn't list itself — 137 entries + the index = 138)
 yarn --cwd packages/harness cli chain fingerprint
 #         → re-hash check PASS — 351/351 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;
@@ -488,7 +508,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/board.json \
 python3 scripts/verify.py --decrypt
 #         → all four grants decrypt · 32 item specs recovered · sha256 of the
 #           spec set matches the JavaScript pin — the sealed exam is
-#           readable by three independent implementations
+#           readable by three implementations that must agree
 #
 #     and --check-anchor fetches the devnet notarization back over plain
 #     JSON-RPC (stdlib urllib — no Solana SDK): the memo tx must carry
@@ -542,7 +562,7 @@ node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
   --run 4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1 --rpc http://127.0.0.1:8899
 ```
 
-## Who proves what — every load-bearing claim, three independent implementations
+## Who proves what — every load-bearing claim, three implementations that must agree
 
 | Claim | TypeScript CLI | Explorer (in-browser JS) | stdlib Python |
 |---|---|---|---|

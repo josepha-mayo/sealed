@@ -99,7 +99,7 @@ receive the exam through selective disclosure — they can be scored on
 questions that were never public while the answer key remains cluster-sealed.
 Adjacent: insurers, auditors, and DAOs pricing AI capability risk. The
 demand side is proven: prediction venues cleared ~$63.5B notional in 2025
-(4x YoY; Kalshi ~$11B and Polymarket ~$9B+ICE's $2B) — and AI-category
+(4x YoY; Kalshi ~$23B and Polymarket ~$22B of it) — and AI-category
 markets already trade, all of them resolving on truth a human holds. The
 eval supply side is ~$1.2B (2024) growing toward ~$9.7B by 2033 — labs
 pay for scores they still cannot prove. Sealed is where both converge.
