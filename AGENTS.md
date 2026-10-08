@@ -74,6 +74,11 @@ parimutuel markets resolved from `Run.correct`.
   `--card <file>` narrows the whole replay to one judge-supplied
   artifact — kind detected, routed to the same check block the
   committed pass runs (a forged file fails at its named check).
+  `--remote` is the zero-clone mode: mirrors every manifest-pinned
+  byte into a temp dir — `web/*` from the hosted Pages site (the
+  bytes a browser actually receives), `docs/evidence/*` from
+  raw.githubusercontent — then runs the identical pass on the SERVED
+  bytes; composes with the other modes (`--remote --decrypt`).
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.

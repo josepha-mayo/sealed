@@ -506,6 +506,14 @@ python3 scripts/verify.py --card docs/evidence/board.json
 #           pairwise matrix, Wilson ranking, receipt↔account binding —
 #           a forged copy dies at its named check
 
+#     and --remote runs the same verdict with NO CLONE: mirrors every
+#     manifest-pinned byte — web/* from the hosted Pages site (what a
+#     browser actually downloads), docs/evidence/* from raw.githubusercontent
+#     — then runs the identical pass on served bytes. Composes with the
+#     modes above, e.g. `--remote --decrypt` reads the sealed exam off
+#     the served bundle.
+python3 scripts/verify.py --remote
+
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     6.6MB file: the page, the snapshot, all 138 artifacts, both
 #     manifests, the vendored crypto deps, and the devnet anchor doc,

@@ -105,6 +105,14 @@ the 4 markdown reports — replays under this second implementation.
                                         # committed replay runs executes
                                         # against it — a forged card dies
                                         # at its named check
+  python3 scripts/verify.py --remote      # zero-clone mode: mirrors every
+                                        # manifest-pinned byte into a temp
+                                        # dir — web/* from the hosted Pages
+                                        # site (what a browser actually
+                                        # gets), docs/evidence/* from raw
+                                        # .githubusercontent — then runs
+                                        # the same pass on THOSE bytes.
+                                        # Composes: --remote --decrypt.
 """
 
 import base64
@@ -210,6 +218,62 @@ def manifest_root(manifest_path):
 
 
 _CARD = None  # --card FILE: (path, kind) — the replay narrows to one file
+
+WEB_BASE = "https://josepha-mayo.github.io/sealed"
+RAW_BASE = "https://raw.githubusercontent.com/josepha-mayo/sealed/main"
+
+
+def fetch_remote(web_base: str = WEB_BASE, raw_base: str = RAW_BASE) -> Path:
+    """--remote: mirror every manifest-pinned byte into a temp dir and
+    return it as a stand-in ROOT — the verifier then runs entirely on
+    REMOTE bytes: web/* from the hosted Pages site (what a judge's
+    browser actually downloads), docs/evidence/* from raw.githubusercontent
+    (the repo tree). No clone, and nothing trusted but TLS."""
+    import tempfile
+    import urllib.request
+
+    def get(url: str) -> bytes:
+        err: Exception | None = None
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(url, timeout=60) as r:
+                    return r.read()
+            except Exception as e:  # flaky CDN read — retry, not trusted
+                err = e
+                time.sleep(1 + attempt)
+        raise RuntimeError(f"fetch failed after 3 tries: {url}") from err
+
+    tmp = Path(tempfile.mkdtemp(prefix="sealed-remote-"))
+    man = get(f"{web_base}/MANIFEST")
+    sums = get(f"{raw_base}/docs/evidence/SHA256SUMS")
+    (tmp / "web").mkdir(parents=True)
+    (tmp / "docs" / "evidence").mkdir(parents=True)
+    (tmp / "web" / "MANIFEST").write_bytes(man)
+    (tmp / "docs" / "evidence" / "SHA256SUMS").write_bytes(sums)
+
+    jobs: list[tuple[str, Path]] = [
+        (f"{raw_base}/docs/evidence-anchor.json", tmp / "docs" / "evidence-anchor.json")
+    ]
+    for line in man.decode().splitlines():
+        if not line.strip():
+            continue
+        rel = line.split(None, 1)[1].lstrip("./")
+        jobs.append((f"{web_base}/{rel}", tmp / "web" / rel))
+    for line in sums.decode().splitlines():
+        if not line.strip():
+            continue
+        rel = line.split(None, 1)[1].lstrip("./")
+        jobs.append((f"{raw_base}/docs/evidence/{rel}", tmp / "docs" / "evidence" / rel))
+
+    print(f"--remote: mirroring {len(jobs)} pinned file(s) "
+          f"({web_base} + {raw_base}) …")
+    for i, (url, dst) in enumerate(jobs, 1):
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(get(url))
+        if i % 50 == 0 or i == len(jobs):
+            print(f"          {i}/{len(jobs)}")
+    print(f"          mirrored into {tmp} — running the full pass on served bytes")
+    return tmp
 
 
 def card_iter(dirpath, pattern="*.json", kind=None):
@@ -2523,8 +2587,13 @@ KNOWN_KINDS = {f"sealed-{k}/v1" for k in
                 "tamper", "report")}
 
 if __name__ == "__main__":
-    if len(sys.argv) > 2 and sys.argv[1] == "--card":
-        p = Path(sys.argv[2])
+    argv = sys.argv[1:]
+    if argv and argv[0] == "--remote":
+        has_base = len(argv) > 1 and not argv[1].startswith("--")
+        ROOT = fetch_remote(argv[1] if has_base else WEB_BASE)
+        argv = argv[2:] if has_base else argv[1:]
+    if argv and argv[0] == "--card":
+        p = Path(argv[1])
         if not p.exists():
             sys.exit(f"no such file: {p}")
         raw = p.read_text(errors="replace")
@@ -2537,12 +2606,12 @@ if __name__ == "__main__":
                      f"expected one of {sorted(KNOWN_KINDS)}")
         _CARD = (str(p), kind)
         sys.exit(0 if main() else 1)
-    if len(sys.argv) > 1 and sys.argv[1] == "--tamper":
+    if argv and argv[0] == "--tamper":
         sys.exit(0 if tamper_demo() else 1)
-    if len(sys.argv) > 1 and sys.argv[1] == "--decrypt":
+    if argv and argv[0] == "--decrypt":
         sys.exit(0 if decrypt_demo() else 1)
-    if len(sys.argv) > 1 and sys.argv[1] == "--check-anchor":
+    if argv and argv[0] == "--check-anchor":
         sys.exit(0 if check_anchor() else 1)
-    if len(sys.argv) > 1 and sys.argv[1] == "--rescore":
+    if argv and argv[0] == "--rescore":
         sys.exit(0 if rescore_demo() else 1)
     main()

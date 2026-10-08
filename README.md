@@ -58,6 +58,13 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # YOUR file, third language — the
 >                                  # committed card replays solo; an
 >                                  # edited copy dies at a named check
+> python3 scripts/verify.py --remote
+>                                  # NO CLONE AT ALL — mirrors every
+>                                  # pinned byte from the hosted site +
+>                                  # raw.githubusercontent into temp and
+>                                  # runs the same pass on THOSE bytes:
+>                                  # what a browser downloads re-hashes
+>                                  # to the anchored root
 > ```
 >
 > **Or one command for all of it:** `bash scripts/verify-all.sh` — every
