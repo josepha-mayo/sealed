@@ -522,7 +522,10 @@ curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/veri
 #     plus a fetch() shim so every in-page verifier runs OFFLINE.
 #     Download it, disconnect, open it in any browser — the audit, the
 #     recursive replay, and the forgery lab all still pass. Regenerate
-#     byte-identically: `node scripts/gen-standalone.mjs` (--check in CI).
+#     byte-identically: `node scripts/gen-standalone.mjs` (--check in CI),
+#     and CI re-runs the entire in-page audit INSIDE the capsule
+#     (SEALED_PAGE=standalone.html) — the offline claim is tested, not
+#     assumed.
 
 # 4. verify a committed output independently (two-level Merkle proof)
 #    — the PDA below lives on the author's current localnet; after demo.sh

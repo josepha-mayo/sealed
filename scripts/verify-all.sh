@@ -87,6 +87,9 @@ fi
 say "6c. the capsule — standalone.html is a byte-fresh mirror of the pinned bundle"
 node scripts/gen-standalone.mjs --check
 
+say "6cb. the capsule's own verifiers — the whole in-page audit re-runs inside the single file"
+SEALED_PAGE=standalone.html node scripts/audit-browser-test.mjs 2>&1 | tail -3
+
 say "7/8 doc-count freshness — every numeric claim must match the bundle"
 node scripts/freshness.mjs
 
