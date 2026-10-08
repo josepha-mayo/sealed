@@ -14,7 +14,9 @@ program (`programs/market/src/lib.rs`) is the reference implementation.
 | `ScoreLog` (sealed) | `[b"scorelog", run]` | one enrollment receipt per run — `correct`, `items`, `vouched_at_record`, `post_reveal` |
 | `ModelRecord` (sealed) | `[b"modelrec", sha256(model_id)]` | aggregate per-`model_id`: `runs_scored`, `total_correct`, `total_items`, `best_*` |
 
-The IDLs are committed at `target/idl/sealed.json` and `target/idl/market.json`.
+The IDLs are committed at `idl/sealed.json` and `idl/market.json`
+(the build's own output lands in `target/idl/`; the committed copies
+are the cold-clone floor `loadIdl()` falls back to).
 
 ## On-chain: the `load_run` pattern
 

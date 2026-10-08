@@ -113,6 +113,9 @@ the 4 markdown reports — replays under this second implementation.
                                         # .githubusercontent — then runs
                                         # the same pass on THOSE bytes.
                                         # Composes: --remote --decrypt.
+  python3 scripts/verify.py --all         # every mode in one pass: main
+                                        # replay → forgery lab → decrypt →
+                                        # rescore → live anchor check
 """
 
 import base64
@@ -2618,4 +2621,24 @@ if __name__ == "__main__":
         sys.exit(0 if check_anchor() else 1)
     if argv and argv[0] == "--rescore":
         sys.exit(0 if rescore_demo() else 1)
+    if argv and argv[0] == "--all":
+        # every third-language proof, one command — mirror of verify-all.sh
+        ok = True
+        for label, fn in [
+            ("1/5 main replay", main),
+            ("2/5 forgery lab", tamper_demo),
+            ("3/5 sealed-exam decrypt", decrypt_demo),
+            ("4/5 MPC rescore", rescore_demo),
+            ("5/5 devnet anchor (networked)", check_anchor),
+        ]:
+            print(f"\n═══ {label} ═══")
+            try:
+                ok = bool(fn()) and ok
+            except SystemExit as e:  # main() exits 0/1 itself — read the code
+                ok = (e.code in (0, None)) and ok
+            except Exception as e:
+                print(f"  FAIL {label}: {e}")
+                ok = False
+        print(f"\n{'ALL VERIFIED — every third-language proof green' if ok else 'FAILURES ABOVE'}")
+        sys.exit(0 if ok else 1)
     main()

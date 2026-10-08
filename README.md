@@ -67,6 +67,9 @@ is argued in [docs/arcium.md](docs/arcium.md).
 >                                  # runs the same pass on THOSE bytes:
 >                                  # what a browser downloads re-hashes
 >                                  # to the anchored root
+> python3 scripts/verify.py --all  # every Python proof, one command:
+>                                  # replay → forgery lab → decrypt →
+>                                  # rescore → live devnet anchor check
 > ```
 >
 > The zero-install form — one downloaded stdlib file verifies all 351
