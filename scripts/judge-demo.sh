@@ -25,7 +25,13 @@ run yarn --cwd packages/harness cli chain artifact ../../docs/evidence/board.jso
 say "4 · eleven committed forgeries — each verifies BY being rejected"
 run yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snapshot ../../web/snapshot.json
 
-say "5 · the whole evidence base is ONE hash — timestamped on Solana devnet"
+say "5 · a THIRD language reads the sealed exam — x25519 + Rescue ported to stdlib Python"
+run python3 scripts/verify.py --decrypt
+
+say "6 · the MPC's own arithmetic — fingerprints, Reveal PDAs, outputs_root, the recount"
+run python3 scripts/verify.py --rescore
+
+say "7 · the whole evidence base is ONE hash — timestamped on Solana devnet"
 run yarn --cwd packages/harness cli chain fingerprint
 
 say "zero-setup path: https://josepha-mayo.github.io/sealed/?mega=1 — the same proofs in your browser"

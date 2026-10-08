@@ -3,8 +3,9 @@
 **Pre-recorded artifacts committed:** `docs/demo.cast` (asciinema),
 `docs/demo.gif` (embedded in README), `docs/demo.mp4` (114s — the full
 `scripts/demo.sh` run with MPC waits capped at 2s, upload-ready),
-`docs/audit.cast` + `docs/audit.gif` (the 22s keyless audit —
-`scripts/judge-demo.sh`, zero localnet needed). To
+`docs/audit.cast` + `docs/audit.gif` (the ~19s keyless audit —
+`scripts/judge-demo.sh`, zero localnet needed; now carries the
+third-language decrypt + MPC rescore beats). To
 re-record: `asciinema rec --idle-time-limit 2 docs/demo.cast -c "bash
 scripts/demo.sh"` then `agg --speed 1.25 docs/demo.cast docs/demo.gif`.
 For a narrated cut, play `docs/demo.mp4` under voiceover per the beat
