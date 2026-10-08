@@ -511,8 +511,10 @@ python3 scripts/verify.py --card docs/evidence/board.json
 #     browser actually downloads), docs/evidence/* from raw.githubusercontent
 #     — then runs the identical pass on served bytes. Composes with the
 #     modes above, e.g. `--remote --decrypt` reads the sealed exam off
-#     the served bundle.
-python3 scripts/verify.py --remote
+#     the served bundle. The truly-zero-install form:
+curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote
+#         → one downloaded stdlib file verifies all 351 pinned bytes
+#           itself — no git, no pip, nothing but python3
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     6.6MB file: the page, the snapshot, all 138 artifacts, both

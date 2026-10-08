@@ -67,6 +67,13 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # to the anchored root
 > ```
 >
+> The zero-install form — one downloaded stdlib file verifies all 351
+> pinned bytes itself (no git, no pip, just python3):
+>
+> ```bash
+> curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote
+> ```
+>
 > **Or one command for all of it:** `bash scripts/verify-all.sh` — every
 > check above plus the headless browser audit, the forgery sweep, the
 > manifests, and the anchor-drift check, ending on the BUNDLE ROOT hash.
