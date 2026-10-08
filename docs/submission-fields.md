@@ -179,8 +179,11 @@ disclose it in the form's prior-work field — allowed but must be declared.
   An asciinema capture is pre-recorded at `docs/demo.cast` — render with
   `agg docs/demo.cast docs/demo.gif` or convert to mp4; embed in README.
 - Public URL: **https://josepha-mayo.github.io/sealed/** — live explorer,
-  auto-loads the bundled snapshot (no localnet needed). Served by
-  `.github/workflows/pages.yml` on every push. Local fallback:
+  auto-loads the bundled snapshot (no localnet needed); `?mega=1` runs the
+  entire proof cascade unaided (audit → 138 replays → forgery sweep →
+  sealed-exam decrypt → copyable verdict), `?decrypt=1` deep-links the
+  payoff. Served by `.github/workflows/pages.yml` on every push. Local
+  fallback:
   `python3 -m http.server -d . 8788` →
   `http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json`.
 - Repo must be public or judges invited — most common disqualifying mistake.

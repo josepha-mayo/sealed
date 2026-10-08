@@ -2596,6 +2596,8 @@ if __name__ == "__main__":
         argv = argv[2:] if has_base else argv[1:]
     if argv and argv[0] == "--card":
         p = Path(argv[1])
+        if not p.exists() and (ROOT / argv[1]).exists():
+            p = ROOT / argv[1]  # --remote: repo-relative path inside the mirror
         if not p.exists():
             sys.exit(f"no such file: {p}")
         raw = p.read_text(errors="replace")
