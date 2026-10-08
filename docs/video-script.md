@@ -98,10 +98,10 @@ the demo. Screen-record the hosted explorer only:
 | Time | Beat | Show | Say |
 |---|---|---|---|
 | 0:00 | One URL | https://josepha-mayo.github.io/sealed/?mega=1 | "One link — no wallet, no node, no RPC key. Watch the whole evidence base prove itself." |
-| 0:02 | The cascade | megares rows landing: account audit → 138 artifacts → forgery sweep | "Every account PDA re-derived, every committed proof replayed, every lab attack caught — in your browser, ~5 seconds." |
-| 0:08 | The scoreboard | EVERYTHING VERIFIED — 13 audit passes · 12 artifact groups · 12/12 forgeries caught | "Nothing trusted — including the page itself: it re-hashes its own bytes against the manifest." |
+| 0:02 | The cascade | megares rows landing: account audit → 138 artifacts → forgery sweep → the sealed exam decrypting | "Every account PDA re-derived, every committed proof replayed, every lab attack caught — and then the page decrypts the sealed exam, in your browser, ~8 seconds." |
+| 0:08 | The scoreboard | EVERYTHING VERIFIED + the copyable verdict block — audit counts, root, anchor state | "Nothing trusted — including the page itself: it re-hashes its own bytes against the manifest. The verdict block copies straight into your notes." |
 | 0:14 | The artifact | ?card= link: pick a bounty card, watch the account bind | "One JSON file is a whole claim — bounty, bettor, grant, exam — and it verifies itself against the chain bytes." |
-| 0:20 | The second language | `python3 scripts/verify.py` + `--tamper` | "Don't trust our TypeScript — ~330 lines of stdlib Python re-derives the same root and unpacks the account bytes itself." |
+| 0:20 | The second language | `python3 scripts/verify.py` + `--tamper` | "Don't trust our TypeScript — ~2500 lines of stdlib Python re-derive every PDA with real curve math, unpack the raw account bytes, and replay all 138 artifacts." |
 | 0:30 | The close | the audit card's ANCHOR VERIFIED line — devnet memo timestamp | "The whole evidence base is one sha256, notarized on devnet. Terminal, browser, and Python all agree — or it's dirty." |
 
 **Tags:** solana, arcium, mpc, confidential computing, prediction markets,
