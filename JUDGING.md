@@ -23,3 +23,10 @@ Three paths, fastest first:
 (`chain fingerprint`), notarized on devnet via a memo tx
 (`docs/evidence-anchor.json`). Terminal, browser, and Python all agree
 on it — or the evidence is dirty.
+
+**Break it:** download any artifact, edit any byte you like, and feed it
+back — `python3 scripts/verify.py --card <yours>` or drop it on the
+explorer's verifier (hit "⚔ forge this card" for the canned attack).
+A forged card that verifies earns a named entry in
+`docs/engineering-log.md`; the 11 committed exhibits in
+`docs/evidence/tamper/` are the ones we already killed.
