@@ -55,6 +55,15 @@ for CARD in \
     "../../docs/evidence/${CARD}" --tamper --snapshot ../../web/snapshot.json
 done
 
+say "6bc. committed IDLs — idl/ mirrors target/idl when a build exists"
+IDL_DRIFT=0
+for S in sealed market; do
+  if [ -f "target/idl/$S.json" ]; then
+    cmp -s "target/idl/$S.json" "idl/$S.json" || { echo "  idl/$S.json is stale vs target/idl — refresh: cp target/idl/$S.json idl/"; IDL_DRIFT=1; }
+  fi
+done
+[ "$IDL_DRIFT" = 0 ] && echo "  committed IDLs in sync (cold-clone replay floor)"
+
 say "6c. the capsule — standalone.html is a byte-fresh mirror of the pinned bundle"
 node scripts/gen-standalone.mjs --check
 

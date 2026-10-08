@@ -86,7 +86,10 @@ parimutuel markets resolved from `Run.correct`.
   account-discriminator matching (the fork's `decodeAny` is broken),
   snake_case → camelCase normalization to the exact shape `.all()` returns,
   `{publicKey, account}` wrappers. Old-layout Runs decode with safe tail
-  defaults (pre-`scored_mask`/`post_reveal` epochs).
+  defaults (pre-`scored_mask`/`post_reveal` epochs). `loadIdl()` prefers
+  `target/idl/` (a build always wins) and falls back to the committed
+  `idl/` copies — every snapshot replay works on a cold clone without
+  `anchor build`; verify-all's stage 6bc `cmp`s the two when both exist.
 - Every read command takes `--snapshot web/snapshot.json`: `banks`,
   `status`, `records` (+`--wilson`, +`--vouched` — attested-receipt records
   only), `modelrec`, `gate` (+`--all`, +`--bank`, +`--sweep` —

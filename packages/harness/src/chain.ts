@@ -52,7 +52,7 @@ import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex, genItemsFold, privItemsFold } from "./hash.js";
 import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type GateCheck, type ScoreReceipt } from "./gate.js";
 import { classifyBoard, proven, type BoardRun } from "./board.js";
-import { decodeSnapshotSection, loadSnapshotJson, snapOf, type SnapAccount, type SnapMap } from "./snapshot.js";
+import { decodeSnapshotSection, loadIdl, loadSnapshotJson, snapOf, type SnapAccount, type SnapMap } from "./snapshot.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -76,7 +76,7 @@ function setup(): Ctx {
   const wallet = Keypair.fromSecretKey(new Uint8Array(JSON.parse(readFileSync(walletPath, "utf8"))));
   const connection = new Connection(url, "confirmed");
   const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(wallet), { preflightCommitment: "processed", commitment: "confirmed" });
-  const idl = require(join(ROOT, "target", "idl", "sealed.json"));
+  const idl = loadIdl("sealed");
   if (process.env.SEALED_PROGRAM_ID) idl.address = process.env.SEALED_PROGRAM_ID;
   const program = new anchor.Program(idl, provider);
   let clusterOffset: number;
@@ -119,7 +119,7 @@ async function tolerantAll(program: any, name: string): Promise<{ publicKey: Pub
 }
 
 function sealedProgramId(): PublicKey {
-  const idl = require(join(ROOT, "target", "idl", "sealed.json"));
+  const idl = loadIdl("sealed");
   return new PublicKey(process.env.SEALED_PROGRAM_ID ?? idl.address);
 }
 
@@ -129,7 +129,7 @@ function sealedProgram(kpPath?: string) {
     ? loadKeypair(kpPath)
     : loadKeypair(process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json"));
   const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { preflightCommitment: "processed", commitment: "confirmed" });
-  const idl = require(join(ROOT, "target", "idl", "sealed.json"));
+  const idl = loadIdl("sealed");
   if (process.env.SEALED_PROGRAM_ID) idl.address = process.env.SEALED_PROGRAM_ID;
   return { program: new anchor.Program(idl, provider), kp, provider };
 }
@@ -957,7 +957,7 @@ function marketProgram(kpPath?: string) {
   const url = process.env.ANCHOR_PROVIDER_URL ?? "http://127.0.0.1:8899";
   const kp = kpPath ? loadKeypair(kpPath) : loadKeypair(process.env.ANCHOR_WALLET ?? join(homedir(), ".config", "solana", "id.json"));
   const provider = new anchor.AnchorProvider(new Connection(url, "confirmed"), new anchor.Wallet(kp), { preflightCommitment: "processed", commitment: "confirmed" });
-  const idl = require(join(ROOT, "target", "idl", "market.json"));
+  const idl = loadIdl("market");
   if (process.env.MARKET_PROGRAM_ID) idl.address = process.env.MARKET_PROGRAM_ID;
   return { market: new anchor.Program(idl, provider), kp };
 }

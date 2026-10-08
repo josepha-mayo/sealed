@@ -1,0 +1,3574 @@
+{
+  "address": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN",
+  "metadata": {
+    "name": "market",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Parimutuel markets that resolve on Sealed run scores"
+  },
+  "instructions": [
+    {
+      "name": "bet",
+      "docs": [
+        "Stake `lamports` on `outcome` (0..n_outcomes). Re-betting adds to the same",
+        "position; a bettor may back several outcomes."
+      ],
+      "discriminator": [
+        94,
+        203,
+        166,
+        126,
+        20,
+        243,
+        169,
+        82
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "run"
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run"
+              },
+              {
+                "kind": "account",
+                "path": "market.salt",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "u8"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "bet_duel",
+      "docs": [
+        "Bet on a duel outcome. Unlike score markets, bets close once EITHER run",
+        "starts scoring — otherwise a finalized half leaks information."
+      ],
+      "discriminator": [
+        140,
+        247,
+        11,
+        199,
+        237,
+        30,
+        164,
+        216
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "run_a"
+        },
+        {
+          "name": "run_b"
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  117,
+                  101,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_a"
+              },
+              {
+                "kind": "account",
+                "path": "run_b"
+              },
+              {
+                "kind": "account",
+                "path": "market.salt",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "u8"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "bet_ladder",
+      "docs": [
+        "Stake `lamports` on leg `outcome`. Bets latch shut at `closes_at` OR",
+        "the moment ANY bound leg leaves pending — whichever fires first — so",
+        "no early-finalized leg can leak the race."
+      ],
+      "discriminator": [
+        19,
+        89,
+        174,
+        152,
+        135,
+        212,
+        176,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ladder",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  100,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ladder.legs [0]",
+                "account": "Ladder"
+              },
+              {
+                "kind": "account",
+                "path": "ladder.salt",
+                "account": "Ladder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "docs": [
+            "`position.market` doubles as the parent key — a ladder pubkey slots",
+            "into the same PDA space with no collision (different parent key)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ladder"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "outcome",
+          "type": "u8"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim",
+      "docs": [
+        "Pay out a position and close its account. Cancelled markets refund in",
+        "full; resolved markets split the pot net of the authority fee pro-rata.",
+        "Losing positions pay 0 but still close — the `close` constraint returns",
+        "the rent to the bettor either way."
+      ],
+      "discriminator": [
+        62,
+        198,
+        214,
+        193,
+        213,
+        159,
+        108,
+        210
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_bounty",
+      "docs": [
+        "Permissionless claim: ANY caller may trigger it, but the pot always",
+        "lands on `run.runner` — the operator who earned the score, never the",
+        "trigger. `payee` is constrained to the run's stored runner, so a",
+        "front-running claim tx cannot redirect the payout.",
+        "",
+        "The deadline is TOTAL — the claim tx must land by `b.deadline`",
+        "(`now <= deadline`), so the proven score must exist on-chain before",
+        "the offer closes. That transitively bounds run creation too:",
+        "`run.created_at <= now <= deadline`. Past the deadline the only",
+        "remaining transition is `expire_bounty`, so a sponsor can quote an",
+        "exact end time and a slow-finalizing run can't stretch the window."
+      ],
+      "discriminator": [
+        225,
+        157,
+        163,
+        238,
+        239,
+        169,
+        75,
+        226
+      ],
+      "accounts": [
+        {
+          "name": "run",
+          "docs": [
+            "`load_run`, and `post_reveal` tail-read rejects spoiled banks."
+          ]
+        },
+        {
+          "name": "bounty",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  111,
+                  117,
+                  110,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "bounty.bank",
+                "account": "Bounty"
+              },
+              {
+                "kind": "account",
+                "path": "bounty.sponsor",
+                "account": "Bounty"
+              },
+              {
+                "kind": "account",
+                "path": "bounty.salt",
+                "account": "Bounty"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payee",
+          "docs": [
+            "so a front-running trigger can't redirect the payout."
+          ],
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_dark",
+      "docs": [
+        "Pay a sealed position and close its account. Cancelled markets refund",
+        "the public amount in full — no preimage required (amounts were never",
+        "hidden). Tallied markets pay revealed winners pro-rata over",
+        "`win_total`: an unrevealed winner's stake forfeits into the pot for",
+        "the winners who did reveal. Losing/unrevealed positions pay 0 but",
+        "still close — rent comes back either way."
+      ],
+      "discriminator": [
+        71,
+        183,
+        72,
+        47,
+        50,
+        66,
+        37,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107,
+                  112,
+                  111,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              },
+              {
+                "kind": "arg",
+                "path": "pos_salt"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_pos_salt",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim_fee",
+      "docs": [
+        "The market authority collects the accrued fee once resolved."
+      ],
+      "discriminator": [
+        169,
+        32,
+        79,
+        137,
+        136,
+        232,
+        70,
+        137
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_fee_dark",
+      "docs": [
+        "The dark-market authority collects the accrued fee once resolved."
+      ],
+      "discriminator": [
+        173,
+        8,
+        235,
+        202,
+        228,
+        83,
+        127,
+        76
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "dark_market"
+          ]
+        },
+        {
+          "name": "dark_market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_fee_ladder",
+      "docs": [
+        "The ladder authority collects the accrued fee once resolved."
+      ],
+      "discriminator": [
+        17,
+        154,
+        248,
+        102,
+        112,
+        16,
+        248,
+        247
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "ladder"
+          ]
+        },
+        {
+          "name": "ladder",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_ladder",
+      "docs": [
+        "Pay out a ladder position. Co-leader outcomes each pay",
+        "`stake × net_pot / Σ totals[mask]` — a dead-heat dilutes winnings,",
+        "it never refunds them. Cancelled ladders refund every lamport."
+      ],
+      "discriminator": [
+        112,
+        15,
+        89,
+        47,
+        91,
+        232,
+        90,
+        82
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "ladder",
+          "writable": true
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ladder"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_bounty",
+      "docs": [
+        "Open a capability bounty on `bank`: \"first model to score",
+        "`threshold`+ on this benchmark before `deadline` takes `amount`",
+        "lamports.\" There are no bettors — the payout goes to the qualifying",
+        "RUN's operator, settled on the MPC-written `Run.correct` like every",
+        "market here. Sponsor funds the pot at creation; permissionless",
+        "`expire_bounty` refunds it after `deadline` if nobody qualified.",
+        "",
+        "FCFS semantics: first qualifying proven run claims. A top-up is a",
+        "second bounty PDA (different salt), not a mutation of this one."
+      ],
+      "discriminator": [
+        122,
+        90,
+        14,
+        143,
+        8,
+        125,
+        200,
+        2
+      ],
+      "accounts": [
+        {
+          "name": "sponsor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bank",
+          "docs": [
+            "`load_benchmark`, which also reads `chunk_count` for the threshold cap."
+          ]
+        },
+        {
+          "name": "bounty",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  111,
+                  117,
+                  110,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "bank"
+              },
+              {
+                "kind": "account",
+                "path": "sponsor"
+              },
+              {
+                "kind": "arg",
+                "path": "salt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "salt",
+          "type": "u64"
+        },
+        {
+          "name": "threshold",
+          "type": "u32"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "deadline",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "create_dark",
+      "docs": [
+        "Open a dark score market: same buckets + deadlines as `create_market`,",
+        "but positions are SHA256 commitments — which outcome each bettor",
+        "backed stays sealed until they reveal post-resolution. The pool and",
+        "every position's AMOUNT are public (lamports move visibly); only the",
+        "side is hidden — disclosed limitation: private amounts would need a",
+        "deposit-vault layer so transfers stop correlating with stakes."
+      ],
+      "discriminator": [
+        198,
+        193,
+        186,
+        171,
+        216,
+        204,
+        61,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "run"
+        },
+        {
+          "name": "dark_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run"
+              },
+              {
+                "kind": "arg",
+                "path": "salt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "salt",
+          "type": "u64"
+        },
+        {
+          "name": "edges",
+          "type": {
+            "vec": "u32"
+          }
+        },
+        {
+          "name": "fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "closes_at",
+          "type": "i64"
+        },
+        {
+          "name": "resolve_by",
+          "type": "i64"
+        },
+        {
+          "name": "reveal_secs",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "create_duel",
+      "docs": [
+        "Open a head-to-head market: does run A outscore run B on the same",
+        "benchmark? Outcomes: 0 = A wins, 1 = B wins, 2 = tie. Both runs must be",
+        "pending and unscored so no one bets on leaked information."
+      ],
+      "discriminator": [
+        49,
+        28,
+        93,
+        11,
+        75,
+        242,
+        69,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "run_a"
+        },
+        {
+          "name": "run_b"
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  117,
+                  101,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_a"
+              },
+              {
+                "kind": "account",
+                "path": "run_b"
+              },
+              {
+                "kind": "arg",
+                "path": "salt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "salt",
+          "type": "u64"
+        },
+        {
+          "name": "fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "closes_at",
+          "type": "i64"
+        },
+        {
+          "name": "resolve_by",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "create_ladder",
+      "docs": [
+        "Open a K-way race market: legs are `remaining_accounts` (3..=8 pending,",
+        "unscored runs on one benchmark, distinct runs and runners — pairs",
+        "belong in `create_duel`, which carries an explicit tie bucket).",
+        "Resolution is argmax — the highest-scoring leg wins; ties split the",
+        "pot dead-heat. `closes_at` is required: the leg list is public, so a",
+        "market with an open-ended betting window is a snipe invitation.",
+        "",
+        "KNOWN RISK, disclosed: a leg whose runner never scores forfeits at 0 —",
+        "it cannot cancel the race (that would hand losing leg operators a free",
+        "exit). An authority can pack the board with dormant-runner \"ringer\"",
+        "legs whose backers' stake flows to live legs. The leg list and each",
+        "leg's runner are public at creation — bettors should verify every leg",
+        "has a live runner before staking. OPERATOR NOTE: a leg's first-queue",
+        "window (`first_pending_at`) opens on its first score-queue tx and is",
+        "write-once — a leg that gaps >24h between queue txs can settle at",
+        "partial before `resolve_by`. Stage every chunk's queue tx inside one",
+        "24h burst."
+      ],
+      "discriminator": [
+        58,
+        134,
+        172,
+        38,
+        189,
+        119,
+        207,
+        108
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "ladder",
+          "docs": [
+            "The PDA derives from the bound legs, like duels — the same authority",
+            "can host many races without salt collisions across test runs."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  100,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "first_leg"
+              },
+              {
+                "kind": "arg",
+                "path": "salt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "first_leg",
+          "type": "pubkey"
+        },
+        {
+          "name": "salt",
+          "type": "u64"
+        },
+        {
+          "name": "fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "closes_at",
+          "type": "i64"
+        },
+        {
+          "name": "resolve_by",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "create_market",
+      "docs": [
+        "Open a market on a run that exists but has not started scoring.",
+        "`salt` lets multiple markets reference the same run.",
+        "`edges` (len = n_outcomes - 1, strictly increasing) splits the score range.",
+        "`fee_bps` is the creator's take on resolution (max 1000 = 10%);",
+        "`closes_at` stops betting early (0 = until scoring starts);",
+        "`resolve_by` is a required deadline after which anyone can expire the",
+        "market — every market gets a permissionless exit (refund or partial settle)."
+      ],
+      "discriminator": [
+        103,
+        226,
+        97,
+        235,
+        200,
+        188,
+        251,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "run"
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run"
+              },
+              {
+                "kind": "arg",
+                "path": "salt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "salt",
+          "type": "u64"
+        },
+        {
+          "name": "edges",
+          "type": {
+            "vec": "u32"
+          }
+        },
+        {
+          "name": "fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "closes_at",
+          "type": "i64"
+        },
+        {
+          "name": "resolve_by",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "dark_bet",
+      "docs": [
+        "Stake `lamports` behind a commitment. The client computes",
+        "`dark_commitment(market, bettor, outcome, lamports, salt)` off-chain",
+        "and keeps the preimage until reveal — the chain never sees the",
+        "outcome. One position per (market, bettor, pos_salt); a position",
+        "cannot be topped up because the amount is bound inside the",
+        "commitment — place a second sealed position instead. Bets latch on",
+        "the same pre-scoring gate as `bet`."
+      ],
+      "discriminator": [
+        116,
+        180,
+        246,
+        239,
+        32,
+        195,
+        200,
+        220
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "run"
+        },
+        {
+          "name": "dark_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run"
+              },
+              {
+                "kind": "account",
+                "path": "dark_market.salt",
+                "account": "DarkMarket"
+              }
+            ]
+          }
+        },
+        {
+          "name": "position",
+          "docs": [
+            "One sealed position per (market, bettor, pos_salt) — `init`, never",
+            "re-init: a second bet on the same salt must not overwrite the stored",
+            "commitment (the amounts inside commitments are binding)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107,
+                  112,
+                  111,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "dark_market"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              },
+              {
+                "kind": "arg",
+                "path": "pos_salt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_pos_salt",
+          "type": "u64"
+        },
+        {
+          "name": "commitment",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "expire_bounty",
+      "docs": [
+        "Permissionless expiry: past `deadline` with the pot unclaimed, the",
+        "escrow unwinds to `bounty.sponsor` — `close` returns pot + rent.",
+        "The recipient is constrained to the STORED sponsor, so nobody can",
+        "redirect the refund."
+      ],
+      "discriminator": [
+        109,
+        181,
+        117,
+        16,
+        169,
+        115,
+        89,
+        94
+      ],
+      "accounts": [
+        {
+          "name": "bounty",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  111,
+                  117,
+                  110,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "bounty.bank",
+                "account": "Bounty"
+              },
+              {
+                "kind": "account",
+                "path": "bounty.sponsor",
+                "account": "Bounty"
+              },
+              {
+                "kind": "account",
+                "path": "bounty.salt",
+                "account": "Bounty"
+              }
+            ]
+          }
+        },
+        {
+          "name": "sponsor",
+          "docs": [
+            "escrow can only unwind to whoever funded it."
+          ],
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "expire_dark",
+      "docs": [
+        "Permissionless deadline — the same `expire_decision` split as",
+        "`expire_market`: a run that committed every chunk and outlived its",
+        "landing window settles on the proven partial (buckets resolve, the",
+        "reveal window opens); everything else cancels and refunds the public",
+        "amounts in full."
+      ],
+      "discriminator": [
+        82,
+        184,
+        52,
+        14,
+        169,
+        57,
+        155,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "run_a"
+        },
+        {
+          "name": "dark_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_a"
+              },
+              {
+                "kind": "account",
+                "path": "dark_market.salt",
+                "account": "DarkMarket"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "expire_market",
+      "docs": [
+        "Permissionless deadline: once `resolve_by` passes, anyone can clean up",
+        "an open market whose run can no longer finalize normally. The split",
+        "matters — settling any stalled partial would let a runner freeze a",
+        "favorable truncation (queue one cheap chunk, stop, steal the high",
+        "buckets). Only a run that COMMITTED every chunk (`all_queued_at` set)",
+        "and then waited out a full 24h landing window settles on its proven",
+        "partial — the truncation was the cluster's, not the runner's, and no",
+        "transaction can both complete commitment and satisfy the window.",
+        "Everything else refunds: never-queued, uncommitted stalls (the",
+        "documented residual wash — refunding a chosen truncation is the only",
+        "safe answer), and committed runs where nothing ever landed."
+      ],
+      "discriminator": [
+        213,
+        191,
+        249,
+        51,
+        63,
+        168,
+        186,
+        180
+      ],
+      "accounts": [
+        {
+          "name": "run_a"
+        },
+        {
+          "name": "run_b"
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "finalize_dark",
+      "docs": [
+        "Permissionless tally close: past the window, freeze `win_total`.",
+        "Zero reveals cancels the market — every position then refunds its",
+        "public amount through `claim_dark`, no preimage needed (the one case",
+        "where nobody can prove a side, refund-all is the only safe answer)."
+      ],
+      "discriminator": [
+        169,
+        213,
+        0,
+        28,
+        73,
+        151,
+        200,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "dark_market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolve",
+      "docs": [
+        "Settle the market from the finalized run. If any outcome attracted no",
+        "stake the market is cancelled and everyone is refunded instead."
+      ],
+      "discriminator": [
+        246,
+        150,
+        236,
+        206,
+        108,
+        63,
+        58,
+        10
+      ],
+      "accounts": [
+        {
+          "name": "run"
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run"
+              },
+              {
+                "kind": "account",
+                "path": "market.salt",
+                "account": "Market"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolve_dark",
+      "docs": [
+        "Settle the buckets from the finalized run and open the reveal window.",
+        "An empty market (no stake) cancels outright — there is nothing to",
+        "reveal. The all-backed check `settle_score` runs is impossible by",
+        "design here: per-outcome totals are sealed until reveals land."
+      ],
+      "discriminator": [
+        230,
+        5,
+        212,
+        197,
+        18,
+        236,
+        2,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "run"
+        },
+        {
+          "name": "dark_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run"
+              },
+              {
+                "kind": "account",
+                "path": "dark_market.salt",
+                "account": "DarkMarket"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolve_duel",
+      "docs": [
+        "Settle the duel once both runs are finalized. The winning outcome is the",
+        "larger `correct`; equal scores pay the tie bucket. `resolved_score`",
+        "packs both scores as (a << 16) | b for a compact onchain record."
+      ],
+      "discriminator": [
+        213,
+        162,
+        203,
+        235,
+        151,
+        236,
+        178,
+        64
+      ],
+      "accounts": [
+        {
+          "name": "run_a"
+        },
+        {
+          "name": "run_b"
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  117,
+                  101,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run_a"
+              },
+              {
+                "kind": "account",
+                "path": "run_b"
+              },
+              {
+                "kind": "account",
+                "path": "market.salt",
+                "account": "Market"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolve_ladder",
+      "docs": [
+        "Settle the race: argmax over leg scores, dead-heat pro-rata on ties.",
+        "Permissionless — the gate is identical before and after `resolve_by`",
+        "(the deadline is the advertised end for bettors, not a forfeit switch):",
+        "a leg inside EITHER landing window — its 24h first-queue window",
+        "(`first_pending_at`, ungameable) or its post-commit landing window",
+        "(`all_queued_at`, the JIT-commit invariant `expire_market` enforces) —",
+        "blocks resolution rather than forfeiting mid-flight. A leg past both",
+        "windows settles at whatever landed; nothing-landed legs score 0."
+      ],
+      "discriminator": [
+        227,
+        59,
+        196,
+        178,
+        27,
+        76,
+        61,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "ladder",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  100,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ladder.legs [0]",
+                "account": "Ladder"
+              },
+              {
+                "kind": "account",
+                "path": "ladder.salt",
+                "account": "Ladder"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "reveal_dark",
+      "docs": [
+        "Reveal (outcome, salt) against the stored commitment inside the",
+        "window. Revealed winners accumulate `win_total`; losers learn nothing",
+        "new — the outcome was fixed at resolve. Revealing is safe: the score",
+        "is already written, so a leaked side cannot be traded on."
+      ],
+      "discriminator": [
+        32,
+        47,
+        122,
+        105,
+        25,
+        185,
+        81,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "bettor",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107,
+                  112,
+                  111,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "bettor"
+              },
+              {
+                "kind": "arg",
+                "path": "pos_salt"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_pos_salt",
+          "type": "u64"
+        },
+        {
+          "name": "outcome",
+          "type": "u8"
+        },
+        {
+          "name": "salt",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unbrick_pda",
+      "docs": [
+        "Prefund-grief reclaim for ANY PDA of this program. Anchor's `init`",
+        "codegen already tolerates prefunded accounts (top-up to rent-exempt,",
+        "then allocate+assign — the griefer's dust becomes a rent subsidy),",
+        "so a prefund cannot brick an `init` path here — but the dust stays",
+        "locked forever. This sweeps griefed lamports to a permissionless",
+        "rescuer BEFORE init — the prefunder loses the dust instead of",
+        "donating it. The `create_program_address` proof pins the drain to",
+        "THIS program's derivation space: arbitrary wallets and other",
+        "programs' accounts can never be touched. Bundle `unbrick_pda` + the",
+        "init ix in ONE tx for an atomic sweep an attacker cannot interleave.",
+        "Accepted risk: a lamport-bearing uninit PDA is grief BY DEFINITION —",
+        "no flow in this program requires prefunding — so the sweep cannot",
+        "distinguish a griefer's dust from lamports a user parked ahead of a",
+        "split prefund→init workflow. Either way the rescuer takes it."
+      ],
+      "discriminator": [
+        5,
+        111,
+        209,
+        122,
+        29,
+        36,
+        209,
+        205
+      ],
+      "accounts": [
+        {
+          "name": "rescuer",
+          "docs": [
+            "Receives the swept lamports — permissionless: whoever un-bricks a",
+            "bricked PDA keeps the grief dust."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pda",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "seeds",
+          "type": {
+            "vec": "bytes"
+          }
+        },
+        {
+          "name": "bump",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "void_dark",
+      "docs": [
+        "Authority escape hatch — same shape as `void_market`: the run must",
+        "still be pending and fully unscored."
+      ],
+      "discriminator": [
+        0,
+        210,
+        174,
+        203,
+        197,
+        63,
+        38,
+        252
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "dark_market"
+          ]
+        },
+        {
+          "name": "run"
+        },
+        {
+          "name": "dark_market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  97,
+                  114,
+                  107
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "run"
+              },
+              {
+                "kind": "account",
+                "path": "dark_market.salt",
+                "account": "DarkMarket"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "void_duel",
+      "docs": [
+        "Same escape hatch for duels: both runs must still be fully unscored."
+      ],
+      "discriminator": [
+        65,
+        60,
+        119,
+        158,
+        245,
+        56,
+        35,
+        216
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "run_a"
+        },
+        {
+          "name": "run_b"
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "void_ladder",
+      "docs": [
+        "Authority escape hatch — only while every leg is still unknowable",
+        "(pending, nothing queued). Once any leg starts, resolution or",
+        "`resolve_by` owns the outcome."
+      ],
+      "discriminator": [
+        68,
+        185,
+        102,
+        182,
+        217,
+        200,
+        87,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "ladder"
+          ]
+        },
+        {
+          "name": "ladder",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  97,
+                  100,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "ladder.legs [0]",
+                "account": "Ladder"
+              },
+              {
+                "kind": "account",
+                "path": "ladder.salt",
+                "account": "Ladder"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "void_market",
+      "docs": [
+        "Authority escape hatch for score markets — only while the outcome is",
+        "still unknowable (run pending, no scoring started). Once a single MPC",
+        "computation is queued the authority must wait for resolution or let the",
+        "`resolve_by` deadline expire the market; otherwise the authority could",
+        "free-look at the result and cancel when it loses."
+      ],
+      "discriminator": [
+        243,
+        175,
+        46,
+        124,
+        95,
+        101,
+        39,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "run"
+        },
+        {
+          "name": "market",
+          "writable": true
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Bounty",
+      "discriminator": [
+        237,
+        16,
+        105,
+        198,
+        19,
+        69,
+        242,
+        234
+      ]
+    },
+    {
+      "name": "DarkMarket",
+      "discriminator": [
+        148,
+        86,
+        44,
+        114,
+        62,
+        249,
+        139,
+        166
+      ]
+    },
+    {
+      "name": "DarkPosition",
+      "discriminator": [
+        216,
+        193,
+        143,
+        174,
+        174,
+        157,
+        119,
+        21
+      ]
+    },
+    {
+      "name": "Ladder",
+      "discriminator": [
+        125,
+        146,
+        35,
+        254,
+        42,
+        7,
+        204,
+        222
+      ]
+    },
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "Position",
+      "discriminator": [
+        170,
+        188,
+        143,
+        228,
+        122,
+        64,
+        247,
+        208
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BetPlaced",
+      "discriminator": [
+        88,
+        88,
+        145,
+        226,
+        126,
+        206,
+        32,
+        0
+      ]
+    },
+    {
+      "name": "BountyClaimed",
+      "discriminator": [
+        140,
+        202,
+        21,
+        51,
+        211,
+        65,
+        142,
+        21
+      ]
+    },
+    {
+      "name": "BountyCreated",
+      "discriminator": [
+        68,
+        252,
+        247,
+        196,
+        154,
+        247,
+        130,
+        49
+      ]
+    },
+    {
+      "name": "BountyExpired",
+      "discriminator": [
+        74,
+        29,
+        44,
+        239,
+        139,
+        31,
+        54,
+        100
+      ]
+    },
+    {
+      "name": "Claimed",
+      "discriminator": [
+        217,
+        192,
+        123,
+        72,
+        108,
+        150,
+        248,
+        33
+      ]
+    },
+    {
+      "name": "DarkBetPlaced",
+      "discriminator": [
+        64,
+        202,
+        44,
+        89,
+        170,
+        81,
+        213,
+        84
+      ]
+    },
+    {
+      "name": "DarkClaimed",
+      "discriminator": [
+        167,
+        90,
+        33,
+        25,
+        116,
+        206,
+        227,
+        128
+      ]
+    },
+    {
+      "name": "DarkFinalized",
+      "discriminator": [
+        192,
+        35,
+        133,
+        250,
+        190,
+        22,
+        185,
+        254
+      ]
+    },
+    {
+      "name": "DarkMarketCreated",
+      "discriminator": [
+        84,
+        51,
+        203,
+        217,
+        135,
+        212,
+        23,
+        3
+      ]
+    },
+    {
+      "name": "DarkResolved",
+      "discriminator": [
+        30,
+        114,
+        68,
+        61,
+        216,
+        199,
+        59,
+        218
+      ]
+    },
+    {
+      "name": "DarkRevealed",
+      "discriminator": [
+        204,
+        24,
+        119,
+        203,
+        208,
+        47,
+        242,
+        195
+      ]
+    },
+    {
+      "name": "DuelCreated",
+      "discriminator": [
+        137,
+        77,
+        22,
+        196,
+        90,
+        147,
+        23,
+        37
+      ]
+    },
+    {
+      "name": "DuelResolved",
+      "discriminator": [
+        224,
+        245,
+        214,
+        212,
+        111,
+        151,
+        50,
+        5
+      ]
+    },
+    {
+      "name": "FeeClaimed",
+      "discriminator": [
+        202,
+        108,
+        15,
+        80,
+        101,
+        18,
+        217,
+        158
+      ]
+    },
+    {
+      "name": "LadderCreated",
+      "discriminator": [
+        10,
+        237,
+        116,
+        144,
+        184,
+        108,
+        164,
+        76
+      ]
+    },
+    {
+      "name": "LadderResolved",
+      "discriminator": [
+        14,
+        138,
+        126,
+        180,
+        2,
+        79,
+        124,
+        127
+      ]
+    },
+    {
+      "name": "MarketCreated",
+      "discriminator": [
+        88,
+        184,
+        130,
+        231,
+        226,
+        84,
+        6,
+        58
+      ]
+    },
+    {
+      "name": "MarketResolved",
+      "discriminator": [
+        89,
+        67,
+        230,
+        95,
+        143,
+        106,
+        199,
+        202
+      ]
+    },
+    {
+      "name": "PdaUnbricked",
+      "discriminator": [
+        237,
+        213,
+        230,
+        70,
+        155,
+        69,
+        186,
+        33
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "WrongRun",
+      "msg": "Account is not a Sealed run"
+    },
+    {
+      "code": 6001,
+      "name": "RunNotPending",
+      "msg": "Run is not pending"
+    },
+    {
+      "code": 6002,
+      "name": "ScoringStarted",
+      "msg": "Run scoring has already started"
+    },
+    {
+      "code": 6003,
+      "name": "RunNotFinalized",
+      "msg": "Run is not finalized yet"
+    },
+    {
+      "code": 6004,
+      "name": "MarketNotOpen",
+      "msg": "Market is not open"
+    },
+    {
+      "code": 6005,
+      "name": "MarketNotResolved",
+      "msg": "Market is not resolved or cancelled"
+    },
+    {
+      "code": 6006,
+      "name": "NotAuthority",
+      "msg": "Signer is not the market authority"
+    },
+    {
+      "code": 6007,
+      "name": "NotBettor",
+      "msg": "Signer is not the position bettor"
+    },
+    {
+      "code": 6008,
+      "name": "WrongMarket",
+      "msg": "Position belongs to another market"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidOutcome",
+      "msg": "Outcome index out of range"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidEdges",
+      "msg": "Edges must be strictly increasing with 1..=7 entries"
+    },
+    {
+      "code": 6011,
+      "name": "ZeroAmount",
+      "msg": "Bet amount must be positive"
+    },
+    {
+      "code": 6012,
+      "name": "BettingClosed",
+      "msg": "Betting is closed for this market"
+    },
+    {
+      "code": 6013,
+      "name": "FeeTooLarge",
+      "msg": "Fee exceeds the 10% maximum"
+    },
+    {
+      "code": 6014,
+      "name": "NoFees",
+      "msg": "Market has no accrued fees"
+    },
+    {
+      "code": 6015,
+      "name": "MarketNotExpired",
+      "msg": "Market has not passed its resolve_by deadline"
+    },
+    {
+      "code": 6016,
+      "name": "DeadlineInPast",
+      "msg": "Deadline must be in the future"
+    },
+    {
+      "code": 6017,
+      "name": "NotScoreMarket",
+      "msg": "Not a score market"
+    },
+    {
+      "code": 6018,
+      "name": "NotDuelMarket",
+      "msg": "Not a duel market"
+    },
+    {
+      "code": 6019,
+      "name": "BenchmarkMismatch",
+      "msg": "Duel runs must be on the same benchmark"
+    },
+    {
+      "code": 6020,
+      "name": "RunsMustDiffer",
+      "msg": "Duel needs two different runs"
+    },
+    {
+      "code": 6021,
+      "name": "RunnersMustDiffer",
+      "msg": "Duel needs two different runners"
+    },
+    {
+      "code": 6022,
+      "name": "ScoreOverflow",
+      "msg": "Score too large to pack into resolved_score"
+    },
+    {
+      "code": 6023,
+      "name": "MarketResolvable",
+      "msg": "Run already finalized — market is resolvable, not expirable"
+    },
+    {
+      "code": 6024,
+      "name": "DeadlineOrder",
+      "msg": "closes_at must not exceed resolve_by"
+    },
+    {
+      "code": 6025,
+      "name": "DeadlineTooSoon",
+      "msg": "deadline too close — markets must live at least 60s"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidLegCount",
+      "msg": "Ladders need 3..=8 legs (pairs belong in create_duel)"
+    },
+    {
+      "code": 6027,
+      "name": "LegMismatch",
+      "msg": "Leg accounts must be exactly the ladder's bound legs, in order"
+    },
+    {
+      "code": 6028,
+      "name": "LegsStillMoving",
+      "msg": "A leg can still legitimately move — resolve must wait"
+    },
+    {
+      "code": 6029,
+      "name": "AlreadyRevealed",
+      "msg": "Position already revealed"
+    },
+    {
+      "code": 6030,
+      "name": "BadReveal",
+      "msg": "reveal preimage does not match the stored commitment"
+    },
+    {
+      "code": 6031,
+      "name": "RevealWindowClosed",
+      "msg": "reveal window has closed / not yet closed"
+    },
+    {
+      "code": 6032,
+      "name": "PostRevealRun",
+      "msg": "Run was created after a fingerprint reveal on its bank — spoiled scoring target"
+    },
+    {
+      "code": 6033,
+      "name": "WrongBank",
+      "msg": "Account is not a Sealed benchmark"
+    },
+    {
+      "code": 6034,
+      "name": "BenchmarkNotLive",
+      "msg": "Benchmark is not live"
+    },
+    {
+      "code": 6035,
+      "name": "InvalidThreshold",
+      "msg": "Threshold must be 1..=bank max score (chunk_count * 32)"
+    },
+    {
+      "code": 6036,
+      "name": "BelowThreshold",
+      "msg": "Run does not meet this bounty's claim conditions"
+    },
+    {
+      "code": 6037,
+      "name": "WrongPayee",
+      "msg": "Payout recipient must be the run's runner"
+    },
+    {
+      "code": 6038,
+      "name": "DeadlineTooFar",
+      "msg": "Deadline exceeds the maximum supported horizon"
+    },
+    {
+      "code": 6039,
+      "name": "NotProgramPda",
+      "msg": "Account is not a PDA of this program for the given seeds"
+    },
+    {
+      "code": 6040,
+      "name": "NotGriefedPda",
+      "msg": "Account is not a grief-prefunded (system-owned, empty) PDA"
+    },
+    {
+      "code": 6041,
+      "name": "NothingToDrain",
+      "msg": "Account carries no lamports to drain"
+    }
+  ],
+  "types": [
+    {
+      "name": "BetPlaced",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Bounty",
+      "docs": [
+        "A capability bounty escrowed in the PDA itself: `amount` lamports for the",
+        "first run on `bank` whose MPC-finalized score reaches `threshold` before",
+        "`deadline`. Unlike the parimutuel markets this pays the RUN's operator —",
+        "a sponsor buys a demonstrated capability, not a bet."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sponsor",
+            "type": "pubkey"
+          },
+          {
+            "name": "bank",
+            "type": "pubkey"
+          },
+          {
+            "name": "salt",
+            "docs": [
+              "Sponsor salt — one bank may host many concurrent bounties."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "MARKET_OPEN / MARKET_RESOLVED (claimed) — expiry closes the account."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "threshold",
+            "docs": [
+              "Minimum `Run.correct` that claims, capped at `bank.chunk_count * 32`."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Escrowed pot (0 once claimed — the field doubles as an audit record)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "winner_run",
+            "type": "pubkey"
+          },
+          {
+            "name": "winning_score",
+            "type": "u32"
+          },
+          {
+            "name": "created_at",
+            "docs": [
+              "Retroactivity wall: only runs with `created_at >=` this may claim."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "deadline",
+            "docs": [
+              "FCFS cutoff; past it `expire_bounty` returns the pot to the sponsor."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BountyClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bounty",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_run",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner",
+            "docs": [
+              "`run.runner` — the operator paid, NOT the claim trigger."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "score",
+            "type": "u32"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BountyCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bounty",
+            "type": "pubkey"
+          },
+          {
+            "name": "sponsor",
+            "type": "pubkey"
+          },
+          {
+            "name": "bank",
+            "type": "pubkey"
+          },
+          {
+            "name": "threshold",
+            "type": "u32"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "deadline",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BountyExpired",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bounty",
+            "type": "pubkey"
+          },
+          {
+            "name": "sponsor",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "The escrowed pot (matches `BountyCreated.amount`)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "refunded_lamports",
+            "docs": [
+              "What `close` actually sent the sponsor: pot + rent + any donations."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Claimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "payout",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkBetPlaced",
+      "docs": [
+        "A sealed position landed: the event carries NO outcome — that is the",
+        "point of the primitive."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "payout",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkFinalized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "win_total",
+            "type": "u64"
+          },
+          {
+            "name": "pool_total",
+            "type": "u64"
+          },
+          {
+            "name": "cancelled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkMarket",
+      "docs": [
+        "A dark score market: the bucket logic of `Market` with sealed positions.",
+        "`pool_total` is public (stakes move visibly) but there are NO per-outcome",
+        "totals — they cannot exist until winners reveal, which is the point.",
+        "`tallied` flips at `finalize_dark`: RESOLVED + !tallied = reveal window",
+        "active; RESOLVED + tallied = claimable; CANCELLED = refund-all."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "run",
+            "type": "pubkey"
+          },
+          {
+            "name": "benchmark",
+            "type": "pubkey"
+          },
+          {
+            "name": "run_index",
+            "type": "u64"
+          },
+          {
+            "name": "salt",
+            "docs": [
+              "Distinguishes dark markets on the same run (PDA seed)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "n_outcomes",
+            "docs": [
+              "Number of score buckets (2..=8); edges[i] is the upper bound of bucket i."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "edges",
+            "type": {
+              "array": [
+                "u32",
+                7
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "outcome",
+            "docs": [
+              "Winning bucket index once resolved (u8::MAX while open)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "pool_total",
+            "docs": [
+              "All lamports staked across every sealed position (public by design)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "win_total",
+            "docs": [
+              "Revealed winning stake — grows as winners `reveal_dark`, frozen at",
+              "`finalize_dark`. Denominator of the pro-rata split."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "revealed_count",
+            "docs": [
+              "Positions that revealed (informational)."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "resolved_score",
+            "docs": [
+              "The run's `correct` once resolved."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "resolved_at",
+            "type": "i64"
+          },
+          {
+            "name": "reveal_secs",
+            "docs": [
+              "Reveal window length in seconds (floored at `MIN_RESOLVE_DELAY_SECS`).",
+              "`reveal_until = resolved_at + reveal_secs`. Winners who miss it",
+              "forfeit into the pot for revealed winners."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "reveal_until",
+            "docs": [
+              "Reveal deadline: `resolved_at + reveal_secs`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "fee_bps",
+            "docs": [
+              "Authority take on resolution, in basis points (max 1000 = 10%)."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "fees_accrued",
+            "docs": [
+              "Lamports of fee accrued at resolution, claimable via `claim_fee_dark`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "closes_at",
+            "docs": [
+              "Optional betting cutoff (unix ts; 0 = bets close when scoring starts)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "resolve_by",
+            "docs": [
+              "Required deadline after which anyone can `expire_dark`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "tallied",
+            "docs": [
+              "True once `finalize_dark` froze `win_total` — claims open."
+            ],
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkMarketCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "run",
+            "type": "pubkey"
+          },
+          {
+            "name": "benchmark",
+            "type": "pubkey"
+          },
+          {
+            "name": "edges",
+            "type": {
+              "vec": "u32"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkPosition",
+      "docs": [
+        "One sealed position in a `DarkMarket`: the outcome is hidden inside",
+        "`commitment` until the bettor reveals post-resolution. `amount` is",
+        "public — the lamport transfer is visible anyway (disclosed limitation;",
+        "private amounts need a deposit-vault layer)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "amount",
+            "docs": [
+              "Lamports staked (public — the transfer is on-chain regardless)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "commitment",
+            "docs": [
+              "SHA256(b\"sealed/dark\" ‖ market ‖ bettor ‖ outcome ‖ amount ‖ salt)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "revealed",
+            "docs": [
+              "u8::MAX while sealed; the revealed outcome index after `reveal_dark`."
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "run",
+            "type": "pubkey"
+          },
+          {
+            "name": "correct",
+            "type": "u32"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "cancelled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DarkRevealed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "position",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DuelCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "run_a",
+            "type": "pubkey"
+          },
+          {
+            "name": "run_b",
+            "type": "pubkey"
+          },
+          {
+            "name": "benchmark",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DuelResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "a_correct",
+            "type": "u32"
+          },
+          {
+            "name": "b_correct",
+            "type": "u32"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "cancelled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeeClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "docs": [
+              "Market OR ladder PDA the fee was skimmed from."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "to",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Ladder",
+      "docs": [
+        "A K-way race market: bound `Run` legs compete on `correct`; the highest",
+        "score takes the pot, ties split it dead-heat pro-rata. Legs ride",
+        "`remaining_accounts` — never stored twice — and every leg-read goes",
+        "through `load_legs` (strict ordered key check + `load_run`).",
+        "",
+        "Unlike duels, a dead leg does NOT cancel the market: it scores 0 and the",
+        "race resolves among the rest. Cancelling on a dead leg would hand every",
+        "losing leg operator a free exit (poison one leg, refund a losing bet)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "benchmark",
+            "type": "pubkey"
+          },
+          {
+            "name": "legs",
+            "docs": [
+              "Bound leg Run PDAs; only the first `leg_count` are live."
+            ],
+            "type": {
+              "array": [
+                "pubkey",
+                8
+              ]
+            }
+          },
+          {
+            "name": "leg_count",
+            "type": "u8"
+          },
+          {
+            "name": "salt",
+            "docs": [
+              "Distinguishes ladders by the same authority (PDA seed)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "result_mask",
+            "docs": [
+              "Dead-heat: bitmask of co-leader legs once resolved."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "resolved_score",
+            "docs": [
+              "The winning `correct` once resolved."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "totals",
+            "docs": [
+              "Lamports staked on each leg."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "resolved_at",
+            "type": "i64"
+          },
+          {
+            "name": "fee_bps",
+            "docs": [
+              "Authority take on resolution, in basis points (max 1000 = 10%)."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "fees_accrued",
+            "type": "u64"
+          },
+          {
+            "name": "closes_at",
+            "docs": [
+              "Required betting cutoff — the leg list is public, so an open-ended",
+              "window invites last-second sniping on leaked leg state."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "resolve_by",
+            "docs": [
+              "Advertised settlement deadline for bettors. Resolution is gated by",
+              "`still_moving` alone — a leg inside either landing window blocks",
+              "resolve even past `resolve_by` (one bounded window per leg), and a",
+              "leg past both windows settles at whatever landed, partial included."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LadderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ladder",
+            "type": "pubkey"
+          },
+          {
+            "name": "benchmark",
+            "type": "pubkey"
+          },
+          {
+            "name": "legs",
+            "type": {
+              "vec": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LadderResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "ladder",
+            "type": "pubkey"
+          },
+          {
+            "name": "result_mask",
+            "type": "u8"
+          },
+          {
+            "name": "winning_score",
+            "type": "u32"
+          },
+          {
+            "name": "scores",
+            "docs": [
+              "Every leg's contributed score — dead legs show as 0, so indexers can",
+              "reconstruct the full race without re-reading run accounts."
+            ],
+            "type": {
+              "vec": "u32"
+            }
+          },
+          {
+            "name": "cancelled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "run",
+            "type": "pubkey"
+          },
+          {
+            "name": "benchmark",
+            "type": "pubkey"
+          },
+          {
+            "name": "run_index",
+            "type": "u64"
+          },
+          {
+            "name": "salt",
+            "docs": [
+              "Distinguishes markets on the same run (PDA seed)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "n_outcomes",
+            "docs": [
+              "Number of score buckets (2..=8); edges[i] is the upper bound of bucket i."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "edges",
+            "type": {
+              "array": [
+                "u32",
+                7
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "outcome",
+            "docs": [
+              "Winning bucket index once resolved (u8::MAX while open)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "totals",
+            "docs": [
+              "Lamports staked on each outcome."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
+          },
+          {
+            "name": "resolved_score",
+            "docs": [
+              "For score markets: the run's `correct`. For duels: (a << 16) | b."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "resolved_at",
+            "type": "i64"
+          },
+          {
+            "name": "run_b",
+            "docs": [
+              "Second run for head-to-head markets; Pubkey::default() on score markets."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_bps",
+            "docs": [
+              "Authority take on resolution, in basis points (max 1000 = 10%)."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "fees_accrued",
+            "docs": [
+              "Lamports of fee accrued at resolution, claimable via `claim_fee`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "closes_at",
+            "docs": [
+              "Optional betting cutoff (unix ts; 0 = bets close when scoring starts)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "resolve_by",
+            "docs": [
+              "Required deadline after which anyone can `expire_market` — creation",
+              "rejects `resolve_by <= now` so a stalled run can never lock funds forever."
+            ],
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "run",
+            "type": "pubkey"
+          },
+          {
+            "name": "benchmark",
+            "type": "pubkey"
+          },
+          {
+            "name": "edges",
+            "type": {
+              "vec": "u32"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "run",
+            "type": "pubkey"
+          },
+          {
+            "name": "correct",
+            "type": "u32"
+          },
+          {
+            "name": "outcome",
+            "type": "u8"
+          },
+          {
+            "name": "cancelled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PdaUnbricked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pda",
+            "type": "pubkey"
+          },
+          {
+            "name": "rescuer",
+            "type": "pubkey"
+          },
+          {
+            "name": "drained_lamports",
+            "docs": [
+              "Lamports the grief-prefunder lost to the rescuer."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "bettor",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "amounts",
+            "docs": [
+              "Lamports staked per outcome."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

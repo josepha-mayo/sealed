@@ -10,6 +10,17 @@ const require = createRequire(import.meta.url);
 const anchor: typeof AnchorTypes = require("@anchor-lang/core");
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
+/** The IDL is a build artifact (target/ is gitignored) — but the committed
+ *  copy under idl/ keeps every snapshot replay working on a cold clone.
+ *  target/idl wins when present so a fresh build never reads a stale floor. */
+export function loadIdl(section: "sealed" | "market"): any {
+  for (const base of [join(ROOT, "target", "idl"), join(ROOT, "idl")]) {
+    const p = join(base, `${section}.json`);
+    if (existsSync(p)) return require(p);
+  }
+  throw new Error(`no IDL for ${section} — run 'anchor build' or restore idl/${section}.json`);
+}
+
 export interface SnapAccount {
   publicKey: PublicKey;
   account: any;
@@ -44,7 +55,7 @@ export function loadSnapshotJson(path: string): any {
  *  Entries matching no discriminator, or whose layout predates the current
  *  IDL (the EOF-brick class live fetches tolerate), are skipped. */
 export function decodeSnapshotSection(snap: any, section: "sealed" | "market"): SnapMap {
-  const idl = require(join(ROOT, "target", "idl", `${section}.json`));
+  const idl = loadIdl(section);
   const coder = new anchor.BorshAccountsCoder(idl);
   const discs: Array<[string, Buffer]> = (idl.accounts ?? []).map(
     (a: any) => [a.name, coder.accountDiscriminator(a.name)],
