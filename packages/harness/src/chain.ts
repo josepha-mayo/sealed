@@ -2280,7 +2280,7 @@ export async function compareMatchAll(dir: string, snapPath?: string, minShared 
 /** The per-card match verifier shared by single-file and directory modes:
  *  every PDA re-derives, per-bank aggregates recompute from embedded
  *  receipts, the stored verdict replays bit-for-bit. */
-function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void) {
+function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void, snapPath?: string) {
   const sealedId = new PublicKey(card.programs.sealed);
   const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
   const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
@@ -2345,6 +2345,32 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
   const winner = pctA === pctB ? "tie" : pctA > pctB ? "a" : "b";
   check("verdict replay", winner === card.verdict.winner && Math.abs(pctA - card.verdict.pctA) < 0.01 && Math.abs(pctB - card.verdict.pctB) < 0.01,
     `${card.a.id} ${pctA.toFixed(2)}% vs ${card.b.id} ${pctB.toFixed(2)}% → ${winner}`);
+
+  // 3. snapshot binding — every receipt must equal its decoded ScoreLog
+  // account AND belong to the side it claims (receipts.a → recordPk a).
+  if (snapPath) {
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const logs = new Map(snapOf(ss, "ScoreLog").map((l) => [l.publicKey.toBase58(), l]));
+    const recs = new Map(snapOf(ss, "ModelRecord").map((r) => [r.publicKey.toBase58(), r]));
+    let bBad = 0, bN = 0;
+    for (const side of ["a", "b"] as const) {
+      for (const l of card.receipts[side]) {
+        bN++;
+        const real = logs.get(l.pk);
+        if (!real || (real.account.run as PublicKey).toBase58() !== l.run ||
+            (real.account.benchmark as PublicKey).toBase58() !== l.benchmark ||
+            (real.account.modelRecord as PublicKey).toBase58() !== card[side].recordPk ||
+            Number(real.account.correct) !== l.correct || Number(real.account.items) !== l.items ||
+            Number(real.account.vouchedAtRecord ?? 0) !== (l.vouchedAtRecord ? 1 : 0) ||
+            Number(real.account.postReveal ?? 0) !== (l.postReveal ? 1 : 0)) bBad++;
+      }
+    }
+    const recA = recs.get(card.a.recordPk), recB = recs.get(card.b.recordPk);
+    const idOk = !!recA && !!recB && String(recA.account.modelId) === card.a.id && String(recB.account.modelId) === card.b.id;
+    check("snapshot binding", bBad === 0 && idOk,
+      `${bN - bBad}/${bN} receipts == ScoreLog bytes, each bound to its side's record` +
+      (idOk ? " · on-chain modelIds match" : " · MODEL ID MISMATCH"));
+  }
   return { ok: fail === 0, pass, fail, fails, rows };
 }
 
@@ -2353,7 +2379,7 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
  *  per-bank aggregates recomputed from embedded receipts, and the stored
  *  verdict replayed bit-for-bit. A directory batch-verifies every *.json
  *  card in it. Exit 1 on any violation. */
-export async function matchVerify(file: string, json = false) {
+export async function matchVerify(file: string, json = false, snapPath?: string) {
   const { statSync, readdirSync } = await import("node:fs");
   if (statSync(file).isDirectory()) {
     const files = readdirSync(file).filter((f) => f.endsWith(".json") && f !== "index.json").sort();
@@ -2365,7 +2391,7 @@ export async function matchVerify(file: string, json = false) {
       try {
         const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
         if (card.kind !== "sealed-match/v1") throw new Error(`kind=${card.kind}`);
-        const r = verifyMatchCard(card);
+        const r = verifyMatchCard(card, undefined, snapPath);
         results.push({ file: f, a: card.a?.id ?? null, b: card.b?.id ?? null, ok: r.ok, pass: r.pass, fail: r.fail, fails: r.fails });
         if (!json) console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(44)} ${card.a?.id ?? "?"} vs ${card.b?.id ?? "?"} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
         okAll &&= r.ok;
@@ -2378,7 +2404,7 @@ export async function matchVerify(file: string, json = false) {
   }
   const card = JSON.parse(readFileSync(file, "utf8"));
   if (card.kind !== "sealed-match/v1") throw new Error(`not a sealed-match/v1 file (kind=${card.kind})`);
-  const r = verifyMatchCard(card, (what, ok, detail) => { if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); });
+  const r = verifyMatchCard(card, (what, ok, detail) => { if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); }, snapPath);
   const verdict = r.fail === 0 ? "MATCH VERIFIED" : "MATCH FAILED";
   if (json) console.log(JSON.stringify({ file, kind: card.kind, a: card.a.id, b: card.b.id, verified: r.fail === 0,
     checks: r.rows, pass: r.pass, fail: r.fail, verdict: card.verdict }));
@@ -3258,9 +3284,18 @@ export async function bountyVerify(file: string, json = false, snapPath?: string
     // itself: anyone can CHECK whether a qualifying run exists.
     note(true, "verdict", "open — pot still escrowed, no referee needed to claim it");
   }
-  // [4] bank context — threshold can't exceed the bank's capacity.
-  if (card.bank) note(card.bounty.threshold <= card.bank.capacity,
-    "threshold ≤ capacity", `${card.bounty.threshold} ≤ ${card.bank.capacity} (${card.bank.name})`);
+  // [4] bank context — threshold can't exceed the bank's capacity. When
+  // the snapshot is present, capacity comes from the decoded Benchmark
+  // account (a forged card shrinking card.bank.capacity dies here).
+  if (card.bank) {
+    let cap = card.bank.capacity;
+    if (snapPath) {
+      const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+      const realBank = snapOf(ss, "Benchmark").find((x) => x.publicKey.toBase58() === card.bank.pk)?.account as any;
+      if (realBank) cap = Number(realBank.chunkCount) * 32;
+    }
+    note(card.bounty.threshold <= cap, "threshold ≤ capacity", `${card.bounty.threshold} ≤ ${cap} (${card.bank.name})`);
+  }
   // [5] snapshot binding
   if (snapPath && card.snapshotSha256)
     note(createHash("sha256").update(readFileSync(snapPath)).digest("hex") === card.snapshotSha256, "snapshot binding", `sha256 ${card.snapshotSha256.slice(0, 16)}…`);
@@ -4087,7 +4122,16 @@ function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: s
       if (l.benchmark != null && dv([Buffer.from("run"), pk(l.benchmark).toBuffer(), u64le(l.index)]) === l.pk) legOk++;
     }
     if (v.status === 1) {
-      const scores = v.legs.map((l: any) => (l.status === 1 ? l.correct : 0));
+      // re-argmax from the DECODED leg runs when the snapshot is present —
+      // a forged card declaring a different argmax that still matches its
+      // own rewritten scores dies here, not just on card-internal math.
+      const runByPk = snap ? new Map(snapOf(snap.ss, "Run").map((x) => [x.publicKey.toBase58(), x.account as any])) : null;
+      const legScore = (l: any) => {
+        const d = runByPk?.get(l.pk);
+        const st = d ? Number(d.status) : l.status;
+        return st === 1 ? Number(d ? d.correct : l.correct) : 0;
+      };
+      const scores = v.legs.map(legScore);
       const best = Math.max(...scores);
       const mask = scores.reduce((m: number, s: number, i: number) => m | (s === best ? 1 << i : 0), 0);
       mask === v.resultMask ? legOk++ : rows.push({ what: `ladder ${v.pk.slice(0, 8)}`, ok: false, detail: `argmax mask ${mask} ≠ stored ${v.resultMask}` });
@@ -4252,9 +4296,9 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
 /** One route table — kind → its keyless verifier. Shared by the universal
  *  verifier, the forgery lab, and tamper-exhibit replays. */
 const ARTIFACT_ROUTES = (snapPath?: string, json = false): Record<string, (f: string) => Promise<any>> => ({
-  "sealed-claim/v1": (f) => chainProveVerify(f, undefined, json),
+  "sealed-claim/v1": (f) => chainProveVerify(f, undefined, json, snapPath),
   "sealed-policy/v1": (f) => gateCertVerify(f, json),
-  "sealed-match/v1": (f) => matchVerify(f, json),
+  "sealed-match/v1": (f) => matchVerify(f, json, snapPath),
   "sealed-trail/v1": (f) => trailVerify(f, json, snapPath),
   "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
   "sealed-evidence-digest/v1": (f) => digestVerify(f, json, snapPath),
@@ -5872,7 +5916,7 @@ export async function chainStats(snapPath?: string, json = false) {
       const pkS = (v: any) => v?.toBase58 ? v.toBase58() : String(v);
       return {
         runners: new Set(runs.map((r) => pkS(r.account.runner))).size,
-        bettors: new Set(positions.map((p) => pkS(p.account.bettor))).size,
+        bettors: new Set([...positions, ...darkPositions].map((p) => pkS(p.account.bettor))).size,
         darkBettors: new Set(darkPositions.map((p) => pkS(p.account.bettor))).size,
         sponsors: new Set(bounties.map((b) => pkS(b.account.sponsor))).size,
         viewers: new Set(grants.map((g) => pkS(g.account.viewer))).size,
@@ -5938,7 +5982,7 @@ export async function chainStats(snapPath?: string, json = false) {
   console.log(`integrity — registry ${out.integrity.registryReplay} · resolutions ${out.integrity.resolutionsVerified}`);
   console.log(`mpc — scoring latency p50 ${out.mpcLatency.p50s}s / p95 ${out.mpcLatency.p95s}s (${lats.length} timed runs)`);
   const A0 = out.actors;
-  console.log(`actors — ${A0.runners} runner wallets · ${A0.bettors + A0.darkBettors} bettor wallets (${A0.darkBettors} sealed) · ${A0.sponsors} bounty sponsors · ${A0.viewers} grant viewers`);
+  console.log(`actors — ${A0.runners} runner wallets · ${A0.bettors} bettor wallets (${A0.darkBettors} sealed) · ${A0.sponsors} bounty sponsors · ${A0.viewers} grant viewers`);
   console.log(`keeper — ${actionable} actionable now · ${out.keeper.settled} settled · ${out.keeper.filling} in play`);
   const A = out.activity;
   console.log(`activity — ${A.spark} (${A.total} events over ${A.days} day(s), ${A.first} → ${A.last} · peak ${A.peak}/day)`);
@@ -6222,7 +6266,7 @@ export async function chainProve(modelStr: string | undefined, out: string | und
  *  identity), the record aggregate replays bit-exact from its receipts,
  *  run scores match their receipts, and venue resolutions re-derive from
  *  the runs they priced. Exit 1 on any violation. */
-export async function chainProveVerify(file: string, policy?: GatePolicy, json = false) {
+export async function chainProveVerify(file: string, policy?: GatePolicy, json = false, snapPath?: string) {
   const { statSync, readdirSync } = await import("node:fs");
   if (statSync(file).isDirectory()) {
     const files = readdirSync(file).filter((f) => f.endsWith(".json")).sort();
@@ -6233,7 +6277,7 @@ export async function chainProveVerify(file: string, policy?: GatePolicy, json =
     for (const f of files) {
       try {
         const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
-        const r = await verifyClaimCard(card);
+        const r = await verifyClaimCard(card, undefined, snapPath);
         results.push({ file: f, model: card.model?.id ?? null, ok: r.ok, pass: r.pass, fail: r.fail, fails: r.fails });
         if (!json) console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(40)} ${card.model?.id ?? "?"} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
         okAll &&= r.ok;
@@ -6247,7 +6291,7 @@ export async function chainProveVerify(file: string, policy?: GatePolicy, json =
   const card = JSON.parse(readFileSync(file, "utf8"));
   if (card.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 file (kind=${card.kind})`);
   const rows: { what: string; ok: boolean; detail: string }[] = [];
-  const r = verifyClaimCard(card, (what, ok, detail) => { rows.push({ what, ok, detail }); if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); });
+  const r = verifyClaimCard(card, (what, ok, detail) => { rows.push({ what, ok, detail }); if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); }, snapPath);
   const summary = `${card.model.id}: ${r.pass} checks pass, ${r.fail} fail · ` +
     `${card.model.totalCorrect}/${card.model.totalItems} across ${card.model.runsScored} run(s)` +
     (card.verdicts?.postRevealRuns ? ` · ${card.verdicts.postRevealRuns} post-reveal run(s) flagged` : "");
@@ -6272,7 +6316,7 @@ export async function chainProveVerify(file: string, policy?: GatePolicy, json =
 
 /** Run the sealed-claim/v1 checks against a parsed card. `emit` receives
  *  each (check, ok, detail) row; returns aggregate verdict. */
-export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void) {
+export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void, snapPath?: string) {
   const sealedId = new PublicKey(card.programs.sealed);
   const marketId = new PublicKey(card.programs.market);
   const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
@@ -6367,6 +6411,30 @@ export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, de
     }
   }
   check("venue resolutions", resOk === resChecked, `${resOk}/${resChecked} re-derived from Run.correct`);
+
+  // 4. snapshot binding — every receipt must equal its decoded ScoreLog
+  // account field-for-field AND point at THIS card's model record (a card
+  // naming model A while embedding model B's receipts dies here).
+  if (snapPath) {
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const logs = new Map(snapOf(ss, "ScoreLog").map((l) => [l.publicKey.toBase58(), l]));
+    const recs = new Map(snapOf(ss, "ModelRecord").map((r) => [r.publicKey.toBase58(), r]));
+    let bBad = 0;
+    for (const l of card.receipts) {
+      const real = logs.get(l.pk);
+      if (!real || (real.account.run as PublicKey).toBase58() !== l.run ||
+          (real.account.benchmark as PublicKey).toBase58() !== l.benchmark ||
+          (real.account.modelRecord as PublicKey).toBase58() !== card.record.pk ||
+          Number(real.account.correct) !== l.correct || Number(real.account.items) !== l.items ||
+          Number(real.account.vouchedAtRecord ?? 0) !== (l.vouched ? 1 : 0) ||
+          Number(real.account.postReveal ?? 0) !== (l.postReveal ? 1 : 0)) bBad++;
+    }
+    const rec = recs.get(card.record.pk);
+    const idOk = !!rec && String(rec.account.modelId) === card.model.id;
+    check("snapshot binding", bBad === 0 && idOk,
+      `${card.receipts.length - bBad}/${card.receipts.length} receipts == ScoreLog bytes, each bound to the named record` +
+      (idOk ? " · on-chain modelId matches" : ` · MODEL ID MISMATCH (${card.model.id} not on ${card.record.pk.slice(0, 12)}…)`));
+  }
 
   return { ok: fail === 0, pass, fail, fails };
 }
@@ -8054,7 +8122,8 @@ export async function chainMain(cmd: string[], args: Args) {
         noPostReveal: Boolean(args["no-post-reveal"]),
       };
       const hasPolicy = Object.values(policy).some((v) => v !== undefined && v !== false);
-      await chainProveVerify(String(args.verify), hasPolicy ? policy : undefined, Boolean(args.json));
+      await chainProveVerify(String(args.verify), hasPolicy ? policy : undefined, Boolean(args.json),
+        args.snapshot ? String(args.snapshot) : undefined);
       return;
     }
     if (args.all) { await chainProve(undefined, args.out ? String(args.out) : "claims", args.snapshot ? String(args.snapshot) : undefined, true); return; }
@@ -8221,7 +8290,8 @@ export async function chainMain(cmd: string[], args: Args) {
       return;
     }
     if (args["match-verify"]) {
-      await matchVerify(String(args["match-verify"]), Boolean(args.json));
+      await matchVerify(String(args["match-verify"]), Boolean(args.json),
+        args.snapshot ? String(args.snapshot) : undefined);
       return;
     }
     const a = cmd[1], b = cmd[2];

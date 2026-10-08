@@ -732,16 +732,25 @@ def main():
                 logs_ok = all(
                     b58encode_check(pda([b"scorelog", b58decode(l["run"])], spid) or b"", l["pk"])
                     for l in all_rec)
-                # snapshot binding — receipt fields == decoded ScoreLog bytes
+                # snapshot binding — receipt fields == decoded ScoreLog bytes,
+                # and each side's receipts point at THAT side's model record
                 bind_ok = True
-                for l in all_rec:
-                    raw = find_account(SNAP["sealed"], l["pk"], disc("ScoreLog"))
-                    sl = decode_scorelog(raw) if raw else None
-                    if (sl is None or sl["run"] != l["run"]
-                            or sl["benchmark"] != l["benchmark"]
-                            or sl["correct"] != l["correct"] or sl["items"] != l["items"]
-                            or bool(sl["vouched"]) != bool(l["vouchedAtRecord"])
-                            or bool(sl["postReveal"]) != bool(l["postReveal"])):
+                for side in ("a", "b"):
+                    for l in card["receipts"][side]:
+                        raw = find_account(SNAP["sealed"], l["pk"], disc("ScoreLog"))
+                        sl = decode_scorelog(raw) if raw else None
+                        if (sl is None or sl["run"] != l["run"]
+                                or sl["benchmark"] != l["benchmark"]
+                                or sl["correct"] != l["correct"] or sl["items"] != l["items"]
+                                or sl["modelRecord"] != card[side]["recordPk"]
+                                or bool(sl["vouched"]) != bool(l["vouchedAtRecord"])
+                                or bool(sl["postReveal"]) != bool(l["postReveal"])):
+                            bind_ok = False
+                    # the record's on-chain modelId must be the card's
+                    # claimed side name — same mislabel trap as claims.
+                    rec_raw = find_account(SNAP["sealed"], card[side]["recordPk"], disc("ModelRecord"))
+                    rec_dec = decode_model_record(rec_raw) if rec_raw else None
+                    if not rec_dec or rec_dec["modelId"] != card[side]["id"]:
                         bind_ok = False
                 bank_pks = {b["pk"] for b in card["banks"]}
                 agg = {}
@@ -841,9 +850,17 @@ def main():
                     sl = decode_scorelog(raw) if raw else None
                     if (sl is None or sl["run"] != l["run"] or sl["benchmark"] != l["benchmark"]
                             or sl["correct"] != l["correct"] or sl["items"] != l["items"]
+                            or sl["modelRecord"] != card["record"]["pk"]
                             or bool(sl["vouched"]) != bool(l["vouched"])
                             or bool(sl["postReveal"]) != bool(l["postReveal"])):
                         bind_ok = False
+                # the record's on-chain modelId must BE the card's model —
+                # a card renaming the model while keeping real receipts
+                # dies here (PDA seeds are self-declared, this is not).
+                rec_raw = find_account(SNAP["sealed"], card["record"]["pk"], disc("ModelRecord"))
+                rec_dec = decode_model_record(rec_raw) if rec_raw else None
+                if not rec_dec or rec_dec["modelId"] != card["model"]["id"]:
+                    bind_ok = False
                 res_ok = True
                 for v in card["venues"]:
                     if v["status"] != 1:
@@ -1950,7 +1967,7 @@ def forged_card_rejected(f):
             return False
     except Exception:
         return True  # a malformed forgery is a rejected forgery
-    return True  # unknown kind — we cannot bless it
+    return False  # unknown kind — a forgery we never checked is not a rejection
 
 
 # --- Rescue cipher + x25519 — the selective-disclosure port -----------------

@@ -508,8 +508,8 @@ async function quickDecrypt(btn) {
   btn.disabled = true; btn.textContent = "⑤ reading the sealed exam…";
   const ghost = { disabled: false, textContent: "" };
   document.getElementById("dec-" + PRIV_BANK)?.scrollIntoView({ behavior: "smooth", block: "center" });
-  await decryptBank(PRIV_BANK, ghost);
-  btn.disabled = false; btn.textContent = "⑤ read the sealed exam";
+  try { await decryptBank(PRIV_BANK, ghost); }
+  finally { btn.disabled = false; btn.textContent = "⑤ read the sealed exam"; }
 }
 // "Decrypt as delegate" — the ciphertext-only claim, exercised: the committed
 // throwaway delegate keypair + the MXE x25519 pubkey rebuild the shared secret,
@@ -543,7 +543,8 @@ async function decryptBank(benchPk, btn) {
       The <b>answers</b> shown are recomputed by the page — on-chain they exist only as MPC-held fingerprints.
       <table style="margin-top:6px"><tr><th>#</th><th>question</th><th>answer</th></tr>${rows}</table></div>`;
   } catch (e) {
-    slot.innerHTML = `<div class="proof" style="color:var(--err)">decrypt failed: ${esc(e.message)}</div>`;
+    if (slot) slot.innerHTML = `<div class="proof" style="color:var(--err)">decrypt failed: ${esc(e.message)}</div>`;
+    else console.warn("decrypt failed:", e.message);
     btn.disabled = false; btn.textContent = "decrypt with demo delegate key";
   }
 }
@@ -794,9 +795,15 @@ async function load() {
     // Fall back to the bundled snapshot (generated on a populated ledger) so
     // a judge without a localnet still gets the full rendered demo.
     try {
-      const r = await fetch("snapshot.json");
-      if (!r.ok) throw new Error("http " + r.status);
-      applySnapshot(await r.json());
+      // Re-render only once — the 15s repoll must not wipe decrypted
+      // exams, verifier output, or filter state mid-demo. If the RPC
+      // comes up later the live path still takes over.
+      if (!window.__fallbackRendered) {
+        const r = await fetch("snapshot.json");
+        if (!r.ok) throw new Error("http " + r.status);
+        window.__fallbackRendered = true;
+        applySnapshot(await r.json());
+      }
       document.getElementById("err").textContent =
         "RPC unreachable — showing bundled snapshot. " + e.message;
       return;
@@ -846,6 +853,9 @@ function applySnapshot(snap) {
   const parsedTaken = meta.takenAt ? Date.parse(meta.takenAt) / 1000 : NaN;
   window.__nowRef = Number.isFinite(parsedTaken) ? parsedTaken : undefined;
   window.__mxeX25519 = meta.mxe_x25519 || null; // cluster pubkey for in-browser grant decryption
+  // snapshot-bound caches must not survive a different bundle — a card
+  // verified against yesterday's sha would false-FAIL today.
+  window.__snapSha = undefined; window.__signPda = undefined; window.__reportBoundCard = undefined;
   window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
   document.getElementById("net").textContent =
@@ -936,6 +946,7 @@ function renderAll(sealedAccs, marketAccs) {
       else if (disc === DISC.modelRecord) modelRecords.push({ pk: pubkey.toBase58(), ...parseModelRecord(d) });
       else if (disc === DISC.scoreLog) scoreLogs.push({ pk: pubkey.toBase58(), ...parseScoreLog(d) });
       else if (disc === "d69d7a72752cd64a") window.__signPda = pubkey.toBase58(); // Arcium SignPdaAccount
+      else skipped.push(`${short(pubkey.toBase58())} (unknown disc)`);
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
   for (const { pubkey, account } of marketAccs) {
@@ -947,6 +958,7 @@ function renderAll(sealedAccs, marketAccs) {
       else if (disc === DISC.darkPosition) darkPositions.push({ pk: pubkey.toBase58(), ...parseDarkPosition(d) });
       else if (disc === DISC.bounty) bounties.push({ pk: pubkey.toBase58(), ...parseBounty(d) });
       else if (disc === DISC.position) positions.push({ pk: pubkey.toBase58(), ...parsePosition(d) });
+      else skipped.push(`${short(pubkey.toBase58())} (unknown disc)`);
     } catch (e) { skipped.push(short(pubkey.toBase58())); }
   }
   if (skipped.length)
@@ -1787,7 +1799,7 @@ function renderAll(sealedAccs, marketAccs) {
       const pot = m.totals.reduce((s, t) => s + Number(t), 0) / 1e9;
       const mpos = positions.filter(p => p.market === m.pk);
       const n = m.nOutcomes;
-      if (n < 2 || n > 8) { h += `<div class="card kv">market ${link(m.pk)} — malformed nOutcomes ${n}</div>`; continue; }
+      if (n < 2 || n > 8) { h += `<div class="card kv" id="mkt-${m.pk}">market ${link(m.pk)} — malformed nOutcomes ${n}</div>`; continue; }
       const model = (r, pk) => r ? `<span class="mono">${esc(r.modelId)}</span>` : `<span class="mono">${short(pk)}</span>`;
       const lbl = m.duel
         ? (i) => i === 0 ? `${run ? esc(run.modelId) : "A"} wins` : i === 1 ? `${runB ? esc(runB.modelId) : "B"} wins` : "tie"
@@ -1957,8 +1969,9 @@ function resolvePk(pk) {
   const A = window.__audit;
   if (!A) return "loading…";
   const hit = (id) => document.getElementById(id) ? id : null;
-  const go = (id, label) => { window.__scrolled = true; location.hash = "#" + id;
-    document.getElementById(id).scrollIntoView({ block: "start" }); return label; };
+  const go = (id, label) => { window.__scrolled = true; const t = document.getElementById(id);
+    if (!t) return `${label} (section not rendered in this view)`;
+    location.hash = "#" + id; t.scrollIntoView({ block: "start" }); return label; };
   if (A.runs.some(r => r.pk === pk)) return go(`run-${pk}`, "run");
   if (A.benches.some(b => b.pk === pk)) return go(`bank-${pk}`, "bank");
   if (A.modelRecords.some(m => m.pk === pk)) return go(`rec-${pk}`, "model record");
@@ -1973,7 +1986,9 @@ function resolvePk(pk) {
   const log = A.scoreLogs.find(l => l.pk === pk);
   if (log) return go(`run-${log.run}`, "score receipt → its run");
   const pos = A.positions.find(p => p.pk === pk);
-  if (pos) return go(`mkt-${pos.market}`, "position → its venue");
+  if (pos) { const v = A.markets.find(m => m.pk === pos.market) || A.ladders.find(l => l.pk === pos.market) || A.darkMarkets.find(d => d.pk === pos.market);
+    if (v) return go(`${A.markets.includes(v) ? "mkt" : A.ladders.includes(v) ? "lad" : "dark"}-${v.pk}`, "position → its venue");
+    return "position → venue not rendered"; }
   const dpos = A.darkPositions.find(p => p.pk === pk);
   if (dpos) return go(`dark-${dpos.market}`, "dark position → its venue");
   const g = A.grants.find(g => g.pk === pk);
@@ -2245,6 +2260,25 @@ function verifyClaim() {
       }
     }
     rOk === rN ? pass("venue resolutions", `${rOk}/${rN} re-derived from Run.correct`) : fail("venue resolutions", `${rOk}/${rN} re-derived`);
+    // [5] snapshot binding — every receipt equals its decoded ScoreLog
+    // account AND points at THIS card's record: a card naming model A
+    // while embedding model B's receipts dies here.
+    const A5 = window.__audit;
+    if (A5) {
+      const logs = new Map(A5.scoreLogs.map(l => [l.pk, l]));
+      const rec = A5.modelRecords.find(m => m.pk === c.record.pk);
+      let bBad = 0;
+      for (const l of c.receipts) {
+        const r = logs.get(l.pk);
+        if (!r || r.run !== l.run || r.benchmark !== l.benchmark || r.modelRecord !== c.record.pk ||
+            r.correct !== l.correct || r.items !== l.items ||
+            !!r.vouched !== !!l.vouched || !!r.postReveal !== !!l.postReveal) bBad++;
+      }
+      const idOk = rec && rec.modelId === c.model.id;
+      (bBad === 0 && idOk)
+        ? pass("snapshot binding", `${c.receipts.length} receipts == ScoreLog bytes, each bound to the named record · on-chain modelId matches`)
+        : fail("snapshot binding", bBad ? `${bBad} receipt(s) differ from decoded ScoreLog bytes or point at another record` : `record ${short(c.record.pk)} carries modelId ${esc(rec?.modelId ?? "?")}, not ${esc(c.model.id)}`);
+    }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"}</b> — ${esc(c.model.id)}: ${c.model.totalCorrect}/${c.model.totalItems} across ${c.model.runsScored} run(s)${c.verdicts?.postRevealRuns ? ` · ${c.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""}</div>`);
     // caller's policy overlay — evalGate over the embedded receipts, like
@@ -2441,6 +2475,27 @@ function verifyMatch() {
     (winner === c.verdict.winner && Math.abs(pctA - c.verdict.pctA) < 0.01 && Math.abs(pctB - c.verdict.pctB) < 0.01)
       ? pass("verdict replay", `${esc(c.a.id)} ${pctA.toFixed(1)}% vs ${esc(c.b.id)} ${pctB.toFixed(1)}% → ${winner}`)
       : fail("verdict replay", `recomputed ${winner} ${pctA.toFixed(2)}/${pctB.toFixed(2)} ≠ stored ${c.verdict.winner} ${c.verdict.pctA}/${c.verdict.pctB}`);
+    // snapshot binding — every receipt equals its decoded ScoreLog AND
+    // belongs to the side it claims (receipts.a → a.recordPk). A card
+    // naming A-vs-B while embedding C-vs-D receipts dies here.
+    const A5 = window.__audit;
+    if (A5) {
+      const logs = new Map(A5.scoreLogs.map(l => [l.pk, l]));
+      let bBad = 0, bN = 0;
+      for (const side of ["a", "b"]) for (const l of c.receipts[side]) {
+        bN++;
+        const r = logs.get(l.pk);
+        if (!r || r.run !== l.run || r.benchmark !== l.benchmark || r.modelRecord !== c[side].recordPk ||
+            r.correct !== l.correct || r.items !== l.items ||
+            !!r.vouched !== !!l.vouchedAtRecord || !!r.postReveal !== !!l.postReveal) bBad++;
+      }
+      const recA = A5.modelRecords.find(m => m.pk === c.a.recordPk);
+      const recB = A5.modelRecords.find(m => m.pk === c.b.recordPk);
+      const idOk = recA?.modelId === c.a.id && recB?.modelId === c.b.id;
+      (bBad === 0 && idOk)
+        ? pass("snapshot binding", `${bN} receipts == ScoreLog bytes, each bound to its side's record · on-chain modelIds match`)
+        : fail("snapshot binding", bBad ? `${bBad} receipt(s) differ from decoded ScoreLog bytes or point at the wrong record` : "on-chain modelIds don't match the card's a.id/b.id");
+    }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "MATCH VERIFIED" : "MATCH FAILED"}</b> — ${esc(c.a.id)} vs ${esc(c.b.id)} · ${c.banks.length} shared banks · ${wins.a}-${wins.tie}-${wins.b}</div>`);
     res.innerHTML = rows.join("");
@@ -2582,7 +2637,10 @@ async function quickVerify() {
     window.__cardSrc = "board.json";
     verifyBoard();
     document.getElementById("sec-boardcard")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  } catch (e) { /* board.json unreachable — the section will show the empty state */ }
+  } catch (e) {
+    const res = document.getElementById("boardres");
+    if (res) res.innerHTML = `<div class="kv">committed card not reachable from this page — serve the repo root or open the hosted explorer</div>`;
+  }
 }
 async function quickForge() {
   await forge("score");
@@ -2640,6 +2698,8 @@ async function megaAudit() {
   // the copyable verdict — a judge's review note, pre-written. Every
   // number on it was recomputed on this machine, not narrated.
   const anch = window.__lastAnchor;
+  const pageBase = location.protocol === "file:"
+    ? location.href.split("?")[0] : (location.origin ?? "") + (location.pathname ?? "");
   const verdict = [
     "SEALED — evidence verdict, recomputed in-browser (nothing trusted)",
     `bundle root   ${window.__lastRoot ?? "unreached"}`,
@@ -2648,11 +2708,11 @@ async function megaAudit() {
     `artifacts     all 138 replayed · ${bPass} kind-groups pass`,
     `forgeries     ${caught}/${forgedN} attacks died at named checks`,
     `sealed exam   ${dOk ? "decrypted in-browser — answers stayed MPC-held" : "not decrypted"}`,
-    `re-run        ${location.origin ?? ""}${location.pathname ?? ""}?mega=1`,
-    ...(window.__lastRoot ? [`proof link    ${location.origin ?? ""}${location.pathname ?? ""}?root=${window.__lastRoot} — the page re-checks this claim on open`] : []),
+    `re-run        ${pageBase}?mega=1`,
+    ...(window.__lastRoot ? [`proof link    ${pageBase}?root=${window.__lastRoot} — the page re-checks this claim on open`] : []),
   ].join("\n");
   rows.push(`<pre id="verdicttxt" style="white-space:pre-wrap;margin-top:6px;font-size:12px;color:var(--dim);font-family:inherit">${esc(verdict)}</pre>` +
-    `<div class="kv"><a href="#" onclick="navigator.clipboard?.writeText(document.getElementById('verdicttxt').innerText);this.textContent='copied ✓';return false">copy this verdict</a> — paste it straight into a review note</div>`);
+    `<div class="kv"><a href="#" onclick="const t=document.getElementById('verdicttxt').innerText;if(navigator.clipboard){navigator.clipboard.writeText(t).then(()=>this.textContent='copied ✓').catch(()=>this.textContent='copy blocked — select the block')}else{const r=document.createRange();r.selectNodeContents(document.getElementById('verdicttxt'));const s=getSelection();s.removeAllRanges();s.addRange(r);this.textContent='selected — press ctrl+c'}return false">copy this verdict</a> — paste it straight into a review note</div>`);
   draw();
 }
 // "verify YOUR copy" — a file the judge downloaded (or just edited)
@@ -3740,6 +3800,7 @@ async function loadTamper(name) {
 }
 async function verifyTamper() {
   const res = document.getElementById("tamperres");
+  if (!window.__audit) { res.innerHTML = `<div class="kv">ledger still loading — replay the exhibit once the audit bar appears</div>`; return; }
   const rows = [];
   const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
   const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
@@ -4467,7 +4528,7 @@ async function runAudit(force) {
             ? `<div class="proof"><span class="pill resolved">LINK CLAIM VERIFIED</span> the shared URL asserted this exact bundle root — the bytes served recompute to it</div>`
             : `<div class="proof"><span class="pill cancelled">LINK CLAIM FAILED</span> <span class="kv" style="color:var(--err)">the URL asserted <code>${esc(short(claimed))}</code> but the served bytes recompute to <code>${esc(short(root))}</code> — the bundle does not match what was shared</span></div>`);
         }
-        const share = `${location.origin ?? ""}${location.pathname ?? ""}?root=${root}`;
+        const share = `${location.protocol === "file:" ? location.href.split("?")[0] : (location.origin ?? "") + (location.pathname ?? "")}?root=${root}`;
         rows.push(`<div class="proof"><span class="kv">shareable verdict — <a href="${share}">${esc(short(root))}</a> links assert the root; the page re-checks on open</span></div>`);
         // on-chain anchor — docs/evidence-anchor.json lives OUTSIDE the
         // manifests (pinning the notarization inside the bundle would move

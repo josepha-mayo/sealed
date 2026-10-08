@@ -153,8 +153,8 @@ composition: two delegates each see the exam only through their own
 `reshare_part` grants, run different models against it, and a head-to-head
 market prices the race blind:
 
-- bank `8HHm4HgA…` (the same private exam as below — now 8 grant records
-  to two delegate keys; each rebuilt `items_root` `27f9acdd…` independently,
+- bank `8HHm4HgA…` (the same private exam as below — now 16 grant records
+  across four delegate keys; each rebuilt `items_root` `27f9acdd…` independently,
   a live consistency proof that grants converge);
 - delegate A ran `qwen2.5-3b` → run #4 finalized **5/32**; delegate B ran
   `qwen2.5-1.5b` → run #5 finalized **4/32** — both matching local

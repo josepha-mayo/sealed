@@ -1,4 +1,4 @@
-c80998daafea056f3460119e838469fcfed9b0b07fb9ffb52eebdecc02a36ec3  ./SHA256SUMS
+a5df8ca8e1e23160bd1e911762e78008c35b6971bab5847ca1aa429813e132d6  ./SHA256SUMS
 f7fae73ba65b24dc544ce65ce85bfc6160536562f90e03c9cb05a07b8ce47385  ./artifacts.json
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
 0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json
@@ -48,7 +48,7 @@ fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
 682646dcc42063eecbeabf36fdb8874118fd35b258fb8abf52612449ade58437  ./grants/index.json
 893b0e4e24d62253d70fb6d7185fb23960536dea3e8f31f631cf4ae44099e793  ./grants/sealed-priv-first.json
 2e7356673256fcb137fe666f1f38fa6df1cb9811debd0e7552ee7b32ff569cbc  ./grants/sealed-priv-panel.json
-7b7c83bce94a6e73364320e3685828521f9443de65cf859b562a33940d2ae933  ./index.html
+595c1150b3cdb3c2fc1f46cc27bfd0b9b41da140f6a92cd364a171f69892f423  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json

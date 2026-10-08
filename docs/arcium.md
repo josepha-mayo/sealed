@@ -9,7 +9,7 @@ that matters. Map for sponsor-track judges:
 | Exams minted inside the cluster — no human ever held the item | `ArcisRNG::gen_public_integer_from_width` drawing operands/operators in-circuit (`gen_part`, `gen_part_private`) | `encrypted-ixs/src/lib.rs` |
 | Author's answers sealed client-side, re-encrypted to the cluster key, never decrypted by the chain | `Enc<Shared, AnswerPart>` → `Enc<Mxe, AnswerPart>` handoff (`seal_part`) | `encrypted-ixs/src/lib.rs` |
 | Scoring = model outputs vs sealed answers compared *inside* MPC; only the count leaves | `score_chunk` circuit, `Enc<Mxe>` state, callback writes `Run.correct` | `encrypted-ixs/src/lib.rs`, `programs/sealed` |
-| Delegated selective disclosure — a viewer's x25519 pubkey receives re-encrypted item specs, answers never move | `reshare_part`/`share_part` re-encrypting `Enc<Mxe>` → `Enc<Shared>` to the viewer key; ShareGrant PDAs record who saw what | `programs/sealed` |
+| Delegated selective disclosure — a viewer's x25519 pubkey receives re-encrypted item specs, answers never move | `reshare_part` re-encrypting `Enc<Mxe>` → `Enc<Shared>` to the viewer key; ShareGrant PDAs record who saw what | `programs/sealed` |
 | Audit-and-burn — authority declassifies answer *fingerprints* (not plaintext), poisoning that bank for markets | `reveal_part` emits the public `AnswerPart` fingerprint; `post_reveal` flag locks venues on-chain | `programs/sealed` |
 | MPC-friendly ciphertext on the wire | Rescue-Prime over Fp25519 + X25519 for grant ciphertexts — vendored in-page, ported to stdlib Python for the third-language decrypt | `web/vendor/rescue.mjs`, `scripts/verify.py --decrypt` |
 

@@ -96,7 +96,8 @@ deadline.
   digest, the leaderboard card, 3 exam cards (one per commitment
   regime — authored, generated, private), 2 bettor-position cards
   (a payable band stake + a sealed dark position), two bounty cards, two disclosure cards
-  (a claimed pot + an open escrow), and the catalog
+  (a claimed pot + an open escrow), 11 committed forgery exhibits that
+  must all be REJECTED, and the catalog
   itself. Every PDA
   re-derived, every verdict replayed, every settlement recomputed from
   `Run.correct`. Non-artifacts skipped, tamper fails at the exact check.

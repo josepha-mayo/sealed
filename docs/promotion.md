@@ -149,7 +149,8 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 > lamport to its obligation bucket, balanced to the lamport (76.075◎ in,
 > in-play / owed / contingent / bounty / settled-out, zero dead money);
 > `chain anomalies` runs twelve hostile checks on its own bundle (the
-> disclosed post-reveal runs are the one warn); `chain gate --sweep`
+> disclosed post-reveal runs and the records they prop up are the two
+> warns); `chain gate --sweep`
 > drops the single-threshold assumption — every record's "frontier" is
 > the strictest line it survives; and `chain prove` mints the actual
 > deliverable — a portable `sealed-claim/v1` card per model where every

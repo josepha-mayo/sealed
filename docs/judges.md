@@ -17,7 +17,7 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 | **Insight / novelty** | The eval-honesty problem is that every trusted party in the loop can leak or rig. Sealed removes the trusted *data* party entirely: the questions are born in MPC, the answers never leave it, and disclosure is selective and recorded. | `docs/pitch.md`, README "Why" table |
 | **Product / execution** | Six Arcis circuits (reviewed line-by-line in docs/circuits.md) + two Anchor programs + TS harness + web explorer, all live: `seal_part`, `score_chunk`, `gen_part`, `gen_part_private`, `reveal_part`, `reshare_part`. | `encrypted-ixs/src/lib.rs`, `programs/sealed/src/lib.rs` |
 | **Does it work?** | `yarn test` — 17/17 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder + dark markets, capability bounties, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 67/67 unit. | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
-| **Real model evidence** | **Flagship — live in the bundled snapshot:** FOUR open-weights models (two families) raced an MPC-minted exam with zero external API — `qwen2.5-3b` 6/32 vs `qwen2.5-1.5b` **6/32 (a real dead-heat)** vs `llama-3.2-1b` 1/32 vs `qwen2.5-0.5b` 0/32; ladder `A4fMA7eK…` filled while all legs were *pending*, argmax resolved `result_mask=0b11` paying both co-leader backers pro-rata — plus a dark commit-reveal market on leg 0's run with sealed positions and a live forfeit (`scripts/ladder-local.sh`, `ladder-local.txt`). Also: `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 duel `7p32UT6s…` (`duel-local.txt`), the 1.5b scored **8/32 on a private bank** read only through `reshare_part` grants (`7S9ZmxrT…`, `unseen-local.txt`), and the **double-sealed composition**: private bank `8HHm4HgA…` (specs ciphertext-only) hosted a dark commit-reveal market `7TVjSaFD…` on the 3b's pending run — exam sealed + positions sealed + MPC score — resolved `>=5` on 5/32 with a sealed forfeit, then a full-book score-band market `497kuApd…` resolved `1–7` on the 0.5b's 2/32 (plus a live `all_backed` cancel `H3RGMd3N…` refunding gross) (`dark-local.txt`, `band-local*.txt`). **Every market primitive has now settled a real open-weights model's MPC-written score.** Newest (epoch-3, hardened build): a sponsor escrowed **0.1 SOL against "first proven run ≥ 6/32"** — an *independent* runner keypair ran `qwen2.5-3b` for real (local pre-score 7/32, MPC-agreed 7/32) and the **permissionless claim paid the operator** while the 1.5b's honest 2/32 sat below the threshold on the same bank (`real-bounty.txt`); a second real-model band market resolved bucket-0 on `llama-3.2-1b`'s MPC-confirmed **0/32** — the exam flunking a model is evidence too. Earlier gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (`HW5H5bT7…`), 64/64 on authored 25864 (`4uns99WD…`), a stale-artifact claim scored **1/64** (`3CKnMa8X…` — the anti-cheat boundary), and 35/35 on grant-only private bank `Fa4WS8B1…` (`9nfKSXnM…`). | `docs/evidence/` |
+| **Real model evidence** | **Flagship — live in the bundled snapshot:** FOUR open-weights models (two families) raced an MPC-minted exam with zero external API — `qwen2.5-3b` 6/32 vs `qwen2.5-1.5b` **6/32 (a real dead-heat)** vs `llama-3.2-1b` 1/32 vs `qwen2.5-0.5b` 0/32; ladder `A4fMA7eK…` filled while all legs were *pending*, argmax resolved `result_mask=0b11` paying both co-leader backers pro-rata — plus a dark commit-reveal market on leg 0's run with sealed positions and a live forfeit (`scripts/ladder-local.sh`, `ladder-local.txt`). Also: `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 duel `7p32UT6s…` (`duel-local.txt`), the 1.5b scored **8/32 on a private bank** read only through `reshare_part` grants (`7S9ZmxrT…`, `unseen-local.txt`), and the **double-sealed composition**: private bank `8HHm4HgA…` (specs ciphertext-only) hosted a dark commit-reveal market `7TVjSaFD…` on the 3b's pending run — exam sealed + positions sealed + MPC score — resolved `>=5` on 5/32 with a sealed forfeit, then a full-book score-band market `497kuApd…` resolved `1–7` on the 0.5b's 2/32 (plus a live `all_backed` cancel `H3RGMd3N…` refunding gross) (`dark-local.txt`, `band-local*.txt`). **Every market primitive has now settled a real open-weights model's MPC-written score.** Newest (epoch-3, hardened build): a sponsor escrowed **0.1 SOL against "first proven run ≥ 6/32"** — an *independent* runner keypair ran `qwen2.5-3b` for real (local pre-score 7/32, MPC-agreed 7/32) and the **permissionless claim paid the operator** while the 1.5b's honest 2/32 sat below the threshold on the same bank (`real-bounty.txt`); a second real-model band market resolved bucket-0 on `llama-3.2-1b`'s MPC-confirmed **0/32** — the exam flunking a model is evidence too. Earlier gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (`HW5H5bT7…`), 64/64 on authored 25864 (`4uns99WD…`), a stale-artifact claim scored **1/64** (`3CKnMa8X…` — the anti-cheat boundary), and 32/32 on grant-only private bank `Fa4WS8B1…` (`9nfKSXnM…`). | `docs/evidence/` |
 | **Open-source / composability** | MIT-licensed, and the output is a public good: `Run.correct`, `ScoreLog`, and the `ModelRecord` registry are permissionless read surfaces — no CPI, no vendor key. `docs/integrate.md` gives the byte-accurate consumer guide (owner+discriminator gate, `post_reveal` tail-read, PDA seeds, honesty-flag semantics); the bundled `market` program IS the reference third-party consumer — it never sees items or ciphertext, only `Run.correct`. And `chain gate --min-pct 60 --vouched` is composability made executable: a capability policy over the registry, exit 0/1/2, pure `evalGate` so the same verdict replays off the committed snapshot — `--all` turns it into the registry filtered by policy, ranked. | `docs/integrate.md`, `programs/market/src/lib.rs` (`load_run`), `packages/harness/src/gate.ts` |
 | **Why crypto is load-bearing** | Solana = the commitment layer (roots, PDAs, market settlement). Arcium MPC = the only reason data can be on-chain yet unreadable. Without either, this is a database + a promise. | `docs/threat-model.md`, `docs/arcium.md` (primitive-by-primitive map — and why not ZK/TEE/hashes) |
 | **Privacy depth** | Three disclosure levels, all proven: public specs (generated), delegate-only specs (`reshare_part` → `ShareGrant` PDAs — one-directional, grant trail on-chain), sealed answers (MXE-only, fingerprints declassifiable via `reveal_part`). | `docs/threat-model.md` tables |
@@ -123,7 +123,7 @@ python3 -m http.server -d . 8788
 yarn test                      # 17/17 E2E
 yarn harness:test              # 67/67 unit
 
-# 3*. or don't pick: `bash scripts/verify-all.sh` runs the whole offline
+# 3a. or don't pick: `bash scripts/verify-all.sh` runs the whole offline
 #     audit — the crypto checks below, the headless in-page audit, the
 #     third-language replay + forgery lab + decrypt + rescore, both
 #     manifests, submission preflight — ending on the one BUNDLE ROOT
@@ -138,13 +138,13 @@ yarn harness:test              # 67/67 unit
 #     "cryptographic audit" panel auto-executes against the loaded snapshot.
 node scripts/verify.mjs        # 12 PASS / 0 FAIL on the committed snapshot
 
-# 3d. prove the deployed bytes ARE this repo (not just "trust the deploy"):
+# 3c. prove the deployed bytes ARE this repo (not just "trust the deploy"):
 #     dumps each program's on-chain ELF and sha256-compares it against
 #     target/deploy/*.so — BOTH programs MATCH the committed build
 #     (sealed 2026-10-03, market 2026-10-04).
 scripts/verify-deployed.sh     # MATCH per program only when bytes match
 
-# 3c. THE calibration check — recompute the MPC's arithmetic yourself.
+# 3d. THE calibration check — recompute the MPC's arithmetic yourself.
 #     The calibration bank's plaintext answers ship in the repo (public on
 #     purpose). rescore.mjs recomputes every fingerprint from plaintext,
 #     checks them against the on-chain Reveal accounts, re-binds the run
@@ -285,7 +285,7 @@ yarn --cwd packages/harness cli chain trail --verify ../../docs/evidence/trails 
 #           settlements replayed vs the decoded Run.correct, ladder
 #           argmax mask + pool accounting recomputed
 
-# 3m. THE EXAM CARD — a sealed-bank/v1 card binds one benchmark's whole
+# 3l. THE EXAM CARD — a sealed-bank/v1 card binds one benchmark's whole
 #     footprint: bank/chunk/run/reveal/grant PDAs re-derive, and the
 #     items_root commitment RE-FOLDS from the pinned chunk bytes in
 #     mint_order landing order. Three committed cards — one per
@@ -297,7 +297,7 @@ yarn --cwd packages/harness cli chain bank --verify ../../docs/evidence/banks \
 #           generated (spec fold), private (ciphertext fold)
 #         → same replay in the explorer at "verify an exam card"
 
-# 3n. THE BETTOR'S RECEIPT — sealed-position/v1 proves a stake and its
+# 3m. THE BETTOR'S RECEIPT — sealed-position/v1 proves a stake and its
 #     settlement without trusting the book: the position PDA re-derives
 #     ([position, venue, bettor] — dark venues add a bettor-chosen
 #     pos_salt as a fourth seed), stake binds to the decoded account,
@@ -309,7 +309,7 @@ yarn --cwd packages/harness cli chain market position --verify \
 #         → POSITION VERIFIED — payable 0.10 SOL card + sealed dark card
 #         → same replay in the explorer at "verify a bettor card"
 
-# 3o. THE SPONSOR'S CERTIFICATE — sealed-bounty/v1 proves a pot and its
+# 3n. THE SPONSOR'S CERTIFICATE — sealed-bounty/v1 proves a pot and its
 #     payout without trusting the keeper: the bounty PDA re-derives
 #     ([bounty, bank, sponsor, salt]), every account field binds to the
 #     decoded Bounty, and a claimed card replays the on-chain
@@ -327,7 +327,7 @@ yarn --cwd packages/harness cli chain market bounty card --verify \
 #           the forgery lab's "steal the bounty" attack dies at
 #           account binding
 
-# 3p. THE VIEWER'S CERTIFICATE — sealed-grant/v1 proves questions moved
+# 3o. THE VIEWER'S CERTIFICATE — sealed-grant/v1 proves questions moved
 #     without publishing them: the grant PDA re-derives from five seeds
 #     ([grant, bank, chunk, part, viewer] — the viewer seed is raw
 #     x25519 bytes, not a wallet), the encryption_key echo proves the
@@ -341,7 +341,7 @@ yarn --cwd packages/harness cli chain grant --verify \
 #         → same replay in the explorer at "verify a disclosure card";
 #           "redirect a disclosure" in the forgery lab dies at grant PDA
 
-# 3l. THE ONE COMMAND — `chain artifact` is the universal verifier:
+# 3p. THE ONE COMMAND — `chain artifact` is the universal verifier:
 #     point it at the WHOLE evidence tree and it replays every
 #     artifact in one pass — kind auto-detected, non-artifacts
 #     skipped. A judge never needs to know which flag goes with
@@ -361,20 +361,21 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #           verifier in-browser: all 138 committed artifacts
 #           through their own check lists, live progress
 
-# 2n. THE FORGERY LAB — don't trust the checks, run the attack. The
+# 3q. THE FORGERY LAB — don't trust the checks, run the attack. The
 #     explorer's "forgery lab" section hands you twelve canned attacks:
 #     forge a +1 score, swap the #1 rank, un-vouch an attested receipt,
 #     flip a head-to-head verdict, mint a phantom receipt, inflate a
 #     settled pool, re-age the ledger, mint a phantom run, erase an
 #     artifact from the index, inflate a winning stake, steal the
-#     bounty. Each mutates a committed artifact
+#     bounty, redirect a disclosure grant to another viewer. Each
+#     mutates a committed artifact
 #     and hands it to the same in-page verifier — every forgery dies at
 #     a named check (aggregates · ranking · snapshot binding · verdict
 #     replay · receipt PDAs · pool accounting · counts · run surface ·
-#     completeness · stake binding · account binding). The headless
-#     audit pins all twelve.
+#     completeness · stake binding · account binding · grant PDA). The
+#     headless audit pins all twelve.
 
-# 2o. THE LIE EXHIBIT — we committed the forgeries themselves.
+# 3r. THE LIE EXHIBIT — we committed the forgeries themselves.
 #     docs/evidence/tamper/ holds eleven sealed-tamper/v1 cards — each
 #     IS a forged artifact (oracle substitution, settled-money rewrite,
 #     rank swap, bounty theft, viewer redirect, phantom receipts, stake
@@ -392,7 +393,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snap
 #         → python3 scripts/verify.py --tamper covers the same ground
 #           in stdlib-only Python — six attacks, all caught
 
-# 3m. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
+# 3s. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
 #     pinned file and prints BUNDLE ROOT: a single sha256 covering
 #     every byte of evidence. The in-page bundle replay ends on the
 #     SAME root — terminal and browser agree, or the bundle is dirty.
@@ -423,7 +424,7 @@ yarn --cwd packages/harness cli chain fingerprint
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 
-# 3n. THE TIMESTAMPED ROOT — the bundle root is notarized on Solana
+# 3t. THE TIMESTAMPED ROOT — the bundle root is notarized on Solana
 #     devnet itself: docs/evidence-anchor.json holds a memo tx whose
 #     payload IS the root ("sealed-fingerprint/v1 <hash>"). Verify with
 #     zero tooling — open the explorer link in the file and read the
@@ -442,7 +443,7 @@ yarn --cwd packages/harness cli chain fingerprint \
   --anchor ../../my-anchor.json --wallet ~/.config/solana/id.json
 #         → your signature · your slot · same BUNDLE ROOT
 
-# 3o. THE SECOND-LANGUAGE VERDICT — don't trust our TypeScript? Re-run
+# 3u. THE SECOND-LANGUAGE VERDICT — don't trust our TypeScript? Re-run
 #     the whole integrity chain in stdlib-only Python (~2,500 lines —
 #     every check, zero deps): re-hash both manifests, recompute the
 #     BUNDLE ROOT, match the devnet anchor doc, re-derive every
@@ -459,7 +460,7 @@ yarn --cwd packages/harness cli chain fingerprint \
 #     fold ciphertexts+nonces), and the whole-ledger digest (keeper
 #     classification and all).
 python3 scripts/verify.py
-#         → BUNDLE ROOT f4d1c7b7… (same as the TypeScript — or the
+#         → BUNDLE ROOT cfeb7eea… (same as the TypeScript — or the
 #           bundle is dirty) · all 138 artifacts replayed in Python ·
 #           anchor carries root PASS
 #
@@ -523,7 +524,7 @@ curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/veri
 #         → one downloaded stdlib file verifies all 351 pinned bytes
 #           itself — no git, no pip, nothing but python3
 
-# 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
+# 3v. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     6.6MB file: the page, the snapshot, all 138 artifacts, both
 #     manifests, the vendored crypto deps, and the devnet anchor doc,
 #     plus a fetch() shim so every in-page verifier runs OFFLINE.
@@ -575,4 +576,4 @@ keypair is committed (`web/demo-delegate.json`), and the page vendors the real
 shared-secret derivation, Rescue/x25519 decryption, and spec unpacking all run
 in your browser. You see the 32 sealed questions nobody else can read;
 `node scripts/decrypt-grants-test.mjs` regression-tests the exact same code
-path offline against the harness' own reconstruction (35/35 identical).
+path offline against the harness' own reconstruction (32/32 identical).

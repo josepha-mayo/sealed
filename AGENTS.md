@@ -18,7 +18,7 @@ parimutuel markets resolved from `Run.correct`.
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
   closer): offline verify + headless browser audit + grant-decrypt
-  regression + calibration rescore + recursive artifact replay (123
+  regression + calibration rescore + recursive artifact replay (138
   artifacts in one pass) + evidence/web manifests + doc-count freshness
   + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
@@ -31,7 +31,7 @@ parimutuel markets resolved from `Run.correct`.
   apply to the evidence copy); qwen2.5-3b scored 7/32, rescore 7 PASS.
 - `node scripts/gen-standalone.mjs` → emits `web/standalone.html` — the
   evidence capsule: every MANIFEST-pinned asset inlined into a single
-  5.8MB page with a fetch() shim so all verifiers run offline. Excluded
+  6.6MB page with a fetch() shim so all verifiers run offline. Excluded
   from MANIFEST (self-pinning is circular). `--check` = freshness gate
   (verify-all stage 6c). Vendored deps: web3 iife + noble-ed25519 +
   rescue.bundle (esbuild flat bundles — the page is CDN-free; a
@@ -232,17 +232,19 @@ parimutuel markets resolved from `Run.correct`.
   PDA derivation needs the web3.js CDN, everything else is keyless; the
   headless audit pins verify + tamper-reject. The explorer also mirrors
   `chain anomalies` at `#sec-anomalies` (the skeptic's checklist — all
-  ten findings, warn/note/ok) and `chain gate --sweep` on the gate
+  twelve findings, warn/note/ok) and `chain gate --sweep` on the gate
   widget's sweep button (the frontier grid honoring its own filters).
   `#sec-runs` mirrors `chain runs` (the 503-run substrate index — model /
   bank / status / min-% / attested / post-reveal filters, score-first
   sort) and `#sec-grants` mirrors `chain grants` (the 145-grant
   disclosure trail — bank · chunk.part · viewer · shared-at).
-  `#sec-forge` is the forgery lab — seven canned attacks (mutated
+  `#sec-forge` is the forgery lab — twelve canned attacks (mutated
   score / swapped rank / un-vouched receipt / flipped verdict /
-  phantom receipt / inflated pool / re-aged ledger counts) run through
+  phantom receipt / inflated pool / re-aged ledger counts / phantom
+  run / catalog erase / stake inflation / bounty steal / grant
+  redirect) run through
   the real in-page verifiers; each must die at a named check and the
-  headless audit pins all seven. The audit DOM stub has no
+  headless audit pins all twelve. The audit DOM stub has no
   `querySelectorAll`/`dataset`/`style` — extract check names from
   `innerHTML` by regex and keep element stubs in
   `scripts/audit-browser-test.mjs` in sync when adding page features.
@@ -380,7 +382,7 @@ parimutuel markets resolved from `Run.correct`.
   via `scripts/score-artifact-insecure.mts` since `chain score` now
   rejects unbound artifacts). `scripts/real-unseen-run.sh` runs a real
   model on a PRIVATE bank it can only see through reshare grants —
-  gpt-oss-20b scored 35/35 on bank `Fa4WS8B1…` (run `9nfKSXnM…`,
+  gpt-oss-20b scored 32/32 on bank `Fa4WS8B1…` (run `9nfKSXnM…`,
   delegate `9z6CwKCQ…`; rerun on the current ledger: `qwen2.5-1.5b`
   scored 8/32 on private bank `F1owH6zE…`, run `7S9ZmxrT…`, MPC == local
   pre-score). `scripts/duel-local.sh` duels two local llama.cpp endpoints:
@@ -403,7 +405,7 @@ parimutuel markets resolved from `Run.correct`.
   `scripts/duel-private.sh <bench>` runs the blind private duel — two
   grant-delegates race different models on the same ciphertext-only
   bank: 3b 5/32 vs 1.5b 4/32, duel `EHiTUjmP…` resolved A-wins. Bank
-  `8HHm4HgA…` now carries 6 runs + 12 grants (4 to a delegate whose
+  `8HHm4HgA…` now carries 6 runs + 16 grants (4 to a delegate whose
   keypair was overwritten mid-first-attempt — orphaned grants are
   permanent records, not sessions). WSL gotchas learned the hard way:
   llama.cpp needs `setsid` to survive the `wsl -d` wrapper teardown,

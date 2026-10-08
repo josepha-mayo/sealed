@@ -150,15 +150,17 @@ ledger is forced to sum exactly to cumulative stakes — on the bundle,
 zero dead money: every resolved venue's winning bucket was backed.
 
 `chain anomalies [--json]` is the skeptic's checklist — twelve hostile
-audits run against the bundle itself: post-reveal runs, stuck-pending
-runs, thin high-pct records, dead money, forfeited dark stakes,
+audits run against the bundle itself: post-reveal runs, records that
+collapse under a strict pre-reveal policy, stuck-pending runs, thin
+high-pct records, unclaimed payouts, forfeited dark stakes,
 past-deadline bounties, duplicate bank names, venues on post-reveal
 runs (must be zero — the program refuses them), single-runner banks,
-and empty resolved books. Each finding carries a severity and the
-drill-in command; clean checks still print because the absence of an
-anomaly is evidence too. On the bundle: 1 disclosed warn (29 post-reveal
-runs — flagged on-chain, refused by markets, excludable from gates),
-6 informational notes, 3 clean bills.
+empty resolved books, and dead money. Each finding carries a severity
+and the drill-in command; clean checks still print because the absence
+of an anomaly is evidence too. On the bundle: 2 disclosed warns (29
+post-reveal runs — flagged on-chain, refused by markets, excludable
+from gates; three records whose entire evidence postdates answer
+exposure), 8 informational notes, 2 clean bills.
 
 `chain history <model_id|record-pk> [--json]` lists a model's ScoreLog
 receipts oldest-first with running accuracy after each — the capability
