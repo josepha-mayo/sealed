@@ -8,6 +8,8 @@
 Sealed is a referee for AI-capability claims. Benchmark items can be **minted inside the MPC cluster itself** — drawn from `ArcisRNG`, answered and fingerprinted in-circuit, and stored encrypted to the cluster key. The answer key never exists in plaintext anywhere on Earth: there is nothing to leak, sell, or subpoena. Models are scored inside an [Arcium](https://arcium.com) MPC cluster; the score is written to Solana by the cluster's callback, not by us. Anyone can build a market on "does model X clear 70% on Sealed v1 by date D" and settle it without trusting a leaderboard operator.
 
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
+Why this *has* to be Arcium MPC — and not ZK, TEE, or hashed answers —
+is argued in [docs/arcium.md](docs/arcium.md).
 
 > **Judging?** Start at [docs/judges.md](docs/judges.md) — a 10-minute path mapped to the rubric. **Live explorer: [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/)** — renders every bank, run, market, and Merkle proof straight from the committed on-chain snapshot, then **re-audits it in your browser**: every account's PDA re-derived, every `items_root` fold replayed bit-exact, every market resolution re-computed — no localnet, nothing trusted. With `arcium localnet` running, `scripts/demo.sh` runs the whole flow end-to-end.
 >
