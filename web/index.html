@@ -2649,6 +2649,7 @@ async function megaAudit() {
     `forgeries     ${caught}/${forgedN} attacks died at named checks`,
     `sealed exam   ${dOk ? "decrypted in-browser — answers stayed MPC-held" : "not decrypted"}`,
     `re-run        ${location.origin ?? ""}${location.pathname ?? ""}?mega=1`,
+    ...(window.__lastRoot ? [`proof link    ${location.origin ?? ""}${location.pathname ?? ""}?root=${window.__lastRoot} — the page re-checks this claim on open`] : []),
   ].join("\n");
   rows.push(`<pre id="verdicttxt" style="white-space:pre-wrap;margin-top:6px;font-size:12px;color:var(--dim);font-family:inherit">${esc(verdict)}</pre>` +
     `<div class="kv"><a href="#" onclick="navigator.clipboard?.writeText(document.getElementById('verdicttxt').innerText);this.textContent='copied ✓';return false">copy this verdict</a> — paste it straight into a review note</div>`);
