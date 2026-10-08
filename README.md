@@ -60,6 +60,10 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # edited copy dies at a named check
 > ```
 >
+> **Or one command for all of it:** `bash scripts/verify-all.sh` — every
+> check above plus the headless browser audit, the forgery sweep, the
+> manifests, and the anchor-drift check, ending on the BUNDLE ROOT hash.
+>
 > **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) opens with a **60-second judge path** (verify the leaderboard card → watch a forgery die → replay all 138 proofs → prove everything → **read the sealed exam** — the committed throwaway delegate key decrypts the private bank's grants in your browser and the questions render; the answers never move), or take the whole thing with you: [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
 >
 > The second command is the one nobody else ships: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **bit-identical to what the enclave wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.

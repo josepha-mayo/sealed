@@ -123,6 +123,13 @@ python3 -m http.server -d . 8788
 yarn test                      # 17/17 E2E
 yarn harness:test              # 67/67 unit
 
+# 3*. or don't pick: `bash scripts/verify-all.sh` runs the whole offline
+#     audit — the crypto checks below, the headless in-page audit, the
+#     third-language replay + forgery lab + decrypt + rescore, both
+#     manifests, submission preflight — ending on the one BUNDLE ROOT
+#     sha256. (The suites above need a running localnet; everything in
+#     verify-all replays the committed bundle, no chain required.)
+
 # 3b. cryptographic audit of the evidence bundle — fully offline:
 #     re-derives every account's PDA, replays items_root commitment folds
 #     bit-exact, re-checks that every market resolution is a pure function
