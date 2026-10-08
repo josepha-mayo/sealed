@@ -267,12 +267,14 @@ def fetch_remote(web_base: str = WEB_BASE, raw_base: str = RAW_BASE) -> Path:
 
     print(f"--remote: mirroring {len(jobs)} pinned file(s) "
           f"({web_base} + {raw_base}) …")
-    for i, (url, dst) in enumerate(jobs, 1):
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        bodies = list(pool.map(lambda j: get(j[0]), jobs))
+    for (url, dst), body in zip(jobs, bodies):
         dst.parent.mkdir(parents=True, exist_ok=True)
-        dst.write_bytes(get(url))
-        if i % 50 == 0 or i == len(jobs):
-            print(f"          {i}/{len(jobs)}")
-    print(f"          mirrored into {tmp} — running the full pass on served bytes")
+        dst.write_bytes(body)
+    print(f"          {len(jobs)}/{len(jobs)} mirrored into {tmp} — "
+          f"running the full pass on served bytes")
     return tmp
 
 
