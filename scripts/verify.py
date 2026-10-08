@@ -323,6 +323,31 @@ def main():
 
     snap_hash = hashlib.sha256((ROOT / "web" / "snapshot.json").read_bytes()).hexdigest()
 
+    # account census — every snapshot account's discriminator must be a
+    # known class, including the ones only decoders elsewhere consume
+    # (AnswerChunk ciphertexts, Arcium's SignPda). An unrecognized account
+    # type silently evaporating is a verifier bug, not a pass.
+    KNOWN_DISCS = {
+        disc(n) for n in (
+            "Benchmark", "Run", "ScoreLog", "ModelRecord", "Reveal",
+            "ShareGrant", "ItemChunk", "PrivItemChunk", "AnswerChunk",
+            "Market", "DarkMarket", "Ladder", "Bounty", "Position",
+            "DarkPosition")
+    } | {bytes.fromhex("d69d7a72752cd64a")}  # Arcium SignPdaAccount
+    census, unknown = {}, 0
+    for a in SNAP.get("sealed", []) + SNAP.get("market", []):
+        d = base64.b64decode(a["data"])
+        if d[:8] in KNOWN_DISCS:
+            census[d[:8]] = census.get(d[:8], 0) + 1
+        else:
+            unknown += 1
+    total = sum(census.values()) + unknown
+    ok &= check("account census", unknown == 0,
+                f"{total} accounts · {len(census)} known discriminator classes "
+                f"({census.get(disc('AnswerChunk'), 0)} MPC answer chunks "
+                f"+ Arcium sign PDA included) — none unrecognized"
+                if unknown == 0 else f"{unknown} account(s) with unknown discriminators")
+
     for card_path in card_iter(ROOT / "docs" / "evidence" / "positions", kind="sealed-position/v1"):
         if card_path.name == "index.json":
             continue
@@ -575,7 +600,6 @@ def main():
         name = card_path.name
         if card.get("kind") != "sealed-board/v1":
             continue
-        ok &= check(f"{name}: kind", True)
         spid = card["programs"]["sealed"]
 
         id_ok = all(
@@ -933,7 +957,6 @@ def main():
                 continue
             name = card_path.name
             pol = card["policy"]
-            ok &= check(f"{name}: kind", True)
             spid = card["programs"]["sealed"]
             # receipt ↔ ScoreLog binding surface: decoded snapshot receipts for
             # this cert's record set (bank-filtered like the cert's policy.bank)
@@ -979,7 +1002,7 @@ def main():
             recomp_fail = sum(1 for m in card["models"] if m["verdict"].get("reason") == "policy")
             recomp_ne = sum(1 for m in card["models"] if m["verdict"].get("reason") == "no-evidence")
             ok &= check(f"{name}: verdict replay", v_bad == 0,
-                        f"{len(card['models'])} models — record PDAs + verdicts recomputed bit-exact")
+                        f"{len(card['models'])} models — record PDAs + verdicts recomputed (pass/reason exact, pct within 0.01pp)")
             ok &= check(f"{name}: receipt binding", r_bad == 0,
                         "every embedded receipt multiset == decoded ScoreLog bytes"
                         + (f" (bank {bank_arg[:8]}…)" if bank_arg else ""))

@@ -99,6 +99,33 @@ gaps in the verifiers, not just in the programs:
   commit. The README's "~60 seconds" claim is now literally tested —
   and the deeper lesson stands: a green local gate can't see a
   gitignored dependency it secretly leans on.
+- **Four parallel read-only audits found what solo passes kept missing.**
+  A claim-vs-output sweep verified 26/26 documented numbers against
+  live command output — and caught the ones that weren't: judges.md
+  claimed "35/35" on a bank that can't exist (banks mint 32 items per
+  chunk; the run was 32/32), judges.md's step labels were scrambled
+  (two steps each named 3m/3n/3o/3p), `chain stats` printed 140 bettor
+  wallets where `market sharps` printed 139 (stats summed per-kind sets,
+  double-counting wallets holding plain AND dark positions — now a
+  union). A verifier-coverage audit found the sharpest hole: claim and
+  match cards bound receipts to decoded ScoreLog bytes but never to
+  the NAMED model record — a card could say "gpt-5 vs llama" while
+  embedding qwen's receipts and every check passed. All three
+  implementations now bind receipts → record → on-chain modelId; the
+  forged rename dies at "snapshot binding — MODEL ID MISMATCH". Same
+  audit: the browser's renderAll silently dropped unknown account
+  discriminators (now counted like verify.mjs), Python's tamper
+  catchall called unknown kinds "rejected" without running a check
+  (now fails loudly), and trail cards re-argmaxed ladder legs from
+  card-declared scores instead of decoded Runs. An explorer audit
+  found the demo-killer: the 15s RPC repoll re-rendered the page on
+  every poll, wiping the decrypted exam and verdict mid-demo — the
+  bundled-snapshot fallback now renders once. Plus nine smaller
+  dead-ends (ladder-position deep links throwing, a copy button that
+  claimed success with no clipboard, "null" leaking into file://
+  verdict links). The audit-of-the-audit also turned up stale counts
+  docs never could have caught alone: 123→138 artifacts, 12→16 grants
+  on the private-duel bank, anomaly severities 1/6/3 → 2/8/2.
 
 ## Operational war stories (the parts docs never show)
 

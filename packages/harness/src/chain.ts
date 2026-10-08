@@ -6870,7 +6870,7 @@ export async function gateCertVerify(file: string, json = false) {
     else if (!json) console.log(`    ↳ ${m.modelId}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)`);
   }
   check("record PDAs", pdaOk === cert.models.length, `${pdaOk}/${cert.models.length} re-derived from [modelrec, sha256(model_id)]`);
-  check("verdict replay", verdictOk === cert.models.length, `${verdictOk}/${cert.models.length} verdicts recomputed bit-exact from embedded receipts`);
+  check("verdict replay", verdictOk === cert.models.length, `${verdictOk}/${cert.models.length} verdicts recomputed from embedded receipts (pass/reason exact, pct within 0.01pp)`);
   const s = cert.summary;
   const recomp = { pass: (cert.models as any[]).filter((m) => m.verdict.pass).length,
     fail: (cert.models as any[]).filter((m) => m.verdict.reason === "policy").length,

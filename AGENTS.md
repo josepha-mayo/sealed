@@ -46,8 +46,10 @@ parimutuel markets resolved from `Run.correct`.
   raw account layouts itself (Benchmark/Run/ScoreLog/ModelRecord/Reveal/
   ShareGrant/ItemChunk/PrivItemChunk on sealed; Market/DarkMarket/
   Ladder/Bounty/Position/DarkPosition on market — discriminators derived
-  via sha256("account:Name"), not hardcoded). Coverage is TOTAL: every
-  committed artifact replays — board, all 73 match cards, all 31 claims,
+  via sha256("account:Name"), not hardcoded). Artifact coverage is TOTAL:
+  every committed artifact replays — board, all 73 match cards, all 31
+  claims (receipts bound to decoded ScoreLog bytes AND the named record's
+  on-chain modelId — a card renaming the model dies),
   trails (leg runs bound, dark forfeits recomputed from DarkPosition
   bytes), positions, bounties, grants, reports (canonical claim-card
   hash), policy certs (evalGate ported line-for-line + receipt↔ScoreLog

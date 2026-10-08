@@ -2372,7 +2372,7 @@ function verifyCert() {
     }
     pdaOk === c.models.length ? pass("record PDAs", `${pdaOk}/${c.models.length} re-derived from [modelrec, sha256(model_id)]`)
       : fail("record PDAs", `${pdaOk}/${c.models.length} re-derived`);
-    vOk === c.models.length ? pass("verdict replay", `${vOk}/${c.models.length} verdicts recomputed bit-exact from embedded receipts`)
+    vOk === c.models.length ? pass("verdict replay", `${vOk}/${c.models.length} verdicts recomputed from embedded receipts (pass/reason exact, pct within 0.01pp)`)
       : fail("verdict replay", `${vOk}/${c.models.length} verdicts recomputed`);
     const s = c.summary;
     const rc = { pass: c.models.filter(m => m.verdict.pass).length,
