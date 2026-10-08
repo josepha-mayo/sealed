@@ -28,3 +28,4 @@ runs/
 
 # root working copy — canonical evidence snapshot is web/snapshot.json
 /snapshot.json
+__pycache__/
