@@ -54,6 +54,10 @@ Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 >                                  # the MPC's arithmetic in a THIRD
 >                                  # language — fingerprints, Reveal PDAs,
 >                                  # outputs_root merkle, recount == 7/32
+> python3 scripts/verify.py --card docs/evidence/board.json
+>                                  # YOUR file, third language — the
+>                                  # committed card replays solo; an
+>                                  # edited copy dies at a named check
 > ```
 >
 > **Judge shortcut:** the hosted explorer needs zero setup — [josepha-mayo.github.io/sealed](https://josepha-mayo.github.io/sealed/) opens with a **60-second judge path** (verify the leaderboard card → watch a forgery die → replay all 138 proofs → prove everything → **read the sealed exam** — the committed throwaway delegate key decrypts the private bank's grants in your browser and the questions render; the answers never move), or take the whole thing with you: [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever, and its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).

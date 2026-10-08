@@ -71,6 +71,9 @@ parimutuel markets resolved from `Run.correct`.
   plaintext→answerHash→on-chain Reveals, outputs→chunkOut merkle→
   Run.outputs_root, independent recount vs Run.correct, both committed
   calibration artifacts (runs auto-found by outputs_root scan).
+  `--card <file>` narrows the whole replay to one judge-supplied
+  artifact — kind detected, routed to the same check block the
+  committed pass runs (a forged file fails at its named check).
 - `node scripts/measure-cu.mjs <rpc>` → real per-instruction CU table from
   tx history. Works on localnet since the validator launches with
   `--enable-rpc-transaction-history`.

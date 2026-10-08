@@ -99,6 +99,12 @@ the 4 markdown reports — replays under this second implementation.
                                         # recount vs Run.correct — both
                                         # committed calibration artifacts
                                         # (runs found by root scan)
+  python3 scripts/verify.py --card FILE   # a judge's own artifact: the
+                                        # file's kind is detected, then
+                                        # the SAME check block the
+                                        # committed replay runs executes
+                                        # against it — a forged card dies
+                                        # at its named check
 """
 
 import base64
@@ -203,10 +209,26 @@ def manifest_root(manifest_path):
     return sha256(manifest_path.read_bytes()).hex()
 
 
+_CARD = None  # --card FILE: (path, kind) — the replay narrows to one file
+
+
+def card_iter(dirpath, pattern="*.json", kind=None):
+    """Normal mode: the committed glob. --card mode: only the judge's file,
+    and only in the block that owns its kind — every other kind's block
+    sees an empty list and skips."""
+    if _CARD is None:
+        return sorted(dirpath.glob(pattern))
+    return [Path(_CARD[0])] if kind is not None and _CARD[1] == kind else []
+
+
 def main():
     ok = True
     global SNAP
     SNAP = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    if _CARD is not None:
+        print(f"sealed-fingerprint/v1 — single-card replay: {_CARD[0]}")
+        print(f"detected kind: {_CARD[1]} — running that kind's full check"
+              " block plus the bundle sweeps\n")
 
     print("sealed-fingerprint/v1 — Python re-verification (zero deps)")
     sums = ROOT / "docs" / "evidence" / "SHA256SUMS"
@@ -232,7 +254,7 @@ def main():
 
     snap_hash = hashlib.sha256((ROOT / "web" / "snapshot.json").read_bytes()).hexdigest()
 
-    for card_path in sorted((ROOT / "docs" / "evidence" / "positions").glob("*.json")):
+    for card_path in card_iter(ROOT / "docs" / "evidence" / "positions", kind="sealed-position/v1"):
         if card_path.name == "index.json":
             continue
         card = json.loads(card_path.read_text())
@@ -292,7 +314,7 @@ def main():
                         and dec["amounts"] == [int(x) for x in card["stake"]["amounts"]],
                         "stake amounts unpacked from account bytes")
 
-    for card_path in sorted((ROOT / "docs" / "evidence" / "bounties").glob("*.json")):
+    for card_path in card_iter(ROOT / "docs" / "evidence" / "bounties", kind="sealed-bounty/v1"):
         if card_path.name == "index.json":
             continue
         card = json.loads(card_path.read_text())
@@ -328,7 +350,7 @@ def main():
         else:
             ok &= check(f"{card_path.name}: account binding", False, "bounty not found in snapshot")
 
-    for card_path in sorted((ROOT / "docs" / "evidence" / "grants").glob("*.json")):
+    for card_path in card_iter(ROOT / "docs" / "evidence" / "grants", kind="sealed-grant/v1"):
         if card_path.name == "index.json":
             continue
         card = json.loads(card_path.read_text())
@@ -361,7 +383,7 @@ def main():
                     and dec["sharedAt"] == int(card["grant"]["sharedAt"]),
                     "all eight ShareGrant fields unpacked from account bytes")
 
-    for card_path in sorted((ROOT / "docs" / "evidence" / "trails").glob("*.json")):
+    for card_path in card_iter(ROOT / "docs" / "evidence" / "trails", kind="sealed-trail/v1"):
         if card_path.name == "index.json":
             continue
         card = json.loads(card_path.read_text())
@@ -479,7 +501,7 @@ def main():
     # Re-derive every record/receipt PDA, replay the aggregates bit-exact,
     # rebuild the shared-bank pairwise matrix and the Wilson ranking, then
     # bind every embedded receipt to its decoded ScoreLog + Run bytes.
-    for card_path in sorted((ROOT / "docs" / "evidence").glob("board*.json")):
+    for card_path in card_iter(ROOT / "docs" / "evidence", "board*.json", "sealed-board/v1"):
         card = json.loads(card_path.read_text())
         name = card_path.name
         if card.get("kind") != "sealed-board/v1":
@@ -615,7 +637,7 @@ def main():
     mdir = ROOT / "docs" / "evidence" / "matches"
     if mdir.is_dir():
         m_n, m_bad = 0, 0
-        for card_path in sorted(mdir.glob("*.json")):
+        for card_path in card_iter(mdir, kind="sealed-match/v1"):
             if card_path.name == "index.json":
                 continue
             card = json.loads(card_path.read_text())
@@ -697,7 +719,7 @@ def main():
     cdir = ROOT / "docs" / "evidence" / "claims"
     if cdir.is_dir():
         c_n, c_bad = 0, 0
-        for card_path in sorted(cdir.glob("*.json")):
+        for card_path in card_iter(cdir, kind="sealed-claim/v1"):
             if card_path.name == "index.json":
                 continue
             card = json.loads(card_path.read_text())
@@ -797,7 +819,7 @@ def main():
     # canonical sha256 (generatedAt/source excluded). Recompute it.
     rdir = ROOT / "docs" / "evidence" / "reports"
     if rdir.is_dir():
-        for rpt in sorted(rdir.glob("*.md")):
+        for rpt in card_iter(rdir, "*.md", "sealed-report/v1"):
             txt = rpt.read_text()
             if "sealed-report/v1" not in txt:
                 continue
@@ -817,7 +839,7 @@ def main():
     # --- sealed-policy/v1 — gate certificates -----------------------------
     pdir = ROOT / "docs" / "evidence" / "policies"
     if pdir.is_dir():
-        for card_path in sorted(pdir.glob("*.json")):
+        for card_path in card_iter(pdir, kind="sealed-policy/v1"):
             if card_path.name == "index.json":
                 continue
             card = json.loads(card_path.read_text())
@@ -882,8 +904,9 @@ def main():
                         f"{s.get('records')} records · {s.get('pass')} pass · {s.get('fail')} fail · {s.get('noEvidence')} no-evidence")
 
     # --- sealed-catalog/v1 — the index proves itself -----------------------
-    cat_path = ROOT / "docs" / "evidence" / "artifacts.json"
-    if cat_path.exists():
+    cat_path = Path(_CARD[0]) if _CARD and _CARD[1] == "sealed-catalog/v1" \
+        else ROOT / "docs" / "evidence" / "artifacts.json"
+    if cat_path.exists() and (_CARD is None or _CARD[1] == "sealed-catalog/v1"):
         card = json.loads(cat_path.read_text())
         if card.get("kind") == "sealed-catalog/v1":
             # completeness — the same walk the TypeScript scanner performs
@@ -932,7 +955,7 @@ def main():
     # --- sealed-bank/v1 — the exam dossier: fold + full surface ------------
     bdir = ROOT / "docs" / "evidence" / "banks"
     if bdir.is_dir():
-        for card_path in sorted(bdir.glob("*.json")):
+        for card_path in card_iter(bdir, kind="sealed-bank/v1"):
             if card_path.name == "index.json":
                 continue
             card = json.loads(card_path.read_text())
@@ -1095,8 +1118,9 @@ def main():
                         "sha256(snapshot.json) == card.snapshot")
 
     # --- sealed-evidence-digest/v1 — the whole-ledger verdict --------------
-    dig_path = ROOT / "docs" / "evidence" / "digest.json"
-    if dig_path.exists():
+    dig_path = Path(_CARD[0]) if _CARD and _CARD[1] == "sealed-evidence-digest/v1" \
+        else ROOT / "docs" / "evidence" / "digest.json"
+    if dig_path.exists() and (_CARD is None or _CARD[1] == "sealed-evidence-digest/v1"):
         card = json.loads(dig_path.read_text())
         if card.get("kind") == "sealed-evidence-digest/v1":
             rebuilt = build_digest()
@@ -1125,7 +1149,7 @@ def main():
     tdir = ROOT / "docs" / "evidence" / "tamper"
     if tdir.is_dir():
         t_n, t_bad = 0, 0
-        for card_path in sorted(tdir.glob("*.json")):
+        for card_path in card_iter(tdir, kind="sealed-tamper/v1"):
             if card_path.name == "index.json":
                 continue
             e = json.loads(card_path.read_text())
@@ -2493,7 +2517,26 @@ def check_anchor():
     return ok
 
 
+KNOWN_KINDS = {f"sealed-{k}/v1" for k in
+               ("position", "bounty", "grant", "trail", "board", "match",
+                "claim", "policy", "catalog", "bank", "evidence-digest",
+                "tamper", "report")}
+
 if __name__ == "__main__":
+    if len(sys.argv) > 2 and sys.argv[1] == "--card":
+        p = Path(sys.argv[2])
+        if not p.exists():
+            sys.exit(f"no such file: {p}")
+        raw = p.read_text(errors="replace")
+        kind = ("sealed-report/v1" if p.suffix == ".md"
+                and "sealed-report/v1" in raw
+                else None if p.suffix == ".md"
+                else json.loads(raw).get("kind"))
+        if kind not in KNOWN_KINDS:
+            sys.exit(f"unrecognized artifact kind: {kind!r} — "
+                     f"expected one of {sorted(KNOWN_KINDS)}")
+        _CARD = (str(p), kind)
+        sys.exit(0 if main() else 1)
     if len(sys.argv) > 1 and sys.argv[1] == "--tamper":
         sys.exit(0 if tamper_demo() else 1)
     if len(sys.argv) > 1 and sys.argv[1] == "--decrypt":

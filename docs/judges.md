@@ -488,6 +488,13 @@ python3 scripts/verify.py --check-anchor
 python3 scripts/verify.py --rescore
 #         → RESCORED — 7/32 (qwen2.5-3b) and 2/32 (qwen2.5-1.5b)
 #           reproduced from plaintext + decoded account bytes
+#
+#     and --card verifies YOUR file — download any artifact (or forge
+#     one yourself) and the same check block replays it in Python:
+python3 scripts/verify.py --card docs/evidence/board.json
+#         → the leaderboard card replays solo: PDAs, aggregates,
+#           pairwise matrix, Wilson ranking, receipt↔account binding —
+#           a forged copy dies at its named check
 
 # 3p. THE CAPSULE — web/standalone.html is the entire submission as ONE
 #     6.6MB file: the page, the snapshot, all 138 artifacts, both
