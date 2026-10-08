@@ -64,6 +64,26 @@ for S in sealed market; do
 done
 [ "$IDL_DRIFT" = 0 ] && echo "  committed IDLs in sync (cold-clone replay floor)"
 
+say "6bd. cold-clone simulation — replay with target/idl hidden"
+if [ -d target/idl ]; then
+  mv target/idl target/idl.stashed
+  if yarn --cwd packages/harness -s cli chain artifact \
+      ../../docs/evidence/trails/qwen3b-private-duel.json \
+      --snapshot ../../web/snapshot.json >/dev/null 2>&1; then
+    echo "  committed idl/ floor replays without a build"
+  else
+    mv target/idl.stashed target/idl
+    echo "  COLD-CLONE FAIL — artifact replay needs target/idl (gitignored)"
+    exit 1
+  fi
+  mv target/idl.stashed target/idl
+else
+  yarn --cwd packages/harness -s cli chain artifact \
+    ../../docs/evidence/trails/qwen3b-private-duel.json \
+    --snapshot ../../web/snapshot.json >/dev/null
+  echo "  no build present — replay ran on the committed idl/ floor"
+fi
+
 say "6c. the capsule — standalone.html is a byte-fresh mirror of the pinned bundle"
 node scripts/gen-standalone.mjs --check
 
