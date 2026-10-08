@@ -2624,10 +2624,17 @@ async function megaAudit() {
   }
   const forgeryOk = caught === forgedN;
   rows.push(stage(`<span class="pill ${forgeryOk ? "resolved" : "cancelled"}">${forgeryOk ? "PASS" : "FAIL"}</span> forgery sweep — ${caught}/${forgedN} attacks died at named checks (<a href="#sec-forge">the lab ↓</a>)`));
+  draw(stage(`<span class="pill open">RUNNING</span> disclosure replay — the sealed exam decrypts in-browser`));
+
+  const dGhost = { disabled: false, textContent: "" };
+  await decryptBank(PRIV_BANK, dGhost);
+  const dHtml = document.getElementById("dec-" + PRIV_BANK)?.innerHTML ?? "";
+  const dOk = /decrypted/.test(dHtml) && !/decrypt failed/.test(dHtml);
+  rows.push(stage(`<span class="pill ${dOk ? "resolved" : "cancelled"}">${dOk ? "PASS" : "FAIL"}</span> disclosure replay — ${dOk ? "the sealed exam rendered from ciphertext in your browser — answers never moved" : "decrypt failed"} (<a href="#sec-banks">the exam ↓</a>)`));
 
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  const allOk = aFail === 0 && bFail === 0 && forgeryOk;
-  rows.push(`<div class="kv" style="margin-top:8px"><b>${allOk ? "EVERYTHING VERIFIED" : "NOT ALL GREEN"}</b> — audit ${aPass} pass · artifact groups ${bPass}/${bPass + bFail} pass · forgeries ${caught}/${forgedN} caught · in ${secs}s, in your browser, on bytes served to nobody but you</div>`);
+  const allOk = aFail === 0 && bFail === 0 && forgeryOk && dOk;
+  rows.push(`<div class="kv" style="margin-top:8px"><b>${allOk ? "EVERYTHING VERIFIED" : "NOT ALL GREEN"}</b> — audit ${aPass} pass · artifact groups ${bPass}/${bPass + bFail} pass · forgeries ${caught}/${forgedN} caught · sealed exam ${dOk ? "read" : "unread"} · in ${secs}s, in your browser, on bytes served to nobody but you</div>`);
   draw();
 }
 // "verify YOUR copy" — a file the judge downloaded (or just edited)

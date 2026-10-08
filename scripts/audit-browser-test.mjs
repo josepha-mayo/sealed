@@ -55,7 +55,13 @@ const ctx = {
 ctx.window.location = ctx.location;
 ctx.globalThis = ctx;
 vm.createContext(ctx);
-vm.runInContext(src, ctx);
+// vendored crypto loads via dynamic import() in the page — give the vm
+// the main loader so "./vendor/*.mjs" resolves to the real pinned files
+// (a broken vendored module shows up here as a decrypt-stage FAIL).
+new vm.Script(src, {
+  filename: join(ROOT, "web", "index.html"),
+  importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+}).runInContext(ctx);
 
 // capsule self-containment — standalone.html must carry every pinned
 // asset in window.__FILES and resolve fetches from it (no network).
@@ -587,15 +593,19 @@ const gridOk = gridRows === 12 && /qwen2\.5-3b-instruct/.test(gridHtml) &&
   (gridHtml.match(/>\+\d+<\/td>/) ?? []).length > 0 && /—/.test(gridHtml);
 console.log(`in-page tournament grid — ${gridRows}×12 cells, signed deltas ${gridOk ? "PASS" : "FAIL"}`);
 if (!gridOk) fails++;
-// the one-click centerpiece — megaAudit() must cascade all three stages
-// (account audit, 138-artifact replay, full forgery sweep) into a final
-// EVERYTHING VERIFIED scoreboard.
+// the one-click centerpiece — megaAudit() must cascade all four stages
+// (account audit, 138-artifact replay, full forgery sweep, sealed-exam
+// decrypt) into a final EVERYTHING VERIFIED scoreboard. The decrypt leg
+// exercises the REAL vendored noble/rescue modules via dynamic import —
+// a broken vendored file or drifted ciphertext surfaces here.
 await vm.runInContext("megaAudit()", ctx);
 const megaHtml = els.get("megares")?.innerHTML ?? "";
 const megaStages = (megaHtml.match(/class="proof"/g) || []).length;
-const megaOk = megaStages === 3 && /EVERYTHING VERIFIED/.test(megaHtml) &&
-  /138/.test(els.get("bundleres")?.innerHTML ?? "");
-console.log(`in-page PROVE EVERYTHING — 3 stages cascade to the scoreboard ${megaOk ? "PASS" : "FAIL"}`);
+const decHtml = els.get("dec-8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug")?.innerHTML ?? "";
+const megaOk = megaStages === 4 && /EVERYTHING VERIFIED/.test(megaHtml) &&
+  /138/.test(els.get("bundleres")?.innerHTML ?? "") &&
+  /decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml);
+console.log(`in-page PROVE EVERYTHING — 4 stages cascade to the scoreboard, sealed exam decrypted ${megaOk ? "PASS" : "FAIL"}`);
 if (!megaOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

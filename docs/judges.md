@@ -61,7 +61,8 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   ONE LINK, EVERY PROOF: https://josepha-mayo.github.io/sealed/?mega=1 —
 #   opens the page and runs the whole skeptic's suite while you watch:
 #   account audit → all 138 artifacts through their verifiers → every
-#   forgery attack in the lab, landing "EVERYTHING VERIFIED" in ~5s.
+#   forgery attack in the lab → the sealed exam decrypting in-browser,
+#   landing "EVERYTHING VERIFIED" in ~8s.
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
 #   demos itself: an auto-walk through all twenty-four stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).

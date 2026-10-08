@@ -151,7 +151,8 @@ deadline.
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
-  audit, all 138 artifact replays, and the full forgery sweep to
-  EVERYTHING VERIFIED in ~5s, live in the judge's browser.
+  audit, all 138 artifact replays, the full forgery sweep, AND the
+  sealed-exam decrypt to EVERYTHING VERIFIED in ~8s, live in the
+  judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256 — timestamped on Solana itself."

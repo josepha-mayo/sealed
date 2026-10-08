@@ -70,8 +70,17 @@ gaps in the verifiers, not just in the programs:
 - **The doc-freshness gate had blind spots in its own coverage.** It
   pinned "503 runs"-style account phrasings but not bundle totals —
   six stale artifact/file/stop counts survived in docs. The gate now
-  pins those too (a checker that can't see its own gaps gets strengthened,
+  pins those too, plus test-suite tallies derived from the test files
+  themselves (a checker that can't see its own gaps gets strengthened,
   not trusted harder).
+- **A doc "fix" almost shipped a lie.** promotion.md said "126
+  positions" while the snapshot carried 137 Position accounts — an easy
+  sed. But `market sharps` on the live bundle still prints "126
+  surviving resolved bettors": the doc's number was right, the noun
+  was wrong (bettors vs positions — exercised claims close their PDAs,
+  so resolved survivors are a subset). Correction checked against the
+  command output, not against my own arithmetic — the run of the
+  command IS the source of truth, even for the docs about it.
 
 ## Operational war stories (the parts docs never show)
 

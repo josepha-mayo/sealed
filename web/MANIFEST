@@ -48,7 +48,7 @@ fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
 682646dcc42063eecbeabf36fdb8874118fd35b258fb8abf52612449ade58437  ./grants/index.json
 893b0e4e24d62253d70fb6d7185fb23960536dea3e8f31f631cf4ae44099e793  ./grants/sealed-priv-first.json
 2e7356673256fcb137fe666f1f38fa6df1cb9811debd0e7552ee7b32ff569cbc  ./grants/sealed-priv-panel.json
-e8c34867cbfee8c3537fda8db60aa9a16bfe9fcca4c81c002633b3ea8785ab6b  ./index.html
+a30838f20ee2ab200d928b3c4a2ac44fa01a3c5eb55e0eb033b0d6f71396ceaa  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json
