@@ -607,5 +607,12 @@ const megaOk = megaStages === 4 && /EVERYTHING VERIFIED/.test(megaHtml) &&
   /decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml);
 console.log(`in-page PROVE EVERYTHING — 4 stages cascade to the scoreboard, sealed exam decrypted ${megaOk ? "PASS" : "FAIL"}`);
 if (!megaOk) fails++;
+// the copyable verdict — the root recomputed in-page must appear on it.
+// (the stub DOM never parses innerHTML into elements — read megares raw)
+const vtxt = megaHtml.match(/<pre id="verdicttxt"[^>]*>([\s\S]*?)<\/pre>/)?.[1] ?? "";
+const vOk = /SEALED — evidence verdict/.test(vtxt) && /bundle root/.test(vtxt) &&
+  /[0-9a-f]{64}/.test(vtxt) && /forgeries\s+12\/12/.test(vtxt);
+console.log(`in-page copyable verdict — root + all stage counts on the paste-ready block ${vOk ? "PASS" : "FAIL"}`);
+if (!vOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);
