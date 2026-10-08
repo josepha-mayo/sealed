@@ -81,17 +81,24 @@ gaps in the verifiers, not just in the programs:
   so resolved survivors are a subset). Correction checked against the
   command output, not against my own arithmetic — the run of the
   command IS the source of truth, even for the docs about it.
-- **Nobody had ever run the judge path cold.** Cloning the pushed repo
-  to /tmp and following the README verbatim killed the flagship
-  replay: `decodeSnapshotSection` required `target/idl/*.json` — a
-  gitignored build artifact — so `trails/qwen3b-private-duel.json`
-  FAILED on a clean checkout, and `--snapshot web/snapshot.json`
-  ENOENT'd under `yarn --cwd` because paths resolved against the
-  package dir. Both fixes shipped: `idl/` is committed as the
-  replay floor (`loadIdl` prefers a real build), input paths fall
-  back to repo-root resolution, and verify-all gained a cold-clone
-  simulation stage (hides `target/idl`, replays a card) so it can't
-  regress. The README's "~60 seconds" claim is now literally tested.
+- **Nobody had ever run the judge path cold — and CI had been red for
+  15 commits without anyone noticing.** Cloning the pushed repo to /tmp
+  and following the README verbatim killed the flagship replay:
+  `decodeSnapshotSection` required `target/idl/*.json` — a gitignored
+  build artifact — so `trails/qwen3b-private-duel.json` FAILED on a
+  clean checkout, and `--snapshot web/snapshot.json` ENOENT'd under
+  `yarn --cwd` because paths resolved against the package dir. The same
+  missing IDL had been failing `harness:test` in CI ever since the
+  trail verifier learned to bind DarkPosition bytes (that check calls
+  `decodeSnapshotSection`); the badge sat red through ~15 pushes while
+  local runs stayed green on the stale `target/` build. Both fixes
+  shipped: `idl/` is committed as the replay floor (`loadIdl` prefers
+  a real build), input paths fall back to repo-root resolution, and
+  verify-all gained a cold-clone simulation stage (hides `target/idl`,
+  replays a card) so it can't regress. CI went green at the same
+  commit. The README's "~60 seconds" claim is now literally tested —
+  and the deeper lesson stands: a green local gate can't see a
+  gitignored dependency it secretly leans on.
 
 ## Operational war stories (the parts docs never show)
 
