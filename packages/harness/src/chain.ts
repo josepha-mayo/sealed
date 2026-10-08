@@ -6,7 +6,7 @@
  *      (default ~/.config/solana/id.json), SEALED_CLUSTER_OFFSET (Arcium cluster
  *      offset; localnet value comes from `arcium` env, devnet is 456).
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
@@ -4150,8 +4150,16 @@ export async function trailVerify(file: string, json = false, snapPath?: string)
  *  keyless replay. One command verifies everything — a judge never has to
  *  know which flag goes with which artifact. A directory verifies every
  *  artifact inside it (mixed kinds welcome). */
+/** cwd-forgiveness for file INPUTS (never outputs): under
+ *  `yarn --cwd packages/harness` a judge's `docs/evidence/x.json` misses
+ *  cwd but exists at repo root — resolve there before statSync. */
+function resolveInputPath(p: string): string {
+  return (!/^https?:\/\//.test(p) && !existsSync(p) && existsSync(join(ROOT, p))) ? join(ROOT, p) : p;
+}
+
 export async function artifactVerify(target: string, json = false, snapPath?: string, recursive = false) {
   const { statSync, readdirSync } = await import("node:fs");
+  target = resolveInputPath(target);
   // URL targets — the shareable deep links work from the terminal too:
   // `?card=<path>` resolves to the hosted artifact bytes; a bare .json/.md
   // URL is fetched directly. The verify path is identical to local files.
@@ -4327,6 +4335,7 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
   const { writeFileSync, mkdtempSync, statSync, readdirSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
+  target = resolveInputPath(target);
   // URL targets — the same deep links as artifactVerify: fetch the hosted
   // bytes to a temp file and forge those, not a committed fixture.
   if (/^https?:\/\//.test(target)) {
@@ -7674,6 +7683,13 @@ export async function chainMain(cmd: string[], args: Args) {
   // `export SEALED_SNAPSHOT=web/snapshot.json` makes every read command
   // replay the evidence bundle without repeating the flag.
   if (!args.snapshot && process.env.SEALED_SNAPSHOT) args.snapshot = process.env.SEALED_SNAPSHOT;
+  // cwd-forgiveness: `yarn --cwd packages/harness cli ...` (and the
+  // packaged binary) make relative snapshot paths resolve against the
+  // package dir — if the arg misses cwd but hits repo-root, use that.
+  if (typeof args.snapshot === "string" && !existsSync(args.snapshot)) {
+    const rooted = join(ROOT, args.snapshot);
+    if (existsSync(rooted)) args.snapshot = rooted;
+  }
   const [sub] = cmd;
   if (sub === "init") {
     await init();
