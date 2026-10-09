@@ -128,8 +128,8 @@ deadline.
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
-  auto-walk through twenty-four sections, ending on the forgery lab —
-  "try to break it": twelve canned attacks (forge a score, swap a rank,
+  auto-walk through twenty-five sections, ending on the forgery lab —
+  "try to break it": thirteen canned attacks (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
   a pool, re-age the ledger, plant a phantom run on an exam, erase an
   artifact from the index itself, inflate a winning bettor's stake,
@@ -148,7 +148,7 @@ deadline.
   off-curve math, and struct-unpacks the account bytes itself — a
   decoder bug on our side can't launder a forged card.
 - 10s: the forgery lab is now a three-surface demo — the explorer's
-  12 attacks, `python3 scripts/verify.py --tamper`, and
+  13 attacks, `python3 scripts/verify.py --tamper`, and
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
@@ -157,3 +157,21 @@ deadline.
   judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256 — timestamped on Solana itself."
+
+## Update 3 — "the business model is evidence too" (record second)
+
+- 15s: the copyable verdict now ends in a money row — `?mega=1` →
+  69.69 SOL settled on MPC scores · 1.731 SOL already charged in bank
+  run-fees. Not marketing copy: the digest's money section is rebuilt
+  from raw account bytes by all three verifiers.
+- 15s: composability made executable — `node examples/mini-resolver.mjs`
+  is ~100 lines importing NOTHING from the repo; it reimplements the
+  integrator contract and settles a toy escrow off `Run.correct`. A
+  venue that didn't exist when the score was written resolves on it.
+- 15s: the distribution artifact — `chain badge --card <claim.json>`
+  renders a shields-style SVG bound to the claim's sha256; a verified
+  card in the explorer renders its badge in-page. Even the 0% badges
+  ship — a small model's honest zero is still a true claim.
+- 10s: the guided tour got an orientation stop — "this page is a
+  verifier, not a website" — because every number on it was recomputed
+  from raw bytes before it rendered.
