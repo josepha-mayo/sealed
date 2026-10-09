@@ -15,7 +15,7 @@ the cluster; only the count leaves it — and markets settle on that count direc
 | Official criterion | What to look at | Where |
 |---|---|---|
 | **Novelty** | The eval-honesty problem is that every trusted party in the loop can leak or rig. Sealed removes the trusted *data* party entirely: the questions are born in MPC, the answers never leave it, and disclosure is selective and recorded. | `docs/pitch.md`, README "Why" table |
-| **Functionality — does it work?** | `yarn test` — 17/17 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder + dark markets, capability bounties, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 70/70 unit. Plus the whole evidence bundle replays offline (below). | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
+| **Functionality — does it work?** | `yarn test` — 17/17 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder + dark markets, capability bounties, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 71/71 unit. Plus the whole evidence bundle replays offline (below). | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
 | **UX** | The explorer is the product's front door: `?mega=1` self-audits in ~8s ending on a copyable verdict, the forgery lab lets a skeptic run the attack in-page, `?card=` deep links re-verify any artifact, and the whole thing ships as a single offline `standalone.html`. Zero wallet, zero RPC, zero setup. | `web/index.html`, hosted `?mega=1` |
 | **Product / execution** | Six Arcis circuits (reviewed line-by-line in docs/circuits.md) + two Anchor programs + TS harness + web explorer, all live: `seal_part`, `score_chunk`, `gen_part`, `gen_part_private`, `reveal_part`, `reshare_part`. | `encrypted-ixs/src/lib.rs`, `programs/sealed/src/lib.rs` |
 | **Real model evidence** | **Every market primitive has settled a real open-weights model's MPC-written score** — four models raced one MPC-minted exam ending in a dead-heat that paid both co-leader backers; duels, dark markets, and a real bounty claim all detailed below. | snapshot + `docs/evidence/*-local.txt` |
@@ -116,7 +116,7 @@ python3 -m http.server -d . 8788
 
 # 3. verify the suites yourself
 yarn test                      # 17/17 E2E
-yarn harness:test              # 70/70 unit
+yarn harness:test              # 71/71 unit
 
 # 3a. or don't pick: `bash scripts/verify-all.sh` runs the whole offline
 #     audit — the crypto checks below, the headless in-page audit, the

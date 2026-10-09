@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 70/70 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 71/71 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
@@ -135,6 +135,11 @@ parimutuel markets resolved from `Run.correct`.
   record replays bit-exact, every resolved venue re-derives from
   Run.correct (duel packs `(a<<16)|b`, ladder re-argmaxs mask, bounty
   score≥threshold). Tamper fails exactly at the replay check.
+  `chain badge --card <claim.json> [--out f.svg]` renders a shields-style
+  SVG badge bound to the claim's sha256 in its metadata — the
+  distribution artifact a model provider embeds (committed examples:
+  docs/badges/ — deliberately unpinned; badges are pointers to evidence,
+  not evidence). `--verify` re-renders and byte-compares.
   `chain artifact <file|dir>` is the universal verifier — detects any
   sealed-claim/policy/match/trail/report/evidence-digest/board/bank/
   position/bounty/grant/catalog/tamper/v1 payload and routes to the
@@ -554,4 +559,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 70/70.
+  `yarn harness:test` → 71/71.

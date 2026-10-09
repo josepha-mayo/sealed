@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="28" role="img" aria-label="sealed mpc-scored 0.0% for llama-3.2-1b-instruct">
+<title>llama-3.2-1b-instruct — 0/32 MPC-scored items across 1 runs (claim sha256 14ca0e67007f3748…)</title>
+<metadata>{&quot;kind&quot;:&quot;sealed-badge/v1&quot;,&quot;model&quot;:&quot;llama-3.2-1b-instruct&quot;,&quot;recordPk&quot;:&quot;HT5SbpWXhi9mUgQDn6Y8TiuBu29qFT9WsGPbt4cwKf1c&quot;,&quot;claimSha256&quot;:&quot;14ca0e67007f3748ec9878d5652fb9b0bfdcc7d0edbb9c6f5ce30d1fedacc993&quot;}</metadata>
+<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+<rect rx="4" width="220" height="28" fill="#2a2f36"/>
+<rect rx="4" x="104" width="116" height="28" fill="#f85149"/>
+<path fill="#f85149" d="M104 0h4v28h-4z"/>
+<rect rx="4" width="220" height="28" fill="url(#s)"/>
+<g fill="#fff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">
+<text x="52" y="19" fill="#dfe6ee">sealed · mpc-scored</text>
+<text x="162" y="19" fill="#0b0e11" font-weight="bold">0.0% · 0/32 over 1 run</text>
+</g></svg>

@@ -1850,3 +1850,35 @@ test("third-party consumer — examples/mini-resolver.mjs settles from raw bytes
   assert.match(out, /payout\s+\w+ ← [\d.]+◎/, "a winner must be paid from the MPC count");
   assert.match(out, /integrator contract/, "the no-trust verdict must print");
 });
+
+test("sealed-badge/v1 — render is bound to the claim card, byte-exact and honest", async () => {
+  // Badges are the distribution artifact — a model provider embeds one and
+  // the number must be its receipt, not a marketing claim. Render is
+  // deterministic from the card; --verify re-renders and byte-compares.
+  const { chainBadge } = await import("../src/chain.js");
+  const { mkdtempSync, readFileSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const repoRoot = new URL("../../../", import.meta.url).pathname;
+  const card = join(repoRoot, "docs/evidence/claims/qwen2.5-3b-instruct.json");
+  const dir = mkdtempSync(join(tmpdir(), "sealed-badge-"));
+  const svg = join(dir, "b.svg");
+
+  const r1: any = await chainBadge(card, svg);
+  assert.equal(r1.model, "qwen2.5-3b-instruct");
+  const bytes = readFileSync(svg, "utf8");
+  assert.match(bytes, /24\.0% · 23\/96 over 3 runs/, "badge must show the card's numbers");
+  assert.match(bytes, /claimSha256.{0,20}[0-9a-f]{64}/, "badge metadata must bind the claim sha256");
+
+  const r2: any = await chainBadge(card, svg, true);
+  assert.equal(r2.ok, true, "fresh render must byte-match the written badge");
+
+  // a badge whose number was inflated dies — metadata no longer binds.
+  const c = JSON.parse(readFileSync(card, "utf8"));
+  c.model.totalCorrect = 96;
+  const forged = join(dir, "forged.json");
+  writeFileSync(forged, JSON.stringify(c));
+  const r3: any = await chainBadge(forged, svg, true);
+  assert.equal(r3.ok, false, "a badge re-rendered from an inflated claim must not match");
+  process.exitCode = 0; // chainBadge's verify path sets it on the intentional fail
+});

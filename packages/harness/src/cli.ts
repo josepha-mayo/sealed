@@ -175,6 +175,8 @@ async function main() {
   sealed chain prove <model> [--out file] [--snapshot f]   mint a claim card — record+receipts+runs+venues+PDA seeds
   sealed chain prove --all [--out dir] [--snapshot f]      mint one claim card per record — the whole registry as verifiable artifacts
   sealed chain prove --verify <file|dir> [--json]           verify a claim card (or every card in a directory) offline — every PDA re-derived, verdicts replayed (--json = machine-readable checks for CI)
+  sealed chain badge --card <claim.json> [--out f.svg]      render a shields-style SVG badge bound to the claim's sha256 — the distribution artifact model providers embed
+  sealed chain badge --card <claim.json> --verify <f.svg>   re-render and byte-compare — a badge that doesn't match its receipt fails
                                                            + your policy: --min-pct/--min-runs/--min-items/--wilson/--vouched/--no-post-reveal
                                                            re-grade the card's receipts against YOUR thresholds (authentic AND sufficient)
   sealed chain report <model> [--out file.md] [--snapshot f]   sealed-report/v1 — the dossier as a printable document, card-hash pinned

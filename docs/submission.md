@@ -112,7 +112,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   executes every action the board lists — bounty pots still pay the
   winning run's *operator* on-chain, never the sweeper — so venue
   liveness is a runnable cron job, not a promise. The classifier is pure
-  (`packages/harness/src/board.ts`), unit-tested (70/70 harness suite green), `--json` for
+  (`packages/harness/src/board.ts`), unit-tested (71/71 harness suite green), `--json` for
   third-party keepers. And every read surface takes
   `--snapshot web/snapshot.json` — `board`, `gate`, `history`,
   `records`, `positions` replay the committed evidence bundle
@@ -243,7 +243,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   sweep rejected, edge bounds, double-attestation rejected, duel dead-run
   expiry bail, retired-bank mutation rejected. The suite salts bank ids per
   run so it's re-runnable on a dirty ledger (`SEALED_TEST_SALT=<n>` pins a
-  run). `yarn harness:test` — 70/70.
+  run). `yarn harness:test` — 71/71.
 
 ## Reproduce
 

@@ -6181,6 +6181,54 @@ export async function digestVerify(file: string, json: boolean, snapPath?: strin
   return { ok, pass: 3 - bad, fail: bad };
 }
 
+/** `chain badge --card <claim.json> [--out f.svg] [--verify]` — the
+ *  distribution artifact: a shields-style SVG badge rendered FROM a
+ *  `sealed-claim/v1` card, embedding the card's sha256 in its metadata.
+ *  The badge is not the proof — it's a pointer to one: anyone who doubts
+ *  the number runs `chain prove --verify` on the bound card. Rendering is
+ *  deterministic, so `--verify` re-renders from the card and byte-compares:
+ *  a badge whose number doesn't match its receipt fails. */
+export async function chainBadge(cardPath: string, out?: string, verify = false) {
+  const raw = readFileSync(cardPath);
+  const card = JSON.parse(raw.toString());
+  if (card.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 card (kind=${card.kind ?? "?"})`);
+  const m = card.model ?? {};
+  if (!m.id || m.totalCorrect === undefined || m.totalItems === undefined)
+    throw new Error("claim card missing model.id/totalCorrect/totalItems");
+  const claimSha = createHash("sha256").update(raw).digest("hex");
+  const pct = m.totalItems > 0 ? (100 * m.totalCorrect) / m.totalItems : 0;
+  const pctTxt = `${pct.toFixed(1)}%`;
+  const color = pct >= 66 ? "#3fb950" : pct >= 33 ? "#9acd32" : pct > 0 ? "#d29922" : "#f85149";
+  const escXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const label = "sealed · mpc-scored";
+  const value = `${pctTxt} · ${m.totalCorrect}/${m.totalItems} over ${m.runsScored} run${m.runsScored === 1 ? "" : "s"}`;
+  const lw = 8 * (label.length / 2 + 1) + 20, vw = 8 * (value.length / 2 + 1) + 20, tw = lw + vw;
+  const meta = escXml(JSON.stringify({ kind: "sealed-badge/v1", model: m.id, recordPk: m.recordPk ?? null, claimSha256: claimSha }));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tw}" height="28" role="img" aria-label="${escXml(`sealed mpc-scored ${pctTxt} for ${m.id}`)}">
+<title>${escXml(`${m.id} — ${m.totalCorrect}/${m.totalItems} MPC-scored items across ${m.runsScored} runs (claim sha256 ${claimSha.slice(0, 16)}…)`)}</title>
+<metadata>${meta}</metadata>
+<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+<rect rx="4" width="${tw}" height="28" fill="#2a2f36"/>
+<rect rx="4" x="${lw}" width="${vw}" height="28" fill="${color}"/>
+<path fill="${color}" d="M${lw} 0h4v28h-4z"/>
+<rect rx="4" width="${tw}" height="28" fill="url(#s)"/>
+<g fill="#fff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">
+<text x="${lw / 2}" y="19" fill="#dfe6ee">${escXml(label)}</text>
+<text x="${lw + vw / 2}" y="19" fill="#0b0e11" font-weight="bold">${escXml(value)}</text>
+</g></svg>\n`;
+  if (verify) {
+    const have = existsSync(String(out ?? "")) ? readFileSync(String(out), "utf8") : "";
+    const ok = have === svg;
+    console.log(`sealed-badge/v1 — ${m.id} · ${pctTxt}`);
+    console.log(`  ${ok ? "✓" : "✗"} badge render — ${ok ? "byte-identical to a fresh render from the bound claim card" : "MISMATCH — badge does not match its bound receipt"}`);
+    if (!ok) process.exitCode = 1;
+    return { ok };
+  }
+  if (out) { writeFileSync(out, svg); console.log(`wrote ${out} — ${m.id} ${pctTxt} (bound to claim ${claimSha.slice(0, 16)}…; verify: chain prove --verify ${cardPath})`); }
+  else process.stdout.write(svg);
+  return { model: m.id, pct, claimSha };
+}
+
 /** `chain prove <model> [--out f]` — mint a portable claim card
  *  (`sealed-claim/v1`): one model's ModelRecord + every receipt + every
  *  run + every bank + every venue that settled on those runs, each with
@@ -8171,6 +8219,14 @@ export async function chainMain(cmd: string[], args: Args) {
     }
     if (args.all) { await chainProve(undefined, args.out ? String(args.out) : "claims", args.snapshot ? String(args.snapshot) : undefined, true); return; }
     await chainProve(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "badge") {
+    // the distribution artifact — a shields-style SVG rendered FROM a
+    // claim card; --verify re-renders and byte-compares (the badge must
+    // match its bound receipt, not just look official).
+    await chainBadge(String(args.card ?? cmd[1] ?? ""),
+      args.verify ? String(args.verify) : (args.out ? String(args.out) : undefined), Boolean(args.verify));
     return;
   }
   if (sub === "report") {

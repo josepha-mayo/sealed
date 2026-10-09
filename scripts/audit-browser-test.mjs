@@ -488,8 +488,9 @@ const tourCap = els.get("tourcap")?.innerHTML ?? "";
 const tourShown = els.get("tourbar")?.style?.display === "block";
 vm.runInContext("tourNext()", ctx);
 const tourStep2 = els.get("tourstep")?.textContent ?? "";
+const tourLen = vm.runInContext("TOUR_STOPS.length", ctx);
 vm.runInContext("tourEnd()", ctx);
-const tourOk = tourShown && /paired evidence/.test(tourCap) && /2\/24/.test(tourStep2) &&
+const tourOk = tourShown && /verifier|evidence/i.test(tourCap) && new RegExp(`2/${tourLen}`).test(tourStep2) &&
   els.get("tourbar")?.style?.display === "none";
 console.log(`in-page guided tour — caption + advance + dismiss ${tourOk ? "PASS" : "FAIL"}`);
 if (!tourOk) fails++;

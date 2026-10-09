@@ -57,6 +57,10 @@ is argued in [docs/arcium.md](docs/arcium.md).
 
 *([asciicast](docs/flagship.cast) — live commands on the evidence ledger: the 4-model leaderboard, `result_mask=0b11` paying both co-leader backers, the dark market on a ciphertext-only bank, and `verify.mjs` re-deriving every account + replaying every resolution)*
 
+The distribution artifact — badges rendered *from* claim cards, bound to their sha256 (`chain badge --card <claim.json>`; even the honest zeros ship):
+
+[![qwen2.5-3b](docs/badges/qwen2.5-3b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/qwen2.5-3b-instruct.json) [![qwen2.5-1.5b](docs/badges/qwen2.5-1.5b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/qwen2.5-1.5b-instruct.json) [![qwen2.5-0.5b](docs/badges/qwen2.5-0.5b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/qwen2.5-0.5b-instruct.json) [![llama-3.2-1b](docs/badges/llama-3.2-1b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/llama-3.2-1b-instruct.json)
+
 More live runs: [full demo](docs/demo.gif) (mint → private bank → disclosure → 4 market types → settle+claim) · [dark market](docs/dark.gif) (sealed bets on an exam that was never published) · [the keyless audit](docs/audit.gif) (Python second verdict → forgery lab → one devnet-anchored hash) · [demo.mp4](docs/demo.mp4) (the rendered 114s cut) · the judge TL;DR: [JUDGING.md](JUDGING.md).
 
 ## Why

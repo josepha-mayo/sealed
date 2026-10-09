@@ -78,11 +78,11 @@
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
-<div class="card hero" style="margin-top:10px">
+<div class="card hero" id="sec-hero" style="margin-top:10px">
   <div class="kv" style="margin-bottom:6px"><b>This page audits itself.</b> No wallet, no RPC, nothing trusted — every score below was written by the MPC cluster's callback, and you can recount any of them right here:</div>
   <div>
     <button onclick="megaAudit()" style="border-color:var(--acc)">▶ PROVE EVERYTHING — one click (~8s)</button>
-    <span class="kv">audit → all 142 artifacts replayed → 13 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (24 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
+    <span class="kv">audit → all 142 artifacts replayed → 13 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (25 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
     <div id="megares" style="margin-top:8px"></div>
   </div>
   <div style="margin-top:6px">
@@ -4125,6 +4125,7 @@ async function maybeAudit() {
 // auto-walk through the sections with a one-line caption each, mirroring
 // the CLI's stats → trail → feed → venue → wallet → money-learned arc.
 const TOUR_STOPS = [
+  ["sec-hero", "start here — this page is a verifier, not a website: every number below was recomputed from raw account bytes before it rendered. The ▶ button proves all of it in one click"],
   ["sec-leaderboard", "the whole registry ranked by paired evidence — Wilson lower bound, not raw accuracy"],
   ["sec-matrix", "the capability grid — every model × exam, best score per cell"],
   ["sec-h2h", "the tournament grid — who beat whom on shared banks, signed deltas"],
