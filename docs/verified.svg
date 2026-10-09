@@ -7,15 +7,15 @@
 <rect x="28" y="56" width="226" height="26" rx="13" fill="#12351f" stroke="#27c93f" stroke-width="1"/>
 <text x="141" y="74" text-anchor="middle" class="pill">EVERYTHING VERIFIED</text>
 <text x="28" y="96" class="hdr">SEALED — evidence verdict, recomputed in-browser (nothing trusted)</text>
-<text x="28" y="122" class="k">bundle root</text><text x="146" y="122" class="v">2d7112b94393a0fd…ee69bff3</text>
-<text x="28" y="148" class="k">anchor</text><text x="146" y="148" class="v">memo tx 29xQkqaTU6au3cXk…xc9yZS4W · slot 509315807</text>
+<text x="28" y="122" class="k">bundle root</text><text x="146" y="122" class="v">ab0b8b261477d4a5…6a4b7f1e</text>
+<text x="28" y="148" class="k">anchor</text><text x="146" y="148" class="v">memo tx fdCw8oUJ8FduE4Q2…H5jPyLcH · slot 509325735</text>
 <text x="28" y="174" class="k">audit</text><text x="146" y="174" class="v">14 pass · 0 fail — PDAs, folds, resolutions, rescore</text>
 <text x="28" y="200" class="k">artifacts</text><text x="146" y="200" class="v">all 142 replayed · 13 kind-groups pass</text>
 <text x="28" y="226" class="k">forgeries</text><text x="146" y="226" class="v">13/13 attacks died at named checks</text>
 <text x="28" y="252" class="k">sealed exam</text><text x="146" y="252" class="v">decrypted in-browser — answers stayed MPC-held</text>
 <text x="28" y="278" class="k">money</text><text x="146" y="278" class="v">69.69◎ settled on MPC scores · 1.731◎ bank run-fees charged</text>
 <text x="28" y="304" class="k">re-run</text><text x="146" y="304" class="v">?mega=1</text>
-<text x="28" y="330" class="k">proof link</text><text x="146" y="330" class="v">?root=2d7112b94393a0fd…ee69bff3 — the page re-checks this claim on open</text>
+<text x="28" y="330" class="k">proof link</text><text x="146" y="330" class="v">?root=ab0b8b261477d4a5…6a4b7f1e — the page re-checks this claim on open</text>
 <text x="28" y="402" class="foot">rendered from the actual in-page audit output — scripts/gen-verified-svg.mjs</text>
 <style>
 .hdr{fill:#e6edf3;font-size:14px;font-weight:700}

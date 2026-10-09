@@ -2178,6 +2178,8 @@ function renderCalQuiz(cb, modelCols) {
     box.innerHTML = `<div class="kv" style="margin-bottom:6px"><b>take the sealed exam yourself</b> — ${picks.length} items, blind. Your reply goes through the same canonicalizer and the same <span class="mono">sealed/v1/answer</span> fingerprint the MPC circuit used; a match lands on the on-chain reveal hash, not on our word. (The printed answers below stay blurred until you score — the hash doesn't care if you peek, but the models couldn't.)</div>` +
       picks.map((it) => `<div class="kv" style="margin:3px 0"><span class="mono" style="font-size:10px">#${it.index} ${esc(it.family)}</span> ${esc(it.prompt.length > 110 ? it.prompt.slice(0, 110) + "…" : it.prompt)} <input class="qin" id="qin-${it.index}" style="width:150px;font:inherit;font-size:11px" placeholder="your answer"></div>`).join("") +
       `<div style="margin-top:6px"><button id="calquizgo" onclick="window.__calquizgo && window.__calquizgo()">score me under the MPC fingerprint</button> <span id="calquizres" class="kv"></span></div>`;
+    if (new URLSearchParams(location.search).has("quiz"))
+      document.getElementById("calquiz")?.scrollIntoView({ behavior: "smooth" });
     window.__calquizgo = async () => {
       const D_ANS = utf8("sealed/v1/answer\0");
       const trunc64 = (u8) => new DataView(u8.buffer, u8.byteOffset).getBigUint64(0, true);

@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { PublicKey } from "@solana/web3.js";
 import { Prng } from "../src/prng.js";
 import { canonicalAnswer, normalize } from "../src/canonical.js";
@@ -27,6 +29,28 @@ test("canonicalization is forgiving on format, strict on content", () => {
   assert.equal(canonicalAnswer("ANSWER: +0"), "0");
   assert.equal(normalize("Hello   World"), "hello world");
   assert.notEqual(canonicalAnswer("ANSWER: 1025"), canonicalAnswer("ANSWER: 1024"));
+});
+
+test("in-page canonicalizer (calibration quiz) is a verbatim port", () => {
+  // The explorer's "take the sealed exam yourself" widget grades typed answers
+  // with its own copy of the canonicalizer. If that copy drifts, a judge's
+  // correct answer would hash differently than the MPC's fingerprint — extract
+  // the port from index.html and hold it bit-exact against the TS source of
+  // truth on adversarial inputs.
+  const src = readFileSync(join(import.meta.dirname, "../../../web/index.html"), "utf8");
+  const start = src.indexOf("const MARKER_RE");
+  const end = src.indexOf("const canonicalAnswerJS");
+  assert.ok(start > 0 && end > start, "in-page canonicalizer port not found");
+  const tail = src.slice(src.indexOf("=", end) + 1, src.indexOf(";", end));
+  const port = new Function(`${src.slice(start, end)} return (raw) => (${tail})(raw);`)() as (raw: string) => string;
+  const cases = [
+    "Let me think...\n\nANSWER: 1,024", "The answer is **42**.\nAnswer: -0042.",
+    "blah\nanswer: (3, -2)", "ANSWER: `Wednesday`", "no marker here\n\n  0x1f  ",
+    "ANSWER: +0", "Hello   World", "answer: 'vega prime'", "```json\n42\n```",
+    "ANSWER: 007", "answer:   1 ,  2 , 3  ", "step 1\nstep 2\nTHE ANSWER IS NINE",
+    "", "   ", "answer:", "ANSWER: (a,b)", "1,000,000.", "answer: [x,y]",
+  ];
+  for (const c of cases) assert.equal(port(c), canonicalAnswer(c), `drift on ${JSON.stringify(c)}`);
 });
 
 test("answer hash binds benchmark and item", () => {

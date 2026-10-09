@@ -39,7 +39,7 @@ is argued in [docs/arcium.md](docs/arcium.md).
 >
 > </details>
 >
-> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/5qH8vU7nX35rN5pMHXy5WYqaRwkPQiyPxaauVaFzjosaai8RWUcZJtjnvx8tT8KwTw5yXjydBan71NsBNEwqKJL1?cluster=devnet) — all three clickable, all verifiable by anyone.
+> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/29xQkqaTU6au3cXkxwozMgMnueN7GrA57i2sZAEgJ5Ar5xsd7rMUeHavGngTLe2WybtVctjgmo2XoayAxc9yZS4W?cluster=devnet) — all three clickable, all verifiable by anyone.
 >
 > **Honest status:** the full loop is proven end-to-end on Arcium localnet and both programs are byte-verified on devnet; the shared devnet MPC cluster is currently withholding callbacks (a probe ran 40 attempts over 7.5h — disclosed in [docs/judges.md](docs/judges.md)). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
 >
@@ -47,7 +47,7 @@ is argued in [docs/arcium.md](docs/arcium.md).
 >
 > **Judge shortcut:** [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever — its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
 >
-> The rescore step (inside `--all`, or standalone via `scripts/rescore.mjs`) is the one most submissions can't run: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **identical to what the MPC cluster wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination.
+> The rescore step (inside `--all`, or standalone via `scripts/rescore.mjs`) is the one most submissions can't run: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **identical to what the MPC cluster wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination — and [lets *you* sit the exam blind](https://josepha-mayo.github.io/sealed/?quiz=1): type answers, and your browser grades them under the exact `sealed/v1/answer` fingerprint the MPC circuit used, against the on-chain reveal hashes.
 
 [![EVERYTHING VERIFIED — the in-page audit's copyable verdict, rendered from real output](docs/verified.svg)](https://josepha-mayo.github.io/sealed/?mega=1)
 
