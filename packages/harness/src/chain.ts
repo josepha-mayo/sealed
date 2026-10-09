@@ -5917,7 +5917,15 @@ export async function chainStats(snapPath?: string, json = false) {
       markets: markets.length, darks: darks.length, ladders: ladders.length, bounties: bounties.length,
       positions: positions.length + darkPositions.length,
     },
-    money: { escrowLamports: escrow, feesLamports: fees },
+    money: {
+      escrowLamports: escrow, venueFeesAccruedLamports: fees,
+      bankFeesChargedLamports: sum(banks, (b) => lam(b.feeLamports) * Number(b.runCount)),
+      feeBearingBanks: banks.filter((b) => lam((b.account as any).feeLamports) > 0).length,
+      feeBearingRuns: banks.filter((b) => lam((b.account as any).feeLamports) > 0)
+        .reduce((s, b) => s + Number((b.account as any).runCount), 0),
+      bountyOpenLamports: sum(bounties, (b) => (Number(b.status) === 1 ? 0 : lam(b.amount))),
+      bountiesClaimed: bounties.filter((b) => Number((b.account as any).status) === 1).length,
+    },
     integrity: {
       registryReplay: `${recOk}/${records.length} bit-exact${recBad ? ` (${recBad} VIOLATIONS)` : ""}`,
       resolutionsVerified: `${resOk}/${resOk + resBad} match Run.correct${resBad ? ` (${resBad} MISMATCHES)` : ""}`,
@@ -5991,7 +5999,10 @@ export async function chainStats(snapPath?: string, json = false) {
     ` · ${out.ledger.positions} positions (${Math.round(100 * out.ledger.venuesPriced / Math.max(1, out.ledger.markets + out.ledger.darks + out.ledger.ladders))}% venue fill)`);
   console.log(`registry — ${out.ledger.records} records · ${out.ledger.receipts} receipts (${out.integrity.vouchedReceipts} vouched, ${postRev} post-reveal)`);
   console.log(`disclosure — ${out.ledger.reveals} reveals · ${out.ledger.grants} reshare grants · ${out.ledger.itemChunks}+${out.ledger.privChunks} item chunks`);
-  console.log(`money — ${(escrow / 1e9).toFixed(3)}◎ escrowed · ${(fees / 1e9).toFixed(4)}◎ protocol fees collected`);
+  const MN = out.money;
+  console.log(`money — ${(MN.escrowLamports / 1e9).toFixed(3)}◎ escrowed · ${(MN.venueFeesAccruedLamports / 1e9).toFixed(4)}◎ venue fees accrued` +
+    ` · ${(MN.bankFeesChargedLamports / 1e9).toFixed(4)}◎ bank run-fees charged (${MN.feeBearingRuns} paid runs across ${MN.feeBearingBanks} fee-bearing bank${MN.feeBearingBanks === 1 ? "" : "s"})` +
+    ` · ${MN.bountiesClaimed} bounties claimed + ${(MN.bountyOpenLamports / 1e9).toFixed(3)}◎ still escrowed`);
   console.log(`integrity — registry ${out.integrity.registryReplay} · resolutions ${out.integrity.resolutionsVerified}`);
   console.log(`mpc — scoring latency p50 ${out.mpcLatency.p50s}s / p95 ${out.mpcLatency.p95s}s (${lats.length} timed runs)`);
   const A0 = out.actors;
@@ -6037,6 +6048,24 @@ async function buildDigestData(snapPath: string | undefined) {
        : await Promise.all(["market", "darkMarket", "ladder", "bounty", "position", "darkPosition"]
         .map((n) => tolerantAll(mAcct(), n)));
   const sha256 = snapPath ? createHash("sha256").update(readFileSync(snapPath)).digest("hex") : null;
+  const lam = (x: any) => Number(x ?? 0);
+  const sumAcc = (xs: Acct[], f: (a: any) => number) => xs.reduce((s, x) => s + f(x.account), 0);
+  const feeBanks = banks.filter((b) => lam(b.account.feeLamports) > 0);
+  const money = {
+    escrowLamports: sumAcc(markets, (m) => (m.totals as any[]).reduce((s: number, t: any) => s + lam(t), 0))
+      + sumAcc(ladders, (l) => (l.totals as any[]).reduce((s: number, t: any) => s + lam(t), 0))
+      + sumAcc(darks, (d) => lam(d.poolTotal)) + sumAcc(bounties, (b) => lam(b.amount)),
+    venueFeesAccruedLamports: sumAcc(markets, (m) => lam(m.feesAccrued))
+      + sumAcc(ladders, (l) => lam(l.feesAccrued)) + sumAcc(darks, (d) => lam(d.feesAccrued)),
+    venueFeeBearing: markets.filter((m) => lam(m.account.feeBps) > 0).length
+      + ladders.filter((l) => lam(l.account.feeBps) > 0).length
+      + darks.filter((d) => lam(d.account.feeBps) > 0).length,
+    bankFeesChargedLamports: sumAcc(banks, (b) => lam(b.feeLamports) * Number(b.runCount)),
+    feeBearingBanks: feeBanks.length,
+    feeBearingRuns: feeBanks.reduce((s, b) => s + Number(b.account.runCount), 0),
+    bountyOpenLamports: sumAcc(bounties, (b) => (Number(b.status) === 1 ? 0 : lam(b.amount))),
+    bountiesClaimed: bounties.filter((b) => Number(b.account.status) === 1).length,
+  };
   const logsByRec = new Map<string, any[]>();
   for (const l of logs) {
     const k = (l.account.modelRecord as PublicKey).toBase58();
@@ -6063,6 +6092,7 @@ async function buildDigestData(snapPath: string | undefined) {
       resolutionsOk: integ.resOk, resolutionsBad: integ.resBad,
       records: integ.recordRows, resolutions: integ.venueRows,
     },
+    money,
     keeper: {
       actionable, settled: board.settled, filling: board.filling,
       claimable: board.claimable, resolvable: board.resolvable,

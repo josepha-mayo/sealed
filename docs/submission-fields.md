@@ -42,7 +42,7 @@ A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, commit-reveal dark markets, and FCFS capability
 bounties (pot pays the first proven run's operator, not a bettor) —
 resolving permissionlessly on `Run.correct`; bets latch before the
-first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 69/69
+first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 70/70
 harness unit; four open-weights models settled real markets via MPC —
 a dead-heat, a reshare-grant private exam, a dark market on a
 ciphertext-only bank. Every primitive settled a real score.
@@ -110,20 +110,20 @@ surface.
 
 ## businessModel
 
-Per-run fees paid to the benchmark authority are live on-chain today
-(`create_run` transfers `fee_lamports`); market take-rate is live too
-(`fee_bps` at resolution, `claim_fee`). The durable business is
-sealed-evaluation infrastructure: fresh private banks minted on demand
-(no key custody to sell), delegated scoring runs for labs and judges,
-and the settlement layer every "AI capability" market resolves against —
-prediction venues cleared ~$63.5B notional in 2025, all of it settled on
-human-held truth.
-Six primitives ship: run duels, K-way ladder races (argmax, dead-heat
-pro-rata), unseen-exam markets (the priced event is itself confidential),
-dark commit-reveal markets (sha256-sealed sides, no-shows forfeit),
-capability bounties (sponsor escrow pays the first operator to provably
-clear T — a trustless "prove your model can do X", not a bet), and
-committed-settle expiry.
+Per-run fees are live on-chain today (`create_run` transfers
+`fee_lamports` to the benchmark authority); market take-rate is live too
+(`fee_bps` skimmed at resolution, `claim_fee`). And used, not just
+plumbed — the committed digest recomputes it from decoded bytes: 1.73
+SOL charged in bank run-fees across 174 paid runs on 28 fee-bearing
+banks, 44 venues with a nonzero take-rate, 33 of 37 bounties claimed. The
+durable business is sealed-evaluation infrastructure: private banks
+minted on demand (no key custody to sell), delegated scoring for labs
+and judges, and the settlement layer every "AI capability" market
+resolves against — prediction venues cleared ~$63.5B notional in 2025,
+all settled on human-held truth.
+Six primitives ship: duels, K-way ladder races, unseen-exam markets,
+dark commit-reveal markets, capability bounties (escrow pays the first
+operator to provably clear T), committed-settle expiry.
 Unit economics: a 64-item exam ≈0.02 SOL account rent; a bettor seat
 ≈0.002 SOL refunded on claim/close. Any venue composes on `Run.correct`
 permissionlessly — the referee is infrastructure, not a vendor.

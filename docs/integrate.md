@@ -78,6 +78,31 @@ The browser explorer (`explorer/index.html`) does exactly this — reads any
 RPC, verifies Merkle proofs against `Run.outputs_root` in-browser, zero
 trust in the host.
 
+## Runnable proof: a third-party resolver in ~100 lines
+
+`examples/mini-resolver.mjs` is a consumer that imports **nothing** from this
+repo — no SDK, no IDL, no harness. It reimplements this document's contract
+from scratch (sha256-derived discriminator gate, fixed-offset field reads,
+honesty flags) and settles a toy parimutuel escrow off `Run.correct`:
+
+```bash
+node examples/mini-resolver.mjs        # reads the committed web/snapshot.json
+# mini-resolver — third-party consumer, no sealed code, no trust
+# gate: discriminator sha256("account:Run")[:8]=c7369b56eb73f6bd
+# runs decoded: 503 · finalized+eligible: 401
+#   → picks the run the MPC scored lowest (the chain doesn't trust claims)
+#   → settles the pot to the side the MPC-written number favors
+```
+
+That is the composability claim made executable: a venue that did not exist
+when the score was written settles on it correctly — because `Run.correct`
+was written by the MPC cluster, not by anyone you need to trust. The harness
+suite pins the example so a layout change fails CI, not the story.
+
+For real accounts (not the snapshot), the same reads work against
+`getProgramAccounts` filtered by `memcmp(offset=0, sha256("account:Run")[:8])`
+— plus the owner check every account comes with.
+
 ## The honesty contract a consumer must respect
 
 `Run.correct` is only as meaningful as the flags beside it. Consumers that

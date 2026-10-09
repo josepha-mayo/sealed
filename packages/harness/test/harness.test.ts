@@ -1833,3 +1833,20 @@ test("wrong viewer key — a ShareGrant decrypted by a stranger yields garbage t
   assert.throws(() => unpackSpecs(fields), /out of range|too large|invalid/i,
     "a wrong key must produce spec-range failure, not a plausible exam");
 });
+
+test("third-party consumer — examples/mini-resolver.mjs settles from raw bytes, zero imports", async () => {
+  // The composability claim is only real if a consumer that imports NOTHING
+  // from the repo still settles correctly. This example reimplements the
+  // integrate.md contract (sha256-derived discriminator, fixed offsets,
+  // honesty gates) in ~100 lines of stdlib JS — if a layout field moves,
+  // this test is the alarm.
+  const { execFileSync } = await import("node:child_process");
+  const repoRoot = new URL("../../../", import.meta.url).pathname;
+  const out = String(execFileSync("node", ["examples/mini-resolver.mjs"],
+    { cwd: repoRoot, timeout: 60000 }));
+  const m = out.match(/runs decoded: (\d+) · finalized\+eligible: (\d+)/);
+  assert.ok(m, "example must report the decoded run census");
+  assert.ok(Number(m[1]) > 100 && Number(m[2]) > 0, "snapshot must yield real eligible runs");
+  assert.match(out, /payout\s+\w+ ← [\d.]+◎/, "a winner must be paid from the MPC count");
+  assert.match(out, /integrator contract/, "the no-trust verdict must print");
+});

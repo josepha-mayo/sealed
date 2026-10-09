@@ -17,7 +17,7 @@ is argued in [docs/arcium.md](docs/arcium.md).
 
 > ## Judge it yourself — pick your depth
 >
-> - **8 seconds, zero setup:** [josepha-mayo.github.io/sealed/**?mega=1**](https://josepha-mayo.github.io/sealed/?mega=1) — one click re-checks every claim on this page: every account address re-derived from its seeds, all 142 proof files replayed, 13 canned forgeries each caught at the exact check that kills it, **the sealed exam decrypted in your browser** — ending on a copyable verdict: `EVERYTHING VERIFIED`.
+> - **8 seconds, zero setup:** [josepha-mayo.github.io/sealed/**?mega=1**](https://josepha-mayo.github.io/sealed/?mega=1) — one click: **the sealed exam decrypts in your browser**, all 142 proof files replay, 13 canned forgeries die at the exact check that kills them, every account address is recomputed from scratch — ending on a copyable verdict: `EVERYTHING VERIFIED`.
 > - **60 seconds, no clone:** `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — one downloaded Python file (stdlib only, nothing to install) re-hashes every file in the bundle off the *hosted site*, re-derives every account address itself, and lands on the same hash notarized on devnet.
 > - **10 minutes, full depth:** [docs/judges.md](docs/judges.md) — the rubric-mapped path: rescore the MPC's own arithmetic, run the forgery lab yourself, decrypt the private exam three ways.
 >
@@ -105,7 +105,7 @@ flowchart LR
   RUN -->|record_score: permissionless enroll| REG[model capability records]
 ```
 
-The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Six primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal, capability bounty. A `record_score` instruction then folds any finalized run into a persistent `ModelRecord` — a per-model cumulative artifact keyed by `sha256(model_id)` — with a `ScoreLog` receipt PDA making each run countable exactly once. Anyone can enroll a finalized run; the aggregate is what a leaderboard was supposed to be, minus the operator. [docs/integrate.md](docs/integrate.md) is the consumer guide — the owner+discriminator gate, the `post_reveal` tail-read, the honesty flags a resolver must respect, and the PDA seeds for `Run`/`ScoreLog`/`ModelRecord`, so a third-party venue composes on `Run.correct` with no CPI and no trust in us.
+The market program reads `Run.correct` only — it never sees items, answers, or ciphertext. Six primitives settle on that one number: score-band, duel, ladder race, unseen-exam, dark commit-reveal, capability bounty. A `record_score` instruction then folds any finalized run into a persistent `ModelRecord` — a per-model cumulative artifact keyed by `sha256(model_id)` — with a `ScoreLog` receipt PDA making each run countable exactly once. Anyone can enroll a finalized run; the aggregate is what a leaderboard was supposed to be, minus the operator. [docs/integrate.md](docs/integrate.md) is the consumer guide — the owner+discriminator gate, the `post_reveal` tail-read, the honesty flags a resolver must respect, and the PDA seeds for `Run`/`ScoreLog`/`ModelRecord`, so a third-party venue composes on `Run.correct` with no CPI and no trust in us. `examples/mini-resolver.mjs` proves it isn't marketing: ~100 lines of stdlib JS importing nothing from this repo settles a toy parimutuel escrow off the raw account bytes — a venue that didn't exist when the score was written resolves on it correctly.
 
 Per-account detail:
 
@@ -143,7 +143,7 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
 - **Items** are procedural, exact-answer tasks. **Authored banks** (kind 0) draw ten families (arithmetic chains, stack-machine programs, list transforms, Caesar shifts, base conversion, grid walks, gcd/lcm, digit sums, calendar arithmetic, word sorting) from a master seed — infinite and fresh by construction. **Generated banks** (kind 1) mint arithmetic-expression items inside MPC; anyone can render the prompts from the public specs, but the answer fingerprints were computed and sealed inside the MPC cluster — *no answer key ever existed*.
 - **Canonicalization** (`canonical.ts`) is the only normalization applied to a model's reply before hashing; author and runner use the same function.
 - **Chunks** are 32 items, stored as 4 parts of 8. Sealing is per part because an MPC callback must fit in one Solana transaction (8 ciphertexts = 256 B; 32 would not). Scoring reads all 4 parts in one computation, so a run over a 10-chunk (320-item) bank is 10 MPC computations.
-- **Fee**: `create_run` pays `Benchmark.fee_lamports` to the benchmark authority. That is the business.
+- **Fee**: `create_run` pays `Benchmark.fee_lamports` to the benchmark authority. That is the business — and it's used, not just plumbed: the committed digest's `money` section (recomputed from decoded bytes by all three verifiers) shows **1.73 SOL already charged in run-fees across 174 paid runs on 28 fee-bearing banks**, 44 venues carrying a nonzero take-rate, 33 capability bounties claimed, 0.45 SOL still escrowed in open pots.
 
 ### Markets (`programs/market`)
 

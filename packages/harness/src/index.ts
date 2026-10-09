@@ -6,3 +6,6 @@ export * from "./bank.js";
 export * from "./genbank.js";
 export * from "./models.js";
 export * from "./run.js";
+export * from "./gate.js";
+export * from "./board.js";
+export * from "./snapshot.js";

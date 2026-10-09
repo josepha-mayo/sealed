@@ -2135,6 +2135,8 @@ def decode_market(d):
         "totals": [int.from_bytes(d[152 + 8 * i:160 + 8 * i], "little") for i in range(8)],
         "resolvedScore": int.from_bytes(d[216:220], "little"),
         "runB": b58encode(d[236:268]) if len(d) >= 268 else None,
+        "feeBps": int.from_bytes(d[268:270], "little") if len(d) >= 278 else 0,
+        "feesAccrued": int.from_bytes(d[270:278], "little") if len(d) >= 278 else 0,
         "resolveBy": int.from_bytes(d[286:294], "little", signed=True) if len(d) >= 294 else 0,
     }
 
@@ -2154,6 +2156,8 @@ def decode_dark_market(d):
         "revealedCount": int.from_bytes(d[168:172], "little"),
         "resolvedScore": int.from_bytes(d[172:176], "little"),
         "revealUntil": int.from_bytes(d[200:208], "little", signed=True) if len(d) >= 208 else 0,
+        "feeBps": int.from_bytes(d[208:210], "little") if len(d) >= 218 else 0,
+        "feesAccrued": int.from_bytes(d[210:218], "little") if len(d) >= 218 else 0,
         "resolveBy": int.from_bytes(d[226:234], "little", signed=True) if len(d) >= 234 else 0,
         "tallied": len(d) > 234 and d[234] == 1,
     }
@@ -2192,6 +2196,8 @@ def decode_ladder(d):
         "status": d[338], "resultMask": d[339],
         "resolvedScore": int.from_bytes(d[340:344], "little"),
         "totals": [int.from_bytes(d[344 + 8 * i:352 + 8 * i], "little") for i in range(8)],
+        "feeBps": int.from_bytes(d[424:426], "little") if len(d) >= 434 else 0,
+        "feesAccrued": int.from_bytes(d[426:434], "little") if len(d) >= 434 else 0,
         "resolveBy": int.from_bytes(d[442:450], "little", signed=True) if len(d) >= 450 else 0,
     }
 
@@ -2415,6 +2421,31 @@ def build_digest():
                       "resolutionsBad": sum(1 for r in venue_rows if not r["ok"]),
                       "records": rec_rows, "resolutions": venue_rows},
         "keeper": keeper,
+        "money": {
+            "escrowLamports":
+                sum(sum(m["totals"]) for _p, m in mkt.get("Market", []))
+                + sum(sum(l["totals"]) for _p, l in mkt.get("Ladder", []))
+                + sum(d["poolTotal"] for _p, d in mkt.get("DarkMarket", []))
+                + sum(b["amount"] for _p, b in mkt.get("Bounty", [])),
+            "venueFeesAccruedLamports":
+                sum(m["feesAccrued"] for _p, m in mkt.get("Market", []))
+                + sum(l["feesAccrued"] for _p, l in mkt.get("Ladder", []))
+                + sum(d["feesAccrued"] for _p, d in mkt.get("DarkMarket", [])),
+            "venueFeeBearing":
+                sum(1 for _p, m in mkt.get("Market", []) if m["feeBps"] > 0)
+                + sum(1 for _p, l in mkt.get("Ladder", []) if l["feeBps"] > 0)
+                + sum(1 for _p, d in mkt.get("DarkMarket", []) if d["feeBps"] > 0),
+            "bankFeesChargedLamports":
+                sum(b["feeLamports"] * b["runCount"] for _p, b in seal.get("Benchmark", [])),
+            "feeBearingBanks":
+                sum(1 for _p, b in seal.get("Benchmark", []) if b["feeLamports"] > 0),
+            "feeBearingRuns":
+                sum(b["runCount"] for _p, b in seal.get("Benchmark", []) if b["feeLamports"] > 0),
+            "bountyOpenLamports":
+                sum(b["amount"] for _p, b in mkt.get("Bounty", []) if b["status"] != 1),
+            "bountiesClaimed":
+                sum(1 for _p, b in mkt.get("Bounty", []) if b["status"] == 1),
+        },
         "banks": [{"pk": pk, "name": b["name"], "kind": b["kind"],
                    "items": b["chunkCount"] * 32, "runs": b["runCount"],
                    "reveals": b["revealCount"], "itemsRoot": b["itemsRoot"]}

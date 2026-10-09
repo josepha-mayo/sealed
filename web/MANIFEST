@@ -1,4 +1,4 @@
-b96d031ba9f2cdf89c05b6616341e3224150bdd9eab3db6e5a32e3ddd6c692cf  ./SHA256SUMS
+c47e9c9b72231185ed133a6e6cee60b013680457de8265cb722e9882f5ab723e  ./SHA256SUMS
 c385ef78dd77e4753b4ac3c782ed13065be8bfe265f58da54e9757e0b243a68c  ./artifacts.json
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
 0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json
@@ -44,11 +44,11 @@ e58c3f99fc4d8249a3ed26b4be127c4111c7920e6a9aa1e20bbfb6d51401058b  ./claims/test_
 64a499f1d4ff202ff1cdcd7ba2db036315102ccf35fd133480d2b38e057d5bca  ./claims/test_registry-model.json
 e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_sweep-run.json
 8c8195899e87d75ed55402dcf7a442742011e2b90dc8d24f4a979d6219f58d6a  ./demo-delegate.json
-fa6fd1ebef73ef579ffe4919422ef010443bbd63c3737810014425ea1e4cfd91  ./digest.json
+225cb429a68ca2f17d04f5833f73836a718cf02a13e99aff91587ee4860ab3a7  ./digest.json
 682646dcc42063eecbeabf36fdb8874118fd35b258fb8abf52612449ade58437  ./grants/index.json
 893b0e4e24d62253d70fb6d7185fb23960536dea3e8f31f631cf4ae44099e793  ./grants/sealed-priv-first.json
 2e7356673256fcb137fe666f1f38fa6df1cb9811debd0e7552ee7b32ff569cbc  ./grants/sealed-priv-panel.json
-c90da81c6ff55f8c496de1b00375481392dc5cee3a970e688c1e28eb5d6dab59  ./index.html
+8bf4663f84e3e3d18bcba810e1592ebdcb57be451c0e13b23dc66ce7f146fa90  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json

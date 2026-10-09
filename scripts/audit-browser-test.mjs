@@ -18,10 +18,12 @@ const src = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1])
 // --- minimal DOM ---
 const els = new Map();
 const mkEl = (id) => {
-  if (!els.has(id)) els.set(id, { id, innerHTML: "", textContent: "", value: "", style: {}, scrollIntoView() {}, click() {}, addEventListener() {}, files: [] });
+  if (!els.has(id)) els.set(id, { id, innerHTML: "", textContent: "", value: "", style: {}, children: [], scrollIntoView() {}, click() {}, addEventListener() {}, appendChild(c) { this.children.push(c); return c; }, setAttribute() {}, files: [] });
   return els.get(id);
 };
-const documentStub = { getElementById: mkEl };
+const documentStub = { getElementById: mkEl,
+  createElement: (tag) => ({ tagName: tag.toUpperCase(), innerHTML: "", textContent: "", value: "", style: {}, children: [],
+    setAttribute() {}, appendChild(c) { this.children.push(c); return c; }, addEventListener() {}, remove() {} }) };
 const snapText = readFileSync(join(ROOT, "web", "snapshot.json"), "utf8");
 
 const ctx = {

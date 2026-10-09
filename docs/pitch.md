@@ -100,7 +100,7 @@ not the commands.
   K-way ladder races with dead-heat pro-rata, unseen-exam markets, dark
   commit-reveal markets, capability bounties), a persistent permissionless
   capability registry (`ModelRecord`/`ScoreLog`), fingerprint reveal audits,
-  mocha suite 17/17 + 69/69 harness unit tests green. Authored banks work too (seal+score).
+  mocha suite 17/17 + 70/70 harness unit tests green. Authored banks work too (seal+score).
   And the outputs aren't claims you take on faith — `chain prove` mints a
   portable `sealed-claim/v1` card per model (PDAs re-derive keyless,
   verdicts replay, tamper fails, and `--verify <card> --min-pct N`
