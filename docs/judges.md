@@ -40,7 +40,7 @@ the cluster; only the count leaves it — and markets settle on that count direc
 **Genuinely three steps, no repo needed:**
 
 1. Open [the hosted explorer's `?mega=1`](https://josepha-mayo.github.io/sealed/?mega=1) — the whole audit runs itself in ~8s.
-2. `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — re-verify all 351 pinned bytes from one stdlib file.
+2. `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — re-verify all 359 pinned bytes from one stdlib file.
 3. Read the verdict — if you want the full localnet rebuild, continue below.
 
 **Cloned the repo instead?** The two load-bearing commands are
@@ -357,7 +357,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #           through their own check lists, live progress
 
 # 3q. THE FORGERY LAB — don't trust the checks, run the attack. The
-#     explorer's "forgery lab" section hands you twelve canned attacks:
+#     explorer's "forgery lab" section hands you thirteen canned attacks:
 #     forge a +1 score, swap the #1 rank, un-vouch an attested receipt,
 #     flip a head-to-head verdict, mint a phantom receipt, inflate a
 #     settled pool, re-age the ledger, mint a phantom run, erase an
@@ -371,7 +371,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     headless audit pins all twelve.
 
 # 3r. THE LIE EXHIBIT — we committed the forgeries themselves.
-#     docs/evidence/tamper/ holds eleven sealed-tamper/v1 cards — each
+#     docs/evidence/tamper/ holds fifteen sealed-tamper/v1 cards — each
 #     IS a forged artifact (oracle substitution, settled-money rewrite,
 #     rank swap, bounty theft, viewer redirect, phantom receipts, stake
 #     inflation) wrapped with the check(s) it died at, recorded when it
@@ -379,7 +379,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     the REAL verifier and asserts it still dies at the same named
 #     check — the evidence base ships proof of its own skepticism:
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snapshot ../../web/snapshot.json
-#         → ALL 11 EXHIBITS VERIFIED — every committed forgery still
+#         → ALL 15 EXHIBITS VERIFIED — every committed forgery still
 #           rejected; the CLI mints them too:
 #           chain artifact <card> --tamper --exhibit <dir> --snapshot <f>
 #         → the explorer's "lie exhibit" section replays them in-page
@@ -517,7 +517,7 @@ python3 scripts/verify.py --card docs/evidence/board.json
 #     modes above, e.g. `--remote --decrypt` reads the sealed exam off
 #     the served bundle. The truly-zero-install form:
 curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote
-#         → one downloaded stdlib file verifies all 351 pinned bytes
+#         → one downloaded stdlib file verifies all 359 pinned bytes
 #           itself — no git, no pip, nothing but python3
 
 # 3v. THE CAPSULE — web/standalone.html is the entire submission as ONE

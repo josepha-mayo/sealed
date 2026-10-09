@@ -614,5 +614,11 @@ const vOk = /SEALED — evidence verdict/.test(vtxt) && /bundle root/.test(vtxt)
   /[0-9a-f]{64}/.test(vtxt) && /forgeries\s+13\/13/.test(vtxt);
 console.log(`in-page copyable verdict — root + all stage counts on the paste-ready block ${vOk ? "PASS" : "FAIL"}`);
 if (!vOk) fails++;
+// SEALED_DUMP_VERDICT=<path> — persist the paste-ready block so docs tooling
+// (the verified.svg card) renders real output instead of a mock-up.
+if (process.env.SEALED_DUMP_VERDICT) {
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(process.env.SEALED_DUMP_VERDICT, vtxt.replace(/<[^>]+>/g, "") + "\n");
+}
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="A benchmark whose answer key was never written down, scored by nobody in particular — MPC-generated exams, on-chain score receipts, and prediction markets that settle without a referee. Replay the whole evidence base keyless.">
 <meta property="og:title" content="Sealed — the leaderboard you don't have to trust">
-<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 138 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base, notarized on devnet.">
+<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 142 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base, notarized on devnet.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://josepha-mayo.github.io/sealed/">
 <meta property="og:image" content="https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/flagship.gif">
@@ -90,7 +90,7 @@
     <button onclick="quickVerify()">verify the leaderboard card</button>
     <button onclick="quickForge()">watch a forgery die</button>
     <button onclick="quickDecrypt(this)">read the sealed exam</button>
-    <button onclick="quickReplay()">replay all 138 proofs</button>
+    <button onclick="quickReplay()">replay all 142 proofs</button>
   </div>
 </div>
 <div class="cfg">
@@ -108,7 +108,7 @@
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 138 artifacts + its own verifiers as ONE offline file</div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 142 artifacts + its own verifiers as ONE offline file</div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -2662,7 +2662,7 @@ function quickReplay() {
   document.getElementById("sec-artifact")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 // ④ PROVE EVERYTHING — one click runs the whole skeptic's suite end to
-// end and keeps score: the account-level audit, all 138 committed
+// end and keeps score: the account-level audit, all 142 committed
 // artifacts through their kind verifiers, then every forgery attack in
 // the lab. Nothing trusted — the cascade IS the demo.
 async function megaAudit() {
@@ -2679,11 +2679,12 @@ async function megaAudit() {
   await runAudit(true);
   const aPass = cnt("auditres", "pill resolved"), aFail = cnt("auditres", "pill cancelled");
   rows.push(stage(`<span class="pill ${aFail ? "cancelled" : "resolved"}">${aFail ? "FAIL" : "PASS"}</span> account audit — ${aPass} pass · ${aFail} fail (<a href="#sec-audit">full list ↓</a>)`));
-  draw(stage(`<span class="pill open">RUNNING</span> artifact replay — 138 committed proofs through their own verifiers`));
+  draw(stage(`<span class="pill open">RUNNING</span> artifact replay — every committed proof through its own verifier`));
 
   await replayBundle();
   const bFail = cnt("bundleres", "pill cancelled"), bPass = cnt("bundleres", "pill resolved");
-  rows.push(stage(`<span class="pill ${bFail ? "cancelled" : "resolved"}">${bFail ? "FAIL" : "PASS"}</span> artifact replay — ${bPass} kind-groups pass · ${bFail} fail (<a href="#sec-artifact">all 138 ↓</a>)`));
+  const bTotal = (document.getElementById("bundleres")?.innerHTML.match(/(\d+)\/(\d+) artifacts replayed/)?.[2]) ?? "?";
+  rows.push(stage(`<span class="pill ${bFail ? "cancelled" : "resolved"}">${bFail ? "FAIL" : "PASS"}</span> artifact replay — ${bPass} kind-groups pass · ${bFail} fail (<a href="#sec-artifact">all ${bTotal} ↓</a>)`));
   draw(stage(`<span class="pill open">RUNNING</span> forgery sweep — every lab attack, automated`));
 
   let caught = 0, forgedN = 0;
@@ -2716,7 +2717,7 @@ async function megaAudit() {
     `bundle root   ${window.__lastRoot ?? "unreached"}`,
     ...(anch ? [`anchor        memo tx ${anch.signature} · slot ${anch.slot}`] : []),
     `audit         ${aPass} pass · ${aFail} fail — PDAs, folds, resolutions, rescore`,
-    `artifacts     all 138 replayed · ${bPass} kind-groups pass`,
+    `artifacts     all ${bTotal} replayed · ${bPass} kind-groups pass`,
     `forgeries     ${caught}/${forgedN} attacks died at named checks`,
     `sealed exam   ${dOk ? "decrypted in-browser — answers stayed MPC-held" : "not decrypted"}`,
     `re-run        ${pageBase}?mega=1`,
@@ -4070,7 +4071,7 @@ async function maybeAudit() {
   // ?decrypt=1 — the most visceral beat as a URL: the sealed exam
   // materializes in-page, decrypted from the committed demo delegate key.
   if (new URLSearchParams(location.search).get("decrypt")) await quickDecrypt({ disabled: false, textContent: "" });
-  // ?mega=1 — the whole demo as a URL: audit + all 138 artifacts + every
+  // ?mega=1 — the whole demo as a URL: audit + all 142 artifacts + every
   // forgery attack, cascading to EVERYTHING VERIFIED while you watch.
   if (new URLSearchParams(location.search).get("mega")) await megaAudit();
 }

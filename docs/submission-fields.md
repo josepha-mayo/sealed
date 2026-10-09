@@ -130,9 +130,9 @@ permissionlessly — the referee is infrastructure, not a vendor.
 
 ## competitiveLandscape
 
-Melee hides your position; Bench hides your stake; Epoch and Flew hide
-your bets; Sealed hides the truth itself — the market settles on an
-answer no human ever possessed. The other Arcium-market projects encrypt
+Melee hides your position; Bench hides your stake; Pythia, Epoch and
+Flew hide your bets; Sealed hides the truth itself — the market settles
+on an answer no human ever possessed. The other Arcium-market projects encrypt
 user inputs and resolve ordinary opinion events; Sealed's differentiator
 is that the *resolution truth* is confidential until computed — insider
 knowledge is cryptographically impossible, not just discouraged. Lab

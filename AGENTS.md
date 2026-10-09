@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 67/67 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 69/69 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
@@ -240,7 +240,7 @@ parimutuel markets resolved from `Run.correct`.
   bank / status / min-% / attested / post-reveal filters, score-first
   sort) and `#sec-grants` mirrors `chain grants` (the 145-grant
   disclosure trail — bank · chunk.part · viewer · shared-at).
-  `#sec-forge` is the forgery lab — twelve canned attacks (mutated
+  `#sec-forge` is the forgery lab — thirteen canned attacks (mutated
   score / swapped rank / un-vouched receipt / flipped verdict /
   phantom receipt / inflated pool / re-aged ledger counts / phantom
   run / catalog erase / stake inflation / bounty steal / grant
@@ -545,4 +545,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 67/67.
+  `yarn harness:test` → 69/69.
