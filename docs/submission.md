@@ -9,17 +9,19 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 506451728, authority `4RUW4pDm…` |
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder + dark commit-reveal support; upgradeable under `4RUW4pDm…` |
 
-**Deploy state:** sealed was upgraded to the hardened build on 2026-10-03 —
-`scripts/verify-deployed.sh` dumps the on-chain ELF and shows it
-sha256-matches `target/deploy/sealed.so` (byte-identical, not just
-"deployed"). The market binary on devnet (`271eYBWM…` 2026-09-25) still
-predates this week's hardening: current source additionally carries
-`post_reveal` reveal-burn stamping, `unbrick_pda` grief reclaim,
-`DeadlineTooFar` labeling, `BountyExpired.refunded_lamports`, and the
-empty-pool `expire_dark` fast-path — all verified end-to-end on localnet.
-The market program was upgraded 2026-10-04 (sig `Tpm5oyQd…`);
-`verify-deployed.sh` now reports BOTH programs MATCH the committed build.
-The remaining devnet caveat is the Arcium callback outage (below).
+**Deploy state:** BOTH programs byte-match the committed build on devnet —
+`scripts/verify-deployed.sh` dumps each on-chain ELF and sha256-compares it
+against `target/deploy/*.so` (zero-padding tail stripped; byte-identical,
+not just "deployed"). sealed was re-upgraded 2026-10-09 (sig `9CzVxVEo…`,
+sha256 `07a485a8…`) carrying the zero-viewer/author-key rejects; the
+~1,100-tx buffer was written by `scripts/write-buffer-resumable.mjs` — a
+paced, self-healing chunked writer built because free-tier RPC caps kill
+the CLI's all-or-nothing retries. market was upgraded 2026-10-04 (sig
+`Tpm5oyQd…`, sha256 `2fe71722…`) carrying the `resolve_ladder` insta-cancel
+fix, `post_reveal` stamping, `unbrick_pda`, `DeadlineTooFar`,
+`BountyExpired.refunded_lamports`, and the empty-pool `expire_dark`
+fast-path. The remaining devnet caveat is the Arcium callback outage
+(below).
 
 ## Verified on localnet (arcium localnet, cluster offset 0)
 

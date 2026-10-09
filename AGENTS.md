@@ -354,6 +354,15 @@ parimutuel markets resolved from `Run.correct`.
   MATCH (sealed 2026-10-03, market 2026-10-04). If a rebuild ever needs
   redeploy: `scripts/deploy-market-retry.sh` loops it — run detached with
   setsid or the wsl -d teardown kills it.
+- `node scripts/write-buffer-resumable.mjs <elf.so> --buffer <pubkey>
+  [--pace ms] [--chunk bytes]` → the rate-limit-proof deploy path: diffs
+  the on-chain buffer against the local ELF, resumes at the first
+  mismatching chunk boundary, and writes ~1KB `Write` instructions at a
+  deliberate pace instead of the CLI's bursty all-or-nothing retries
+  (which die "Max retries exceeded" under free-tier per-IP caps). Needs a
+  pre-created buffer account (`solana program write-buffer` creates one
+  on any attempt — reuse its keypair file from /tmp). Finalize with
+  `solana program deploy --buffer <pk> --program-id <keypair>`.
 
 ## Gotchas
 
