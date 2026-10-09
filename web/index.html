@@ -45,6 +45,8 @@
   .footer { color:var(--dim); font-size:12px; margin-top:28px; }
   .proof { color:var(--dim); font-size:12px; margin-top:8px; }
   .top1 td { color:var(--acc); }
+  .calanswer { filter:blur(4px); } .calanswer.on { filter:none; }
+  .qin { background:var(--card); border:1px solid var(--line); color:var(--fg); padding:2px 6px; border-radius:5px; }
   .top1 .score { text-shadow:0 0 10px rgba(78,240,168,.45); }
   .top2 td:first-child, .top3 td:first-child { color:var(--warn); }
   .statcard { display:flex; gap:24px; flex-wrap:wrap; padding:12px 18px; }
@@ -1278,6 +1280,7 @@ function renderAll(sealedAccs, marketAccs) {
   // canonical reply, and the match bit, next to the MPC-written total. ----
   if (benches.some(b => b.id === 77007)) {
     h += `<h2 id="sec-cal">calibration specimen — the exam in the open</h2>
+      <div class="card" id="calquiz"></div>
       <div class="card" id="calspec"><div class="kv">loading the public calibration bundle…</div></div>`;
   }
 
@@ -2128,6 +2131,79 @@ async function replayItems(benchPk, el) {
   } catch (e) { out.innerHTML = `<span class="kv" style="font-size:11px;color:var(--err)">${esc(e.message)}</span>`; }
 }
 
+// The canonicalizer, ported 1:1 from packages/harness/src/canonical.ts — the
+// same rules the item author and the runner both apply before hashing, so a
+// judge's typed answer lands on the same fingerprint the MPC compared.
+const MARKER_RE = /answer\s*:/gi;
+function extractFinalJS(raw) {
+  const text = String(raw).replace(/\r/g, "");
+  let last = -1;
+  for (const m of text.matchAll(MARKER_RE)) last = m.index + m[0].length;
+  if (last >= 0) {
+    const tail = text.slice(last);
+    return tail.split("\n").find((l) => l.trim().length > 0) ?? "";
+  }
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  return lines.length ? lines[lines.length - 1] : "";
+}
+function normalizeAnswerJS(s) {
+  let t = s.trim();
+  t = t.replace(/^```[a-z]*\s*|\s*```$/g, "");
+  t = t.replace(/\*\*|__|`/g, "").trim();
+  const wraps = [['"', '"'], ["'", "'"], ["(", ")"], ["[", "]"], ["{", "}"]];
+  for (const [l, r] of wraps) {
+    if (t.length >= 2 && t.startsWith(l) && t.endsWith(r)) { t = t.slice(1, -1).trim(); break; }
+  }
+  t = t.replace(/[.。]+$/g, "").trim().toLowerCase();
+  t = t.replace(/\s+/g, " ").replace(/\s*,\s*/g, ",");
+  const intish = t.replace(/[,_\s]/g, "");
+  if (/^[+-]?\d+$/.test(intish)) {
+    const neg = intish.startsWith("-");
+    const digits = intish.replace(/^[+-]/, "").replace(/^0+(?=\d)/, "");
+    return digits === "0" ? "0" : (neg ? "-" : "") + digits;
+  }
+  return t;
+}
+const canonicalAnswerJS = (raw) => normalizeAnswerJS(extractFinalJS(raw));
+
+// "take the sealed exam yourself" — N blind items from the public calibration
+// bank; your typed answer runs through the same canonicalizer + sha256 domain
+// tag as the models' outputs, and the fingerprint is compared against the
+// on-chain Reveal hash — not against our printed plaintext.
+function renderCalQuiz(cb, modelCols) {
+  try {
+    const box = document.getElementById("calquiz");
+    if (!box || !cb?.items?.length) return;
+    const picks = cb.items.filter((_, i) => i % Math.ceil(cb.items.length / 8) === 0).slice(0, 8);
+    box.innerHTML = `<div class="kv" style="margin-bottom:6px"><b>take the sealed exam yourself</b> — ${picks.length} items, blind. Your reply goes through the same canonicalizer and the same <span class="mono">sealed/v1/answer</span> fingerprint the MPC circuit used; a match lands on the on-chain reveal hash, not on our word. (The printed answers below stay blurred until you score — the hash doesn't care if you peek, but the models couldn't.)</div>` +
+      picks.map((it) => `<div class="kv" style="margin:3px 0"><span class="mono" style="font-size:10px">#${it.index} ${esc(it.family)}</span> ${esc(it.prompt.length > 110 ? it.prompt.slice(0, 110) + "…" : it.prompt)} <input class="qin" id="qin-${it.index}" style="width:150px;font:inherit;font-size:11px" placeholder="your answer"></div>`).join("") +
+      `<div style="margin-top:6px"><button id="calquizgo" onclick="window.__calquizgo && window.__calquizgo()">score me under the MPC fingerprint</button> <span id="calquizres" class="kv"></span></div>`;
+    window.__calquizgo = async () => {
+      const D_ANS = utf8("sealed/v1/answer\0");
+      const trunc64 = (u8) => new DataView(u8.buffer, u8.byteOffset).getBigUint64(0, true);
+      const reveal = new Map();
+      const bench = window.__audit?.benches?.find(b => b.id === cb.benchmarkId);
+      if (bench) for (const r of window.__audit.reveals.filter(x => x.bench === bench.pk))
+        r.hashes.forEach((hh, j) => reveal.set(r.chunk * 32 + r.part * 8 + j, BigInt("0x" + hh)));
+      let hit = 0, sealed = 0;
+      const res = [];
+      for (const it of picks) {
+        const inp = document.getElementById("qin-" + it.index);
+        const canon = canonicalAnswerJS(inp && inp.value || "");
+        const fp = trunc64(await sha(cat(D_ANS, u32le(cb.benchmarkId), u32le(it.index), utf8(canon))));
+        const onchain = reveal.get(it.index);
+        const ok = onchain !== undefined && fp === onchain;
+        if (ok) hit++;
+        if (onchain !== undefined) sealed++;
+        res.push(`<span class="mono" style="font-size:10px">#${it.index}</span> ${ok ? `<span class="pill resolved">✓ fp ${short0x(fp)} == on-chain</span>` : `<span class="pill">✗</span> <span class="muted" style="font-size:10px">${esc(canon || "—")}</span>`}`);
+      }
+      (document.querySelectorAll ? document.querySelectorAll(".calanswer") : []).forEach(el => el.classList.add("on"));
+      const mn = modelCols.map(m => `${m.name} <b>${m.run ? m.run.correct : "?"}</b>/${cb.items.length}`).join(" · ");
+      document.getElementById("calquizres").innerHTML = `you: <b>${hit}/${picks.length}</b> under the sealed fingerprint (${sealed} checked against on-chain reveals) — vs ${mn}<br><span style="font-size:10px">${res.join(" · ")}</span><br>answers unblurred below. A correct guess's fingerprint equals the on-chain sealed hash — the check is real, not a lookup.`;
+    };
+  } catch { /* stub DOMs without input elements just skip the quiz */ }
+}
+
 // The calibration specimen — renders the authored bank whose plaintext
 // answers ship in the repo (public on purpose): every prompt, the canonical
 // answer, the model's canonical reply, and the recomputed match bit. The
@@ -2158,6 +2234,7 @@ async function loadCalibrationSpecimen() {
     if (bench) for (const r of A.reveals.filter(x => x.bench === bench.pk))
       r.hashes.forEach((h, j) => revealHashes.set(r.chunk * 32 + r.part * 8 + j, BigInt("0x" + h)));
     const modelCols = cas.map((ca) => ({ ca, run: runOf(ca), name: esc(ca.model.length > 24 ? ca.model.slice(0, 24) : ca.model) }));
+    renderCalQuiz(cb, modelCols);
     let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${cb.benchmarkId}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). ${modelCols.map(m => `<b>${m.name}</b> → MPC wrote <b>${m.run ? m.run.correct : "?"}/${cb.items.length}</b>`).join(" · ")}. The fingerprint column is the on-chain value the enclave compared against.</div>`;
     h += `<div style="overflow-x:auto"><table><tr><th>#</th><th>family</th><th>prompt</th><th>canonical</th>${modelCols.map(m => `<th>${m.name}</th>`).join("")}<th>fingerprint == on-chain</th></tr>`;
     const indep = cas.map(() => 0);
@@ -2176,7 +2253,7 @@ async function loadCalibrationSpecimen() {
       if (cas.length > 1) { if (hitCount === cas.length) agree.both++; else if (hitCount === 0) agree.neither++; else agree.only[sole]++; }
       h += `<tr><td>${it.index}</td><td class="mono" style="font-size:10px">${esc(it.family)}</td>
         <td style="font-size:11px;max-width:340px">${esc(it.prompt.length > 140 ? it.prompt.slice(0, 140) + "…" : it.prompt)}</td>
-        <td class="mono score">${esc(it.answer)}</td>${cells}
+        <td class="mono score calanswer">${esc(it.answer)}</td>${cells}
         <td>${hashOk ? `<span class="kv" style="color:var(--acc)">✓ ${short0x(myHash)}</span>` : onchain === undefined ? `<span class="kv">sealed</span>` : `<span class="pill open">MISMATCH</span>`}</td></tr>`;
     }
     h += `</table></div><div class="kv" style="margin-top:6px">` +
@@ -4167,7 +4244,7 @@ const TOUR_STOPS = [
   ["sec-h2h", "the tournament grid — who beat whom on shared banks, signed deltas"],
   ["sec-runs", "the substrate — 503 MPC-scored runs, filterable; post-reveal runs are flagged, not hidden"],
   ["sec-grants", "the disclosure trail — every viewer who can see exam questions; answers never move"],
-  ["sec-cal", "the exam itself, replayed in your browser — two real models, item by item"],
+  ["sec-cal", "the exam itself, replayed in your browser — two real models item by item, and you can sit it yourself under the same fingerprint"],
   ["sec-sentiment", "what the stakes believe — conviction pooled per model"],
   ["sec-divergence", "where the money disagrees with the receipts"],
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],

@@ -609,6 +609,7 @@ const megaOk = megaStages === 4 && /EVERYTHING VERIFIED/.test(megaHtml) &&
   /142/.test(els.get("bundleres")?.innerHTML ?? "") &&
   /decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml);
 console.log(`in-page PROVE EVERYTHING — 4 stages cascade to the scoreboard, sealed exam decrypted ${megaOk ? "PASS" : "FAIL"}`);
+if (!megaOk) console.log(`  mega detail — stages=${megaStages}/4, scoreboard=${/EVERYTHING VERIFIED/.test(megaHtml) ? "green" : "blocked"}, bundleres_142=${/142/.test(els.get("bundleres")?.innerHTML ?? "")}, dec=${/decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml)}`);
 if (!megaOk) fails++;
 // the copyable verdict — the root recomputed in-page must appear on it.
 // (the stub DOM never parses innerHTML into elements — read megares raw)
