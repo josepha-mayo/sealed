@@ -42,7 +42,7 @@ jobs:
         run: node scripts/freshness.mjs
       - name: calibration rescore (recompute the MPC's arithmetic offline)
         run: node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json --run docs/evidence/calibration/run-artifact.json --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp --snapshot web/snapshot.json
-      - name: artifact replay — all 138 committed artifacts re-verify in one pass
+      - name: artifact replay — all 142 committed artifacts re-verify in one pass
         run: yarn --cwd packages/harness -s cli chain artifact ../../docs/evidence --recursive --snapshot ../../web/snapshot.json
       - name: bundle fingerprint — every manifest-pinned byte re-hashed
         run: yarn --cwd packages/harness -s cli chain fingerprint

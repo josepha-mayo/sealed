@@ -1074,9 +1074,9 @@ function renderAll(sealedAccs, marketAccs) {
         <td class="kv">${fmtTs(e.r.finalizedAt)}</td></tr>`;
     });
     h += `</table></div>`;
+    if (finalized.some(r => r.modelId === "openai"))
+      h += `<div class="kv" style="margin-top:4px"><code>openai</code> is the Pollinations anonymous-tier route name for <b>gpt-oss-20b</b> — a self-reported model id string, not a brand claim. The <code>attested ✓</code> pill is what carries weight: it means the benchmark authority signed this run.</div>`;
   }
-
-  // ---- persistent model capability records: cumulative MPC-scored aggregates ----
   if (modelRecords.length) {
     const vouchedBy = new Map();
     const postRevBy = new Map();

@@ -17,8 +17,8 @@ AI capability claims are unverifiable. Labs self-report benchmark scores on
 datasets that leak into training data — SWE-bench was effectively retired over
 contamination, and OpenAI keeps a private FrontierMath subset it both funds and
 exclusively accesses. Prediction markets already trade on model scores
-(Polymarket's FrontierMath markets) but resolve against a single conflicted
-party's leaderboard. Every trusted party in the eval loop — the item author,
+(benchmark-outcome markets have run on Polymarket) but resolve against a
+single conflicted party's leaderboard. Every trusted party in the eval loop — the item author,
 the benchmark operator, the scoring harness, the leaderboard — can leak the
 data or rig the number. There is no credibly neutral referee for what a model
 can do. Today, a lab claiming "our 7B beats the frontier" must either
@@ -101,9 +101,10 @@ receive the exam through selective disclosure — they can be scored on
 questions that were never public while the answer key remains cluster-sealed.
 Adjacent: insurers, auditors, and DAOs pricing AI capability risk. The
 demand side is proven: prediction venues cleared ~$63.5B notional in 2025
-(4x YoY; Kalshi ~$23B and Polymarket ~$22B of it) — and AI-category
-markets already trade, all of them resolving on truth a human holds. The
-eval supply side is ~$1.2B (2024) growing toward ~$9.7B by 2033 — labs
+(4x YoY; Kalshi ~$23B and Polymarket ~$22B of it — public reported
+volumes) — and AI-category markets already trade, all of them resolving
+on truth a human holds. The eval supply side is ~$1.2B (2024) growing
+toward ~$9.7B by 2033 (public market-research estimates) — labs
 pay for scores they still cannot prove. Sealed is where both converge —
 every future claim about what a model can do is addressable market
 surface.
@@ -129,8 +130,9 @@ referee is infrastructure, not a vendor.
 
 ## competitiveLandscape
 
-Melee hides your position; Bench hides your stake; Pythia, Epoch and
-Flew hide your bets; Sealed hides the truth itself — the market settles
+Melee hides your position; Bench hides your stake; Pythia, Epoch (the
+Cypherpunk market project — not Epoch AI) and Flew hide your bets;
+Sealed hides the truth itself — the market settles
 on an answer no human ever possessed. The other Arcium-market projects encrypt
 user inputs and resolve ordinary opinion events; Sealed's differentiator
 is that the *resolution truth* is confidential until computed — insider
@@ -160,22 +162,21 @@ inference (Arcium Blackthorn) matures, the runner's outputs can be sealed
 end-to-end: questions, answers, and model replies all inside the encryption
 boundary.
 
-## teamBackground (facts need your sign-off — the copy below is paste-ready)
+## teamBackground
 
 ```
 Joseph Mayo — solo build, end to end: two Anchor programs (sealed +
 market, both upgradeable, both deployed and byte-verified on devnet),
 the Arcium MPC circuits, the TypeScript harness and judge tooling, and
 the hosted explorer. Built Sealed after watching model evaluations
-collapses into "trust our numbers" — every benchmark that matters runs
+collapse into "trust our numbers" — every benchmark that matters runs
 behind closed weights, closed sets, or closed ledgers. The thesis this
 project tests: the ledger itself can be the evaluator, so the evidence
 outlives the pitch.
 ```
 
-If solo, keep the same shape for yourself — one tight paragraph beats a
-thin list. If any prior code was reused (harness patterns, explorer),
-disclose it in the form's prior-work field — allowed but must be declared.
+<!-- If any prior code was reused (harness patterns, explorer), disclose it
+     in the form's prior-work field — allowed but must be declared. -->
 
 ## demoVideo / publicDemo
 

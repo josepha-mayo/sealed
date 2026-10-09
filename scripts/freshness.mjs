@@ -46,6 +46,23 @@ const countTests = (f) => (readFileSync(f, "utf8").match(/^\s*(?:it|test)\(/gm) 
 truth.unit = countTests("packages/harness/test/harness.test.ts");
 truth.e2e = countTests("tests/sealed.ts");
 
+// page/bundle-derived constants — a doc quoting the tour length, the forge
+// lab's attack count, the tamper-exhibit count, or the pinned-file total
+// goes stale the moment index.html or docs/evidence moves. Count them from
+// the sources, never a hardcoded number.
+const page = readFileSync("web/index.html", "utf8");
+const stopsBlock = page.match(/const TOUR_STOPS = \[([\s\S]*?)\];/)?.[1] ?? "";
+truth.tourStops = (stopsBlock.match(/^\s*\["/gm) || []).length;
+const forgeBlock = page.match(/const FORGE_DEFS = \{([\s\S]*?)\n\};/)?.[1] ?? "";
+truth.forgeAttacks = (forgeBlock.match(/^\s{2}\w+:/gm) || []).length;
+truth.exhibits = readdirSync("docs/evidence/tamper").filter((f) => f !== "index.json").length;
+truth.pinned = readFileSync("docs/evidence/SHA256SUMS", "utf8").trim().split("\n").length
+  + readFileSync("web/MANIFEST", "utf8").trim().split("\n").length;
+truth.catalog = JSON.parse(readFileSync("docs/evidence/artifacts.json", "utf8")).count;
+truth.artifacts = truth.catalog + 1; // replayed total = listed artifacts + the catalog itself
+if (!truth.tourStops || !truth.forgeAttacks || !truth.exhibits || !truth.pinned || !truth.catalog)
+  throw new Error("freshness: a derived constant came back empty — page structure drifted");
+
 // Anchored claims. Each: [regex, expected]. Only numbers written in these
 // exact phrasings are checked — everything else is ignored on purpose.
 const claims = [
@@ -61,15 +78,23 @@ const claims = [
   [/(\d+)\s+grants\b/g, truth.grants],
   [/(\d+)\s+reveals?\b/g, truth.reveals],
   [/(\d+)\s+resolutions/g, truth.resolutions],
-  // bundle-wide totals: "138 committed artifacts" / "replay all 138
-  // artifacts" / "351 manifest-pinned files" — the catalog's own
-  // "137 artifact(s)" count uses the artifact\(s\) phrasing and is
-  // intentionally NOT matched (it excludes the catalog itself).
-  [/all\s+(\d+)\s+(?:committed\s+)?artifacts?\b|(\d+)\s+committed\s+artifacts?\b/g, 142],
-  [/(\d+)\s+(?:manifest-)?pinned\s+files?\b/g, 359],
-  // spelled-out guided-tour stop count ("twenty-four captioned stops"
-  // in the hero; "all twenty-four stops" in judges.md)
-  [/(twenty-\w+|thirty-\w+|\d+)\s+stops\b/g, 24],
+  // artifact replay total (catalog entries + the catalog itself):
+  // "all 142 artifacts", "All 142 artifact cards", "142 replayed",
+  // "142 committed artifacts" — matched case-insensitively.
+  [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifacts?\s+replayed\b|(\d+)\s+replayed\b/gi, truth.artifacts],
+  // the catalog's own line: "141 artifact(s)" — excludes itself
+  [/(\d+)\s+artifact\(s\)\b/g, truth.catalog],
+  // tamper exhibits: "15 tamper exhibits", "15× sealed-tamper/v1"
+  [/(\d+)\s+(?:committed\s+)?(?:tamper\s+)?exhibits?\b|(\d+)×\s+sealed-tamper/gi, truth.exhibits],
+  // pinned bytes: "359 manifest-pinned files", "all 359 pinned bytes",
+  // "359/359 file(s)"
+  [/(\d+)\s+(?:manifest-)?pinned\s+(?:files?|bytes)\b|all\s+(\d+)\s+pinned\s+bytes\b|(\d+)\/\3\s+file/gi, truth.pinned],
+  // forgery lab: "13 canned forgeries", "13/13 attacks died",
+  // "all thirteen attacks", "12 forgery attacks"
+  [/(\d+)\s+canned\s+forgeries|forgeries\s+(\d+)\/\4|(\d+)\s+forgery\s+attacks?\b|(\d+)\/(\d+)\s+attacks?\b/gi, truth.forgeAttacks],
+  // spelled-out or numeric guided-tour stop count ("twenty-five captioned
+  // stops" in the hero; "all twenty-five stops" in judges.md)
+  [/(twenty-\w+|thirty-\w+|eleven|twelve|thirteen|fourteen|fifteen|\d+)\s+(?:captioned\s+)?stops\b/gi, truth.tourStops],
   // test-suite tallies: "67/67 unit", "46/46 unit tests", "17/17 mocha",
   // "unit-tested N/N" — N must equal itself AND the counted suite size
   [/(\d+)\/\1\s+(?:harness\s+)?(?:unit|suite)\b/g, truth.unit],
@@ -77,9 +102,11 @@ const claims = [
 ];
 
 const WORDS = {
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
   "twenty-one": 21, "twenty-two": 22, "twenty-three": 23, "twenty-four": 24,
   "twenty-five": 25, "twenty-six": 26, "twenty-seven": 27, "twenty-eight": 28,
-  "twenty-nine": 29,
+  "twenty-nine": 29, thirty: 30, "thirty-one": 31, "thirty-two": 32,
 };
 const files = ["README.md", ...readdirSync("docs").filter((f) => f.endsWith(".md")).map((f) => `docs/${f}`)];
 let bad = 0;

@@ -158,7 +158,7 @@ deadline.
 - Close: "Other submissions ask you to trust a folder of screenshots.
   Ours ends in a sha256 — timestamped on Solana itself."
 
-## Update 3 — "the business model is evidence too" (record second)
+## Update 6 — "the business model is evidence too" (record second)
 
 - 15s: the copyable verdict now ends in a money row — `?mega=1` →
   69.69 SOL settled on MPC scores · 1.731 SOL already charged in bank

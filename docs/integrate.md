@@ -74,7 +74,7 @@ const [scoreLog] = PublicKey.findProgramAddressSync(
 );
 ```
 
-The browser explorer (`explorer/index.html`) does exactly this — reads any
+The browser explorer (`web/index.html`) does exactly this — reads any
 RPC, verifies Merkle proofs against `Run.outputs_root` in-browser, zero
 trust in the host.
 
@@ -98,10 +98,6 @@ That is the composability claim made executable: a venue that did not exist
 when the score was written settles on it correctly — because `Run.correct`
 was written by the MPC cluster, not by anyone you need to trust. The harness
 suite pins the example so a layout change fails CI, not the story.
-
-For real accounts (not the snapshot), the same reads work against
-`getProgramAccounts` filtered by `memcmp(offset=0, sha256("account:Run")[:8])`
-— plus the owner check every account comes with.
 
 For real accounts (not the snapshot), the same reads work against
 `getProgramAccounts` filtered by `memcmp(offset=0, sha256("account:Run")[:8])`

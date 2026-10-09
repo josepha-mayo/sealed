@@ -217,11 +217,17 @@ gaps in the verifiers, not just in the programs:
   the count, but the emitted string was literal. Now the artifact total
   is parsed back from the replay output; the verdict counts itself, so
   it can't drift again. Same fix class for og:description + buttons.
-- **Spelled-out counts evaded the freshness gate.** freshness.mjs pins
+- **Spelled-out counts evaded the freshness gate.** freshness.mjs pinned
   `(\d+)` claims; "eleven sealed-tamper cards" / "twelve canned attacks"
-  / "351 pinned bytes" lived in prose the gate never saw. Swept by hand;
-  a word-number claim rule would catch the class (WORDS map exists for
-  the tour-stop count).
+  / a stale pinned-bytes figure lived in prose the gate never saw — and
+  the gate itself hardcoded the tour-stop and artifact totals it was
+  supposed to enforce. Fixed properly: the gate now *derives* the tour
+  stop count, FORGE_DEFS attack count, tamper-exhibit count, catalog
+  count, and pinned-file total from the sources (index.html, the tamper
+  dir, both manifests, artifacts.json), matches `all`/`ALL`
+  case-insensitively, and covers the "replayed", "artifact cards",
+  "artifact(s)", "exhibits", and "pinned bytes" phrasings plus the
+  spelled-out words (WORDS map extended to eleven–thirty-two).
 - **No repo-side differentiation vs the Arcium market cohort.** The
   README trust table compared to HELM/Kalshi but never named Pythia,
   Epoch, or Bench — the exact projects a Cypherpunk judge pattern-

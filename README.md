@@ -11,13 +11,19 @@ Sealed is a referee for AI-capability claims. Benchmark items can be **minted in
 
 It already caught a cheat: a run claiming 64/64 was scored **1/64** by the cluster — the chain never trusts self-reported numbers.
 
+**Not another private market:** other Arcium market projects (Pythia, Epoch, Bench) hide what users *bet*. Sealed hides the *truth the market resolves on* — the answer key and the scoring itself.
+
 Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
 Why this *has* to be Arcium MPC — and not ZK, TEE, or hashed answers —
 is argued in [docs/arcium.md](docs/arcium.md).
 
 > ## Judge it yourself — pick your depth
 >
-> - **8 seconds, zero setup:** [josepha-mayo.github.io/sealed/**?mega=1**](https://josepha-mayo.github.io/sealed/?mega=1) — one click: **the sealed exam decrypts in your browser**, all 142 proof files replay, 13 canned forgeries die at the exact check that kills them, every account address is recomputed from scratch — ending on a copyable verdict: `EVERYTHING VERIFIED`.
+> - **8 seconds, zero setup:** [josepha-mayo.github.io/sealed/**?mega=1**](https://josepha-mayo.github.io/sealed/?mega=1) — one click runs the whole thing:
+>   - **the sealed exam decrypts in your browser** (the ciphertext-only private bank, via the committed throwaway delegate key),
+>   - **all 142 proof files replay** — every PDA re-derived, every venue re-resolved,
+>   - **13 canned forgeries die** at the exact check designed to kill them —
+>   ending on a copyable verdict block: `EVERYTHING VERIFIED`, with the one-hash bundle root and its devnet anchor.
 > - **60 seconds, no clone:** `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — one downloaded Python file (stdlib only, nothing to install) re-hashes every file in the bundle off the *hosted site*, re-derives every account address itself, and lands on the same hash notarized on devnet.
 > - **10 minutes, full depth:** [docs/judges.md](docs/judges.md) — the rubric-mapped path: rescore the MPC's own arithmetic, run the forgery lab yourself, decrypt the private exam three ways.
 >
@@ -41,13 +47,13 @@ is argued in [docs/arcium.md](docs/arcium.md).
 >
 > **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/29xQkqaTU6au3cXkxwozMgMnueN7GrA57i2sZAEgJ5Ar5xsd7rMUeHavGngTLe2WybtVctjgmo2XoayAxc9yZS4W?cluster=devnet) — all three clickable, all verifiable by anyone.
 >
-> **Honest status:** the full loop is proven end-to-end on Arcium localnet and both programs are byte-verified on devnet; the shared devnet MPC cluster is currently withholding callbacks (a probe ran 40 attempts over 7.5h — disclosed in [docs/judges.md](docs/judges.md)). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
+> **Honest status:** the full loop is proven end-to-end on Arcium localnet and both programs are byte-verified on devnet; the shared devnet MPC cluster is currently withholding callbacks (a probe ran 40 attempts over 7.5h — disclosed in [docs/submission.md](docs/submission.md)'s devnet note). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
 >
 > **The numbers behind it:** **503 scored runs · 340 settled venues · 4 real open-weights models · 142 replayable proof artifacts · 292 on-chain score receipts** — every figure on this page re-derives from raw account bytes; the freshness gate fails CI if a doc drifts from the bundle.
 >
-> **Judge shortcut:** [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever — its **forgery lab** lets you run the attack yourself: forge a +1 score, swap the #1 rank, mint a phantom receipt — every forgery dies at a named check. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
+> **Judge shortcut:** [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
 >
-> The rescore step (inside `--all`, or standalone via `scripts/rescore.mjs`) is the one most submissions can't run: plaintext answers for one deliberately-public bank are in the repo, so the script recomputes every answer fingerprint, checks them against the on-chain reveals, re-binds the run's commitment, and recounts — **identical to what the MPC cluster wrote**. The explorer's calibration card renders the same exam side-by-side for two models (7/32 vs 2/32) with per-item discrimination — and [lets *you* sit the exam blind](https://josepha-mayo.github.io/sealed/?quiz=1): type answers, and your browser grades them under the exact `sealed/v1/answer` fingerprint the MPC circuit used, against the on-chain reveal hashes.
+> Most submissions can't offer this step at all: plaintext answers for one deliberately-public bank are in the repo, so `scripts/rescore.mjs` recomputes every answer fingerprint, checks them against the on-chain reveals, and recounts — **identical to what the MPC cluster wrote** (7/32 vs 2/32 for two real models). Or [sit the exam yourself](https://josepha-mayo.github.io/sealed/?quiz=1): the page grades *your* typed answers under the exact `sealed/v1/answer` fingerprint the MPC used, against the on-chain reveal hashes.
 
 [![EVERYTHING VERIFIED — the in-page audit's copyable verdict, rendered from real output](docs/verified.svg)](https://josepha-mayo.github.io/sealed/?mega=1)
 

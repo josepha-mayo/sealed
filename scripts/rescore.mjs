@@ -18,7 +18,7 @@
 //   node scripts/rescore.mjs --bank ... --run ... --benchmark ... --snapshot web/snapshot.json
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
@@ -74,7 +74,10 @@ console.log(`bank id=${bank.benchmarkId} items=${bank.items.length}  artifact mo
 // ---------- fetch accounts (RPC or snapshot bundle) ----------
 let accounts = new Map(); // pubkey -> Buffer
 if (args.snapshot) {
-  const snap = JSON.parse(readFileSync(join(ROOT, args.snapshot), "utf8"));
+  // cwd-relative wins over repo-root-relative so `web/snapshot.json` works
+  // identically from the repo root and from packages/harness
+  const snapPath = existsSync(args.snapshot) ? args.snapshot : join(ROOT, args.snapshot);
+  const snap = JSON.parse(readFileSync(snapPath, "utf8"));
   for (const a of [...(snap.sealed ?? []), ...(snap.market ?? []), ...(snap.accounts ?? [])])
     accounts.set(a.pubkey, Buffer.from(a.data, "base64"));
   note("source", `snapshot bundle (${accounts.size} accounts)`);

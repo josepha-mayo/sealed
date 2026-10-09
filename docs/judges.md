@@ -33,7 +33,7 @@ the cluster; only the count leaves it — and markets settle on that count direc
 - **Unseen exam**: the 1.5b scored **8/32 on a private bank** read only through `reshare_part` grants (`7S9ZmxrT…`, `unseen-local.txt`).
 - **Double-sealed**: private bank `8HHm4HgA…` (specs ciphertext-only) hosted a dark market `7TVjSaFD…` on the 3b's pending run — exam sealed + positions sealed + MPC score — resolved `>=5` on 5/32 with a sealed forfeit; a full-book score-band `497kuApd…` resolved `1–7` on the 0.5b's 2/32; a live `all_backed` cancel `H3RGMd3N…` refunded gross (`dark-local.txt`, `band-local*.txt`).
 - **A real bounty claim**: sponsor escrowed **0.1 SOL against "first proven run ≥ 6/32"** — an independent runner keypair ran qwen2.5-3b for real (local pre-score 7/32, MPC-agreed 7/32) and the permissionless claim paid the operator, while the 1.5b's honest 2/32 sat below threshold on the same bank (`real-bounty.txt`). A second real-model band resolved bucket-0 on llama-3.2-1b's MPC-confirmed **0/32** — the exam flunking a model is evidence too.
-- **The anti-cheat boundary**: gpt-oss-20b runs — 64/64 on MPC-minted bank 6932 (`HW5H5bT7…`), 64/64 on authored 25864 (`4uns99WD…`), and a stale-artifact claim scored **1/64** (`3CKnMa8X…`), plus 32/32 on grant-only private material — the chain doesn't care what your artifact claims.
+- **The anti-cheat boundary**: gpt-oss-20b runs — 64/64 on MPC-minted bank 6932 (`HW5H5bT7…`), 64/64 on authored 25864 (`4uns99WD…`), and a stale-artifact claim scored **1/64** (`3CKnMa8X…`), plus 32/32 on grant-only private material (`9nfKSXnM…` — post-wipe ledger, evidence notes only) — the chain doesn't care what your artifact claims.
 
 ## Reproduction & deep-dive — pick your depth
 
@@ -94,7 +94,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   (counts, bundle root, anchor state) you can paste straight into
 #   review notes.
 #   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
-#   demos itself: an auto-walk through all twenty-four stops with one-line
+#   demos itself: an auto-walk through all twenty-five stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   TERMINAL: bash scripts/judge-demo.sh — the 90-second keyless audit
 #   (verify.py → all 142 artifacts → forgery lab → tamper exhibits →
@@ -152,7 +152,7 @@ node scripts/rescore.mjs --bank docs/evidence/calibration/bank.json \
   --run docs/evidence/calibration/run-artifact.json \
   --benchmark CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp \
   --run-pubkey GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
-  --snapshot ../../web/snapshot.json      # 7 PASS / 0 FAIL — no RPC needed
+  --snapshot web/snapshot.json            # 7 PASS / 0 FAIL — no RPC needed
 
 # 3e. replay the CLI's own read surfaces off the committed bundle —
 #     keyless, connection-free: the same commands judges would run
@@ -346,11 +346,11 @@ yarn --cwd packages/harness cli chain grant --verify \
 #     which artifact.
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
   --snapshot ../../web/snapshot.json
-#         → ALL ARTIFACTS VERIFIED — 138 replayed, 28 skipped ·
+#         → ALL ARTIFACTS VERIFIED — 142 replayed, 28 skipped ·
 #           31× claim, 73× match, 3× policy, 4× report, 4× trail,
 #           3× bank, 2× position, 2× bounty, 2× grant,
 #           1× evidence-digest, 1× board, 1× catalog,
-#           11× sealed-tamper/v1 — the lie exhibit
+#           15× sealed-tamper/v1 — the lie exhibit
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
@@ -371,7 +371,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     a named check (aggregates · ranking · snapshot binding · verdict
 #     replay · receipt PDAs · pool accounting · counts · run surface ·
 #     completeness · stake binding · account binding · grant PDA). The
-#     headless audit pins all twelve.
+#     headless audit pins all thirteen.
 
 # 3r. THE LIE EXHIBIT — we committed the forgeries themselves.
 #     docs/evidence/tamper/ holds fifteen sealed-tamper/v1 cards — each
@@ -416,10 +416,10 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snap
 #     materializes in-page, decrypted by the committed throwaway
 #     delegate key (questions only — answers never move). CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
-#         → CATALOG COMPLETE — 137 artifact(s), every sealed-*/v1 file listed
-#           (the catalog doesn't list itself — 137 entries + the index = 138)
+#         → CATALOG COMPLETE — 141 artifact(s), every sealed-*/v1 file listed
+#           (the catalog doesn't list itself — 141 entries + the index = 142)
 yarn --cwd packages/harness cli chain fingerprint
-#         → re-hash check PASS — 351/351 · BUNDLE ROOT <64-hex sha256>
+#         → re-hash check PASS — 359/359 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 
@@ -547,7 +547,7 @@ node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
 |---|---|---|---|
 | Bundle integrity — 359 pinned files → one BUNDLE ROOT | `chain fingerprint` | auto-audit §bundle | `verify.py` §1–3 |
 | PDA custody — every account re-derives, vaults provably keyless | `artifact --verify` | audit §PDA | `verify.py` §5–8 |
-| All 138 artifact cards replay | `artifact --recursive` | `?mega=1` cascade | `verify.py` §9–17 |
+| All 142 artifact cards replay | `artifact --recursive` | `?mega=1` cascade | `verify.py` §9–17 |
 | MPC score arithmetic (fingerprints → Reveals → outputs_root → recount) | `rescore.mjs` | audit §calibration | `verify.py --rescore` |
 | Selective disclosure — grants decrypt, ciphertext round-trips | `decrypt-grants-test` | ⑤ read the sealed exam | `verify.py --decrypt` |
 | Forgeries die at named checks | `artifact --tamper` | forgery lab + forge-your-card | `verify.py --tamper` |
