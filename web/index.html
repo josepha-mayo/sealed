@@ -2769,6 +2769,13 @@ async function megaAudit() {
     `artifacts     all ${bTotal} replayed · ${bPass} kind-groups pass`,
     `forgeries     ${caught}/${forgedN} attacks died at named checks`,
     `sealed exam   ${dOk ? "decrypted in-browser — answers stayed MPC-held" : "not decrypted"}`,
+    ...(window.__audit ? [(() => { const A = window.__audit, n2 = x => Number(x ?? 0);
+      const moved = A.markets.filter(m => m.status === 1).reduce((s, m) => s + (m.totals ?? []).reduce((a, t) => a + n2(t), 0), 0)
+        + A.ladders.filter(l => l.status === 1).reduce((s, l) => s + (l.totals ?? []).reduce((a, t) => a + n2(t), 0), 0)
+        + A.darkMarkets.filter(d2 => d2.status === 1).reduce((s, d2) => s + n2(d2.poolTotal), 0)
+        + A.bounties.reduce((s, b) => s + n2(b.amount), 0);
+      const bankFees = A.benches.reduce((s, b) => s + n2(b.feeLamports) * n2(b.runCount), 0);
+      return `money         ${(moved / 1e9).toFixed(2)}◎ settled on MPC scores · ${(bankFees / 1e9).toFixed(3)}◎ bank run-fees charged`; })()] : []),
     `re-run        ${pageBase}?mega=1`,
     ...(window.__lastRoot ? [`proof link    ${pageBase}?root=${window.__lastRoot} — the page re-checks this claim on open`] : []),
   ].join("\n");

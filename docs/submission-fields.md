@@ -110,23 +110,22 @@ surface.
 
 ## businessModel
 
-Per-run fees are live on-chain today (`create_run` transfers
-`fee_lamports` to the benchmark authority); market take-rate is live too
-(`fee_bps` skimmed at resolution, `claim_fee`). And used, not just
-plumbed — the committed digest recomputes it from decoded bytes: 1.73
-SOL charged in bank run-fees across 174 paid runs on 28 fee-bearing
-banks, 44 venues with a nonzero take-rate, 33 of 37 bounties claimed. The
-durable business is sealed-evaluation infrastructure: private banks
-minted on demand (no key custody to sell), delegated scoring for labs
-and judges, and the settlement layer every "AI capability" market
-resolves against — prediction venues cleared ~$63.5B notional in 2025,
-all settled on human-held truth.
-Six primitives ship: duels, K-way ladder races, unseen-exam markets,
-dark commit-reveal markets, capability bounties (escrow pays the first
-operator to provably clear T), committed-settle expiry.
-Unit economics: a 64-item exam ≈0.02 SOL account rent; a bettor seat
-≈0.002 SOL refunded on claim/close. Any venue composes on `Run.correct`
-permissionlessly — the referee is infrastructure, not a vendor.
+Who earns is on-chain, not asserted: `create_run` pays `fee_lamports` to
+the bank authority; `fee_bps` skims at venue resolution (`claim_fee`).
+The committed digest recomputes it from decoded bytes: 1.73 SOL charged
+in bank run-fees across 174 paid runs on 28 fee-bearing banks, 44 venues
+with a nonzero take-rate, 33 of 37 bounties claimed. The durable
+business is sealed-evaluation infrastructure: private banks minted on
+demand (no key custody to sell), delegated scoring for labs and judges,
+and the settlement layer every "AI capability" market resolves against —
+Polymarket+Kalshi alone cleared ~$63.5B notional in 2025 (public
+reported volume); a 1% settlement take on the AI-capability slice is a
+~$100M+ wedge, not hand-waving at volume.
+Six primitives ship: duels, K-way ladders, unseen-exam markets, dark
+commit-reveal, capability bounties, committed-settle expiry. Unit
+economics: a 64-item exam ≈0.02 SOL rent; a bettor seat ≈0.002 SOL,
+refunded. Any venue composes on `Run.correct` permissionlessly — the
+referee is infrastructure, not a vendor.
 
 ## competitiveLandscape
 

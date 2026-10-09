@@ -103,6 +103,22 @@ For real accounts (not the snapshot), the same reads work against
 `getProgramAccounts` filtered by `memcmp(offset=0, sha256("account:Run")[:8])`
 — plus the owner check every account comes with.
 
+For real accounts (not the snapshot), the same reads work against
+`getProgramAccounts` filtered by `memcmp(offset=0, sha256("account:Run")[:8])`
+— plus the owner check every account comes with.
+
+### The badge — composability as a marketing primitive
+
+`chain badge --card <claim.json> --out model.svg` renders a shields-style
+SVG *from a `sealed-claim/v1` card*, embedding the card's sha256 in the
+badge's `<metadata>`. A model provider can embed it in their README the
+way CI badges are embedded today — except this number is its receipt:
+`chain badge --verify` re-renders from the bound card and byte-compares,
+and `chain prove --verify` replays the card itself keyless. The explorer
+renders the same badge in-page after a claim card verifies. The honest
+zeros ship too — a small model's 0% badge is still a *true* claim, which
+is the entire point of the system.
+
 ## The honesty contract a consumer must respect
 
 `Run.correct` is only as meaningful as the flags beside it. Consumers that

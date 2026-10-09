@@ -1,21 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
-<rect width="800" height="400" rx="10" fill="#0d1117"/>
-<rect x="1" y="1" width="798" height="398" rx="9" fill="none" stroke="#30363d"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="426" viewBox="0 0 800 426" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
+<rect width="800" height="426" rx="10" fill="#0d1117"/>
+<rect x="1" y="1" width="798" height="424" rx="9" fill="none" stroke="#30363d"/>
 <circle cx="24" cy="24" r="5" fill="#ff5f56"/><circle cx="44" cy="24" r="5" fill="#ffbd2e"/><circle cx="64" cy="24" r="5" fill="#27c93f"/>
 <text x="772" y="29" text-anchor="end" class="url">josepha-mayo.github.io/sealed/?mega=1 — click the README image to re-run this live</text>
 <rect x="28" y="44" width="744" height="1" fill="#30363d"/>
 <rect x="28" y="56" width="226" height="26" rx="13" fill="#12351f" stroke="#27c93f" stroke-width="1"/>
 <text x="141" y="74" text-anchor="middle" class="pill">EVERYTHING VERIFIED</text>
 <text x="28" y="96" class="hdr">SEALED — evidence verdict, recomputed in-browser (nothing trusted)</text>
-<text x="28" y="122" class="k">bundle root</text><text x="146" y="122" class="v">98b51039888157ae…b6ddc337</text>
-<text x="28" y="148" class="k">anchor</text><text x="146" y="148" class="v">memo tx 3txnnBjCM7HwmNcV…3FJgpHbt · slot 509243965</text>
-<text x="28" y="174" class="k">audit</text><text x="146" y="174" class="v">14 pass · 0 fail — PDAs, folds, resolutions, rescore</text>
+<text x="28" y="122" class="k">bundle root</text><text x="146" y="122" class="v">0c99015e3d1c6851…e48e9756</text>
+<text x="28" y="148" class="k">anchor</text><text x="146" y="148" class="v">memo tx 2wv8SLyRKdTsgVuA…TYnNcQmo · slot 509279704</text>
+<text x="28" y="174" class="k">audit</text><text x="146" y="174" class="v">13 pass · 0 fail — PDAs, folds, resolutions, rescore</text>
 <text x="28" y="200" class="k">artifacts</text><text x="146" y="200" class="v">all 142 replayed · 13 kind-groups pass</text>
 <text x="28" y="226" class="k">forgeries</text><text x="146" y="226" class="v">13/13 attacks died at named checks</text>
 <text x="28" y="252" class="k">sealed exam</text><text x="146" y="252" class="v">decrypted in-browser — answers stayed MPC-held</text>
-<text x="28" y="278" class="k">re-run</text><text x="146" y="278" class="v">?mega=1</text>
-<text x="28" y="304" class="k">proof link</text><text x="146" y="304" class="v">?root=98b51039888157ae…b6ddc337 — the page re-checks this claim on open</text>
-<text x="28" y="376" class="foot">rendered from the actual in-page audit output — scripts/gen-verified-svg.mjs</text>
+<text x="28" y="278" class="k">money</text><text x="146" y="278" class="v">69.69◎ settled on MPC scores · 1.731◎ bank run-fees charged</text>
+<text x="28" y="304" class="k">re-run</text><text x="146" y="304" class="v">?mega=1</text>
+<text x="28" y="330" class="k">proof link</text><text x="146" y="330" class="v">?root=0c99015e3d1c6851…e48e9756 — the page re-checks this claim on open</text>
+<text x="28" y="402" class="foot">rendered from the actual in-page audit output — scripts/gen-verified-svg.mjs</text>
 <style>
 .hdr{fill:#e6edf3;font-size:14px;font-weight:700}
 .k{fill:#8b949e;font-size:13px}
