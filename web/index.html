@@ -2220,13 +2220,14 @@ async function loadClaimIndex() {
   } catch (e) { /* picker stays on the default option — cards still pasteable */ }
 }
 loadClaimIndex();
-function verifyClaim() {
+async function verifyClaim() {
   const res = document.getElementById("claimres");
   const rows = [];
   const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
   const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
   try {
-    const c = JSON.parse(document.getElementById("claimjson").value);
+    window.__claimRaw = document.getElementById("claimjson").value;
+    const c = JSON.parse(window.__claimRaw);
     if (c.kind !== "sealed-claim/v1") throw new Error(`not a sealed-claim/v1 card (kind=${c.kind})`);
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs.sealed), mpid = new PK(c.programs.market);
@@ -2310,6 +2311,34 @@ function verifyClaim() {
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"}</b> — ${esc(c.model.id)}: ${c.model.totalCorrect}/${c.model.totalItems} across ${c.model.runsScored} run(s)${c.verdicts?.postRevealRuns ? ` · ${c.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""}</div>`);
+    // the distribution artifact — only rendered once the card VERIFIES:
+    // the badge is a pointer to this receipt, not a claim on its own.
+    if (nFail === 0 && window.__claimRaw) {
+      const m = c.model;
+      const pct = m.totalItems > 0 ? (100 * m.totalCorrect / m.totalItems) : 0;
+      const pctTxt = `${pct.toFixed(1)}%`;
+      const color = pct >= 66 ? "#3fb950" : pct >= 33 ? "#9acd32" : pct > 0 ? "#d29922" : "#f85149";
+      const claimSha = hex(await sha(utf8(window.__claimRaw)));
+      const label = "sealed · mpc-scored";
+      const value = `${pctTxt} · ${m.totalCorrect}/${m.totalItems} over ${m.runsScored} run${m.runsScored === 1 ? "" : "s"}`;
+      const lw = 8 * (label.length / 2 + 1) + 20, vw = 8 * (value.length / 2 + 1) + 20, tw = lw + vw;
+      const xesc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const meta = xesc(JSON.stringify({ kind: "sealed-badge/v1", model: m.id, recordPk: m.recordPk ?? null, claimSha256: claimSha }));
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tw}" height="28" role="img" aria-label="${xesc(`sealed mpc-scored ${pctTxt} for ${m.id}`)}">
+<title>${xesc(`${m.id} — ${m.totalCorrect}/${m.totalItems} MPC-scored items across ${m.runsScored} runs (claim sha256 ${claimSha.slice(0, 16)}…)`)}</title>
+<metadata>${meta}</metadata>
+<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+<rect rx="4" width="${tw}" height="28" fill="#2a2f36"/><rect rx="4" x="${lw}" width="${vw}" height="28" fill="${color}"/>
+<path fill="${color}" d="M${lw} 0h4v28h-4z"/><rect rx="4" width="${tw}" height="28" fill="url(#s)"/>
+<g fill="#fff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">
+<text x="${lw / 2}" y="19" fill="#dfe6ee">${xesc(label)}</text>
+<text x="${lw + vw / 2}" y="19" fill="#0b0e11" font-weight="bold">${xesc(value)}</text>
+</g></svg>`;
+      rows.push(`<div class="kv" style="margin-top:4px">its badge — rendered from this verified card, bound to sha256 ${claimSha.slice(0, 12)}… (<code>chain badge --card</code> renders the same bytes):</div>` +
+        `<div style="margin:4px 0"><img src="data:image/svg+xml;utf8,${encodeURIComponent(svg)}" alt="badge"></div>` +
+        `<div class="kv"><button onclick="navigator.clipboard.writeText(window.__lastBadge).then(()=>this.textContent='copied')">copy svg</button> — embed in a README; the number IS this card's verdict.</div>`);
+      window.__lastBadge = svg;
+    }
     // caller's policy overlay — evalGate over the embedded receipts, like
     // `chain prove --verify <card> --min-pct N` — authentic AND sufficient.
     const numv = id => { const v = document.getElementById(id).value.trim(); return v === "" ? null : Number(v); };
