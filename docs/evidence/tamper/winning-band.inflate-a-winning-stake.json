@@ -3,8 +3,11 @@
   "attack": "inflate a winning stake",
   "targetKind": "sealed-position/v1",
   "targetCard": "winning-band.json",
-  "expectFail": [],
-  "forgedAt": "2026-10-07T16:22:50.354Z",
+  "expectFail": [
+    "stake binding",
+    "verdict replay"
+  ],
+  "forgedAt": "2026-10-08T21:06:23.736Z",
   "forged": {
     "kind": "sealed-position/v1",
     "generatedAt": "2026-10-07T12:37:07.804Z",

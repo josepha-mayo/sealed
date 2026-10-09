@@ -3,8 +3,14 @@
   "attack": "inflate a receipt's score",
   "targetKind": "sealed-board/v1",
   "targetCard": "board.json",
-  "expectFail": [],
-  "forgedAt": "2026-10-07T16:22:25.941Z",
+  "expectFail": [
+    "aggregates",
+    "pairwise verdicts",
+    "pairwise tallies",
+    "ranking",
+    "snapshot binding"
+  ],
+  "forgedAt": "2026-10-08T21:06:21.030Z",
   "forged": {
     "kind": "sealed-board/v1",
     "generatedAt": "2026-10-07T06:52:28.017Z",

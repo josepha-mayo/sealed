@@ -65,8 +65,8 @@ const claims = [
   // artifacts" / "351 manifest-pinned files" — the catalog's own
   // "137 artifact(s)" count uses the artifact\(s\) phrasing and is
   // intentionally NOT matched (it excludes the catalog itself).
-  [/all\s+(\d+)\s+(?:committed\s+)?artifacts?\b|(\d+)\s+committed\s+artifacts?\b/g, 138],
-  [/(\d+)\s+(?:manifest-)?pinned\s+files?\b/g, 351],
+  [/all\s+(\d+)\s+(?:committed\s+)?artifacts?\b|(\d+)\s+committed\s+artifacts?\b/g, 142],
+  [/(\d+)\s+(?:manifest-)?pinned\s+files?\b/g, 359],
   // spelled-out guided-tour stop count ("twenty-four captioned stops"
   // in the hero; "all twenty-four stops" in judges.md)
   [/(twenty-\w+|thirty-\w+|\d+)\s+stops\b/g, 24],

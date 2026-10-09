@@ -1746,3 +1746,90 @@ test("sealed-tamper/v1 — the lie exhibit replays: forged cards die at their re
     }
   } finally { console.log = origLog; process.exitCode = 0; }
 });
+
+test("hostile snapshot — mutated account bytes die at named checks in BOTH verifiers (TS + Python)", async () => {
+  // The bundle-level checks are only meaningful if they fire on a HOSTILE
+  // snapshot — this test feeds each verifier a mutated copy (the input arg /
+  // SEALED_SNAPSHOT env) and asserts a nonzero exit with a named FAIL.
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { createHash } = await import("node:crypto");
+  const repoRoot = new URL("../../../", import.meta.url).pathname;
+  const snap = JSON.parse(readFileSync(join(repoRoot, "web/snapshot.json"), "utf8"));
+
+  const runDisc = createHash("sha256").update("account:Run").digest().subarray(0, 8);
+  const isRun = (e: any) => Buffer.from(e.data, "base64").subarray(0, 8).equals(runDisc);
+  const runEntry = snap.sealed.find(isRun);
+  assert.ok(runEntry, "snapshot must contain a Run account");
+
+  const dir = mkdtempSync(join(tmpdir(), "sealed-hostile-"));
+  // `want` pins the NAMED check that must fire per verifier — "something
+  // failed" is not the same as "the right guard fired".
+  const variants: { name: string; mutate: (s: any) => void; mjs: RegExp; py: RegExp }[] = [
+    { name: "oracle substitution — a Run's on-chain correct byte mutated",
+      mutate: (s) => {
+        const e = s.sealed.find(isRun);
+        const b = Buffer.from(e.data, "base64");
+        b[100] ^= 0x01; // Run.correct u32 @ bytes 100:104
+        e.data = b.toString("base64");
+      },
+      mjs: /FAIL.*purity/i, py: /FAIL.*(purity|snapshot binding)/i },
+    { name: "alien account — an entry with an unknown discriminator",
+      mutate: (s) => {
+        const e = JSON.parse(JSON.stringify(s.sealed.find(isRun)));
+        e.pubkey = e.pubkey.slice(0, -1) + (e.pubkey.endsWith("x") ? "y" : "x");
+        const b = Buffer.from(e.data, "base64");
+        b[0] ^= 0xff; // corrupt the 8-byte discriminator
+        e.data = b.toString("base64");
+        s.sealed.push(e);
+      },
+      mjs: /FAIL.*account decode/i, py: /FAIL.*(census|account)/i },
+  ];
+
+  for (const v of variants) {
+    const s2 = JSON.parse(JSON.stringify(snap));
+    v.mutate(s2);
+    const f = join(dir, `snap-${v.name.slice(0, 6)}.json`);
+    writeFileSync(f, JSON.stringify(s2));
+
+    const runs = [
+      { label: "verify.mjs", cmd: "node", args: [join(repoRoot, "scripts/verify.mjs"), f], env: {} as Record<string, string>, want: v.mjs },
+      { label: "verify.py", cmd: "python3", args: [join(repoRoot, "scripts/verify.py")], env: { SEALED_SNAPSHOT: f }, want: v.py },
+    ];
+    for (const r of runs) {
+      let out = "", code = 0;
+      try {
+        out = String(execFileSync(r.cmd, r.args,
+          { cwd: repoRoot, env: { ...process.env, ...r.env }, timeout: 300000 }));
+      } catch (e: any) { code = e.status ?? 1; out = String(e.stdout ?? "") + String(e.stderr ?? ""); }
+      assert.notEqual(code, 0, `${r.label} accepted a hostile snapshot (${v.name})`);
+      assert.match(out, r.want, `${r.label} must FAIL at the named check (${v.name})`);
+    }
+  }
+});
+
+test("wrong viewer key — a ShareGrant decrypted by a stranger yields garbage that fails spec-range", async () => {
+  // The disclosure story rests on this: reshare_part re-encrypts to ONE x25519
+  // key; anyone else's key must produce undecodable noise, not plausible specs.
+  const { decodeSnapshotSection, loadSnapshotJson } = await import("../src/snapshot.js");
+  const { unpackSpecs } = await import("../src/genbank.js");
+  const { x25519, RescueCipher } = await import("@arcium-hq/client");
+  const { randomBytes } = await import("node:crypto");
+  const snap = loadSnapshotJson(new URL("../../../web/snapshot.json", import.meta.url).pathname);
+  const mxe = snap.meta?.mxe_x25519;
+  assert.ok(mxe, "snapshot meta carries the MXE x25519 key");
+  const ss = decodeSnapshotSection(snap, "sealed");
+  const grant = (ss.get("ShareGrant") ?? []).find((x: any) => x.account?.ciphertexts && x.account?.viewer);
+  assert.ok(grant, "snapshot must contain a ShareGrant");
+
+  const wrongPriv = randomBytes(32);
+  const cipher = new RescueCipher(x25519.getSharedSecret(wrongPriv, Buffer.from(mxe, "hex")));
+  const nb = new Uint8Array(16);
+  let n = BigInt(grant.account.nonce.toString());
+  for (let k = 0; k < 16; k++) { nb[k] = Number(n & 0xffn); n >>= 8n; }
+  const fields = cipher.decrypt((grant.account.ciphertexts as number[][]).map((x) => Array.from(x)), nb);
+  assert.throws(() => unpackSpecs(fields), /out of range|too large|invalid/i,
+    "a wrong key must produce spec-range failure, not a plausible exam");
+});

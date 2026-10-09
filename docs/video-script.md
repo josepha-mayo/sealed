@@ -17,21 +17,21 @@ the whole arc end-to-end; this script splits it into narrated segments.
 
 | Time | Beat | Show | Say |
 |---|---|---|---|
-| 0:00 | The problem | `docs/pitch.md` table / README "why" | "Every AI leaderboard trusts an operator who could lie. Every benchmark answer key is a thing that can leak." |
-| 0:10 | The fix in one line | `chain gen` minting (8 computations — 4 parts × 2 chunks) | "We mint the benchmark *inside* the MPC cluster. The questions come from enclave randomness; the answers are computed and fingerprinted in-circuit and born encrypted to the cluster key. There is no answer key anywhere on Earth — nothing to leak, sell, or subpoena." |
-| 0:25 | Public minted items | `chain items --benchmark <pk>` + explorer items grid | "The item specs are public — anyone can re-render the prompts and re-fold the items_root commitment." |
-| 0:35 | Private bank | `chain gen-private` then explorer's ciphertext-only card | "Or the specs stay encrypted to the authority's key. The chain holds ciphertext only — and items_root still commits to it, so the mint transcript is auditable without decrypting." |
-| 0:50 | Selective disclosure | `chain reshare` ×4 → `chain grants` | "The authority hands a judge the exam — the MPC re-encrypts the questions to the judge's key. Grant PDAs record who can see which parts. The answers never move." |
-| 1:05 | Delegate rebuild | `chain delegate-bank` (judge keypair) | "The judge rebuilds the whole bank from grants alone — questions stay private from the public chain, answers never existed in plaintext." |
-| 1:15 | Real model scoring | `run --model openai` + `chain score` | "A real model answers the sealed items. The MPC cluster hash-compares its outputs against the sealed fingerprints and posts only a count." |
-| 1:25 | The anti-cheat beat | bank 25864 leaderboard: `openai` (= gpt-oss-20b) 64/64 above `openai` 1/64 | "This bank holds two runs from the same model — gpt-oss-20b, shown as `openai` on-chain. The clean run scored 64/64 — MPC matching its local claim exactly. The other artifact also claimed 64/64, but it answered a stale bank file, so MPC scored it 1/64. The chain doesn't care what your artifact *claims* — the enclave's count is the score." |
-| 1:35 | Markets | explorer markets card: binary + 3-way + duel + ladder | "And the score is a settlement source: threshold markets, score bands, head-to-head duels — and K-way ladder races: three models, one pot, argmax takes it, ties split dead-heat. Bets close the moment ANY leg starts scoring, so nobody trades on a half-known result." |
-| 1:50 | Resolution | `market resolve` → `claim` + leaderboard | "Permissionless settle straight off `Run.correct`. Winner withdraws. No oracle operator, no admin key." |
-| 1:55 | Audit beat | `chain reveal` + `chain verify`, then the hosted explorer's audit panel auto-running — green checks ending on the calibration rescore | "Need to audit a score? The authority declassifies answer *fingerprints* — never plaintext. And you don't have to trust this page: the hosted explorer re-derives every PDA, replays every resolution, and recomputes the MPC's arithmetic on a public calibration exam — in your browser, right now." |
-| 2:00 | Specimen beat | explorer calibration card: 32 rows, canonical answer vs two models' outputs, discrimination line | "This is a real exam the enclave sealed then revealed on purpose: qwen-3b scored 7 of 32, the 1.5b scored 2 — and the matrix shows exactly which five items separate them. Every hash on this table was recomputed live." |
-| 2:10 | The attack | forgery lab: press "forge a +1 score" — the mutated leaderboard card dies at the *aggregates* check, live | "Don't take our word for the checks — run the attack. Twelve canned attacks, twelve named catches — and the tamper/ exhibit pins eleven forged artifacts that verify by being REJECTED." |
-| 2:20 | The one hash | `chain fingerprint` → `BUNDLE ROOT`, then the devnet anchor receipt | "The whole evidence base — every bank, run, settlement, artifact — is one sha256, and that root is timestamped on Solana devnet. Change one byte of our evidence and the hash breaks." |
-| 2:30 | Close | leaderboard + grant trail | "A benchmark nobody can read, scored by nobody in particular — and a market that settles itself." |
+| 0:00 | COLD OPEN — the cheat that got caught | bank 25864 leaderboard frozen on `openai` 64/64 above `openai` 1/64 | "Two runs on this bank both claimed 64 out of 64. The MPC cluster scored one of them 1 out of 64. Watch why that matters — and why nothing like it existed before." |
+| 0:08 | The problem | `docs/pitch.md` table / README "why" | "Every AI leaderboard trusts an operator who could lie. Every benchmark answer key is a thing that can leak." |
+| 0:15 | The fix in one line | `chain gen` minting (8 computations — 4 parts × 2 chunks) | "We mint the benchmark *inside* the MPC cluster. The questions come from the cluster's RNG; the answers are computed and fingerprinted in-circuit and born encrypted to the cluster key — the MXE key. There is no answer key anywhere on Earth — nothing to leak, sell, or subpoena." |
+| 0:30 | Public minted items | `chain items --benchmark <pk>` + explorer items grid | "The item specs are public — anyone can re-render the prompts and re-fold the items_root commitment." |
+| 0:40 | Private bank | `chain gen-private` then explorer's ciphertext-only card | "Or the specs stay encrypted to the authority's key. The chain holds ciphertext only — and items_root still commits to it, so the mint transcript is auditable without decrypting." |
+| 0:55 | Selective disclosure | `chain reshare` ×4 → `chain grants` | "The authority hands a judge the exam — the MPC re-encrypts the questions to the judge's key. Grant PDAs record who can see which parts. The answers never move." |
+| 1:08 | Delegate rebuild | `chain delegate-bank` (judge keypair) | "The judge rebuilds the whole bank from grants alone — questions stay private from the public chain, answers never existed in plaintext." |
+| 1:18 | Real model scoring | `run --model openai` + `chain score` | "A real model answers the sealed items. The MPC cluster hash-compares its outputs against the sealed fingerprints and posts only a count." |
+| 1:28 | The anti-cheat payoff | back to the 25864 leaderboard — resolve the cold open | "Back to that 1/64: both artifacts claimed a perfect score — but the second one answered a stale bank file. The clean run's 64/64 matched its claim exactly; the stale one scored 1. The chain doesn't care what your artifact *claims* — the cluster's count is the score." |
+| 1:38 | Markets | explorer markets card: binary + 3-way + duel + ladder | "And the score is a settlement source: threshold markets, score bands, head-to-head duels — and K-way ladder races: three models, one pot, argmax takes it, ties split dead-heat. Bets close the moment ANY leg starts scoring, so nobody trades on a half-known result." |
+| 1:52 | Resolution | `market resolve` → `claim` + leaderboard | "Permissionless settle straight off `Run.correct`. Winner withdraws. No oracle operator, no admin key." |
+| 1:58 | Audit + decrypt beat | hosted explorer `?mega=1`: audit panel green checks → **the sealed exam decrypting in-browser** | "And you don't have to trust any of this: one link re-derives every account, replays every settlement — then decrypts the sealed exam *in your browser* — an exam that exists nowhere in plaintext. A second verifier in stdlib Python agrees, with zero clone." |
+| 2:12 | The attack | forgery lab: press "forge a +1 score" — the mutated leaderboard card dies at the *aggregates* check, live | "Don't take our word for the checks — run the attack. Twelve canned attacks, twelve named catches — and the tamper/ exhibit pins eleven forged artifacts that verify by being REJECTED." |
+| 2:22 | The one hash | `chain fingerprint` → `BUNDLE ROOT`, then the devnet anchor receipt | "The whole evidence base — every bank, run, settlement, artifact — is one sha256, and that root is timestamped on Solana devnet. Change one byte of our evidence and the hash breaks. This submission ends in a sha256 — not a promise." |
+| 2:35 | Close | leaderboard + grant trail | "The exam nobody can leak, the score nobody can fake, the market that settles itself." |
 
 ## Cut points if you only have 60s
 
@@ -60,24 +60,25 @@ key ever exists in plaintext — and a second program settles parimutuel
 markets straight from the MPC-written score. No oracle operator, no admin
 key, nothing to leak.
 
-0:00 the problem — trusted evaluators can lie
-0:10 `chain gen` — items minted inside MPC, answers born encrypted
-0:25 public minted items — specs anyone can re-render and re-commit
-0:35 `gen-private` — the bank is ciphertext on-chain, end to end
-0:50 `reshare` — selective disclosure: the judge gets questions, not answers
-1:05 delegate rebuild — the bank reconstructed from grant PDAs alone
-1:15 real model scoring — MPC compares committed outputs, posts only a count
-1:25 the anti-cheat beat — gpt-oss-20b 64/64 vs a stale artifact's honest 1/64
-1:35 markets — threshold, score bands, duels, K-way ladder races, dark
+0:00 cold open — two runs claimed 64/64; the MPC scored one of them 1/64
+0:08 the problem — trusted evaluators can lie
+0:15 `chain gen` — items minted inside MPC, answers born encrypted
+0:30 public minted items — specs anyone can re-render and re-commit
+0:40 `gen-private` — the bank is ciphertext on-chain, end to end
+0:55 `reshare` — selective disclosure: the judge gets questions, not answers
+1:08 delegate rebuild — the bank reconstructed from grant PDAs alone
+1:18 real model scoring — MPC compares committed outputs, posts only a count
+1:28 the anti-cheat payoff — the cold open resolved (stale artifact, honest 1/64)
+1:38 markets — threshold, score bands, duels, K-way ladder races, dark
 commit-reveal (sides stay sha256-sealed), capability bounties (escrow pays
 the first operator to provably clear T — real-model claim in
 `docs/evidence/real-bounty.txt`)
-1:50 permissionless settle — resolve straight from `Run.correct`, claim
-1:55 audit beat — fingerprint reveal; the hosted explorer's 13-check audit
-panel (it even verifies its own served bytes against web/MANIFEST)
-2:00 calibration specimen — the exam the enclave sealed then revealed:
-3b 7/32 vs 1.5b 2/32, per-item discrimination recomputed in-browser
-2:10 close — a benchmark nobody can read, a market that settles itself
+1:52 permissionless settle — resolve straight from `Run.correct`, claim
+1:58 audit + decrypt — the page re-derives every account, replays every
+settlement, then decrypts the sealed exam in-browser
+2:12 the attack — the forgery lab runs a live attack, caught at a named check
+2:22 one sha256 — the whole evidence base notarized on devnet
+2:35 close — the exam nobody can leak, the market that settles itself
 
 Also shipped: dark commit-reveal markets (`docs/dark.cast`), a
 head-to-head duel market (`docs/duel.cast`), and the prefund-grief
@@ -98,11 +99,11 @@ the demo. Screen-record the hosted explorer only:
 | Time | Beat | Show | Say |
 |---|---|---|---|
 | 0:00 | One URL | https://josepha-mayo.github.io/sealed/?mega=1 | "One link — no wallet, no node, no RPC key. Watch the whole evidence base prove itself." |
-| 0:02 | The cascade | megares rows landing: account audit → 138 artifacts → forgery sweep → the sealed exam decrypting | "Every account PDA re-derived, every committed proof replayed, every lab attack caught — and then the page decrypts the sealed exam, in your browser, ~8 seconds." |
+| 0:02 | The cascade | megares rows landing: account audit → 142 artifacts → forgery sweep → the sealed exam decrypting | "Every account PDA re-derived, every committed proof replayed, every lab attack caught — and then the page decrypts the sealed exam, in your browser, ~8 seconds." |
 | 0:08 | The scoreboard | EVERYTHING VERIFIED + the copyable verdict block — audit counts, root, anchor state | "Nothing trusted — including the page itself: it re-hashes its own bytes against the manifest. The verdict block copies straight into your notes." |
 | 0:14 | The artifact | ?card= link: pick a bounty card, watch the account bind | "One JSON file is a whole claim — bounty, bettor, grant, exam — and it verifies itself against the chain bytes." |
-| 0:20 | The second language | `python3 scripts/verify.py --all` | "Don't trust our TypeScript — ~2500 lines of stdlib Python re-derive every PDA with real curve math, unpack the raw account bytes, replay all 138 artifacts, run the forgery lab, decrypt the exam, and recount the MPC score. One flag runs all of it." |
-| 0:26 | The zero-clone form | `curl -sL …/verify.py | python3 - --remote` | "Or don't even clone — one downloaded file re-verifies all 351 served bytes, straight off the hosted site." |
+| 0:20 | The second language | `python3 scripts/verify.py --all` | "Don't trust our TypeScript — ~2500 lines of stdlib Python re-derive every PDA with real curve math, unpack the raw account bytes, replay all 142 artifacts, run the forgery lab, decrypt the exam, and recount the MPC score. One flag runs all of it." |
+| 0:26 | The zero-clone form | `curl -sL …/verify.py | python3 - --remote` | "Or don't even clone — one downloaded file re-verifies all 359 served bytes, straight off the hosted site." |
 | 0:30 | The close | the audit card's ANCHOR VERIFIED line — devnet memo timestamp | "The whole evidence base is one sha256, notarized on devnet. Terminal, browser, and Python all agree — or it's dirty." |
 
 **Tags:** solana, arcium, mpc, confidential computing, prediction markets,

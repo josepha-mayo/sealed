@@ -5,24 +5,35 @@ Every claim below is verifiable. Nothing here requires trusting us.
 ## The one-line pitch
 
 A benchmark whose items are **minted inside an MPC cluster** — questions drawn
-from enclave randomness, answers computed and fingerprinted in-circuit — so
+from the cluster’s RNG, answers computed and fingerprinted in-circuit — so
 **no answer key exists anywhere on Earth**, and (in the private variant) **the
 questions never exist in plaintext on-chain either**. Models are scored inside
-the enclave; only the count leaves it. Parimutuel markets settle on that count.
+the cluster; only the count leaves it — and markets settle on that count directly. No referee, no oracle operator.
 
 ## Rubric → evidence
 
-| Criterion | What to look at | Where |
+| Official criterion | What to look at | Where |
 |---|---|---|
-| **Insight / novelty** | The eval-honesty problem is that every trusted party in the loop can leak or rig. Sealed removes the trusted *data* party entirely: the questions are born in MPC, the answers never leave it, and disclosure is selective and recorded. | `docs/pitch.md`, README "Why" table |
+| **Novelty** | The eval-honesty problem is that every trusted party in the loop can leak or rig. Sealed removes the trusted *data* party entirely: the questions are born in MPC, the answers never leave it, and disclosure is selective and recorded. | `docs/pitch.md`, README "Why" table |
+| **Functionality — does it work?** | `yarn test` — 17/17 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder + dark markets, capability bounties, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 69/69 unit. Plus the whole evidence bundle replays offline (below). | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
+| **UX** | The explorer is the product's front door: `?mega=1` self-audits in ~8s ending on a copyable verdict, the forgery lab lets a skeptic run the attack in-page, `?card=` deep links re-verify any artifact, and the whole thing ships as a single offline `standalone.html`. Zero wallet, zero RPC, zero setup. | `web/index.html`, hosted `?mega=1` |
 | **Product / execution** | Six Arcis circuits (reviewed line-by-line in docs/circuits.md) + two Anchor programs + TS harness + web explorer, all live: `seal_part`, `score_chunk`, `gen_part`, `gen_part_private`, `reveal_part`, `reshare_part`. | `encrypted-ixs/src/lib.rs`, `programs/sealed/src/lib.rs` |
-| **Does it work?** | `yarn test` — 17/17 mocha E2E on a real MPC localnet (seal, score, score-band + duel + ladder + dark markets, capability bounties, generated banks, private banks, reshare delegation, delegated-runner scoring). `yarn harness:test` — 67/67 unit. | `tests/sealed.ts`, `packages/harness/test/harness.test.ts` |
-| **Real model evidence** | **Flagship — live in the bundled snapshot:** FOUR open-weights models (two families) raced an MPC-minted exam with zero external API — `qwen2.5-3b` 6/32 vs `qwen2.5-1.5b` **6/32 (a real dead-heat)** vs `llama-3.2-1b` 1/32 vs `qwen2.5-0.5b` 0/32; ladder `A4fMA7eK…` filled while all legs were *pending*, argmax resolved `result_mask=0b11` paying both co-leader backers pro-rata — plus a dark commit-reveal market on leg 0's run with sealed positions and a live forfeit (`scripts/ladder-local.sh`, `ladder-local.txt`). Also: `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 duel `7p32UT6s…` (`duel-local.txt`), the 1.5b scored **8/32 on a private bank** read only through `reshare_part` grants (`7S9ZmxrT…`, `unseen-local.txt`), and the **double-sealed composition**: private bank `8HHm4HgA…` (specs ciphertext-only) hosted a dark commit-reveal market `7TVjSaFD…` on the 3b's pending run — exam sealed + positions sealed + MPC score — resolved `>=5` on 5/32 with a sealed forfeit, then a full-book score-band market `497kuApd…` resolved `1–7` on the 0.5b's 2/32 (plus a live `all_backed` cancel `H3RGMd3N…` refunding gross) (`dark-local.txt`, `band-local*.txt`). **Every market primitive has now settled a real open-weights model's MPC-written score.** Newest (epoch-3, hardened build): a sponsor escrowed **0.1 SOL against "first proven run ≥ 6/32"** — an *independent* runner keypair ran `qwen2.5-3b` for real (local pre-score 7/32, MPC-agreed 7/32) and the **permissionless claim paid the operator** while the 1.5b's honest 2/32 sat below the threshold on the same bank (`real-bounty.txt`); a second real-model band market resolved bucket-0 on `llama-3.2-1b`'s MPC-confirmed **0/32** — the exam flunking a model is evidence too. Earlier gpt-oss-20b runs: 64/64 on MPC-minted bank 6932 (`HW5H5bT7…`), 64/64 on authored 25864 (`4uns99WD…`), a stale-artifact claim scored **1/64** (`3CKnMa8X…` — the anti-cheat boundary), and 32/32 on grant-only private bank `Fa4WS8B1…` (`9nfKSXnM…`). | `docs/evidence/` |
-| **Open-source / composability** | MIT-licensed, and the output is a public good: `Run.correct`, `ScoreLog`, and the `ModelRecord` registry are permissionless read surfaces — no CPI, no vendor key. `docs/integrate.md` gives the byte-accurate consumer guide (owner+discriminator gate, `post_reveal` tail-read, PDA seeds, honesty-flag semantics); the bundled `market` program IS the reference third-party consumer — it never sees items or ciphertext, only `Run.correct`. And `chain gate --min-pct 60 --vouched` is composability made executable: a capability policy over the registry, exit 0/1/2, pure `evalGate` so the same verdict replays off the committed snapshot — `--all` turns it into the registry filtered by policy, ranked. | `docs/integrate.md`, `programs/market/src/lib.rs` (`load_run`), `packages/harness/src/gate.ts` |
+| **Real model evidence** | **Every market primitive has settled a real open-weights model's MPC-written score** — four models raced one MPC-minted exam ending in a dead-heat that paid both co-leader backers; duels, dark markets, and a real bounty claim all detailed below. | snapshot + `docs/evidence/*-local.txt` |
+
+| **Open-source / composability** | MIT-licensed, and the output is a credibly-neutral public good (the on-chain capability registry any venue can compose on — Public Goods Award territory): `Run.correct`, `ScoreLog`, and the `ModelRecord` registry are permissionless read surfaces — no CPI, no vendor key. `docs/integrate.md` gives the byte-accurate consumer guide (owner+discriminator gate, `post_reveal` tail-read, PDA seeds, honesty-flag semantics); the bundled `market` program IS the reference third-party consumer — it never sees items or ciphertext, only `Run.correct`. And `chain gate --min-pct 60 --vouched` is composability made executable: a capability policy over the registry, exit 0/1/2, pure `evalGate` so the same verdict replays off the committed snapshot — `--all` turns it into the registry filtered by policy, ranked. | `docs/integrate.md`, `programs/market/src/lib.rs` (`load_run`), `packages/harness/src/gate.ts` |
 | **Why crypto is load-bearing** | Solana = the commitment layer (roots, PDAs, market settlement). Arcium MPC = the only reason data can be on-chain yet unreadable. Without either, this is a database + a promise. | `docs/threat-model.md`, `docs/arcium.md` (primitive-by-primitive map — and why not ZK/TEE/hashes) |
 | **Privacy depth** | Three disclosure levels, all proven: public specs (generated), delegate-only specs (`reshare_part` → `ShareGrant` PDAs — one-directional, grant trail on-chain), sealed answers (MXE-only, fingerprints declassifiable via `reveal_part`). | `docs/threat-model.md` tables |
-| **Market fit / viability** | Per-run fees to the benchmark authority are live (`create_run` transfers `fee_lamports`); market take-rate is live too (`fee_bps` at resolution, `claim_fee`). Six novel settlement primitives ship here: **run duels** (head-to-head "does A outscore B", bets latch on either leg's first scoring queue, `RunnersMustDiffer` anti-sybil), **ladder races** (K-way argmax over 3–8 bound runs — dead-heat pro-rata ties, legs that land nothing forfeit at 0 while landed partials count, any-leg betting latch), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: specs are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), **dark commit-reveal markets** (a bettor's side is a `sha256` commitment — sealed until they choose to reveal; no-show winners forfeit into the pot, zero-reveals cancel to gross refunds, `scripts/dark.sh`), **capability bounties** (a sponsor escrows SOL against "first proven run ≥ threshold" — the pot pays the winning run's *operator*, not a bettor; permissionless claim, `runner ≠ sponsor` anti-self-deal, `scripts/bounty-local.sh`), and **committed-settle expiry** (`all_queued_at` + 24h landing window — a stalled run refunds only if the runner never committed every chunk; no transaction can both commit and expire). Any venue resolves permissionlessly off `Run.correct` — the referee is infrastructure, not a vendor. And `chain market board`/`sweep` makes no-operator liveness executable: a read-only scan lists claimable bounties, resolvable venues, tallyable darks and sweepable expiries — `sweep` executes every permissionless action it finds (bounty pots still pay the winning run's *operator*, never the sweeper), and the explorer renders the same classification in-page over the bundled ledger (36 actionable venues flagged). | `programs/market`, `docs/submission.md`, `packages/harness/src/board.ts` |
+| **Business plan / viability** | Per-run fees to the benchmark authority are live (`create_run` transfers `fee_lamports`); market take-rate is live too (`fee_bps` at resolution, `claim_fee`). Six novel settlement primitives ship here: **run duels** (head-to-head "does A outscore B", bets latch on either leg's first scoring queue, `RunnersMustDiffer` anti-sybil), **ladder races** (K-way argmax over 3–8 bound runs — dead-heat pro-rata ties, legs that land nothing forfeit at 0 while landed partials count, any-leg betting latch), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: specs are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), **dark commit-reveal markets** (a bettor's side is a `sha256` commitment — sealed until they choose to reveal; no-show winners forfeit into the pot, zero-reveals cancel to gross refunds, `scripts/dark.sh`), **capability bounties** (a sponsor escrows SOL against "first proven run ≥ threshold" — the pot pays the winning run's *operator*, not a bettor; permissionless claim, `runner ≠ sponsor` anti-self-deal, `scripts/bounty-local.sh`), and **committed-settle expiry** (`all_queued_at` + 24h landing window — a stalled run refunds only if the runner never committed every chunk; no transaction can both commit and expire). Any venue resolves permissionlessly off `Run.correct` — the referee is infrastructure, not a vendor. And `chain market board`/`sweep` makes no-operator liveness executable: a read-only scan lists claimable bounties, resolvable venues, tallyable darks and sweepable expiries — `sweep` executes every permissionless action it finds (bounty pots still pay the winning run's *operator*, never the sweeper), and the explorer renders the same classification in-page over the bundled ledger (36 actionable venues flagged). | `programs/market`, `docs/submission.md`, `packages/harness/src/board.ts` |
 | **Honesty / craft** | `docs/engineering-log.md` is the adversarial-review receipt trail — the JIT-commit freeze-win, dormant-runner free exit, post-reveal stuffing, stale-artifact 1/64, claim-fee solvency ordering, leg reordering — each found in our own review, each with a regression test. The devnet note is recorded truthfully: the shared Arcium devnet cluster finalizes computations but is withholding callback txs during an outage. Both hardened builds ARE deployed — `scripts/verify-deployed.sh` dumps each on-chain ELF and shows sha256-match against this repo's `target/deploy/*.so` (MATCH ×2). Every localnet flow is reproducible meanwhile. | `docs/submission.md` "Devnet note" |
+
+**The flagship ledger, in bullets** (all live in the bundled snapshot — every PDA re-derives, every score replays):
+
+- **Four real open-weights models, one MPC-minted exam, zero external API**: `qwen2.5-3b` 6/32, `qwen2.5-1.5b` **6/32 (a real dead-heat)**, `llama-3.2-1b` 1/32, `qwen2.5-0.5b` 0/32. Ladder `A4fMA7eK…` filled while all legs were *pending*, argmax resolved `result_mask=0b11` paying both co-leader backers pro-rata, plus a dark commit-reveal market on leg 0's run with sealed positions and a live forfeit (`scripts/ladder-local.sh`, `ladder-local.txt`).
+- **Duels**: `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 — market `7p32UT6s…` (`duel-local.txt`).
+- **Unseen exam**: the 1.5b scored **8/32 on a private bank** read only through `reshare_part` grants (`7S9ZmxrT…`, `unseen-local.txt`).
+- **Double-sealed**: private bank `8HHm4HgA…` (specs ciphertext-only) hosted a dark market `7TVjSaFD…` on the 3b's pending run — exam sealed + positions sealed + MPC score — resolved `>=5` on 5/32 with a sealed forfeit; a full-book score-band `497kuApd…` resolved `1–7` on the 0.5b's 2/32; a live `all_backed` cancel `H3RGMd3N…` refunded gross (`dark-local.txt`, `band-local*.txt`).
+- **A real bounty claim**: sponsor escrowed **0.1 SOL against "first proven run ≥ 6/32"** — an independent runner keypair ran qwen2.5-3b for real (local pre-score 7/32, MPC-agreed 7/32) and the permissionless claim paid the operator, while the 1.5b's honest 2/32 sat below threshold on the same bank (`real-bounty.txt`). A second real-model band resolved bucket-0 on llama-3.2-1b's MPC-confirmed **0/32** — the exam flunking a model is evidence too.
+- **The anti-cheat boundary**: gpt-oss-20b runs — 64/64 on MPC-minted bank 6932 (`HW5H5bT7…`), 64/64 on authored 25864 (`4uns99WD…`), and a stale-artifact claim scored **1/64** (`3CKnMa8X…`), plus 32/32 on grant-only private material — the chain doesn't care what your artifact claims.
 
 ## Reproduction & deep-dive — pick your depth
 
@@ -34,7 +45,7 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 
 **Cloned the repo instead?** The two load-bearing commands are
 `yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive --snapshot ../../web/snapshot.json`
-(all 138 artifacts replayed keyless — step 3p) and
+(all 142 artifacts replayed keyless — step 3p) and
 `python3 scripts/verify.py --all`
 (every third-language proof in one shot — step 3u).
 
@@ -43,7 +54,7 @@ the enclave; only the count leaves it. Parimutuel markets settle on that count.
 **Full localnet reproduction** (the steps below are the deep-dive —
 lettered a–v, expect ~40 minutes plus toolchain setup).
 
-Prereqs: Solana CLI, Docker (the arx nodes), Anchor + the arcium toolchain
+Prereqs: Solana CLI, Docker (runs the Arcium MPC nodes locally), Anchor + the arcium toolchain
 (`scripts/setup-wsl.sh` provisions all of it), and a wallet:
 `solana-keygen new --no-bip39-passphrase -s -o ~/.config/solana/id.json`
 (add `--force` if the file exists). Fund it AFTER the localnet is running:
@@ -77,7 +88,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
 #   ONE LINK, EVERY PROOF: https://josepha-mayo.github.io/sealed/?mega=1 —
 #   opens the page and runs the whole skeptic's suite while you watch:
-#   account audit → all 138 artifacts through their verifiers → every
+#   account audit → all 142 artifacts through their verifiers → every
 #   forgery attack in the lab → the sealed exam decrypting in-browser,
 #   landing "EVERYTHING VERIFIED" in ~8s — with a copyable verdict block
 #   (counts, bundle root, anchor state) you can paste straight into
@@ -86,51 +97,16 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   demos itself: an auto-walk through all twenty-four stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   TERMINAL: bash scripts/judge-demo.sh — the 90-second keyless audit
-#   (verify.py → all 138 artifacts → forgery lab → tamper exhibits →
+#   (verify.py → all 142 artifacts → forgery lab → tamper exhibits →
 #   fingerprint). docs/audit.gif is a real recording of it.
-#   On the hosted page, in order:
-#     - hero strip: MPC ciphertext → proven score, one glance
-#     - cryptographic audit panel: auto-runs — every account PDA re-derived,
-#       every commitment fold replayed, every market resolution recomputed,
-#       AND the calibration rescore: the MPC's arithmetic reproduced
-#       bit-for-bit in your browser (7/32, run GnrRt5GU…).
-#       Should read "13 pass · 0 fail" with twenty-seven reveal-burn notes
-#       (the page adds the calibration rescore as its 13th check — the CLI
-#       verifier prints 12).
-#     - "public calibration specimen": the actual 32-item exam rendered in
-#       the page — prompt, canonical answer, the model's own reply (hover for
-#       its full reasoning), and a per-row check that the recomputed answer
-#       fingerprint equals the value revealed on-chain. The footer recounts
-#       the score live and compares it to Run.correct. This bank is
-#       deliberately public (plaintext ships in the repo); generated and
-#       private banks stay ciphertext-only — that contrast is the point.
-#     - "model capability records": persistent per-model aggregates enrolled
-#       by the permissionless record_score ix — each ScoreLog receipt makes
-#       a run countable exactly once, and the audit replays every record
-#       bit-exact from its receipts. Four REAL local models lead the table;
-#       `chain record --all` is the permissionless librarian that enrolled
-#       the rest of the ledger's runs — no operator required
-#     - "runs — the scoring substrate": all 503 Run accounts, filterable
-#       by model / bank / status / min-% / attested / post-reveal — the
-#       in-page mirror of `chain runs` (try post-reveal "only": 29 rows)
-#     - "disclosure trail": all 145 reshare grants — who can see the exam
-#       QUESTIONS (answers never move). `chain grants` in-page
-#     - a benchmark card: generated-item specs render publicly while the
-#       answers exist only as ciphertext — click "verify commitment" to
-#       replay its items_root fold yourself
-#     - run rows: the "post-reveal ⚠" pill marks a run minted after a
-#       fingerprint reveal — markets refuse it on-chain (PostRevealRun)
-#     - the flagship races: bank 2RPWrmbq… carries the qwen duel (3/32 vs
-#       1/32, market 7p32UT6s… A-wins); bank BoKj4kY1… carries FOUR real
-#       models — ladder A4fMA7eK… resolved mask=0b11 (dead-heat: qwen-3b
-#       and qwen-1.5b both scored 6/32) + dark market BrFdXAxY… on leg 0
-#     - "verify an output": click load example → VERIFIED against the
-#       snapshot's committed outputs_root
-#     - the nav search box resolves ANY pubkey to its card — paste a run,
-#       bank, venue, receipt, position, or grant and it scrolls there
-#       (positions → their venue, receipts → their run); ?pk=<key> makes
-#       the deep link shareable, e.g.
-#       https://josepha-mayo.github.io/sealed/?pk=GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi
+#   On the hosted page, in order — the audit panel auto-runs (expect
+#   "13 pass · 0 fail" — the page adds a calibration rescore as its
+#   13th check), then scroll: the public calibration specimen (a real
+#   32-item exam rendered row-by-row), the capability registry, all 503
+#   runs (filter: post-reveal only → 29 rows), the disclosure trail,
+#   the flagship races (ladder A4fMA7eK… mask=0b11 dead-heat, dark
+#   market on leg 0), and the nav search box that resolves ANY pubkey
+#   to its dossier card (?pk=<key> shares it).
 python3 -m http.server -d . 8788
 #   → http://localhost:8788/web/?rpc=http://127.0.0.1:8899
 #   offline (no localnet): http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json
@@ -140,7 +116,7 @@ python3 -m http.server -d . 8788
 
 # 3. verify the suites yourself
 yarn test                      # 17/17 E2E
-yarn harness:test              # 67/67 unit
+yarn harness:test              # 69/69 unit
 
 # 3a. or don't pick: `bash scripts/verify-all.sh` runs the whole offline
 #     audit — the crypto checks below, the headless in-page audit, the
@@ -377,7 +353,7 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 138 committed artifacts
+#           verifier in-browser: all 142 committed artifacts
 #           through their own check lists, live progress
 
 # 3q. THE FORGERY LAB — don't trust the checks, run the attack. The
@@ -481,7 +457,7 @@ yarn --cwd packages/harness cli chain fingerprint \
 #     classification and all).
 python3 scripts/verify.py
 #         → BUNDLE ROOT cfeb7eea… (same as the TypeScript — or the
-#           bundle is dirty) · all 138 artifacts replayed in Python ·
+#           bundle is dirty) · all 142 artifacts replayed in Python ·
 #           anchor carries root PASS
 #
 #     …and watch the verifier catch its own lie — --tamper forges each
@@ -545,7 +521,7 @@ curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/veri
 #           itself — no git, no pip, nothing but python3
 
 # 3v. THE CAPSULE — web/standalone.html is the entire submission as ONE
-#     6.6MB file: the page, the snapshot, all 138 artifacts, both
+#     6.6MB file: the page, the snapshot, all 142 artifacts, both
 #     manifests, the vendored crypto deps, and the devnet anchor doc,
 #     plus a fetch() shim so every in-page verifier runs OFFLINE.
 #     Download it, disconnect, open it in any browser — the audit, the
@@ -566,7 +542,7 @@ node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
 
 | Claim | TypeScript CLI | Explorer (in-browser JS) | stdlib Python |
 |---|---|---|---|
-| Bundle integrity — 351 pinned files → one BUNDLE ROOT | `chain fingerprint` | auto-audit §bundle | `verify.py` §1–3 |
+| Bundle integrity — 359 pinned files → one BUNDLE ROOT | `chain fingerprint` | auto-audit §bundle | `verify.py` §1–3 |
 | PDA custody — every account re-derives, vaults provably keyless | `artifact --verify` | audit §PDA | `verify.py` §5–8 |
 | All 138 artifact cards replay | `artifact --recursive` | `?mega=1` cascade | `verify.py` §9–17 |
 | MPC score arithmetic (fingerprints → Reveals → outputs_root → recount) | `rescore.mjs` | audit §calibration | `verify.py --rescore` |

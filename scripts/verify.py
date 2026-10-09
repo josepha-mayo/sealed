@@ -128,6 +128,7 @@ import re
 import struct
 import sys
 import time
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -290,10 +291,26 @@ def card_iter(dirpath, pattern="*.json", kind=None):
     return [Path(_CARD[0])] if kind is not None and _CARD[1] == kind else []
 
 
+
+def snapshot_path():
+    """web/snapshot.json, overridable via SEALED_SNAPSHOT — lets the
+    hostile-snapshot test feed mutated bytes without touching the tree."""
+    import os
+    return Path(os.environ.get("SEALED_SNAPSHOT", str(ROOT / "web" / "snapshot.json")))
+
+
+def snapshot_text():
+    return snapshot_path().read_text()
+
+
+def snapshot_bytes():
+    return snapshot_path().read_bytes()
+
+
 def main():
     ok = True
     global SNAP
-    SNAP = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    SNAP = json.loads(snapshot_text())
     if _CARD is not None:
         print(f"sealed-fingerprint/v1 — single-card replay: {_CARD[0]}")
         print(f"detected kind: {_CARD[1]} — running that kind's full check"
@@ -321,7 +338,7 @@ def main():
                 f"memo tx {anchor.get('signature', '?')[:16]}… · slot {anchor.get('slot')}"
                 if anchor.get("bundleRoot") == root else f"anchor has {anchor.get('bundleRoot', '?')[:16]}…")
 
-    snap_hash = hashlib.sha256((ROOT / "web" / "snapshot.json").read_bytes()).hexdigest()
+    snap_hash = hashlib.sha256(snapshot_bytes()).hexdigest()
 
     # account census — every snapshot account's discriminator must be a
     # known class, including the ones only decoders elsewhere consume
@@ -1180,11 +1197,11 @@ def main():
                     continue
                 pa = sum(a[k][0] for k in shared) / max(1, sum(a[k][1] for k in shared))
                 pb = sum(b[k][0] for k in shared) / max(1, sum(b[k][1] for k in shared))
-                d = round(100 * (pa - pb), 4)
+                d = round4(100 * (pa - pb))
                 sa, sb = stats[A["recordPk"]], stats[B["recordPk"]]
                 sa["rankedPairs"] += 1; sb["rankedPairs"] += 1
                 sa["sharedBanks"] += len(shared); sb["sharedBanks"] += len(shared)
-                sa["ppDelta"] = round(sa["ppDelta"] + d, 4); sb["ppDelta"] = round(sb["ppDelta"] - d, 4)
+                sa["ppDelta"] = round4(sa["ppDelta"] + d); sb["ppDelta"] = round4(sb["ppDelta"] - d)
                 verdict = "a" if pa > pb else "b" if pb > pa else "tie"
                 if verdict == "a": sa["wins"] += 1; sb["losses"] += 1
                 elif verdict == "b": sb["wins"] += 1; sa["losses"] += 1
@@ -1202,7 +1219,7 @@ def main():
         theirs = sorted(card["pairs"], key=pair_sort)
         pairs_ok = (len(mine) == len(theirs) and all(
             x["a"] == y["a"] and x["b"] == y["b"] and x["shared"] == y["shared"]
-            and x["verdict"] == y["verdict"] and abs(x["deltaPp"] - y["deltaPp"]) < 0.001
+            and x["verdict"] == y["verdict"] and x["deltaPp"] == y["deltaPp"]
             for x, y in zip(mine, theirs)))
         ok &= check(f"{name}: pairwise verdicts", pairs_ok,
                     f"{len(rebuilt)} ranked pairs — shared banks, deltas, verdicts recomputed")
@@ -1225,7 +1242,7 @@ def main():
         rank_ok = True
         for i, r in enumerate(card["ranking"]):
             pk, s = order[i] if i < len(order) else (None, None)
-            lcb = round(wilson_lcb(s["wins"] + s["ties"] / 2, s["rankedPairs"]), 4) if s else -1
+            lcb = round4(wilson_lcb(s["wins"] + s["ties"] / 2, s["rankedPairs"])) if s else -1
             if (r["recordPk"] != pk or r["rank"] != i + 1
                     or abs(r["pairwise"]["lcb"] - lcb) > 0.001):
                 rank_ok = False
@@ -1753,7 +1770,7 @@ def main():
             ok &= check(f"{name}: receipt surface", l_bad == 0,
                         f"{len(card['receipts'])} score receipts on this bank — field-bound · complete")
             # [8] snapshot binding
-            snap_digest = hashlib.sha256((ROOT / "web" / "snapshot.json").read_bytes()).hexdigest()
+            snap_digest = hashlib.sha256(snapshot_bytes()).hexdigest()
             ok &= check(f"{name}: snapshot binding", snap_digest == card.get("snapshot"),
                         "sha256(snapshot.json) == card.snapshot")
 
@@ -1764,7 +1781,7 @@ def main():
         card = json.loads(dig_path.read_text())
         if card.get("kind") == "sealed-evidence-digest/v1":
             rebuilt = build_digest()
-            snap_sha = hashlib.sha256((ROOT / "web" / "snapshot.json").read_bytes()).hexdigest()
+            snap_sha = hashlib.sha256(snapshot_bytes()).hexdigest()
             ok &= check("digest.json: snapshot binding",
                         card.get("snapshotSha256") == snap_sha,
                         "sha256(snapshot.json) matches the digest's bound bytes")
@@ -1928,6 +1945,12 @@ def decode_scorelog(d):
         "recordedAt": int.from_bytes(d[144:152], "little", signed=True),
         "vouched": d[152], "postReveal": d[153],
     }
+
+
+def round4(x):
+    """JS `+(v).toFixed(4)` — round-half-up on the shortest-round-trip decimal,
+    NOT Python's banker's-rounding round(). Parity with the TS minting code."""
+    return float(Decimal(repr(x)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
 
 
 def wilson_lcb(correct, items, z=1.96):
@@ -2381,7 +2404,7 @@ def build_digest():
     return {
         "kind": "sealed-evidence-digest/v1",
         "snapshotSha256": hashlib.sha256(
-            (ROOT / "web" / "snapshot.json").read_bytes()).hexdigest(),
+            snapshot_bytes()).hexdigest(),
         "programs": {"sealed": SNAP.get("meta", {}).get("programs", {}).get("sealed"),
                      "market": SNAP.get("meta", {}).get("programs", {}).get("market")},
         "epochs": SNAP.get("meta", {}).get("epochs"),
@@ -2553,6 +2576,65 @@ def forged_card_rejected(f):
                     return True
                 npass += 1 if want else 0
             if s.get("pass") is not None and s["pass"] != npass:
+                return True
+            return False
+        if kind == "sealed-claim/v1":
+            # the model-laundering trap: card's claimed name must equal the
+            # named record's on-chain modelId; receipts must match ScoreLog
+            # bytes AND point back at that record; aggregates must recount.
+            rec_raw = find_account(SNAP["sealed"], f["model"]["recordPk"], disc("ModelRecord"))
+            rec_dec = decode_model_record(rec_raw) if rec_raw else None
+            if not rec_dec or rec_dec["modelId"] != f["model"]["id"]:
+                return True
+            for l in f.get("receipts", []):
+                raw = find_account(SNAP["sealed"], l["pk"], disc("ScoreLog"))
+                sl = decode_scorelog(raw) if raw else None
+                if (sl is None or sl["run"] != l["run"]
+                        or sl["benchmark"] != l["benchmark"]
+                        or sl["correct"] != l["correct"] or sl["items"] != l["items"]
+                        or sl["modelRecord"] != f["model"]["recordPk"]
+                        or bool(sl["vouched"]) != bool(l["vouchedAtRecord"])
+                        or bool(sl["postReveal"]) != bool(l["postReveal"])):
+                    return True
+            m = f["model"]
+            if (sum(r["correct"] for r in f.get("receipts", [])) != m["totalCorrect"]
+                    or sum(r["items"] for r in f.get("receipts", [])) != m["totalItems"]
+                    or len(f.get("receipts", [])) != m["runsScored"]):
+                return True
+            return False
+        if kind == "sealed-match/v1":
+            # same laundering on both sides + verdict must replay off the
+            # shared-bank aggregates.
+            for side in ("a", "b"):
+                rec_raw = find_account(SNAP["sealed"], f[side]["recordPk"], disc("ModelRecord"))
+                rec_dec = decode_model_record(rec_raw) if rec_raw else None
+                if not rec_dec or rec_dec["modelId"] != f[side]["id"]:
+                    return True
+                for l in f["receipts"][side]:
+                    raw = find_account(SNAP["sealed"], l["pk"], disc("ScoreLog"))
+                    sl = decode_scorelog(raw) if raw else None
+                    if (sl is None or sl["run"] != l["run"]
+                            or sl["correct"] != l["correct"] or sl["items"] != l["items"]
+                            or sl["modelRecord"] != f[side]["recordPk"]):
+                        return True
+            bank_pks = {b["pk"] for b in f.get("banks", [])}
+            agg = {}
+            for side in ("a", "b"):
+                m = {}
+                for l in f["receipts"][side]:
+                    if l["benchmark"] not in bank_pks:
+                        continue
+                    e = m.setdefault(l["benchmark"], [0, 0])
+                    e[0] += l["correct"]; e[1] += l["items"]
+                agg[side] = m
+            pa_c = sum(e[0] for e in agg["a"].values()); pa_i = sum(e[1] for e in agg["a"].values())
+            pb_c = sum(e[0] for e in agg["b"].values()); pb_i = sum(e[1] for e in agg["b"].values())
+            pctA = 100 * pa_c / pa_i if pa_i else 0
+            pctB = 100 * pb_c / pb_i if pb_i else 0
+            v = f.get("verdict", {})
+            winner = "tie" if pctA == pctB else "a" if pctA > pctB else "b"
+            if (v.get("winner") != winner or v.get("pooledA") != pa_c
+                    or v.get("pooledB") != pb_c):
                 return True
             return False
     except Exception:
@@ -2784,6 +2866,10 @@ def x25519_shared(ed_secret32: bytes, peer_u: bytes) -> bytes:
     k[31] |= 64
     scalar = int.from_bytes(k, "little")
     u = int.from_bytes(peer_u, "little") & (2 ** 255 - 1)
+    # noble parity: the decoded u must be canonical (< p) — RFC7748 permits
+    # accepting non-canonical encodings, noble does not, and neither do we.
+    if u >= FP:
+        raise ValueError("x25519: non-canonical u coordinate (>= p)")
     x1, x2, z2, x3, z3, swap = u, 1, 0, u, 1, 0
     for t in reversed(range(255)):
         kt = (scalar >> t) & 1
@@ -2806,7 +2892,12 @@ def x25519_shared(ed_secret32: bytes, peer_u: bytes) -> bytes:
         z2 = e * (aa + 121665 * e) % FP
     if swap:
         x2, x3, z2, z3 = x3, x2, z3, z2
-    return (x2 * pow(z2, FP - 2, FP) % FP).to_bytes(32, "little")
+    out = x2 * pow(z2, FP - 2, FP) % FP
+    # noble parity: a zero shared secret means a low-order peer — reject it
+    # rather than deriving a publicly-known key.
+    if out == 0:
+        raise ValueError("x25519: low-order peer (zero shared secret)")
+    return out.to_bytes(32, "little")
 
 
 def unpack_specs(fields):
@@ -2830,7 +2921,7 @@ def decrypt_demo():
     to it on the committed private bank decrypts here — then we RE-ENCRYPT
     the plaintext and require the bytes to equal the on-chain ciphertexts.
     A broken port cannot round-trip into the committed account bytes."""
-    snap = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    snap = json.loads(snapshot_text())
     demo = json.loads((ROOT / "web" / "demo-delegate.json").read_text())
     mxe = snap.get("meta", {}).get("mxe_x25519")
     if not mxe:
@@ -2894,7 +2985,7 @@ def tamper_demo():
     demo itself fails (the verifier would have accepted its own lie).
     """
     global SNAP
-    SNAP = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    SNAP = json.loads(snapshot_text())
     msec = SNAP["market"]
     all_ok = True
     print("sealed-fingerprint/v1 — forgery lab (the verifier catches its own lies)")
@@ -2972,6 +3063,26 @@ def tamper_demo():
                     'forgery dies at "snapshot binding" AND "aggregates"'
                     if caught else "FORGERY PASSED")
 
+    # 7. model laundering — keep every real receipt, just rename the model.
+    #    The named record's on-chain modelId disagrees.
+    card = json.loads((ROOT / "docs/evidence/claims/dark_model-a.json").read_text())
+    forged = copy.deepcopy(card)
+    forged["model"]["id"] = "gpt-9000-ultra"
+    caught = forged_card_rejected(forged)
+    all_ok &= check("model laundering (claim card rename)", caught,
+                    'forgery dies at "snapshot binding — MODEL ID MISMATCH"'
+                    if caught else "FORGERY PASSED")
+
+    # 8. same laundering on a head-to-head card — rename side A while keeping
+    #    real receipts and the real verdict.
+    card = json.loads((ROOT / "docs/evidence/matches/dark_model-a-vs-duel_model-a.json").read_text())
+    forged = copy.deepcopy(card)
+    forged["a"]["id"] = "totally-different-model"
+    caught = forged_card_rejected(forged)
+    all_ok &= check("model laundering (match card side rename)", caught,
+                    'forgery dies at "snapshot binding — MODEL ID MISMATCH"'
+                    if caught else "FORGERY PASSED")
+
     print("\n" + ("ALL FORGERIES CAUGHT — the Python verifier rejects its own lies"
                   if all_ok else "FORGERY LAB FAILED — a forged card verified"))
     return all_ok
@@ -2994,7 +3105,7 @@ def rescore_demo():
     cal = ROOT / "docs" / "evidence" / "calibration"
     bench_pk = "CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp"
     ok = True
-    snap = json.loads((ROOT / "web" / "snapshot.json").read_text())
+    snap = json.loads(snapshot_text())
     sect = snap["sealed"]
     prog = snap["meta"]["programs"]["sealed"]
     bank = json.loads((cal / "bank.json").read_text())

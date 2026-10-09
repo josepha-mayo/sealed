@@ -33,7 +33,7 @@ correct.reveal()
   already bound on-chain by `Run.outputs_root` (see `create_run` /
   `score_chunk` in `programs/sealed/src/lib.rs`; the submitted leaf must
   fold to the committed root or the tx fails).
-- The four `Enc<Mxe, AnswerPart>`s are decrypted *inside* the enclave;
+- The four `Enc<Mxe, AnswerPart>`s are decrypted *inside* the MPC cluster;
   per-item match bits never leave — only `correct` is `.reveal()`ed.
 - Soundness: equality on `u64` fingerprints. `Run.correct` is therefore a
   pure function of (committed outputs) × (sealed fingerprints) — which is
@@ -70,7 +70,7 @@ can, inside a computation.
 Same mint as `gen_part`, but specs return `Enc<Shared, Pack<GenPart>>` —
 packed 40 bytes into two 256-bit fields, encrypted to the authority's
 x25519. `reshare_part` re-keys a stored part to a *second* viewer inside
-the enclave: selective disclosure of questions to a delegate, answers still
+the cluster: selective disclosure of questions to a delegate, answers still
 sealed. On-chain, each reshare writes a `ShareGrant` PDA — the disclosure
 trail is public while the content stays private.
 

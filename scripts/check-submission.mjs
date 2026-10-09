@@ -72,16 +72,30 @@ const tracked = execSync("git ls-files", {
   encoding: "utf8",
 }).split("\n").filter(Boolean);
 let leaks = 0;
+// recursive object walk — a leaked bank could nest items under any key or
+// shape ({bank:{items}}, {exam:{questions}}, a bare array, ...). Any object
+// carrying BOTH prompt+answer strings is the plaintext an MPC exam exists
+// to keep off the public record.
+function* walk(x) {
+  if (x && typeof x === "object") {
+    yield x;
+    for (const v of Object.values(x)) yield* walk(v);
+  }
+}
+const leaksItems = (x) => Array.isArray(x) &&
+  x.some((it) => typeof it?.prompt === "string" && typeof it?.answer === "string");
 for (const f of tracked) {
   if (!f.endsWith(".json") || PLAINTEXT_ALLOW.has(f)) continue;
   let doc;
   try { doc = JSON.parse(readFileSync(new URL("../" + f, import.meta.url), "utf8")); }
   catch { continue; }
-  const items = doc?.items;
-  if (Array.isArray(items) && items.some((it) => typeof it?.prompt === "string" && typeof it?.answer === "string")) {
-    console.log(`LEAK     ${f} — tracked JSON carries plaintext prompt+answer items (private bank material)`);
-    leaks++;
-    fail = 1;
+  for (const o of walk(doc)) {
+    if (leaksItems(o)) {
+      console.log(`LEAK     ${f} — tracked JSON carries plaintext prompt+answer items (private bank material)`);
+      leaks++;
+      fail = 1;
+      break;
+    }
   }
 }
 console.log(`${leaks ? "FAIL   " : "ok     "} plaintext leak scan    ${tracked.length} tracked files, ${leaks} leaks`);

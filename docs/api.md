@@ -235,14 +235,14 @@ auto-detects any — auto-detects any
 `sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog/v1`
 payload and
 routes it to the right replay. A directory verifies every artifact in
-it, mixing kinds freely; `--recursive` walks the whole tree (138
+it, mixing kinds freely; `--recursive` walks the whole tree (142
 artifacts in `docs/evidence` — `ALL ARTIFACTS VERIFIED`, exit 1 on any
 failure; non-artifact files are skipped, not failed). Reports need
 `--snapshot` (or live RPC) to re-mint their bound claim card; digests
 and board cards need it to replay against the decoded accounts. The explorer's
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
-in-browser — all 138 committed artifacts driven through their own
+in-browser — all 142 committed artifacts driven through their own
 in-page check lists with live progress, ending in the bundle root.
 `chain catalog [--dir docs/evidence]` prints the evidence table of
 contents — every artifact grouped by kind with a human title;
@@ -314,7 +314,7 @@ disclosure on sealed-priv — served at `web/grants/`; the explorer's
 lab's "redirect a disclosure" attack dies at grant PDA).
 `chain fingerprint` reduces the entire evidence base to one sha256 —
 `BUNDLE ROOT` = sha256 over the evidence + web manifests after
-re-hashing every pinned file (351 entries; exit 1 on any mismatch).
+re-hashing every pinned file (359 entries; exit 1 on any mismatch).
 The in-page replay prints the same root, so the terminal and the
 browser agree on one hash for the whole submission.
 `chain report <model> [--out <file>]` renders the `sealed-report/v1`

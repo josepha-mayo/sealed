@@ -353,6 +353,16 @@ or a cosmetic `reveal_count` over-count (only `>0` is consumed for
 post-reveal stamping). Benign by construction; a latch would cost an
 account-field append for zero security gain.
 
+Zero-key guards: `reshare_part` rejects `viewer == [0u8;32]` (a null viewer
+key would derive the all-zero DH output — the grant would re-encrypt under
+a key anyone can compute), `stage_part` rejects a zero `author_pubkey`, and
+`gen_part_private` already required a nonzero viewer. Sub-canonical or
+low-order x25519 peers beyond the zero key are the executing cluster's
+domain (the DH happens inside arcis `Shared::new`); every *verifier-side*
+implementation — vendored noble AND stdlib Python — rejects non-canonical
+u and zero shared secrets, so a hostile grant ciphertext can't be
+smuggled into the replay path either.
+
 ## Capability bounties — FCFS, payout to the operator, not a bettor
 
 `create_bounty` / `claim_bounty` / `expire_bounty` escrow a sponsor-funded

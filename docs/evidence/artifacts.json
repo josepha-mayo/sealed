@@ -1,7 +1,7 @@
 {
   "kind": "sealed-catalog/v1",
-  "root": "../../docs/evidence",
-  "count": 137,
+  "root": "docs/evidence",
+  "count": 141,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
@@ -13,7 +13,7 @@
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
     "sealed-report/v1": 4,
-    "sealed-tamper/v1": 11,
+    "sealed-tamper/v1": 15,
     "sealed-trail/v1": 4
   },
   "artifacts": [
@@ -646,6 +646,26 @@
       "path": "tamper/claimed-20of32.steal-the-bounty-below-threshold.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: steal the bounty below threshold → claimed-20of32.json"
+    },
+    {
+      "path": "tamper/dark_model-a-vs-duel_model-a.flip-the-head-to-head-verdict.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: flip the head-to-head verdict → dark_model-a-vs-duel_model-a.json"
+    },
+    {
+      "path": "tamper/dark_model-a-vs-duel_model-a.launder-the-loser-rename-side-a-s-model.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: launder the loser — rename side A's model → dark_model-a-vs-duel_model-a.json"
+    },
+    {
+      "path": "tamper/dark_model-a.launder-the-receipts-rename-the-model.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: launder the receipts — rename the model → dark_model-a.json"
+    },
+    {
+      "path": "tamper/dark_model-a.mint-a-phantom-receipt.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: mint a phantom receipt → dark_model-a.json"
     },
     {
       "path": "tamper/min60-3runs.flip-a-model-s-gate-verdict.json",

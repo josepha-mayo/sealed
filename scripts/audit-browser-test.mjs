@@ -357,13 +357,13 @@ for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /138\/138 artifacts replayed in-page/.test(bundleTxt) &&
+const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /142\/142 artifacts replayed in-page/.test(bundleTxt) &&
   /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
   /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt) &&
   /sealed-bank\/v1 — 3\/3/.test(bundleTxt) && /sealed-catalog\/v1 — 1\/1/.test(bundleTxt) &&
   /sealed-position\/v1 — 2\/2/.test(bundleTxt) && /sealed-bounty\/v1 — 2\/2/.test(bundleTxt) &&
-  /sealed-grant\/v1 — 2\/2/.test(bundleTxt) && /sealed-tamper\/v1 — 11\/11/.test(bundleTxt);
-console.log(`in-page bundle replay — 138 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+  /sealed-grant\/v1 — 2\/2/.test(bundleTxt) && /sealed-tamper\/v1 — 15\/15/.test(bundleTxt);
+console.log(`in-page bundle replay — 142 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
 if (!bundleOk) fails++;
 // the hero stat: SOL settled by MPC-written scores — must render a real
 // lamports total, not a blank cell.
@@ -424,7 +424,7 @@ if (!statOk) fails++;
 {
   const catTxt = (els.get("catalog")?.innerHTML ?? "");
   const catLinks = (catTxt.match(/\?card=/g) || []).length;
-  const catOk = /137 artifacts/.test(catTxt) && catLinks === 138 && /sealed-tamper\/v1/.test(catTxt);
+  const catOk = /141 artifacts/.test(catTxt) && catLinks === 142 && /sealed-tamper\/v1/.test(catTxt);
   console.log(`in-page evidence catalog — ${catLinks} ?card= links across 13 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
 }
@@ -447,7 +447,7 @@ if (!statOk) fails++;
   els.get("catalogjson").value = readFileSync(join(ROOT, "web", "artifacts.json"), "utf8");
   await vm.runInContext("verifyCatalog()", ctx);
   const cv = (els.get("catres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-  const cvOk = /CATALOG VERIFIED/.test(cv) && /137 listed \/ 137 found/.test(cv) && /137\/137 paths pinned/.test(cv);
+  const cvOk = /CATALOG VERIFIED/.test(cv) && /141 listed \/ 141 found/.test(cv) && /141\/141 paths pinned/.test(cv);
   console.log(`in-page catalog verifier — the index proves itself ${cvOk ? "PASS" : "FAIL — " + cv.slice(0, 300)}`);
   if (!cvOk) fails++;
 }
@@ -594,7 +594,7 @@ const gridOk = gridRows === 12 && /qwen2\.5-3b-instruct/.test(gridHtml) &&
 console.log(`in-page tournament grid — ${gridRows}×12 cells, signed deltas ${gridOk ? "PASS" : "FAIL"}`);
 if (!gridOk) fails++;
 // the one-click centerpiece — megaAudit() must cascade all four stages
-// (account audit, 138-artifact replay, full forgery sweep, sealed-exam
+// (account audit, 142-artifact replay, full forgery sweep, sealed-exam
 // decrypt) into a final EVERYTHING VERIFIED scoreboard. The decrypt leg
 // exercises the REAL vendored noble/rescue modules via dynamic import —
 // a broken vendored file or drifted ciphertext surfaces here.
@@ -603,7 +603,7 @@ const megaHtml = els.get("megares")?.innerHTML ?? "";
 const megaStages = (megaHtml.match(/class="proof"/g) || []).length;
 const decHtml = els.get("dec-8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug")?.innerHTML ?? "";
 const megaOk = megaStages === 4 && /EVERYTHING VERIFIED/.test(megaHtml) &&
-  /138/.test(els.get("bundleres")?.innerHTML ?? "") &&
+  /142/.test(els.get("bundleres")?.innerHTML ?? "") &&
   /decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml);
 console.log(`in-page PROVE EVERYTHING — 4 stages cascade to the scoreboard, sealed exam decrypted ${megaOk ? "PASS" : "FAIL"}`);
 if (!megaOk) fails++;
@@ -611,7 +611,7 @@ if (!megaOk) fails++;
 // (the stub DOM never parses innerHTML into elements — read megares raw)
 const vtxt = megaHtml.match(/<pre id="verdicttxt"[^>]*>([\s\S]*?)<\/pre>/)?.[1] ?? "";
 const vOk = /SEALED — evidence verdict/.test(vtxt) && /bundle root/.test(vtxt) &&
-  /[0-9a-f]{64}/.test(vtxt) && /forgeries\s+12\/12/.test(vtxt);
+  /[0-9a-f]{64}/.test(vtxt) && /forgeries\s+13\/13/.test(vtxt);
 console.log(`in-page copyable verdict — root + all stage counts on the paste-ready block ${vOk ? "PASS" : "FAIL"}`);
 if (!vOk) fails++;
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);

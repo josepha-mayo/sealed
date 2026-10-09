@@ -346,6 +346,10 @@ pub mod sealed {
             ctx.accounts.benchmark.status != STATUS_RETIRED,
             ErrorCode::BenchmarkRetired
         );
+        require!(
+            author_pubkey != [0u8; 32],
+            ErrorCode::StagingKeyMismatch
+        );
         require!((part as usize) < PARTS, ErrorCode::InvalidPart);
         let bit = 1u8 << part;
         require!(c.parts_sealed & bit == 0, ErrorCode::PartAlreadySealed);
@@ -892,6 +896,10 @@ pub mod sealed {
     ) -> Result<()> {
         let b = &ctx.accounts.benchmark;
         require!(b.kind == KIND_PRIVATE, ErrorCode::WrongBankKind);
+        // a zero viewer key would derive the public shared secret — the
+        // re-encrypted grant would be decryptable by anyone (same guard
+        // gen_part_private applies).
+        require!(viewer != [0u8; 32], ErrorCode::ViewerKeyMismatch);
         let items = &ctx.accounts.items;
         require!((part as usize) < PARTS, ErrorCode::InvalidPart);
         require!(

@@ -68,23 +68,13 @@
 </head>
 <body>
 <h1>SEALED</h1>
-<div class="sub"><b>A benchmark whose answer key was never written down, scored by nobody in particular.</b></div>
-<div class="sub kv">items minted &amp; scored inside Arcium MPC &middot; scores written on-chain by the cluster's callback &middot; markets settle on <code>Run.correct</code> &middot; <a href="https://github.com/josepha-mayo/sealed">repo</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/judges.md">judge guide</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/integrate.md">compose on Run.correct</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/engineering-log.md">engineering log</a></div>
+<div class="sub"><b>The benchmark whose answer key never existed — the exam nobody can leak, the score nobody can fake, the market that settles itself.</b></div>
+<div class="sub kv">items minted &amp; scored inside Arcium's MPC (multi-party computation) cluster &middot; scores written on-chain by the cluster's callback &middot; markets settle on the on-chain score field itself (<code>Run.correct</code>) — no referee signs off &middot; <a href="https://github.com/josepha-mayo/sealed">repo</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/judges.md">judge guide</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/integrate.md">compose on Run.correct</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/engineering-log.md">engineering log</a></div>
 
-<div class="cfg">
-  <input id="rpc" size="42"> <button onclick="connectLive()">connect</button>
-  <button onclick="document.getElementById('snapPick').click()">load snapshot</button>
-  <input type="file" id="snapPick" accept=".json" style="display:none" onchange="this.files[0] && loadSnapshot(this.files[0])">
-  <button onclick="document.getElementById('diffPick').click()" title="drop a second bundle — added/removed/mutated accounts vs what's loaded">diff…</button>
-  <input type="file" id="diffPick" accept=".json" style="display:none" onchange="this.files[0] && diffSnapshot(this.files[0])">
-  <span id="net" class="kv"></span>
-</div>
-<div id="diffres"></div>
-<div id="err"></div>
 <div class="nav">
   <span class="kv">ledger:</span><a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a>
   <span class="kv">proof:</span><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-tampercard" style="color:var(--warn)">lie exhibit</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#sec-catalog">catalog</a>
-  <span class="kv">cards:</span><a href="#sec-claim">claim</a><a href="#sec-policy">policy</a><a href="#sec-match">match</a><a href="#sec-trail">trail</a><a href="#sec-report">report</a><a href="#sec-digest">digest</a><a href="#sec-boardcard">board</a><a href="#sec-bankcard">exam</a><a href="#sec-poscard">bettor</a><a href="#sec-bountycard">bounty</a><a href="#sec-grantcard">disclosure</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <span class="kv">cards:</span><a href="#sec-claim" title="a model's portable proof card">model claim</a><a href="#sec-policy" title="a capability policy verdict">policy</a><a href="#sec-match" title="a head-to-head verdict card">head-to-head</a><a href="#sec-trail" title="a run's custody trail">custody</a><a href="#sec-report" title="a written audit report">report</a><a href="#sec-digest" title="the whole-ledger integrity digest">ledger digest</a><a href="#sec-boardcard" title="the leaderboard as a verifiable card">leaderboard</a><a href="#sec-bankcard" title="an exam's commitment card">exam</a><a href="#sec-poscard" title="a bettor's stake receipt">bettor</a><a href="#sec-bountycard" title="a sponsor's bounty certificate">bounty</a><a href="#sec-grantcard" title="a viewer's disclosure certificate">disclosure</a><a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -92,7 +82,7 @@
   <div class="kv" style="margin-bottom:6px"><b>This page audits itself.</b> No wallet, no RPC, nothing trusted — every score below was written by the MPC cluster's callback, and you can recount any of them right here:</div>
   <div>
     <button onclick="megaAudit()" style="border-color:var(--acc)">▶ PROVE EVERYTHING — one click (~8s)</button>
-    <span class="kv">audit → all 138 artifacts replayed → 12 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (24 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
+    <span class="kv">audit → all 142 artifacts replayed → 13 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (24 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
     <div id="megares" style="margin-top:8px"></div>
   </div>
   <div style="margin-top:6px">
@@ -103,6 +93,17 @@
     <button onclick="quickReplay()">replay all 138 proofs</button>
   </div>
 </div>
+<div class="cfg">
+  <span class="kv" style="margin-right:6px">power tools (optional — the audit above needs none of this):</span>
+  <input id="rpc" size="42"> <button onclick="connectLive()">connect</button>
+  <button onclick="document.getElementById('snapPick').click()">load snapshot</button>
+  <input type="file" id="snapPick" accept=".json" style="display:none" onchange="this.files[0] && loadSnapshot(this.files[0])">
+  <button onclick="document.getElementById('diffPick').click()" title="drop a second bundle — added/removed/mutated accounts vs what's loaded">diff…</button>
+  <input type="file" id="diffPick" accept=".json" style="display:none" onchange="this.files[0] && diffSnapshot(this.files[0])">
+  <span id="net" class="kv"></span>
+</div>
+<div id="diffres"></div>
+<div id="err"></div>
 <div id="out"></div>
 
 <h2 id="sec-audit">cryptographic audit</h2>
@@ -2374,7 +2375,7 @@ function verifyCert() {
       if (pdaB([utf8("modelrec"), hex2u8(m.seeds.modelHash)], spid) === m.recordPk) pdaOk++;
       const v = evalGateIn(m.receipts || []);
       const w = m.verdict;
-      if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) < 0.01 &&
+      if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) <= 0.01 &&
           v.runs === w.runs && v.items === w.items && v.correct === w.correct && v.postRevealRuns === w.postRevealRuns) vOk++;
       else rows.push(`<div class="kv" style="color:var(--err)">&nbsp;&nbsp;&#8627; ${esc(m.modelId)}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)</div>`);
     }
@@ -3839,19 +3840,23 @@ async function verifyTamper() {
     const savedTa = ta.value, savedHtml = inner.innerHTML;
     ta.value = JSON.stringify(f, null, 2);
     inner.innerHTML = "";
-    let verdictHtml = "";
+    let verdictHtml = "", threw = "";
     try { await fn(); verdictHtml = inner.innerHTML; }
+    catch (e) { threw = String(e?.message ?? e); }
     finally { ta.value = savedTa; inner.innerHTML = savedHtml; }
     const diedAt = [...verdictHtml.matchAll(/pill cancelled[^<]*<\/span>\s*([^—<]+)/g)].map(m => m[1].trim());
-    const rejected = /pill cancelled|FAILED/.test(verdictHtml);
+    const rejected = /pill cancelled|FAILED/.test(verdictHtml) || !!threw;
     const exp = c.expectFail ?? [];
-    const named = exp.length === 0 || exp.some(x => diedAt.includes(x) || /thrown error/.test(x));
+    // strict: EVERY recorded check must fire; a thrown rejection matches its
+    // recorded expectThrow signature.
+    const named = exp.length ? exp.every(x => diedAt.includes(x))
+      : (c.expectThrow ? threw.includes(c.expectThrow.slice(0, 60)) : true);
     rejected
-      ? pass("inner forgery rejected", `the ${f.kind} verifier refused it — died at ${diedAt.slice(0, 3).join(", ") || "a thrown check"}`)
+      ? pass("inner forgery rejected", `the ${f.kind} verifier refused it — died at ${diedAt.slice(0, 3).join(", ") || (threw ? `threw ${threw.slice(0, 60)}` : "a thrown check")}`)
       : fail("inner forgery rejected", "THE VERIFIER TOOK THE LIE — the inner card VERIFIED");
     named
-      ? pass("named check", `expected ${exp.join(", ") || "any rejection"}`)
-      : fail("named check", `expected ${exp.join(", ")} — died at ${diedAt.join(", ") || "nothing"}`);
+      ? pass("named check", `expected ${exp.join(", ") || c.expectThrow || "any rejection"}`)
+      : fail("named check", `expected ${exp.join(", ") || c.expectThrow} — died at ${diedAt.join(", ") || threw || "nothing"}`);
     res.innerHTML = rows.join("") +
       `<div class="kv" style="margin-top:8px"><b>${rejected && named ? "EXHIBIT VERIFIED" : "EXHIBIT FAILED"}</b> — "${esc(c.attack)}" on ${esc(c.targetCard)} · this forgery is evidence now</div>`;
   } catch (e) {
@@ -3875,6 +3880,8 @@ const FORGE_DEFS = {
   phantom: { label: "mint a phantom receipt", file: "claims/qwen2.5-3b-instruct.json", ta: "claimjson", res: "claimres", sec: "sec-claim", verify: verifyClaim,
              mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0]));
                r.pk = r.pk.slice(0, -1) + (r.pk.endsWith("x") ? "y" : "x"); c.receipts.push(r); return c; } },
+  launder: { label: "launder real receipts under a fake name", file: "claims/qwen2.5-3b-instruct.json", ta: "claimjson", res: "claimres", sec: "sec-claim", verify: verifyClaim,
+             mutate: (c) => { c.model.id = "gpt-9000-ultra"; return c; } },
   pool:    { label: "inflate a settled pool", file: "trails/qwen3b-ladder-deadheat.json", ta: "trailjson", res: "trailres", sec: "sec-trail", verify: verifyTrail,
              mutate: (c) => { c.venues[0].poolTotal += 1; return c; } },
   counts:  { label: "re-age the ledger", file: "digest.json", ta: "digestjson", res: "digestres", sec: "sec-digest", verify: verifyDigest,
@@ -4083,7 +4090,7 @@ const TOUR_STOPS = [
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
-  ["sec-artifact", "verify anything — then 'replay the whole bundle': 138 committed artifacts"],
+  ["sec-artifact", "verify anything — then 'replay the whole bundle': 142 committed artifacts"],
   ["sec-catalog", "the evidence catalog — every artifact is a link you can forward; each re-verifies on open"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-policy", "the referee — admission gates replay as portable certificates; every verdict re-derives from the receipts embedded in it"],

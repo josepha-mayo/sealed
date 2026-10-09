@@ -994,7 +994,9 @@ class RescueCipherCommon {
             const encryptedCounter = desc.permute(new Matrix(desc.field, toVec(cntr)));
             const decrypted = [];
             for (let i = 0; i < ctxt.length; ++i) {
-                const diff = ctSub(ctxt[i], encryptedCounter.data[i][0], binSize);
+                // reduce the ciphertext limb first: a non-canonical c >= p would
+                // otherwise survive the single conditional-add below unreduced.
+                const diff = ctSub(ctxt[i] % desc.field.ORDER, encryptedCounter.data[i][0], binSize);
                 decrypted.push(ctSelect(ctSignBit(diff, binSize), ctAdd(diff, desc.field.ORDER, binSize), diff, binSize));
             }
             return decrypted;

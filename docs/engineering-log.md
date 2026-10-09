@@ -137,6 +137,30 @@ gaps in the verifiers, not just in the programs:
   verdict links). The audit-of-the-audit also turned up stale counts
   docs never could have caught alone: 123→138 artifacts, a 12→16 grant
   panel on the private-duel bank, anomaly severities 1/6/3 → 2/8/2.
+- **Bit-parity ≠ bit-parity-on-hostile-inputs.** A five-way consistency
+  audit (Python/TS/browser/Rust/arcis) proved the transcript identical
+  on every committed byte — then found five edges where hostile inputs
+  diverged. All closed: Python's x25519 now rejects non-canonical u and
+  low-order peers like noble (a zero shared secret would derive the
+  publicly-known Rescue key `[1,0,5]` — the decryption path now raises
+  instead of returning a world-readable key); the vendored Rescue
+  decrypt reduces ciphertext limbs before the conditional-add so
+  c ≥ p can't survive unreduced; the policy-cert pct boundary is now
+  `<= 0.01` on both sides (was pass-at-boundary in Python, fail in TS);
+  board-card deltaPp compares exact like the TS JSON.stringify —
+  which required a real `toFixed(4)` port (Decimal half-up), because
+  Python's banker's `round()` drifts in the last decimal. And the
+  latent protocol one: `reshare_part` took any 32-byte viewer — a
+  zero key would encrypt the grant under a shared secret anyone can
+  compute. `viewer != [0u8;32]` (and `author_pubkey !=` in stage_part)
+  now gate both. The verifier's job is to agree on LIES too.
+- **The whole-ledger checks only ever saw honest snapshots.** The
+  census/invariant checks passed 1,796 accounts — all of them good.
+  Now `verify.mjs` takes a snapshot path and `verify.py` takes
+  `SEALED_SNAPSHOT`, and a subprocess test feeds both a mutated
+  ledger (a flipped `Run.correct` byte; an alien discriminator) and
+  asserts a nonzero exit with a named FAIL — not just "something
+  failed", the right check fired.
 
 ## Operational war stories (the parts docs never show)
 

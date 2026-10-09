@@ -6,11 +6,10 @@ canonical copy to paste; update it when claims change.
 
 ## shortDescription (the tagline — Cerebro and judges parse this first)
 
-A benchmark whose answer key was never written down, scored by nobody in
-particular: benchmark items are minted inside an Arcium MPC cluster, model
-runs are scored in-MPC and the count lands on Solana, and markets settle
-themselves off that number — the referee for AI capability is now
-infrastructure, not a vendor. (≈330 chars — trim to the form's limit.)
+The benchmark whose answer key never existed — the exam nobody can leak,
+the score nobody can fake, the market that settles itself. Items are
+minted inside an Arcium MPC cluster, the score lands on Solana, and
+markets resolve off it permissionlessly. (≈280 chars.)
 
 ## problemStatement
 
@@ -22,12 +21,15 @@ exclusively accesses. Prediction markets already trade on model scores
 party's leaderboard. Every trusted party in the eval loop — the item author,
 the benchmark operator, the scoring harness, the leaderboard — can leak the
 data or rig the number. There is no credibly neutral referee for what a model
-can do.
+can do. Today, a lab claiming "our 7B beats the frontier" must either
+publish the eval — contaminating it overnight — or ask the market to
+take its word. Every "will model X clear T" market resolves on whichever
+leaderboard it happened to trust that week.
 
 ## technicalApproach
 
 Sealed removes the trusted data party entirely: six Arcis circuits run
-inside the Arcium MPC cluster. `gen_part` mints items inside the enclave —
+inside the Arcium MPC cluster. `gen_part` mints items inside the MPC cluster —
 specs from ArcisRNG, answers fingerprinted in-circuit; no answer key ever
 exists. `gen_part_private` returns specs as `Enc<Shared>` — questions never
 appear in plaintext on-chain either. `reshare_part` re-encrypts spec parts
@@ -40,16 +42,16 @@ A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, commit-reveal dark markets, and FCFS capability
 bounties (pot pays the first proven run's operator, not a bettor) —
 resolving permissionlessly on `Run.correct`; bets latch before the
-first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 67/67
-harness unit; four open-weights models raced, dueled, and settled via
-MPC — a dead-heat, a private exam via reshare grants, a dark market on
-a ciphertext-only bank's run. Every primitive settled a real score.
+first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 69/69
+harness unit; four open-weights models settled real markets via MPC —
+a dead-heat, a reshare-grant private exam, a dark market on a
+ciphertext-only bank. Every primitive settled a real score.
 
 ## solanaIntegration
 
 Two Anchor programs on Solana: `sealed` owns benchmark banks, item chunks,
 sealed answer fingerprints, runs, share grants, and reveals; `market` hosts
-parimutuel score-band, duel, ladder-race, unseen-exam, dark
+pooled-stake (parimutuel) score-band, duel, ladder-race, unseen-exam, dark
 commit-reveal markets, and capability bounties — all resolved from
 `Run.correct`. The
 programs compose with the Arcium stack — MXE account, cluster, mempool/
@@ -82,9 +84,9 @@ the chain never trusts self-reported scores. The capability registry
 persists per-model records — 31 records / 292 receipts replayed
 bit-exact in-browser; the calibration specimen replays the same MPC
 arithmetic per-item (3b 7/32 vs 1.5b 2/32).
-Outputs are portable proof — 138 artifacts / 13 kinds replay
+Outputs are portable proof — 142 artifacts / 13 kinds replay
 keyless; `chain fingerprint` = one sha256 notarized on devnet;
-12 canned forgeries die at named checks; tamper/ pins 11 forged
+13 canned forgeries die at named checks; tamper/ pins 15 forged
 artifacts that verify by being REJECTED — `verify.py` redoes it
 in Python.
 
@@ -102,7 +104,9 @@ demand side is proven: prediction venues cleared ~$63.5B notional in 2025
 (4x YoY; Kalshi ~$23B and Polymarket ~$22B of it) — and AI-category
 markets already trade, all of them resolving on truth a human holds. The
 eval supply side is ~$1.2B (2024) growing toward ~$9.7B by 2033 — labs
-pay for scores they still cannot prove. Sealed is where both converge.
+pay for scores they still cannot prove. Sealed is where both converge —
+every future claim about what a model can do is addressable market
+surface.
 
 ## businessModel
 
@@ -150,12 +154,14 @@ confidential stakes for markets (positions encrypted via the same MPC),
 quorum/timed disclosure for judge panels, TEE-attested runner harnesses for
 third-party operators, and
 private banks as a service — any lab, insurer, or market can commission an
-eval that cannot be leaked because nobody ever held it. As confidential
+eval that cannot be leaked because nobody ever held it. The `Run.correct`
+/`ModelRecord` registry is itself a credibly neutral public good — an open
+capability registry any venue composes on permissionlessly. As confidential
 inference (Arcium Blackthorn) matures, the runner's outputs can be sealed
 end-to-end: questions, answers, and model replies all inside the encryption
 boundary.
 
-## teamBackground (DRAFT — review the facts before submitting)
+## teamBackground (facts need your sign-off — the copy below is paste-ready)
 
 ```
 Joseph Mayo — solo build, end to end: two Anchor programs (sealed +
@@ -180,7 +186,7 @@ disclose it in the form's prior-work field — allowed but must be declared.
   `agg docs/demo.cast docs/demo.gif` or convert to mp4; embed in README.
 - Public URL: **https://josepha-mayo.github.io/sealed/** — live explorer,
   auto-loads the bundled snapshot (no localnet needed); `?mega=1` runs the
-  entire proof cascade unaided (audit → 138 replays → forgery sweep →
+  entire proof cascade unaided (audit → 142 replays → forgery sweep →
   sealed-exam decrypt → copyable verdict), `?decrypt=1` deep-links the
   payoff. Served by `.github/workflows/pages.yml` on every push. Local
   fallback:

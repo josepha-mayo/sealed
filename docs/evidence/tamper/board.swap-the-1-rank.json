@@ -3,8 +3,10 @@
   "attack": "swap the #1 rank",
   "targetKind": "sealed-board/v1",
   "targetCard": "board.json",
-  "expectFail": [],
-  "forgedAt": "2026-10-07T16:22:26.193Z",
+  "expectFail": [
+    "ranking"
+  ],
+  "forgedAt": "2026-10-08T21:06:21.815Z",
   "forged": {
     "kind": "sealed-board/v1",
     "generatedAt": "2026-10-07T06:52:28.017Z",

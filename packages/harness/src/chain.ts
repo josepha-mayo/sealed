@@ -4323,9 +4323,11 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
   ],
   "sealed-match/v1": [
     { label: "flip the head-to-head verdict", mutate: (c) => { c.verdict.winner = c.verdict.winner === "a" ? "b" : "a"; } },
+    { label: "launder the loser — rename side A's model", mutate: (c) => { c.a.id = "totally-different-model"; } },
   ],
   "sealed-claim/v1": [
     { label: "mint a phantom receipt", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0])); r.correct += 1; c.receipts.push(r); } },
+    { label: "launder the receipts — rename the model", mutate: (c) => { c.model.id = "gpt-9000-ultra"; } },
   ],
   "sealed-trail/v1": [
     { label: "rewrite the settled money", mutate: (c) => {
@@ -4456,15 +4458,19 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
       // wrapped with the attack name + the check(s) it died at. Verifying
       // the exhibit positively replays the rejection.
       if (exhibitDir) {
-        const died = lines.filter((l) => /\bFAIL\b/.test(l))
-          .map((l) => l.replace(/^.*\bFAIL\b\s*/, "").split("—")[0].trim())
+        const died = lines.filter((l) => /\bFAIL\b|✗/.test(l))
+          .map((l) => l.replace(/^.*?(?:\bFAIL\b|✗)\s*/, "").split("—")[0].trim())
           .filter(Boolean);
+        // a forgery that throws (malformed-by-construction) names its death
+        // too — record the thrown signature so verification stays strict.
+        const expectThrow = !died.length && detail ? detail.trim().replace(/^\(|\)$/g, "") : undefined;
         const exhibit = {
           kind: "sealed-tamper/v1",
           attack: defs[i].label,
           targetKind: kind,
           targetCard: target.split("/").pop(),
           expectFail: died,
+          ...(expectThrow ? { expectThrow } : {}),
           forgedAt: new Date().toISOString(),
           forged,
         };
@@ -4511,15 +4517,22 @@ export async function tamperCardVerify(file: string, json = false, snapPath?: st
   try { const r = await route(tmp); ok = (r.ok ?? (r.fail === 0)) === true; }
   catch (e: any) { ok = false; err = String(e?.message ?? e); }
   finally { console.log = orig; process.exitCode = saved; }
-  const died = lines.filter((l) => /\bFAIL\b/.test(l))
-    .map((l) => l.replace(/^.*\bFAIL\b\s*/, "").split("—")[0].trim()).filter(Boolean);
+  const died = lines.filter((l) => /\bFAIL\b|✗/.test(l))
+    .map((l) => l.replace(/^.*?(?:\bFAIL\b|✗)\s*/, "").split("—")[0].trim()).filter(Boolean);
   const expected: string[] = card.expectFail ?? [];
-  const named = expected.length === 0 || expected.some((x) => died.includes(x));
+  // strict: EVERY recorded check must fire — an exhibit that claims it died
+  // at "account binding" but actually dies earlier is a lie about its lie.
+  const checksNamed = expected.every((x) => died.includes(x));
+  // a thrown rejection carries its signature in expectThrow — require the
+  // replay to throw the same message head.
+  const throwNamed = typeof card.expectThrow === "string" &&
+    err.includes(card.expectThrow.slice(0, 60));
+  const named = expected.length ? checksNamed : (card.expectThrow ? throwNamed : true);
   const pass = !ok && named;
   if (!json) {
     console.log(`  ${!ok ? "PASS" : "FAIL"} inner forgery rejected — the ${card.targetKind} verifier refused it${err ? ` (${err})` : ""}`);
     for (const f of died.slice(0, 4)) console.log(`       died at: ${f}`);
-    console.log(`  ${named ? "PASS" : "FAIL"} named check — expected ${expected.join(", ") || "(any rejection)"}`);
+    console.log(`  ${named ? "PASS" : "FAIL"} named check — expected ${expected.join(", ") || card.expectThrow || "(any rejection)"}`);
     console.log(`${pass ? "TAMPER EXHIBIT VERIFIED" : "EXHIBIT FAILED"} — "${card.attack}" on ${card.targetCard ?? "?"}`);
   }
   return { ok: pass, pass: pass ? 2 : 0, fail: pass ? 0 : 1 };
@@ -6864,7 +6877,7 @@ export async function gateCertVerify(file: string, json = false) {
     }));
     const v = evalGate(receipts, policy, true);
     const w = m.verdict;
-    if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) < 0.01 &&
+    if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) <= 0.01 &&
         v.runs === w.runs && v.items === w.items && v.correct === w.correct && v.postRevealRuns === w.postRevealRuns)
       verdictOk++;
     else if (!json) console.log(`    ↳ ${m.modelId}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)`);

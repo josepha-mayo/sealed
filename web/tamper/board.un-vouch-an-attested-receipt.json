@@ -3,8 +3,10 @@
   "attack": "un-vouch an attested receipt",
   "targetKind": "sealed-board/v1",
   "targetCard": "board.json",
-  "expectFail": [],
-  "forgedAt": "2026-10-07T16:22:26.464Z",
+  "expectFail": [
+    "snapshot binding"
+  ],
+  "forgedAt": "2026-10-08T21:06:22.527Z",
   "forged": {
     "kind": "sealed-board/v1",
     "generatedAt": "2026-10-07T06:52:28.017Z",

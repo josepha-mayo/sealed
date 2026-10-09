@@ -18,7 +18,7 @@ parimutuel markets resolved from `Run.correct`.
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
   closer): offline verify + headless browser audit + grant-decrypt
-  regression + calibration rescore + recursive artifact replay (138
+  regression + calibration rescore + recursive artifact replay (142
   artifacts in one pass) + evidence/web manifests + doc-count freshness
   + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
@@ -56,7 +56,7 @@ parimutuel markets resolved from `Run.correct`.
   multiset binding), the catalog index, bank dossiers (items_root fold
   replayed in mint_order — gen banks fold specs, private fold
   ciphertexts+nonces), the whole-ledger digest (integrity rows + keeper
-  classification), and the 11 tamper exhibits which MUST be rejected.
+  classification), and the 15 tamper exhibits which MUST be rejected.
   No node, no pip, no RPC — proof the evidence is language-agnostic.
   `--tamper` forges each card family and asserts the catch at a named
   check. `--decrypt` ports the whole disclosure stack — RFC7748 x25519
@@ -140,7 +140,7 @@ parimutuel markets resolved from `Run.correct`.
   position/bounty/grant/catalog/tamper/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 138 artifacts in one pass). `chain artifact <file>
+  replays all 142 artifacts in one pass). `chain artifact <file>
   --tamper` is the CLI forgery lab: kind-aware mutations re-run the
   verifier and MUST fail — a forged card that verifies exits 1 (all
   12 JSON kinds carry canned attacks; the harness test pins all 12).

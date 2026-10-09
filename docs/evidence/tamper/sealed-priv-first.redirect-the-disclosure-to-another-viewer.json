@@ -3,8 +3,12 @@
   "attack": "redirect the disclosure to another viewer",
   "targetKind": "sealed-grant/v1",
   "targetCard": "sealed-priv-first.json",
-  "expectFail": [],
-  "forgedAt": "2026-10-07T16:22:24.110Z",
+  "expectFail": [
+    "grant PDA",
+    "account binding",
+    "key echo"
+  ],
+  "forgedAt": "2026-10-08T21:06:23.636Z",
   "forged": {
     "kind": "sealed-grant/v1",
     "generatedAt": "2026-10-07T14:12:14.972Z",

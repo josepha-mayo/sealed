@@ -9,7 +9,7 @@ AI capability is becoming a tradable asset — but every market and leaderboard 
 prices it settles on numbers a lab reported about itself, on benchmarks that leak
 into training data. Sealed is the referee: a benchmark whose items are **minted
 inside an Arcium MPC cluster** — the specs drawn from MPC randomness, the answers
-computed and fingerprinted inside the enclave, born encrypted to a key no single
+computed and fingerprinted inside the MPC cluster, born encrypted to a key no single
 party holds. No answer key ever exists in plaintext. Not in our repo, not in a
 KMS, not in the author's head. Models commit outputs publicly, the cluster counts
 matches inside the encryption boundary and writes only the score onchain — and a
@@ -62,13 +62,13 @@ not the commands.
 
 | Shot | Command | Say |
 |---|---|---|
-| 1. Mint a bank | `sealed chain gen --id 8 --chunks 2` | "64 items minted inside MPC, 8 per computation. The questions are public; the answers were computed in the enclave and never left it." |
+| 1. Mint a bank | `sealed chain gen --id 8 --chunks 2` | "64 items minted inside MPC, 8 per computation. The questions are public; the answers were computed in the cluster and never left it." |
 | 2. Show the items | `sealed chain items --benchmark <pk>` | "Anyone can render the specs into prompts — the specs are plaintext. The answers exist only as MXE ciphertext." |
 | 3. Run a real model | `sealed run --bank bank/gen-8.json --model <model>` | "A real model API, normalized to canonical answers, hashed publicly." |
 | 4. Park the run | `sealed chain score ... --create-only` | "The run commits its output root before scoring. Now the market opens." |
 | 5. Open a market + bet | `sealed chain market open --run <pk> --threshold 55 --resolve-by +86400` then `market bet` ×2 (two wallets, both outcomes) | "'Will it clear 55/64?' Bets close the moment scoring starts — after that the score leaks information." |
 | 6. Score in MPC | `sealed chain score --bank … --run … --run-index N` | "Each chunk is one MPC computation comparing output hashes to answers born encrypted. Only the count leaves the circuit." |
-| 7. Explorer | open `web/index.html` | "Leaderboard from raw chain state — minted specs, items root, outputs root, MPC score. On bank 25864: `openai` 1/64 sits under `openai` 64/64 — a stale artifact claimed 64/64 locally and MPC said 1. The enclave's count is the score." |
+| 7. Explorer | open `web/index.html` | "Leaderboard from raw chain state — minted specs, items root, outputs root, MPC score. On bank 25864: `openai` 1/64 sits under `openai` 64/64 — a stale artifact claimed 64/64 locally and MPC said 1. The cluster's count is the score." |
 | 8. Resolve + claim | `chain market resolve` / `claim` | "The market read `Run.correct` itself. Winner withdraws; the loser has nothing to claim." |
 | 9. Duel (optional beat) | `sealed chain market duel --run-a <pk> --run-b <pk> --resolve-by +86400` | "Two runs, one sealed bank: 'who outscores whom?' — bets close once either side starts scoring, so nobody trades on a half-known result." |
 | 9b. Ladder (optional beat) | `sealed chain market ladder open --legs <pk,pk,pk> --closes-at +86400 --resolve-by +86400` | "Or a K-way race: three models, one pot, argmax takes it — dead-heat splits ties, and a leg that never shows up forfeits at 0 instead of refunding its backers out." |
@@ -80,7 +80,7 @@ not the commands.
 ## One-pager for the submission form
 
 - **Name:** Sealed
-- **Tagline:** A benchmark no one can leak, scored by nobody in particular.
+- **Tagline:** The benchmark whose answer key never existed — the exam nobody can leak, the score nobody can fake, the market that settles itself.
 - **Problem:** AI capability claims are unverifiable: labs self-report, public
   benchmarks leak into training data, and prediction markets have no neutral
   resolution source.
@@ -100,7 +100,7 @@ not the commands.
   K-way ladder races with dead-heat pro-rata, unseen-exam markets, dark
   commit-reveal markets, capability bounties), a persistent permissionless
   capability registry (`ModelRecord`/`ScoreLog`), fingerprint reveal audits,
-  mocha suite 17/17 + 67/67 harness unit tests green. Authored banks work too (seal+score).
+  mocha suite 17/17 + 69/69 harness unit tests green. Authored banks work too (seal+score).
   And the outputs aren't claims you take on faith — `chain prove` mints a
   portable `sealed-claim/v1` card per model (PDAs re-derive keyless,
   verdicts replay, tamper fails, and `--verify <card> --min-pct N`
@@ -111,7 +111,7 @@ not the commands.
   `chain anomalies` runs twelve hostile audits on its own bundle, and
   `chain market escrow` + `unclaimed` reconcile every staked lamport to
   the obligation — and the claimant — it sits with. `chain artifact
-  docs/evidence --recursive` replays all 138 committed artifacts in one
+  docs/evidence --recursive` replays all 142 committed artifacts in one
   pass; `chain fingerprint` folds the entire evidence base into a
   single sha256 the terminal and the browser agree on.
 - **Traction evidence:** 503 runs / 120 banks / 340 venues across six
@@ -151,8 +151,8 @@ betting closes before scoring starts, so nobody trades on leaked
 information. The repeatable one-liner: **the benchmark that can't leak.**
 
 And the evidence isn't a folder of promises — it is one hash. `chain
-fingerprint` re-hashes all 351 manifest-pinned files and prints a single
+fingerprint` re-hashes all 359 manifest-pinned files and prints a single
 `BUNDLE ROOT`; the explorer's bundle replay recomputes the same root
-in-browser after driving all 138 committed artifacts through their own
+in-browser after driving all 142 committed artifacts through their own
 verifiers. Terminal and browser agree, or the bundle is dirty. The
 submission ends in a sha256 — not a promise.
