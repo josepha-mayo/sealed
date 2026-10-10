@@ -209,3 +209,25 @@ deadline.
   number. Now it derives its own truth from the sources and checks
   every capture group. The audit that watches the docs is itself
   audited; the gate caught two drifts the moment it was honest.
+
+## Update 9 — "the referee IS the evidence" (the Arcium-salient close)
+
+- 20s: every artifact we shipped binds what the MPC *wrote*. The new
+  `sealed-circuit/v1` card binds the MPC *itself* — the six
+  computation-definition accounts, the MXE, the cluster-456 PDA, and the
+  callback SignPda are all PDAs of the deployed Arcium program, and the
+  verifier re-derives every address from seeds in three languages.
+  `chain circuit --verify` replays 9 checks keyless; `--rpc` re-fetches
+  each account live and compares owner+size byte-exact.
+- 15s: the forgery lab attacks the referee now, not just the evidence —
+  reroute `score_chunk` at a phantom pda, retire `reshare_part`,
+  re-key the MXE, fork the cluster. All four die at named derivation
+  checks and all four are committed `sealed-tamper/v1` exhibits. The
+  Python port even caught a real parity bug while landing (a dropped
+  circuit must fail the *count* check, not just per-circuit iteration).
+- 10s: why it matters for judging — "our scorer is real Arcium
+  infrastructure" used to be a README claim. Now it's an artifact:
+  a phantom referee lands on an address no Arcium circuit occupies,
+  and the card's signPda must equal the account sitting in the
+  same pinned snapshot every other artifact binds to. Same deployment,
+  proven end to end.
