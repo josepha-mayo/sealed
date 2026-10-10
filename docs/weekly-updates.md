@@ -129,7 +129,7 @@ deadline.
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
   auto-walk through twenty-five sections, ending on the forgery lab —
-  "try to break it": thirteen canned attacks (forge a score, swap a rank,
+  "try to break it": sixteen canned attacks (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
   a pool, re-age the ledger, plant a phantom run on an exam, erase an
   artifact from the index itself, inflate a winning bettor's stake,
@@ -148,7 +148,7 @@ deadline.
   off-curve math, and struct-unpacks the account bytes itself — a
   decoder bug on our side can't launder a forged card.
 - 10s: the forgery lab is now a three-surface demo — the explorer's
-  13 attacks, `python3 scripts/verify.py --tamper`, and
+  16 attacks, `python3 scripts/verify.py --tamper`, and
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
@@ -175,3 +175,19 @@ deadline.
 - 10s: the guided tour got an orientation stop — "this page is a
   verifier, not a website" — because every number on it was recomputed
   from raw bytes before it rendered.
+
+## Update 7 — "the negative proof" (record third)
+
+- 20s: a claim card proves a run happened; the ceiling card proves one
+  NEVER did. `chain ceiling llama-3.2-1b-instruct` mints
+  sealed-ceiling/v1 — every subject run embedded, the argmax named,
+  the snapshot sha bound. "This model never scored above 3.1% under
+  MPC" — a claim you can only make when the ledger is complete.
+- 15s: verify it in the explorer — "verify a ceiling card" replays the
+  whole subject set against decoded account bytes; the forgery lab's
+  three new attacks (hide the argmax, shave the ceiling, launder the
+  model name) all die at named checks. Python + TypeScript agree.
+- 10s: why a judge should care — capability ceilings are the
+  procurement primitive: "certified <=X% on sealed exams" is a contract
+  clause you can verify keylessly. Sealed is the only system here that
+  can prove a negative without trusting a leaderboard operator.
