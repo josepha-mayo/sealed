@@ -1,5 +1,5 @@
-552b9ddc6d01eabe9881e344491c009a9bf037ba8f37a6511b24e086c4786822  ./SHA256SUMS
-b9baaac64246f2b1a29a0c2cb977dbb65e96a83ba0780761e1aa3b99dea09346  ./artifacts.json
+9c34db8beb6c16e08dafa9a21c3e89e2939aa05da3cfd6c7440af93facb2e6dd  ./SHA256SUMS
+db22d8d609f644cb5f4a64811f59a238e7913490d6f4f8e45348925ce8b8c2dd  ./artifacts.json
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
 0967a78b21adbdfa98b88bf004cdb2901475a6cef98e78e110348bbc7821ff1b  ./banks/sealed-gen.json
 db7c424be2ec98137a1dfd38fe7377d61fa4b0166cb813e3c29f87d250c42eb2  ./banks/sealed-priv.json
@@ -43,6 +43,8 @@ ec5fe81e1ab12618312dc3a0a1bd628ab8e926151b791faf3e2aa2ca91d80dcb  ./ceilings/tes
 de72004c6722d35d4360da4ef177b98297a54852cfc82db83891b02d2ead3f52  ./ceilings/test_registry-model-87070.json
 42a6300c0fc9e9e76c6b6284d74106aac5b4a726bafbce3b25beec804e27faa8  ./ceilings/test_registry-model.json
 a2c11ba13eef634ea82308a20307e07ae4354bf0c55cd873134d9ce0dd555a11  ./ceilings/test_sweep-run.json
+f52c6bf100fa6593d2098e7ab5b95172d6400de398e80ee6d2e14f10dfce56a9  ./circuit/arcium-devnet.json
+614bb03ed823bd014f87e64d221ebf08b05ea72df957d6b15b1a7f472a5f38d7  ./circuit/index.json
 013d4232e08304f1476b9d740b3f598d2359c7a65001526028c8bd11dd3cb24a  ./claims/dark_model-a.json
 4d457d43bd1969e848a939c16b7ea57f171b89f4f7aa0750b7f50f7999183b4c  ./claims/delegate_runner-1.json
 4ea08ad22f380b7862526b6541158e2e832c2fae849d5230bb084770806d725d  ./claims/duel_model-a.json
@@ -80,7 +82,7 @@ e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_
 682646dcc42063eecbeabf36fdb8874118fd35b258fb8abf52612449ade58437  ./grants/index.json
 893b0e4e24d62253d70fb6d7185fb23960536dea3e8f31f631cf4ae44099e793  ./grants/sealed-priv-first.json
 2e7356673256fcb137fe666f1f38fa6df1cb9811debd0e7552ee7b32ff569cbc  ./grants/sealed-priv-panel.json
-2380e8fa7323ca55ada00cda15e9149734f6e3344587bdbd74c7a69b28c8e2b4  ./index.html
+b814adae12fc69ed24589cb690551ea6e8238029be3ac1847847c0f829db1423  ./index.html
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
 b3d98d930dfec622478ab9c44cb213d47f01ad3269d3a945f36dc974434b03ad  ./matches/dark_model-a-vs-duel_model-b.json
 c916c9025a459889706f041207b20242fad7d9138fd8ab270b463db5c3f75717  ./matches/dark_model-a-vs-ladder_model-a.json
@@ -169,6 +171,10 @@ db76c83e616727758b434190293654f79f81264e09997d0e8ec19a6151cb7689  ./reports/qwen
 304cc58d0e37d0ac3b8467271a067274549d8e14d965c1a7a5e4de1fd3280e7f  ./reports/qwen2.5-3b-instruct.md
 f09dd766837ac4b64f7d873a394ba5fa36b8005bd40d6f3305c5dbb826a0bb64  ./sample-proof.json
 ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079  ./snapshot.json
+ba610984299adf233b843c7b89558c6015031696cf7f2972eb1e4eab936fcf41  ./tamper/arcium-devnet.fork-the-cluster-re-home-the-circuits-to-offset-0.json
+9dd948242421e3e5e4de1cb636f9637fbe4a5e484843beb541df4a862a61cf30  ./tamper/arcium-devnet.re-key-the-mxe-substitute-the-signpda-address.json
+d064829bdb63367d0327643fe2337061907de6f11e6b0d3ba811a8b529fd8a84  ./tamper/arcium-devnet.reroute-score-chunk-point-the-scoring-circuit-at-a-phantom-pda.json
+ee5513adc29f918c01feee52343646b8e504f9e8a4230b7bac55b461dd667692  ./tamper/arcium-devnet.retire-the-privacy-circuit-drop-reshare-part.json
 b4f9b689ae7f7e9ba6ddefec59e1f737a67746ddcd16f25bb4a60297dd54d98f  ./tamper/board.erase-the-1-model-re-rank-a-cropped-leaderboard.json
 e70555f42647415b3336880adfff7d5a26f7c7a07a72bcdb697ba61193b144d7  ./tamper/board.inflate-a-receipt-s-score.json
 7a5711c8313005d08419767e1ca3f509ccd5cbc692bcbfdc6cdec1f2fbae1d73  ./tamper/board.swap-the-1-rank.json
@@ -180,7 +186,7 @@ bc96b5ec1ce087040aa87aaa69707a419b503a1ff1d064c5658fd27a663beac6  ./tamper/dark_
 16e6ee5429b555e480d46f75dcfe76832bf96442115d543857f92981d5daff4d  ./tamper/dark_model-a.drop-the-worst-receipt-rewrite-the-record-over-the-subset.json
 3acd7cd15a2644038f2d20f1b53a7aa21eafc08abda8b1ec780e7c1e64f06cb1  ./tamper/dark_model-a.launder-the-receipts-rename-the-model.json
 d13abebee7354772727fe81469be6ad0b9fa0c1502d4058829c6f47d838079f6  ./tamper/dark_model-a.mint-a-phantom-receipt.json
-b1e9c9b4df0efea5712546907bf36731351d68361748f082c850a5ff05844a9e  ./tamper/index.json
+f98b27950faa177dbd856ea85f8453d71d09525d7ded8e0990ffccee66fc8456  ./tamper/index.json
 2a90c0618bd011ffd0fe585577f4659823c631c1d74ca3abf704a60e391d0f22  ./tamper/llama-3.2-1b-instruct.hide-the-argmax-run-erase-the-model-s-best-score.json
 03c1b778abaad2381235f33a723dbfa720a906513ea7179fdc0eff08d491a6b1  ./tamper/llama-3.2-1b-instruct.launder-the-ceiling-rename-the-model.json
 d166e64c63871c93a0b7da1173d84bebbe3889a673f274611cc3eebc5a9142a7  ./tamper/llama-3.2-1b-instruct.shave-the-ceiling-claim-a-lower-max-than-the-data-shows.json

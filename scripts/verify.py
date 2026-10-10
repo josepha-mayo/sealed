@@ -58,6 +58,12 @@ Checks:
      (max floor(correct*10000/items) over finalized runs) is recomputed;
      an omitted run, a phantom run, a renamed model, or a shaved maxPct
      all die at named checks.
+     sealed-circuit/v1 — the MPC itself as evidence: all 9 Arcium PDAs
+     re-derived with the same ed25519 math (6 compdefs from
+     sha256(name)[:4] seeds, MXE, cluster, SignPda), program identity
+     against the deployed Arcium program, the canonical six-circuit set,
+     and the SignPda bound to the snapshot's SignPdaAccount — a phantom
+     referee dies at derivation, not at plausibility.
  13. sealed-report/v1 — each narrated report's canonical claim-card
      sha256 recomputed (generatedAt/source excluded) and compared.
  14. sealed-policy/v1 — evalGate() ported line-for-line: vouchedOnly /
@@ -1662,6 +1668,59 @@ def main():
                     f"{k_n - k_bad}/{k_n} ceiling cards: PDAs re-derived, subject-set "
                     f"completeness vs snapshot, argmax recomputed")
 
+    # --- sealed-circuit/v1 — the MPC itself as evidence -------------------
+    # Every other artifact binds what the MPC wrote; this binds the MPC —
+    # the six compdef accounts, MXE, cluster, and callback signer are PDAs
+    # of the DEPLOYED Arcium program (or the sealed program for signPda),
+    # re-derived here with the same ed25519 curve math as every other PDA.
+    cdir = ROOT / "docs" / "evidence" / "circuit"
+    if cdir.is_dir():
+        ARCIUM = "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+        CIRCUITS = {"seal_part", "score_chunk", "gen_part",
+                    "gen_part_private", "reveal_part", "reshare_part"}
+        k_n, k_bad = 0, 0
+        sp_entry = next((e for e in SNAP["sealed"]
+                         if base64.b64decode(e["data"])[:8].hex() == "d69d7a72752cd64a"), None)
+        for card_path in card_iter(cdir, kind="sealed-circuit/v1"):
+            if card_path.name == "index.json":
+                continue
+            card = json.loads(card_path.read_text())
+            if card.get("kind") != "sealed-circuit/v1":
+                continue
+            k_n += 1
+            try:
+                spid = card["programs"]["sealed"]
+                okc = (card["programs"]["arcium"] == ARCIUM
+                       and spid == SNAP["meta"]["programs"]["sealed"])
+                # the canonical six — no dropped, no phantom
+                named = {c["name"] for c in card["circuits"]}
+                okc &= named == CIRCUITS and len(card["circuits"]) == 6
+                # compdef pda: [CompDef, sealedPid, u32le(sha256(name)[:4])]
+                for c in card["circuits"]:
+                    want = int.from_bytes(hashlib.sha256(c["name"].encode()).digest()[:4], "little")
+                    got = pda([b"ComputationDefinitionAccount", b58decode(spid),
+                               struct.pack("<I", c["offset"])], ARCIUM)
+                    okc &= c["offset"] == want and b58encode_check(got or b"", c["pda"])
+                okc &= b58encode_check(pda([b"MXEAccount", b58decode(spid)], ARCIUM) or b"",
+                                       card["mxe"]["pda"])
+                okc &= b58encode_check(pda([b"Cluster", struct.pack("<I", card["cluster"]["offset"])],
+                                           ARCIUM) or b"", card["cluster"]["pda"])
+                okc &= b58encode_check(pda([b"ArciumSignerAccount"], spid) or b"",
+                                       card["signPda"])
+                for k, m in (card.get("fetched") or {}).get("accounts", {}).items():
+                    okc &= m.get("exists") and (k == "signPda" or m.get("owner") == ARCIUM) \
+                        and int(m.get("dataLen", 0)) > 8
+                okc &= bool(card.get("snapshotSha256")) and card["snapshotSha256"] == snap_hash
+                okc &= bool(sp_entry) and sp_entry["pubkey"] == card["signPda"] \
+                    and card.get("signPdaSnapshot") == card["signPda"]
+                if not okc:
+                    k_bad += 1
+            except Exception:
+                k_bad += 1
+        ok &= check("sealed-circuit/v1 cards", k_bad == 0,
+                    f"{k_n - k_bad}/{k_n} circuit cards: 9 Arcium PDAs re-derived, "
+                    f"signPda bound to the snapshot's SignPdaAccount")
+
     # --- sealed-report/v1 — the narrated capability cards (.md) -----------
     # A report proves its numbers by committing to the claim card's
     # canonical sha256 (generatedAt/source excluded). Recompute it.
@@ -3054,6 +3113,46 @@ def forged_card_checks(f):
                         or bool(a["postReveal"]) != bool(r["postReveal"])
                         or bool(a["attested"]) != bool(r.get("attested", 0))):
                     died.add("run field binding")
+        elif kind == "sealed-circuit/v1":
+            ARCIUM = "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+            CIRCUITS = {"seal_part", "score_chunk", "gen_part",
+                        "gen_part_private", "reveal_part", "reshare_part"}
+            progs = f.get("programs", {})
+            spid = progs.get("sealed")
+            if not (progs.get("arcium") == ARCIUM and spid == SNAP["meta"]["programs"]["sealed"]):
+                died.add("program identity")
+            named = {c["name"] for c in f.get("circuits", [])}
+            if named != CIRCUITS or len(f.get("circuits", [])) != 6:
+                died.add("circuit-set completeness")
+            cd_ok = 0
+            for c in f.get("circuits", []):
+                want = int.from_bytes(hashlib.sha256(c["name"].encode()).digest()[:4], "little")
+                got = pda([b"ComputationDefinitionAccount", b58decode(spid),
+                           struct.pack("<I", c["offset"])], ARCIUM)
+                if c["offset"] == want and b58encode_check(got or b"", c["pda"]):
+                    cd_ok += 1
+            if cd_ok != 6:
+                died.add("compdef PDAs")
+            if not b58encode_check(pda([b"MXEAccount", b58decode(spid)], ARCIUM) or b"",
+                                   f.get("mxe", {}).get("pda", "")):
+                died.add("MXE PDA")
+            if not b58encode_check(pda([b"Cluster", struct.pack("<I", f.get("cluster", {}).get("offset", -1) & 0xFFFFFFFF)],
+                                       ARCIUM) or b"", f.get("cluster", {}).get("pda", "")):
+                died.add("cluster PDA")
+            if not b58encode_check(pda([b"ArciumSignerAccount"], spid) or b"",
+                                   f.get("signPda", "")):
+                died.add("signPda PDA")
+            for k, m in (f.get("fetched") or {}).get("accounts", {}).items():
+                if not (m.get("exists") and (k == "signPda" or m.get("owner") == ARCIUM)
+                        and int(m.get("dataLen", 0)) > 8):
+                    died.add("fetched fields")
+            if f.get("snapshotSha256") != hashlib.sha256(snapshot_bytes()).hexdigest():
+                died.add("snapshot binding")
+            sp_entry = next((e for e in SNAP["sealed"]
+                             if base64.b64decode(e["data"])[:8].hex() == "d69d7a72752cd64a"), None)
+            if not (sp_entry and sp_entry["pubkey"] == f.get("signPda")
+                    and f.get("signPdaSnapshot") == f.get("signPda")):
+                died.add("signPda binding")
         elif kind == "sealed-trail/v1":
             spid = f.get("programs", {}).get("sealed")
             mpid = f.get("programs", {}).get("market")
@@ -3785,6 +3884,19 @@ def tamper_demo():
                     'forgery dies at "record-set completeness"'
                     if caught else "FORGERY PASSED")
 
+    # 14. the phantom referee — point score_chunk at seal_part's address.
+    #     Every check on the card's internals stays green; the PDA
+    #     re-derivation catches it — scoring would then live at an address
+    #     no Arcium circuit occupies.
+    card = json.loads((ROOT / "docs/evidence/circuit/arcium-devnet.json").read_text())
+    forged = copy.deepcopy(card)
+    sc = next(c for c in forged["circuits"] if c["name"] == "score_chunk")
+    sc["pda"] = next(c for c in forged["circuits"] if c["name"] == "seal_part")["pda"]
+    caught = forged_card_rejected(forged)
+    all_ok &= check("phantom referee (score_chunk → seal_part's pda)", caught,
+                    'forgery dies at "compdef PDAs"'
+                    if caught else "FORGERY PASSED")
+
     print("\n" + ("ALL FORGERIES CAUGHT — the Python verifier rejects its own lies"
                   if all_ok else "FORGERY LAB FAILED — a forged card verified"))
     return all_ok
@@ -4009,7 +4121,7 @@ def check_anchor():
 KNOWN_KINDS = {f"sealed-{k}/v1" for k in
                ("position", "bounty", "grant", "trail", "board", "match",
                 "claim", "policy", "catalog", "bank", "evidence-digest",
-                "tamper", "report", "ceiling")}
+                "tamper", "report", "ceiling", "circuit")}
 
 if __name__ == "__main__":
     argv = sys.argv[1:]

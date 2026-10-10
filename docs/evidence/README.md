@@ -50,6 +50,18 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   replays all 31 (9 checks each). The honest marquee:
   `llama-3.2-1b-instruct` ≤ **3.1%** — the model whose self-reported
   64/64 the MPC scored 1/64.
+- `circuit/` — **1 `sealed-circuit/v1` card**: the MPC itself as
+  evidence. Every other artifact binds what the MPC *wrote*; this binds
+  the MPC — the six computation-definition accounts (PDA seeds
+  `[ComputationDefinitionAccount, sealedPid, u32le(sha256(name)[:4])]`
+  under the deployed Arcium program `Arcj82pX…`), the MXE, the Arcium
+  cluster-456 PDA, and the callback SignPda all re-derive from seeds,
+  and the card's `signPda` must equal the `SignPdaAccount` sitting in
+  the snapshot — one deployment, proven end to end. `--rpc` on
+  mint/verify re-fetches each account live and compares owner+size.
+  `chain circuit --verify circuit/arcium-devnet.json --snapshot
+  ../../web/snapshot.json` (9 checks); the forgery lab's
+  `reroute the scoring circuit` attack dies at `compdef PDAs`.
 - `policies/` — **`sealed-policy/v1` certificates**: a policy + every
   record's verdict + the embedded receipts the verdict replayed from.
   `min60-3runs.json` (whole registry), `strict70-vouched.json` (attested

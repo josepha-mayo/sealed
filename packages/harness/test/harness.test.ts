@@ -1019,6 +1019,66 @@ test("chainCeiling mints a proof-of-a-negative — completeness kills the hidden
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("sealed-circuit/v1 — the MPC itself as evidence: every Arcium PDA re-derives, forgeries die", async () => {
+  const { chainCircuitProve, verifyCircuitCard, artifactTamper } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { mkdtempSync, writeFileSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const card = (await chainCircuitProve(undefined, snapPath)) as any;
+    assert.equal(card.kind, "sealed-circuit/v1");
+    assert.equal(card.circuits.length, 6);
+    assert.equal(card.cluster.offset, 456);
+    // the committed card + a fresh mint agree on every address
+    const committed = JSON.parse(readFileSync(
+      new URL("../../../docs/evidence/circuit/arcium-devnet.json", import.meta.url).pathname, "utf8"));
+    assert.deepEqual(card.circuits.map((c: any) => c.pda), committed.circuits.map((c: any) => c.pda));
+    assert.equal(card.signPda, committed.signPda);
+    // all checks green on the honest card — snapshot-bound (no fetched
+    // block without --rpc, so 8 checks; the committed card carries
+    // fetched fields and passes 9)
+    const r = verifyCircuitCard(card, undefined, snapPath);
+    assert.equal(r.fail, 0);
+    assert.equal(r.pass, 8);
+    // 1. reroute the scoring circuit — the compdef re-derivation kills it
+    const rerouted = JSON.parse(JSON.stringify(card));
+    rerouted.circuits.find((x: any) => x.name === "score_chunk").pda =
+      rerouted.circuits.find((x: any) => x.name === "seal_part").pda;
+    assert.ok(verifyCircuitCard(rerouted, undefined, snapPath).fails.includes("compdef PDAs"));
+    // 2. retire a privacy circuit — the canonical set is recomputed, not read
+    const dropped = JSON.parse(JSON.stringify(card));
+    dropped.circuits = dropped.circuits.filter((x: any) => x.name !== "reshare_part");
+    const rDrop = verifyCircuitCard(dropped, undefined, snapPath);
+    assert.ok(rDrop.fails.includes("circuit-set completeness"));
+    assert.ok(rDrop.fails.includes("compdef PDAs"));
+    // 3. re-key the MXE — a fabricated referee address dies at derivation
+    const rekeyed = JSON.parse(JSON.stringify(card));
+    rekeyed.mxe.pda = rekeyed.signPda;
+    assert.ok(verifyCircuitCard(rekeyed, undefined, snapPath).fails.includes("MXE PDA"));
+    // 4. fork the cluster — offset 0 re-derives a different account
+    const forked = JSON.parse(JSON.stringify(card));
+    forked.cluster.offset = 0;
+    assert.ok(verifyCircuitCard(forked, undefined, snapPath).fails.includes("cluster PDA"));
+    // the committed card verifies through the same path — 9 checks incl.
+    // the devnet-fetched account fields
+    const rc = verifyCircuitCard(committed, undefined, snapPath);
+    assert.equal(rc.fail, 0, rc.fails.join(", "));
+    assert.equal(rc.pass, 9);
+    // the CLI forgery lab carries the canned attacks
+    const tmp = mkdtempSync(join(tmpdir(), "sealed-circ-"));
+    const fp = join(tmp, "c.json");
+    writeFileSync(fp, JSON.stringify(card));
+    process.exitCode = 0;
+    const tr = (await artifactTamper(fp, snapPath)) as any;
+    assert.equal(tr.ok, true);
+    assert.equal(tr.attacks, 4);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+
 test("gateSweep frontiers — every model gets its strictest cleared line", async () => {
   const { gateSweep } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
@@ -1745,6 +1805,7 @@ test("artifact --tamper — the CLI forgery lab: every canned attack dies at a n
       "docs/evidence/grants/sealed-priv-first.json",
       "docs/evidence/policies/min60-3runs.json",
       "docs/evidence/ceilings/dark_model-a.json",
+      "docs/evidence/circuit/arcium-devnet.json",
     ];
     // per-kind canned-attack counts — a def silently shrinking or dropping
     // must fail here, not just when the forgery would verify.
@@ -1762,6 +1823,7 @@ test("artifact --tamper — the CLI forgery lab: every canned attack dies at a n
       "docs/evidence/grants/sealed-priv-first.json": 1,
       "docs/evidence/policies/min60-3runs.json": 3,
       "docs/evidence/ceilings/dark_model-a.json": 4,
+      "docs/evidence/circuit/arcium-devnet.json": 4,
     };
     for (const rel of cards) {
       process.exitCode = 0;

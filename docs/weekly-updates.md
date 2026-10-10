@@ -91,7 +91,7 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 182 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  all 187 committed artifacts: 31 claim cards, 73 match cards, 3 policy
   certificates, 4 custody trails, 4 capability reports, the ledger
   digest, the leaderboard card, 3 exam cards (one per commitment
   regime — authored, generated, private), 2 bettor-position cards
@@ -123,8 +123,8 @@ deadline.
   x25519 viewer key, `encryption_key == viewer` echo, and the panel
   tally re-derived: the questions moved, the answers never did).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
-  441 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 182 artifacts
+  453 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
+  explorer's "replay the whole bundle" button drives all 187 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
@@ -152,7 +152,7 @@ deadline.
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
-  audit, all 182 artifact replays, the full forgery sweep, AND the
+  audit, all 187 artifact replays, the full forgery sweep, AND the
   sealed-exam decrypt to EVERYTHING VERIFIED in ~8s, live in the
   judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
@@ -199,7 +199,7 @@ deadline.
   policy cert with a laundered receipt set, a claim missing its worst
   run, a position card that nulls out its venue. All four are closed,
   and each fix shipped WITH the attack that would have beaten it:
-  24 committed sealed-tamper/v1 exhibits now verify by failing.
+  28 committed sealed-tamper/v1 exhibits now verify by failing.
 - 15s: the third-party consumer got the same treatment —
   examples/mini-resolver.mjs now re-derives every Run PDA from the
   account seeds with a dependency-free ed25519 off-curve check. A

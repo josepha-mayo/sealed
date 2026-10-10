@@ -84,8 +84,9 @@ const claims = [
   [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifacts?\s+replayed\b|(\d+)\s+replayed\b/gi, truth.artifacts],
   // the catalog's own line: "141 artifact(s)" — excludes itself
   [/(\d+)\s+artifact\(s\)\b/g, truth.catalog],
-  // tamper exhibits: "15 tamper exhibits", "15× sealed-tamper/v1"
-  [/(\d+)\s+(?:committed\s+)?(?:tamper\s+)?exhibits?\b|(\d+)×\s+sealed-tamper/gi, truth.exhibits],
+  // tamper exhibits: "15 tamper exhibits", "15× sealed-tamper/v1" — the
+  // (?<![a-z0-9]) lookbehind keeps "v1 exhibits" from counting its 1
+  [/(?<![a-z0-9])(\d+)\s+(?:committed\s+)?(?:tamper\s+)?exhibits?\b|(\d+)×\s+sealed-tamper/gi, truth.exhibits],
   // pinned bytes: "359 manifest-pinned files", "all 359 pinned bytes",
   // "359/359 file(s)"
   [/(\d+)\s+(?:manifest-)?pinned\s+(?:files?|bytes)\b|all\s+(\d+)\s+pinned\s+bytes\b|(\d+)\/\3\s+file/gi, truth.pinned],

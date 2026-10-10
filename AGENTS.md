@@ -18,7 +18,7 @@ parimutuel markets resolved from `Run.correct`.
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
   closer): offline verify + headless browser audit + grant-decrypt
-  regression + calibration rescore + recursive artifact replay (175
+  regression + calibration rescore + recursive artifact replay (187
   artifacts in one pass) + evidence/web manifests + doc-count freshness
   + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
@@ -51,14 +51,16 @@ parimutuel markets resolved from `Run.correct`.
   claims (receipts bound to decoded ScoreLog bytes AND the named record's
   on-chain modelId — a card renaming the model dies), all 31 ceilings
   (the exhaustive negative: every subject run rebound, argmax
-  membership, recomputed max == claimed ceiling),
+  membership, recomputed max == claimed ceiling), the circuit card
+  (9 Arcium PDAs re-derived — compdefs from sha256(name)[:4] seeds,
+  MXE, cluster, and the SignPda bound to the snapshot SignPdaAccount),
   trails (leg runs bound, dark forfeits recomputed from DarkPosition
   bytes), positions, bounties, grants, reports (canonical claim-card
   hash), policy certs (evalGate ported line-for-line + receipt↔ScoreLog
   multiset binding), the catalog index, bank dossiers (items_root fold
   replayed in mint_order — gen banks fold specs, private fold
   ciphertexts+nonces), the whole-ledger digest (integrity rows + keeper
-  classification), and the 18 tamper exhibits which MUST be rejected.
+  classification), and the 28 tamper exhibits which MUST be rejected.
   No node, no pip, no RPC — proof the evidence is language-agnostic.
   `--tamper` forges each card family and asserts the catch at a named
   check. `--decrypt` ports the whole disclosure stack — RFC7748 x25519
@@ -153,15 +155,32 @@ parimutuel markets resolved from `Run.correct`.
   number, or renaming the model all die at named checks (committed
   examples: docs/evidence/ceilings/ + web/ceilings/ — one per record,
   served in-page at "verify a ceiling card").
+  `chain circuit --prove <f> --snapshot <f2> [--rpc <url>] [--cluster N]`
+  mints `sealed-circuit/v1` — the MPC itself as evidence: every other
+  artifact binds what the MPC WROTE; this binds the MPC. The card
+  carries the six computation-definition accounts (offset =
+  u32le(sha256(name)[:4]), PDA = [ComputationDefinitionAccount,
+  sealedPid, u32le] @ the deployed Arcium program Arcj82pX…), the MXE
+  ([MXEAccount, sealedPid]), the Arcium cluster PDA ([Cluster,
+  u32le(456)]), and the callback SignPda ([ArciumSignerAccount] @
+  sealed). `--verify <f>` replays it keyless — program identity,
+  circuit-set completeness (the canonical six, no dropped/phantom),
+  every PDA re-derived, and the chain-bound anchor: the snapshot's
+  SignPdaAccount must be the card's re-derived address. Rerouting
+  score_chunk, dropping reshare_part, re-keying the MXE, or forking
+  the cluster all die at named checks (committed example:
+  docs/evidence/circuit/ + web/circuit/ — served in-page at "verify
+  the circuit card"; `--rpc` on mint/verify records and re-checks
+  devnet account fields).
   `chain artifact <file|dir>` is the universal verifier — detects any
-  sealed-claim/ceiling/policy/match/trail/report/evidence-digest/board/
-  bank/position/bounty/grant/catalog/tamper/v1 payload and routes to the
-  right replay (dir mode mixes kinds; non-artifacts skipped;
+  sealed-claim/ceiling/circuit/policy/match/trail/report/evidence-digest/
+  board/bank/position/bounty/grant/catalog/tamper/v1 payload and routes
+  to the right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 175 artifacts in one pass). `chain artifact <file>
+  replays all 187 artifacts in one pass). `chain artifact <file>
   --tamper` is the CLI forgery lab: kind-aware mutations re-run the
   verifier and MUST fail — a forged card that verifies exits 1 (all
-  13 JSON kinds carry canned attacks; the harness test pins all 13).
+  14 JSON kinds carry canned attacks; the harness test pins all 14).
   `chain catalog` prints the
   evidence table of contents (every artifact grouped by kind with a
   title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json
@@ -258,7 +277,7 @@ parimutuel markets resolved from `Run.correct`.
   bank / status / min-% / attested / post-reveal filters, score-first
   sort) and `#sec-grants` mirrors `chain grants` (the 145-grant
   disclosure trail — bank · chunk.part · viewer · shared-at).
-  `#sec-forge` is the forgery lab — thirteen canned attacks (mutated
+  `#sec-forge` is the forgery lab — twenty-one canned attacks (mutated
   score / swapped rank / un-vouched receipt / flipped verdict /
   phantom receipt / inflated pool / re-aged ledger counts / phantom
   run / catalog erase / stake inflation / bounty steal / grant

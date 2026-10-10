@@ -1,12 +1,13 @@
 {
   "kind": "sealed-catalog/v1",
   "root": "docs/evidence",
-  "count": 181,
+  "count": 186,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
     "sealed-bounty/v1": 2,
     "sealed-ceiling/v1": 31,
+    "sealed-circuit/v1": 1,
     "sealed-claim/v1": 31,
     "sealed-evidence-digest/v1": 1,
     "sealed-grant/v1": 2,
@@ -14,7 +15,7 @@
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
     "sealed-report/v1": 4,
-    "sealed-tamper/v1": 24,
+    "sealed-tamper/v1": 28,
     "sealed-trail/v1": 4
   },
   "artifacts": [
@@ -202,6 +203,11 @@
       "path": "ceilings/test_sweep-run.json",
       "kind": "sealed-ceiling/v1",
       "title": "test/sweep-run ≤ 100.0% over 22 run(s)"
+    },
+    {
+      "path": "circuit/arcium-devnet.json",
+      "kind": "sealed-circuit/v1",
+      "title": "6 Arcium circuits @ cluster 456"
     },
     {
       "path": "claims/dark_model-a.json",
@@ -782,6 +788,26 @@
       "path": "reports/qwen2.5-3b-instruct.md",
       "kind": "sealed-report/v1",
       "title": "qwen2.5-3b-instruct"
+    },
+    {
+      "path": "tamper/arcium-devnet.fork-the-cluster-re-home-the-circuits-to-offset-0.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: fork the cluster — re-home the circuits to offset 0 → arcium-devnet.json"
+    },
+    {
+      "path": "tamper/arcium-devnet.re-key-the-mxe-substitute-the-signpda-address.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: re-key the MXE — substitute the signPda address → arcium-devnet.json"
+    },
+    {
+      "path": "tamper/arcium-devnet.reroute-score-chunk-point-the-scoring-circuit-at-a-phantom-pda.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: reroute score_chunk — point the scoring circuit at a phantom pda → arcium-devnet.json"
+    },
+    {
+      "path": "tamper/arcium-devnet.retire-the-privacy-circuit-drop-reshare-part.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: retire the privacy circuit — drop reshare_part → arcium-devnet.json"
     },
     {
       "path": "tamper/board.erase-the-1-model-re-rank-a-cropped-leaderboard.json",

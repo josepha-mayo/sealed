@@ -4397,6 +4397,7 @@ const ARTIFACT_ROUTES = (snapPath?: string, json = false): Record<string, (f: st
   "sealed-grant/v1": (f) => grantVerify(f, json, snapPath),
   "sealed-tamper/v1": (f) => tamperCardVerify(f, json, snapPath),
   "sealed-ceiling/v1": (f) => ceilingVerify(f, json, snapPath),
+  "sealed-circuit/v1": (f) => circuitVerify(f, json, snapPath),
 });
 
 /** `chain artifact --tamper <file>` — the forgery lab for the terminal:
@@ -4549,6 +4550,17 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
     } },
     { label: "launder the ceiling — rename the model", mutate: (c) => { c.model.id = "safety-washed-model"; } },
     { label: "unpin the ceiling — strip the snapshot binding", mutate: (c) => { c.snapshotSha256 = null; } },
+  ],
+  "sealed-circuit/v1": [
+    { label: "reroute score_chunk — point the scoring circuit at a phantom pda", mutate: (c) => {
+      const sc = c.circuits.find((x: any) => x.name === "score_chunk");
+      sc.pda = c.circuits.find((x: any) => x.name === "seal_part").pda;
+    } },
+    { label: "retire the privacy circuit — drop reshare_part", mutate: (c) => {
+      c.circuits = c.circuits.filter((x: any) => x.name !== "reshare_part");
+    } },
+    { label: "re-key the MXE — substitute the signPda address", mutate: (c) => { c.mxe.pda = c.signPda; } },
+    { label: "fork the cluster — re-home the circuits to offset 0", mutate: (c) => { c.cluster.offset = 0; } },
   ],
 };
 
@@ -4747,6 +4759,7 @@ async function scanArtifacts(dir: string) {
       case "sealed-trail/v1": return `run ${String(raw.run?.pk ?? base).slice(0, 8)}… (${base})`;
       case "sealed-tamper/v1": return `forgery: ${raw.attack ?? "?"} → ${raw.targetCard ?? base}`;
       case "sealed-ceiling/v1": return `${raw.model?.id ?? base} ≤ ${raw.ceiling?.maxPct ?? "∅"} over ${raw.scope?.finalizedRuns ?? "?"} run(s)`;
+      case "sealed-circuit/v1": return `${raw.circuits?.length ?? "?"} Arcium circuits @ cluster ${raw.cluster?.offset ?? "?"}`;
       default: return base;
     }
   };
@@ -6933,6 +6946,176 @@ export function verifyCeilingCard(card: any, emit?: (what: string, ok: boolean, 
   return { ok: fail === 0, pass, fail, fails };
 }
 
+// ---- sealed-circuit/v1 — the MPC circuits themselves as evidence ----------
+// Every other artifact binds what the MPC *wrote*; this card binds the MPC
+// itself: the sealed program's MXE and its six computation-definition
+// accounts are PDAs of the deployed Arcium program (`Arcj82pX…`), and the
+// SignPda that signs every callback is a sealed-program PDA the snapshot
+// already carries. Re-deriving the addresses proves the referee is real
+// infrastructure — a fabricated "scoring circuit" lands on a different
+// address, a renamed circuit recomputes a different offset, and a stripped
+// snapshot pin opts out of the only anchor that binds to chain state.
+const ARCIUM_PID_STR = "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ";
+export const CIRCUIT_NAMES = ["seal_part", "score_chunk", "gen_part",
+  "gen_part_private", "reveal_part", "reshare_part"];
+const SIGN_PDA_DISC = "d69d7a72752cd64a";
+
+const compDefOffset = (name: string) =>
+  createHash("sha256").update(Buffer.from(name, "utf8")).digest().readUInt32LE(0);
+
+export async function chainCircuitProve(out: string | undefined, snapPath?: string, rpc?: string, clusterOffset = 456) {
+  const sealedId = sealedProgramId();
+  const arc = new PublicKey(ARCIUM_PID_STR);
+  const pda = (seeds: Buffer[], pid: PublicKey) => PublicKey.findProgramAddressSync(seeds, pid)[0].toBase58();
+  const u32 = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+
+  const circuits = CIRCUIT_NAMES.map((name) => {
+    const offset = compDefOffset(name);
+    return { name, offset, pda: pda([Buffer.from("ComputationDefinitionAccount"), sealedId.toBuffer(), u32(offset)], arc) };
+  });
+  const card: any = {
+    kind: "sealed-circuit/v1",
+    generatedAt: new Date().toISOString(),
+    source: "chain circuit --prove",
+    programs: { sealed: sealedId.toBase58(), arcium: ARCIUM_PID_STR },
+    cluster: { offset: clusterOffset, pda: pda([Buffer.from("Cluster"), u32(clusterOffset)], arc) },
+    mxe: { pda: pda([Buffer.from("MXEAccount"), sealedId.toBuffer()], arc) },
+    signPda: pda([Buffer.from("ArciumSignerAccount")], sealedId),
+    circuits,
+  };
+  // the one chain-bound anchor in the whole card: the SignPda account in
+  // the pinned snapshot must equal the re-derived address — proof this
+  // circuit set belongs to the same deployment the evidence dump covers.
+  if (snapPath) {
+    card.snapshotSha256 = createHash("sha256").update(readFileSync(snapPath)).digest("hex");
+    const entry = (loadSnapshotJson(snapPath).sealed ?? [])
+      .find((e: any) => Buffer.from(e.data, "base64").subarray(0, 8).toString("hex") === SIGN_PDA_DISC);
+    card.signPdaSnapshot = entry?.pubkey ?? null;
+  }
+  if (rpc) {
+    const conn = new Connection(rpc, "confirmed");
+    const metas: any = {};
+    for (const [k, addr] of [["mxe", card.mxe.pda], ["cluster", card.cluster.pda],
+        ["signPda", card.signPda], ...circuits.map((c) => [c.name, c.pda])] as [string, string][]) {
+      const a = await conn.getAccountInfo(new PublicKey(addr));
+      metas[k] = a ? { exists: true, owner: a.owner.toBase58(), lamports: a.lamports, dataLen: a.data.length }
+                   : { exists: false };
+    }
+    card.fetched = { rpc, at: new Date().toISOString(), accounts: metas };
+  }
+  const body = JSON.stringify(card, null, 2) + "\n";
+  if (out) { writeFileSync(out, body); console.log(`wrote ${out}`); }
+  else console.log(body);
+  return card;
+}
+
+export async function circuitVerify(file: string, json = false, snapPath?: string, rpc?: string) {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  let pass = 0, fail = 0;
+  const fails: string[] = [];
+  const rows: any[] = [];
+  const emit = (what: string, ok: boolean, detail: string) => {
+    rows.push({ check: what, ok, detail });
+    if (!json) console.log(`  ${ok ? "PASS" : "FAIL"}  ${what}${detail ? ` — ${detail}` : ""}`);
+    if (ok) pass++; else { fail++; fails.push(what); }
+  };
+  emit("kind", card.kind === "sealed-circuit/v1", card.kind ?? "?");
+  const r = verifyCircuitCard(card, emit, snapPath);
+  if (rpc && card.fetched) {
+    const conn = new Connection(rpc, "confirmed");
+    let liveBad = 0;
+    for (const [k, want] of Object.entries(card.fetched.accounts) as [string, any][]) {
+      const addr = (card.circuits ?? []).find((c: any) => c.name === k)?.pda
+        ?? ({ mxe: card.mxe?.pda, cluster: card.cluster?.pda, signPda: card.signPda } as any)[k];
+      if (!addr) { liveBad++; continue; }
+      const a = await conn.getAccountInfo(new PublicKey(addr));
+      if (!a || !want.exists || a.owner.toBase58() !== want.owner || a.data.length !== want.dataLen) liveBad++;
+    }
+    emit("live binding", liveBad === 0, liveBad ? `${liveBad} account(s) differ from the recorded devnet bytes` : "every recorded account re-fetched byte-exact — owner + size match");
+  }
+  void r;
+  console.log(`${fail === 0 ? "CIRCUIT VERIFIED" : "CIRCUIT FAILED"} — ${pass} checks pass, ${fail} fail`);
+  if (json) console.log(JSON.stringify({ file, kind: card.kind, pass, fail, fails, checks: rows }));
+  if (fail) process.exitCode = 1;
+  return { ok: fail === 0, pass, fail, fails };
+}
+
+export function verifyCircuitCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void, snapPath?: string) {
+  let pass = 0, fail = 0;
+  const fails: string[] = [];
+  const check = (what: string, ok: boolean, detail = "") => {
+    emit?.(what, ok, detail);
+    if (ok) pass++; else { fail++; fails.push(what); }
+  };
+  const sealedId = new PublicKey(card.programs?.sealed ?? sealedProgramId().toBase58());
+  const arc = new PublicKey(card.programs?.arcium ?? "?");
+  const u32 = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const pda = (seeds: Buffer[], pid: PublicKey) => { try { return PublicKey.findProgramAddressSync(seeds, pid)[0].toBase58(); } catch { return null; } };
+
+  // 1. program identity — the card must name THE deployed programs, not a
+  //    fork's. `arcium` is a network constant; `sealed` is this deployment's.
+  check("program identity", card.programs?.arcium === ARCIUM_PID_STR
+      && card.programs?.sealed === sealedProgramId().toBase58(),
+    `arcium ${ARCIUM_PID_STR.slice(0, 12)}… · sealed ${sealedId.toBase58().slice(0, 12)}…`);
+
+  // 2. circuit-set completeness — the card must carry exactly the six
+  //    named circuits the program registers. A dropped circuit erases
+  //    part of the referee; a phantom one fabricates it.
+  const named = new Set((card.circuits ?? []).map((c: any) => c.name));
+  const missing = CIRCUIT_NAMES.filter((n) => !named.has(n));
+  const phantom = [...named].filter((n) => !CIRCUIT_NAMES.includes(n as string));
+  check("circuit-set completeness", missing.length === 0 && phantom.length === 0 && (card.circuits ?? []).length === CIRCUIT_NAMES.length,
+    `${named.size}/${CIRCUIT_NAMES.length} circuits` + (missing.length ? ` · MISSING ${missing.join(",")}` : "") + (phantom.length ? ` · PHANTOM ${phantom.join(",")}` : ""));
+
+  // 3. compdef PDAs — name → sha256(name)[:4] offset → [CompDef, sealed, u32le]
+  //    under the Arcium program. A renamed circuit recomputes a different
+  //    offset and lands on a different address — the forgery dies twice.
+  let cdOk = 0;
+  for (const c of card.circuits ?? []) {
+    const want = compDefOffset(c.name);
+    const got = pda([Buffer.from("ComputationDefinitionAccount"), sealedId.toBuffer(), u32(c.offset)], arc);
+    if (c.offset === want && got === c.pda) cdOk++;
+  }
+  check("compdef PDAs", cdOk === CIRCUIT_NAMES.length,
+    `${cdOk}/${CIRCUIT_NAMES.length} re-derived — offset=sha256(name)[:4]le, [CompDef, sealedPid, u32le] @ arcium`);
+
+  // 4. the MXE + cluster + signPda addresses — same derivation, different seeds.
+  check("MXE PDA", pda([Buffer.from("MXEAccount"), sealedId.toBuffer()], arc) === card.mxe?.pda,
+    "[MXEAccount, sealedPid] @ arcium");
+  check("cluster PDA", pda([Buffer.from("Cluster"), u32(Number(card.cluster?.offset ?? -1))], arc) === card.cluster?.pda,
+    `[Cluster, u32le(${card.cluster?.offset})] @ arcium`);
+  check("signPda PDA", pda([Buffer.from("ArciumSignerAccount")], sealedId) === card.signPda,
+    "[ArciumSignerAccount] @ sealed — the callback signer");
+
+  // 5. fetched-consistency — a card carrying recorded devnet fields must
+  //    claim every account exists and the arcium-side ones are owned by
+  //    the Arcium program (a card minted from a fork dies here or at
+  //    program identity).
+  if (card.fetched?.accounts) {
+    const fa = card.fetched.accounts;
+    let fOk = 0, fN = 0;
+    for (const [k, m] of Object.entries(fa) as [string, any][]) {
+      fN++;
+      const wantOwner = k === "signPda" ? null : ARCIUM_PID_STR;
+      if (m.exists && (wantOwner === null || m.owner === wantOwner) && Number(m.dataLen) > 8) fOk++;
+    }
+    check("fetched fields", fOk === fN, `${fOk}/${fN} recorded accounts exist, arcium-owned, non-empty`);
+  }
+
+  // 6. chain-bound anchor — the snapshot's SignPdaAccount entry must be
+  //    the re-derived address, and the card must carry the bundle sha.
+  if (snapPath) {
+    const raw = readFileSync(snapPath);
+    const shaOk = createHash("sha256").update(raw).digest("hex") === card.snapshotSha256;
+    check("snapshot binding", shaOk, shaOk ? `sha256 == ${String(card.snapshotSha256).slice(0, 16)}…` : "bundle bytes differ — the card pins a different ledger");
+    const entry = (loadSnapshotJson(snapPath).sealed ?? [])
+      .find((e: any) => Buffer.from(e.data, "base64").subarray(0, 8).toString("hex") === SIGN_PDA_DISC);
+    check("signPda binding", !!entry && entry.pubkey === card.signPda && card.signPdaSnapshot === card.signPda,
+      `snapshot SignPdaAccount ${entry ? entry.pubkey.slice(0, 12) + "…" : "ABSENT"} == card ${String(card.signPda).slice(0, 12)}…`);
+  }
+  return { ok: fail === 0, pass, fail, fails };
+}
+
 /** `chain feed [--limit N] [--type a,b] [--since ts] [--json]` — the
  *  network's activity stream: every timestamped event across both
  *  programs (bank created → run queued → MPC finalized → receipt
@@ -8678,6 +8861,18 @@ export async function chainMain(cmd: string[], args: Args) {
     }
     if (args.all) { await chainCeiling(undefined, args.out ? String(args.out) : "ceilings", args.snapshot ? String(args.snapshot) : undefined, true); return; }
     await chainCeiling(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "circuit") {
+    // the MPC itself as evidence — binds the six compdef PDAs, the MXE,
+    // the Arcium cluster, and the callback signer to the deployment.
+    if (args.verify) {
+      await circuitVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined, args.rpc ? String(args.rpc) : undefined);
+      return;
+    }
+    const dst = args.prove ?? args.out;
+    await chainCircuitProve(dst ? String(dst) : undefined, args.snapshot ? String(args.snapshot) : undefined,
+      args.rpc ? String(args.rpc) : undefined, Number(args.cluster ?? 456));
     return;
   }
   if (sub === "badge") {

@@ -1,0 +1,117 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "retire the privacy circuit — drop reshare_part",
+  "targetKind": "sealed-circuit/v1",
+  "targetCard": "arcium-devnet.json",
+  "expectFail": [
+    "circuit-set completeness",
+    "compdef PDAs"
+  ],
+  "forgedAt": "2026-10-10T21:38:38.094Z",
+  "forged": {
+    "kind": "sealed-circuit/v1",
+    "generatedAt": "2026-10-10T21:38:14.052Z",
+    "source": "chain circuit --prove",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "arcium": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+    },
+    "cluster": {
+      "offset": 456,
+      "pda": "DzaQCyfybroycrNqE5Gk7LhSbWD2qfCics6qptBFbr95"
+    },
+    "mxe": {
+      "pda": "4Jcw5RrtuoYDM63g1vvKpy8QgPWdg3Jtzfmev71xk4fJ"
+    },
+    "signPda": "DrnekooAocueVfERVgqkvz6uunEoUbP7AKoo6cV8NudF",
+    "circuits": [
+      {
+        "name": "seal_part",
+        "offset": 377626190,
+        "pda": "AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf"
+      },
+      {
+        "name": "score_chunk",
+        "offset": 22757050,
+        "pda": "9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo"
+      },
+      {
+        "name": "gen_part",
+        "offset": 233748648,
+        "pda": "AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ"
+      },
+      {
+        "name": "gen_part_private",
+        "offset": 3168202308,
+        "pda": "CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN"
+      },
+      {
+        "name": "reveal_part",
+        "offset": 2697492279,
+        "pda": "zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG"
+      }
+    ],
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "signPdaSnapshot": "DrnekooAocueVfERVgqkvz6uunEoUbP7AKoo6cV8NudF",
+    "fetched": {
+      "rpc": "https://api.devnet.solana.com",
+      "at": "2026-10-10T21:38:16.138Z",
+      "accounts": {
+        "mxe": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 2270760,
+          "dataLen": 319
+        },
+        "cluster": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 4920720,
+          "dataLen": 579
+        },
+        "signPda": {
+          "exists": true,
+          "owner": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+          "lamports": 695960,
+          "dataLen": 9
+        },
+        "seal_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1249680,
+          "dataLen": 118
+        },
+        "score_chunk": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1503680,
+          "dataLen": 168
+        },
+        "gen_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1412240,
+          "dataLen": 150
+        },
+        "gen_part_private": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1234440,
+          "dataLen": 115
+        },
+        "reveal_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1239520,
+          "dataLen": 116
+        },
+        "reshare_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1198880,
+          "dataLen": 108
+        }
+      }
+    }
+  }
+}
