@@ -191,3 +191,21 @@ deadline.
   procurement primitive: "certified <=X% on sealed exams" is a contract
   clause you can verify keylessly. Sealed is the only system here that
   can prove a negative without trusting a leaderboard operator.
+
+## Update 8 — "the verifier lies for no one" (record fourth)
+
+- 20s: we ran an adversarial audit on our own verifiers and found four
+  ways to make one print VERIFIED over a lie — an unpinned ceiling, a
+  policy cert with a laundered receipt set, a claim missing its worst
+  run, a position card that nulls out its venue. All four are closed,
+  and each fix shipped WITH the attack that would have beaten it:
+  24 committed sealed-tamper/v1 exhibits now verify by failing.
+- 15s: the third-party consumer got the same treatment —
+  examples/mini-resolver.mjs now re-derives every Run PDA from the
+  account seeds with a dependency-free ed25519 off-curve check. A
+  fabricated account drops before its fields are ever read — the
+  integrate.md contract made executable, not just documented.
+- 10s: the meta-lesson — the freshness gate was enforcing a stale
+  number. Now it derives its own truth from the sources and checks
+  every capture group. The audit that watches the docs is itself
+  audited; the gate caught two drifts the moment it was honest.
