@@ -86,7 +86,7 @@ bit-exact in-browser; the calibration specimen replays the same MPC
 arithmetic per-item (3b 7/32 vs 1.5b 2/32).
 Outputs are portable proof — 142 artifacts / 13 kinds replay
 keyless; `chain fingerprint` = one sha256 notarized on devnet;
-16 canned forgeries die at named checks; tamper/ pins 15 forged
+17 canned forgeries die at named checks; tamper/ pins 15 forged
 artifacts that verify by being REJECTED — `verify.py` redoes it
 in Python.
 

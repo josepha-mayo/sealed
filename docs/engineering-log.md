@@ -212,8 +212,8 @@ gaps in the verifiers, not just in the programs:
 ## Judge-experience findings (competitive audit, round four)
 
 - **The verdict block drifted from the README.** The copyable verdict the
-  page emits (the block judges are told to paste) still said "all 138
-  replayed" after the catalog grew to 142 — the audit's regexes pinned
+  page emits (the block judges are told to paste) still printed "all 138"
+  as its replayed total after the catalog grew to 142 — the audit's regexes pinned
   the count, but the emitted string was literal. Now the artifact total
   is parsed back from the replay output; the verdict counts itself, so
   it can't drift again. Same fix class for og:description + buttons.

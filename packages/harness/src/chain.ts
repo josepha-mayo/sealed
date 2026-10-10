@@ -2370,6 +2370,34 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
     check("snapshot binding", bBad === 0 && idOk,
       `${bN - bBad}/${bN} receipts == ScoreLog bytes, each bound to its side's record` +
       (idOk ? " · on-chain modelIds match" : " · MODEL ID MISMATCH"));
+    // subset laundering — the card's shared-bank set must EQUAL the
+    // snapshot's (banks where BOTH records carry ScoreLogs), and each
+    // side's embedded receipts must equal that record's decoded logs on
+    // those banks. Dropping a losing bank (or a losing receipt) replays
+    // the aggregate cleanly and flips the verdict — it dies here because
+    // the ledger still carries the evidence.
+    const allLogs = [...logs.values()] as any[];
+    const banksOf = (recPk: string) => new Set(
+      allLogs.filter((l) => l.account.modelRecord.toBase58() === recPk).map((l) => l.account.benchmark.toBase58()));
+    const trueShared = [...banksOf(card.a.recordPk)].filter((k) => banksOf(card.b.recordPk).has(k));
+    const sharedSet = new Set(trueShared);
+    const cardBanks = new Set(card.banks.map((b: any) => b.pk));
+    const missingB = trueShared.filter((k) => !cardBanks.has(k));
+    const phantomB = [...cardBanks].filter((k) => !sharedSet.has(k));
+    check("shared-bank completeness", missingB.length === 0 && phantomB.length === 0 && trueShared.length === card.banks.length,
+      `${trueShared.length} shared banks on-chain == ${card.banks.length} listed` +
+      (missingB.length ? ` · ${missingB.length} OMITTED (e.g. ${missingB[0].slice(0, 12)}…)` : "") +
+      (phantomB.length ? ` · ${phantomB.length} PHANTOM` : ""));
+    let rcBad = 0;
+    for (const side of ["a", "b"] as const) {
+      const want = new Set(allLogs.filter((l) => l.account.modelRecord.toBase58() === card[side].recordPk
+          && sharedSet.has(l.account.benchmark.toBase58())).map((l) => l.publicKey.toBase58()));
+      const got = new Set(card.receipts[side].map((l: any) => l.pk));
+      if (want.size !== got.size || [...want].some((k) => !got.has(k))) rcBad++;
+    }
+    check("receipt completeness", rcBad === 0,
+      rcBad === 0 ? "both sides — embedded receipts == decoded logs on every shared bank"
+        : `${rcBad} side(s) carry a receipt subset — a dropped receipt on a kept bank launders the bank's delta`);
   }
   return { ok: fail === 0, pass, fail, fails, rows };
 }
@@ -2711,6 +2739,55 @@ export async function boardVerify(file: string, json = false, snapPath?: string)
           Number((run.account as any).correct) !== l.correct) bBad++;
     }
     note(bBad === 0, "snapshot binding", `${bN} receipts equal their ScoreLog accounts field-for-field; every score == Run.correct`);
+    // model-set completeness — the card's model set must EQUAL the
+    // snapshot's ModelRecord set: erasing a losing model re-ranks
+    // cleanly and the "leaderboard" prints verified over a subset.
+    const trueRecs = new Map(snapOf(ss, "ModelRecord").map((r: any) => [r.publicKey.toBase58(), r]));
+    const cardPks = new Set(card.models.map((m: any) => m.recordPk));
+    const missM = [...trueRecs.keys()].filter((k) => !cardPks.has(k));
+    const phanM = [...cardPks].filter((k) => !trueRecs.has(k));
+    note(missM.length === 0 && phanM.length === 0, "model-set completeness",
+      `${trueRecs.size} ModelRecords on-chain == ${card.models.length} listed` +
+      (missM.length ? ` · ${missM.length} OMITTED (e.g. ${missM[0].slice(0, 12)}…)` : "") +
+      (phanM.length ? ` · ${phanM.length} PHANTOM` : ""));
+    // receipt completeness — each model's embedded receipt set must equal
+    // ALL decoded ScoreLogs for that record; a dropped losing receipt
+    // still replays self-consistent aggregates on the subset.
+    const logsByRec = new Map<string, Set<string>>();
+    for (const l of [...logs.values()] as any[]) {
+      const k = l.account.modelRecord.toBase58();
+      if (!logsByRec.has(k)) logsByRec.set(k, new Set());
+      logsByRec.get(k)!.add(l.publicKey.toBase58());
+    }
+    let rcBad = 0;
+    for (const m of card.models) {
+      const want = logsByRec.get(m.recordPk) ?? new Set<string>();
+      const got = new Set(m.receipts.map((l: any) => l.pk));
+      if (want.size !== got.size || [...want].some((k) => !got.has(k))) rcBad++;
+    }
+    note(rcBad === 0, "receipt completeness",
+      rcBad === 0 ? "every model's receipts == its full decoded ScoreLog set"
+        : `${rcBad} model(s) carry a receipt subset — an omitted receipt still aggregates cleanly`);
+    // record-totals binding — declared record fields must equal the
+    // decoded ModelRecord, not just replay from embedded receipts.
+    let tBad = 0;
+    for (const m of card.models) {
+      const real = trueRecs.get(m.recordPk);
+      if (!real) { tBad++; continue; }
+      const a: any = real.account;
+      if (Number(a.runsScored) !== m.record.runsScored || Number(a.totalCorrect) !== m.record.totalCorrect ||
+          Number(a.totalItems) !== m.record.totalItems || Number(a.bestCorrect) !== m.record.bestCorrect ||
+          Number(a.bestItems) !== m.record.bestItems ||
+          (a.bestRun as PublicKey).toBase58() !== m.record.bestRun ||
+          (a.bestBank as PublicKey).toBase58() !== m.record.bestBank ||
+          (a.lastRun as PublicKey).toBase58() !== m.record.lastRun ||
+          Number(a.firstSeen) !== m.record.firstSeen || Number(a.lastScored) !== m.record.lastScored ||
+          Buffer.from(a.modelHash).toString("hex") !== m.record.modelHash ||
+          String(a.modelId) !== m.modelId) tBad++;
+    }
+    note(tBad === 0, "record totals",
+      tBad === 0 ? "every declared record row == its decoded ModelRecord field-for-field"
+        : `${tBad} record row(s) contradict the on-chain ModelRecord`);
   }
 
   const ok = fail === 0;
@@ -3123,13 +3200,14 @@ export async function positionVerify(file: string, json = false, snapPath?: stri
   const realVenue = [...markets, ...ladders, ...darks].find((v) => v.publicKey.toBase58() === card.venue.pk)?.account as any;
   if (!bound || !realVenue) note(false, "venue binding", bound ? "venue not in the snapshot" : "no snapshot to bind against");
   else {
+    const eqNul = (c: any, a: any) => (c == null ? a == null : cmp(a, c));
     const ok = cmp(realVenue.status, card.venue.status) && cmp(realVenue.feeBps, card.venue.feeBps)
-      && (card.venue.outcome === null || cmp(realVenue.outcome, card.venue.outcome))
-      && (card.venue.mask === null || cmp(realVenue.resultMask, card.venue.mask))
-      && (card.venue.totals === null || JSON.stringify((realVenue.totals as any[]).map((t) => t.toString())) === JSON.stringify(card.venue.totals))
-      && (card.venue.poolTotal === null || cmp(realVenue.poolTotal, card.venue.poolTotal))
-      && (card.venue.winTotal === null || cmp(realVenue.winTotal, card.venue.winTotal))
-      && (card.venue.tallied === null || cmp(realVenue.tallied, card.venue.tallied));
+      && eqNul(card.venue.outcome, realVenue.outcome)
+      && eqNul(card.venue.mask, realVenue.resultMask)
+      && (card.venue.totals == null ? realVenue.totals == null : JSON.stringify((realVenue.totals as any[]).map((t) => t.toString())) === JSON.stringify(card.venue.totals))
+      && eqNul(card.venue.poolTotal, realVenue.poolTotal)
+      && eqNul(card.venue.winTotal, realVenue.winTotal)
+      && eqNul(card.venue.tallied, realVenue.tallied);
     note(ok, "venue binding", "status · outcome/mask · pools · fee all equal the decoded venue account");
   }
   // [5] verdict replay — the same parimutuel math the dossiers print.
@@ -3264,6 +3342,7 @@ export async function bountyVerify(file: string, json = false, snapPath?: string
     const w = card.winner;
     if (w) {
       const sameBank = w.benchmark === card.bounty.seeds.bank;
+      const isPaidWinner = w.run === card.bounty.winnerRun;
       const postdates = BigInt(w.createdAt) >= BigInt(card.bounty.createdAt);
       const notSelf = w.runner !== card.bounty.seeds.sponsor;
       const meets = w.correct >= card.bounty.threshold;
@@ -3273,9 +3352,9 @@ export async function bountyVerify(file: string, json = false, snapPath?: string
         firstPendingAt: Number(w.firstPendingAt), allQueuedAt: Number(w.allQueuedAt),
         scoredMask: w.scoredMask, postReveal: w.postReveal } as BoardRun, Math.floor(Date.now() / 1000));
       const notPostReveal = !w.postReveal;
-      note(sameBank && postdates && notSelf && meets && scoreMatch && provenNow && notPostReveal,
+      note(isPaidWinner && sameBank && postdates && notSelf && meets && scoreMatch && provenNow && notPostReveal,
         "bounty_qualifies replay",
-        `bank=${sameBank} postdates=${postdates} runner≠sponsor=${notSelf} score≥threshold=${meets} score==winning=${scoreMatch} proven=${provenNow} !post-reveal=${notPostReveal}`);
+        `paidWinner=${isPaidWinner} bank=${sameBank} postdates=${postdates} runner≠sponsor=${notSelf} score≥threshold=${meets} score==winning=${scoreMatch} proven=${provenNow} !post-reveal=${notPostReveal}`);
       if (winnerAcct) note(w.correct === Number(winnerAcct.correct) && w.runner === (winnerAcct.runner as PublicKey).toBase58(),
         "winner binding", "run account fields equal the decoded Run");
     } else note(false, "bounty_qualifies replay", "claimed card without a winner run");
@@ -3413,11 +3492,14 @@ export async function grantVerify(file: string, json = false, snapPath?: string)
   note(card.grant.encryptionKey === card.grant.viewer, "key echo", "encryption_key == viewer — the MPC bound output to the requested key");
   // [4] bank binding + privacy semantics — grants only carry meaning on
   // ciphertext banks: a grant on an authored bank would disclose public
-  // specs, which isn't evidence of anything.
-  if (card.bank) {
-    const bankOk = card.grant.benchmark === card.bank.pk && card.grant.seeds.bank === card.bank.pk;
-    note(bankOk && Number(card.bank.kind) === 2, "bank semantics",
-      `${card.bank.name} kind=${card.bank.kind} — ciphertext-only exam; the questions moved without publishing`);
+  // specs, which isn't evidence of anything. A card omitting the bank
+  // block proves nothing about the exam it names.
+  {
+    const bankOk = card.bank && card.grant.benchmark === card.bank.pk && card.grant.seeds.bank === card.bank.pk;
+    note(Boolean(bankOk) && Number(card.bank.kind) === 2, "bank semantics",
+      card.bank
+        ? `${card.bank.name} kind=${card.bank.kind} — ciphertext-only exam; the questions moved without publishing`
+        : "card carries no bank context — the exam it claims to disclose is unbound");
   }
   // [5] panel tally — who else was shown the exam? Re-derived from the
   // snapshot, not the card's say-so.
@@ -4026,6 +4108,11 @@ function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: s
     if (!ok) fails.push(what);
     ok ? pass++ : fail++;
   };
+  // fail closed: with a snapshot loaded, an unpinned card cannot bind its
+  // money trail to a frozen ledger — that absence is a FAILED check, not
+  // a skipped one (same contract as ceiling/bank cards).
+  if (snap?.sha256 && !card.snapshotSha256)
+    check("snapshot binding", false, "card carries no snapshotSha256 — the money trail has nothing to bind to");
   if (snap?.sha256 && card.snapshotSha256)
     check("snapshot binding", snap.sha256 === card.snapshotSha256,
       `sha256 ${card.snapshotSha256.slice(0, 16)}… pins the card to this exact account set`);
@@ -4297,7 +4384,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
  *  verifier, the forgery lab, and tamper-exhibit replays. */
 const ARTIFACT_ROUTES = (snapPath?: string, json = false): Record<string, (f: string) => Promise<any>> => ({
   "sealed-claim/v1": (f) => chainProveVerify(f, undefined, json, snapPath),
-  "sealed-policy/v1": (f) => gateCertVerify(f, json),
+  "sealed-policy/v1": (f) => gateCertVerify(f, json, snapPath),
   "sealed-match/v1": (f) => matchVerify(f, json, snapPath),
   "sealed-trail/v1": (f) => trailVerify(f, json, snapPath),
   "sealed-report/v1": (f) => reportVerify(f, snapPath, json),
@@ -4321,14 +4408,69 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
     { label: "inflate a receipt's score", mutate: (c) => { c.models[0].receipts[0].correct += 1; } },
     { label: "swap the #1 rank", mutate: (c) => { const t = c.ranking[0]; c.ranking[0] = c.ranking[1]; c.ranking[1] = t; } },
     { label: "un-vouch an attested receipt", mutate: (c) => { const l = c.models.flatMap((m: any) => m.receipts).find((x: any) => x.vouched === 1); l.vouched = 0; } },
+    { label: "erase the #1 model — re-rank a cropped leaderboard", mutate: (c) => {
+      const top = c.ranking[0];
+      c.models = c.models.filter((m: any) => m.recordPk !== top.recordPk);
+      c.pairs = c.pairs.filter((p: any) => p.a !== top.modelId && p.b !== top.modelId);
+      c.ranking = c.ranking.slice(1);
+      c.ranking.forEach((r: any, i: number) => { r.rank = i + 1; });
+      c.totals.models = c.models.length;
+      c.totals.receipts = c.models.reduce((n: number, m: any) => n + m.receipts.length, 0);
+      c.totals.pairs = c.pairs.length;
+    } },
   ],
   "sealed-match/v1": [
     { label: "flip the head-to-head verdict", mutate: (c) => { c.verdict.winner = c.verdict.winner === "a" ? "b" : "a"; } },
     { label: "launder the loser — rename side A's model", mutate: (c) => { c.a.id = "totally-different-model"; } },
+    { label: "drop a shared bank — launder the head-to-head", mutate: (c) => {
+      // drop the bank where the declared loser did BEST relative to the
+      // winner — the bank that most hurts the fabricated narrative.
+      let drop: any = null, best = -Infinity;
+      for (const b of c.banks) {
+        const ra = c.receipts.a.filter((r: any) => r.benchmark === b.pk);
+        const rb = c.receipts.b.filter((r: any) => r.benchmark === b.pk);
+        const ca = ra.reduce((s: number, r: any) => s + r.correct, 0), ia = ra.reduce((s: number, r: any) => s + r.items, 0);
+        const cb = rb.reduce((s: number, r: any) => s + r.correct, 0), ib = rb.reduce((s: number, r: any) => s + r.items, 0);
+        if (!ia || !ib) continue;
+        const edge = cb / ib - ca / ia;
+        if (edge > best) { best = edge; drop = b; }
+      }
+      if (!drop) return;
+      c.banks = c.banks.filter((b: any) => b.pk !== drop.pk);
+      c.runs = c.runs.filter((r: any) => r.benchmark !== drop.pk);
+      for (const sd of ["a", "b"]) c.receipts[sd] = c.receipts[sd].filter((r: any) => r.benchmark !== drop.pk);
+      // recompute the verdict over the laundered subset — every internal
+      // check stays green; only the snapshot's complete set catches it.
+      const sum = (sd: string) => c.receipts[sd].reduce((t: any, r: any) => ({ c: t.c + r.correct, i: t.i + r.items }), { c: 0, i: 0 });
+      const A = sum("a"), B = sum("b");
+      c.verdict.pooledA = A.c; c.verdict.pooledItemsA = A.i;
+      c.verdict.pooledB = B.c; c.verdict.pooledItemsB = B.i;
+      c.verdict.pctA = A.i ? (100 * A.c) / A.i : 0;
+      c.verdict.pctB = B.i ? (100 * B.c) / B.i : 0;
+      c.verdict.sharedBanks = c.banks.length;
+      const wins = { a: 0, tie: 0, b: 0 };
+      for (const b of c.banks) {
+        const pa = c.receipts.a.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.correct, 0)
+          / Math.max(1, c.receipts.a.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.items, 0));
+        const pb = c.receipts.b.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.correct, 0)
+          / Math.max(1, c.receipts.b.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.items, 0));
+        if (pa > pb) wins.a++; else if (pa < pb) wins.b++; else wins.tie++;
+      }
+      c.verdict.bankWins = wins;
+      c.verdict.winner = c.verdict.pctA === c.verdict.pctB ? "tie" : c.verdict.pctA > c.verdict.pctB ? "a" : "b";
+    } },
   ],
   "sealed-claim/v1": [
     { label: "mint a phantom receipt", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0])); r.correct += 1; c.receipts.push(r); } },
     { label: "launder the receipts — rename the model", mutate: (c) => { c.model.id = "gpt-9000-ultra"; } },
+    { label: "drop the worst receipt — rewrite the record over the subset", mutate: (c) => {
+      const worst = c.receipts.reduce((w: any, r: any) =>
+        (r.correct / Math.max(1, r.items)) < (w.correct / Math.max(1, w.items)) ? r : w);
+      c.receipts = c.receipts.filter((r: any) => r !== worst);
+      c.model.runsScored = c.receipts.length;
+      c.model.totalCorrect = c.receipts.reduce((s: number, r: any) => s + r.correct, 0);
+      c.model.totalItems = c.receipts.reduce((s: number, r: any) => s + r.items, 0);
+    } },
   ],
   "sealed-trail/v1": [
     { label: "rewrite the settled money", mutate: (c) => {
@@ -4369,6 +4511,27 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
   ],
   "sealed-policy/v1": [
     { label: "flip a model's gate verdict", mutate: (c) => { const m = c.models.find((m: any) => !m.verdict.pass); m.verdict.pass = true; m.verdict.reason = "forged"; } },
+    { label: "drop a model's worst receipt — recompute the totals over the subset", mutate: (c) => {
+      const m = (c.models as any[]).find((m) => m.receipts.length > 1 && !m.verdict.pass)
+        ?? (c.models as any[]).find((m) => m.receipts.length > 1);
+      if (!m) return;
+      const worst = m.receipts.reduce((w: any, r: any) =>
+        (r.correct / Math.max(1, r.items)) < (w.correct / Math.max(1, w.items)) ? r : w);
+      m.receipts = m.receipts.filter((r: any) => r !== worst);
+      m.verdict.runs = m.receipts.length;
+      m.verdict.items = m.receipts.reduce((s: number, r: any) => s + r.items, 0);
+      m.verdict.correct = m.receipts.reduce((s: number, r: any) => s + r.correct, 0);
+      m.verdict.pct = m.verdict.items ? Math.round(m.verdict.correct / m.verdict.items * 10000) / 100 : 0;
+    } },
+    { label: "erase a whole model from the certificate", mutate: (c) => {
+      const i = (c.models as any[]).findIndex((m) => !m.verdict.pass);
+      if (i < 0) return;
+      c.models.splice(i, 1);
+      c.summary.records = c.models.length;
+      c.summary.pass = c.models.filter((m: any) => m.verdict.pass).length;
+      c.summary.fail = c.models.filter((m: any) => m.verdict.reason === "policy").length;
+      c.summary.noEvidence = c.models.filter((m: any) => m.verdict.reason === "no-evidence").length;
+    } },
   ],
   "sealed-position/v1": [
     { label: "inflate a winning stake", mutate: (c) => {
@@ -4385,6 +4548,7 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
       if (c.ceiling.maxPctBp != null) { c.ceiling.maxPctBp = Math.max(0, c.ceiling.maxPctBp - 500); c.ceiling.maxPct = `${(c.ceiling.maxPctBp / 100).toFixed(1)}%`; }
     } },
     { label: "launder the ceiling — rename the model", mutate: (c) => { c.model.id = "safety-washed-model"; } },
+    { label: "unpin the ceiling — strip the snapshot binding", mutate: (c) => { c.snapshotSha256 = null; } },
   ],
 };
 
@@ -6537,6 +6701,26 @@ export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, de
     check("snapshot binding", bBad === 0 && idOk,
       `${card.receipts.length - bBad}/${card.receipts.length} receipts == ScoreLog bytes, each bound to the named record` +
       (idOk ? " · on-chain modelId matches" : ` · MODEL ID MISMATCH (${card.model.id} not on ${card.record.pk.slice(0, 12)}…)`));
+    // receipt completeness — the embedded set must EQUAL the record's full
+    // ScoreLog set in the snapshot. A dropped losing receipt still
+    // replays self-consistent aggregates on the subset; only the ledger's
+    // complete set catches it.
+    const want = new Set([...logs.values()]
+      .filter((l: any) => l.account.modelRecord.toBase58() === card.record.pk)
+      .map((l: any) => l.publicKey.toBase58()));
+    const got = new Set(card.receipts.map((l: any) => l.pk));
+    const miss = [...want].filter((k) => !got.has(k));
+    check("receipt completeness", want.size === got.size && miss.length === 0,
+      `${want.size} ScoreLogs on-chain == ${got.size} embedded` +
+      (miss.length ? ` · ${miss.length} OMITTED (e.g. ${miss[0].slice(0, 12)}…)` : ""));
+    // record totals — declared numbers must equal the decoded
+    // ModelRecord, not just replay from the card's own receipts.
+    const tOk = !!rec && Number(rec.account.runsScored) === card.model.runsScored
+      && Number(rec.account.totalCorrect) === card.model.totalCorrect
+      && Number(rec.account.totalItems) === card.model.totalItems;
+    check("record totals", tOk,
+      tOk ? `stored ${card.model.totalCorrect}/${card.model.totalItems} over ${card.model.runsScored} == decoded ModelRecord`
+        : "declared totals contradict the on-chain ModelRecord");
   }
 
   return { ok: fail === 0, pass, fail, fails };
@@ -6706,7 +6890,11 @@ export function verifyCeilingCard(card: any, emit?: (what: string, ok: boolean, 
 
   // 3. snapshot binding: the run set must EQUAL the decoded subject set —
   //    the negative claim lives here. An omitted run lowers the ceiling;
-  //    a phantom run raises it; both die.
+  //    a phantom run raises it; both die. When --snapshot is given the
+  //    binding is mandatory — a ceiling card that cannot bind its run set
+  //    to a pinned ledger is just an anecdote, so it fails closed.
+  if (snapPath && !card.snapshotSha256)
+    check("snapshot binding", false, "card carries no snapshotSha256 — completeness has nothing to bind to");
   if (snapPath && card.snapshotSha256) {
     const snapRaw = readFileSync(snapPath);
     const shaOk = createHash("sha256").update(snapRaw).digest("hex") === card.snapshotSha256;
@@ -7138,9 +7326,13 @@ export async function gateCert(policy: GatePolicy, out: string, snapPath?: strin
 
 /** `chain gate --certify-verify <file>` — replay a sealed-policy/v1
  *  certificate keyless: every ModelRecord PDA re-derives from its
- *  declared modelHash seed, and evalGate re-run on the embedded receipts
- *  must reproduce every stored verdict bit-for-bit. */
-export async function gateCertVerify(file: string, json = false) {
+ *  declared modelHash seed, evalGate re-run on the embedded receipts
+ *  must reproduce every stored verdict bit-for-bit, and with --snapshot
+ *  the embedded receipts must EQUAL the record's decoded ScoreLog
+ *  multiset (bank-filtered like the mint) while the cert's model set
+ *  equals the on-chain ModelRecord set — without those, a forged verdict
+ *  or a dropped receipt self-certifies. */
+export async function gateCertVerify(file: string, json = false, snapPath?: string) {
   const cert = JSON.parse(readFileSync(file, "utf8"));
   if (cert.kind !== "sealed-policy/v1") throw new Error(`not a sealed-policy/v1 file (kind=${cert.kind})`);
   const sealedId = new PublicKey(cert.programs.sealed);
@@ -7183,6 +7375,47 @@ export async function gateCertVerify(file: string, json = false) {
     noEvidence: (cert.models as any[]).filter((m) => m.verdict.reason === "no-evidence").length };
   check("summary consistent", s.pass === recomp.pass && s.fail === recomp.fail && s.noEvidence === recomp.noEvidence,
     `${s.pass}/${s.fail}/${s.noEvidence} stored = ${recomp.pass}/${recomp.fail}/${recomp.noEvidence} recomputed`);
+  // account binding — every embedded receipt must equal a decoded
+  // ScoreLog of that record (with the same bank filter the mint applied),
+  // and the cert's model set must equal the snapshot's ModelRecord set.
+  // Without this the cert is self-certifying: flip a verdict, drop a
+  // model's worst receipts, or erase a record and the rest still replays.
+  if (snapPath) {
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const allLogs = snapOf(ss, "ScoreLog");
+    const bankSet = cert.policy?.bank
+      ? new Set((snapOf(ss, "Benchmark") as any[])
+          .filter((b) => b.publicKey.toBase58() === cert.policy.bank || b.account.name === cert.policy.bank)
+          .map((b) => b.publicKey.toBase58()))
+      : null;
+    const scoped = bankSet ? allLogs.filter((l: any) => bankSet.has(l.account.benchmark.toBase58())) : allLogs;
+    const key = (r: any) => `${r.correct}/${r.items}/${r.vouchedAtRecord ? 1 : 0}/${r.postReveal ? 1 : 0}`;
+    const byRec = new Map<string, Map<string, number>>();
+    for (const l of scoped as any[]) {
+      const rk = l.account.modelRecord.toBase58();
+      const mm = byRec.get(rk) ?? new Map<string, number>();
+      const k = key({ correct: Number(l.account.correct), items: Number(l.account.items),
+        vouchedAtRecord: !!l.account.vouchedAtRecord, postReveal: !!l.account.postReveal });
+      mm.set(k, (mm.get(k) ?? 0) + 1);
+      byRec.set(rk, mm);
+    }
+    let rBad = 0;
+    for (const m of cert.models as any[]) {
+      const want = byRec.get(m.recordPk) ?? new Map<string, number>();
+      const got = new Map<string, number>();
+      for (const r of m.receipts as any[]) { const k = key(r); got.set(k, (got.get(k) ?? 0) + 1); }
+      if (want.size !== got.size || ![...want].every(([k, n]) => got.get(k) === n)) rBad++;
+    }
+    check("receipt binding", rBad === 0,
+      `${cert.models.length - rBad}/${cert.models.length} models — embedded receipts == decoded ScoreLog multiset${cert.policy?.bank ? " (bank-filtered)" : ""}`);
+    const truePks = new Set((snapOf(ss, "ModelRecord") as any[]).map((r) => r.publicKey.toBase58()));
+    const cardPks = new Set((cert.models as any[]).map((m) => m.recordPk));
+    const missing = [...truePks].filter((k) => !cardPks.has(k));
+    const phantom = [...cardPks].filter((k) => !truePks.has(k));
+    check("record-set completeness", missing.length === 0 && phantom.length === 0,
+      `${truePks.size} ModelRecords on-chain == ${cert.models.length} listed` +
+      (missing.length ? ` · ${missing.length} OMITTED` : "") + (phantom.length ? ` · ${phantom.length} PHANTOM` : ""));
+  }
   if (json) console.log(JSON.stringify({ file, kind: cert.kind, models: cert.models.length, verified: fail === 0,
     checks: rows, pass, fail, summary: cert.summary }));
   else console.log(`${fail === 0 ? "CERT VERIFIED" : "CERT FAILED"} — ${cert.models.length} records, ${pass} checks pass, ${fail} fail`);
@@ -8513,7 +8746,7 @@ export async function chainMain(cmd: string[], args: Args) {
       return;
     }
     if (args["certify-verify"]) {
-      await gateCertVerify(String(args["certify-verify"]), Boolean(args.json));
+      await gateCertVerify(String(args["certify-verify"]), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
       return;
     }
     if (cmd[1] === "--all" || args.all) {

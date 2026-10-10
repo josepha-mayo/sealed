@@ -84,7 +84,7 @@
   <div class="kv" style="margin-bottom:6px"><b>This page audits itself.</b> No wallet, no RPC, nothing trusted — every score below was written by the MPC cluster's callback, and you can recount any of them right here:</div>
   <div>
     <button onclick="megaAudit()" style="border-color:var(--acc)">▶ PROVE EVERYTHING — one click (~8s)</button>
-    <span class="kv">audit → all 142 artifacts replayed → 13 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (25 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
+    <span class="kv">audit → all 182 artifacts replayed → 17 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (25 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
     <div id="megares" style="margin-top:8px"></div>
   </div>
   <div style="margin-top:6px">
@@ -110,7 +110,7 @@
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 142 artifacts + its own verifiers as ONE offline file</div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 182 artifacts + its own verifiers as ONE offline file</div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -162,6 +162,7 @@
     <button onclick="forge('hidebest')">hide the argmax run</button>
     <button onclick="forge('shaveceil')">shave the ceiling</button>
     <button onclick="forge('launderceil')">launder the ceiling</button>
+    <button onclick="forge('unpinceil')">unpin the ceiling</button>
     <button onclick="forge('regrant')">redirect a disclosure</button>
   </div>
   <div id="forgeres"></div>
@@ -2400,6 +2401,26 @@ async function verifyClaim() {
       (bBad === 0 && idOk)
         ? pass("snapshot binding", `${c.receipts.length} receipts == ScoreLog bytes, each bound to the named record · on-chain modelId matches`)
         : fail("snapshot binding", bBad ? `${bBad} receipt(s) differ from decoded ScoreLog bytes or point at another record` : `record ${short(c.record.pk)} carries modelId ${esc(rec?.modelId ?? "?")}, not ${esc(c.model.id)}`);
+      // completeness — the embedded receipt set must EQUAL the record's
+      // full ScoreLog set in the audited snapshot, and declared totals must
+      // equal the decoded ModelRecord. A dropped receipt still replays
+      // self-consistent aggregates on the subset; only the complete set
+      // catches it (parity with the CLI's "receipt completeness"/"record
+      // totals" checks).
+      const want = new Set(A5.scoreLogs.filter(l => l.modelRecord === c.record.pk).map(l => l.pk));
+      const got = new Set(c.receipts.map(l => l.pk));
+      const miss = [...want].filter(k => !got.has(k));
+      (want.size === got.size && miss.length === 0)
+        ? pass("receipt completeness", `${want.size} ScoreLogs in the audited snapshot == ${got.size} embedded`)
+        : fail("receipt completeness", `${miss.length || want.size - got.size} ScoreLog(s) ${miss.length ? "OMITTED (e.g. " + short(miss[0]) + "…)" : "PHANTOM"} — a subset still self-aggregates`);
+      const tOk = rec && rec.runsScored === c.model.runsScored && rec.totalCorrect === c.model.totalCorrect && rec.totalItems === c.model.totalItems;
+      tOk
+        ? pass("record totals", `stored ${c.model.totalCorrect}/${c.model.totalItems} over ${c.model.runsScored} == decoded ModelRecord`)
+        : fail("record totals", "declared totals contradict the on-chain ModelRecord");
+    } else {
+      // fail closed — a claim verified against no accounts is just a
+      // self-consistent story. Same contract as the ceiling card.
+      fail("snapshot binding", "audit not run — a claim verified against nothing proves nothing (run the audit first)");
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"}</b> — ${esc(c.model.id)}: ${c.model.totalCorrect}/${c.model.totalItems} across ${c.model.runsScored} run(s)${c.verdicts?.postRevealRuns ? ` · ${c.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""}</div>`);
@@ -2530,12 +2551,13 @@ async function verifyCeiling() {
     // a phantom inflates it. Both die here.
     const A = window.__audit;
     if (A) {
-      if (c.snapshotSha256) {
-        const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
-        gotSha === c.snapshotSha256
-          ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… — this card is pinned to THIS account dump`)
-          : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}… — this card describes a different ledger`);
-      }
+      const claimed = typeof c.snapshotSha256 === "string" ? c.snapshotSha256 : "";
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      (claimed.length === 64 && gotSha === claimed)
+        ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… — this card is pinned to THIS account dump`)
+        : fail("snapshot binding", claimed
+          ? `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${claimed.slice(0, 16)}… — this card describes a different ledger`
+          : "card carries no snapshotSha256 — completeness has nothing to bind to");
       const rec = A.modelRecords.find(m => m.pk === c.record.pk);
       (rec && rec.modelId === c.model.id && c.model.recordPk === c.record.pk)
         ? pass("record identity", `on-chain modelId == ${esc(c.model.id)}`)
@@ -2559,7 +2581,7 @@ async function verifyCeiling() {
         ? pass("run field binding", `${c.runs.length}/${c.runs.length} runs == decoded Run bytes`)
         : fail("run field binding", `${fieldBad} run(s) differ from decoded account bytes`);
     } else {
-      rows.push(`<div class="kv">snapshot not decoded yet — completeness + field binding skipped (run the audit first, or use <code>chain ceiling --verify</code> which binds against web/snapshot.json)</div>`);
+      fail("snapshot binding", "audit not run — a ceiling verified against nothing proves nothing (run the audit first)");
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CEILING VERIFIED" : "CEILING FAILED"}</b> — ${esc(c.model.id)} never scored above ${esc(c.ceiling.maxPct ?? "∅")} across ${c.scope?.finalizedRuns ?? "?"} finalized run(s)${c.scope?.postRevealRuns ? ` · ${c.scope.postRevealRuns} post-reveal` : ""}</div>`);
@@ -2643,6 +2665,45 @@ function verifyCert() {
     (s.pass === rc.pass && s.fail === rc.fail && s.noEvidence === rc.noEvidence)
       ? pass("summary consistent", `${s.pass}/${s.fail}/${s.noEvidence} stored = recomputed`)
       : fail("summary consistent", `${s.pass}/${s.fail}/${s.noEvidence} stored ≠ ${rc.pass}/${rc.fail}/${rc.noEvidence} recomputed`);
+    // [4] receipt binding + record-set completeness — the cert embeds
+    // reduced receipts (no pks), so each model's {correct, items,
+    // vouchedAtRecord, postReveal} multiset must equal the decoded
+    // ScoreLog multiset for that record, and the model set must equal
+    // every ModelRecord in the snapshot. Dropping a model's worst
+    // receipts or erasing a record stays self-consistent — only the
+    // decoded accounts catch it.
+    const A = window.__audit;
+    if (!A) {
+      fail("receipt binding", "audit not run — a cert verified against nothing proves nothing (run the audit first)");
+      fail("record-set completeness", "audit not run — completeness needs the decoded account set");
+    } else {
+      const bankSet = p.bank ? new Set(A.benches.filter(b => b.pk === p.bank || b.name === p.bank).map(b => b.pk)) : null;
+      const scoped = bankSet ? A.scoreLogs.filter(l => bankSet.has(l.benchmark)) : A.scoreLogs;
+      const key = (r) => `${r.correct}/${r.items}/${r.vouchedAtRecord ? 1 : 0}/${r.postReveal ? 1 : 0}`;
+      const keyA = (l) => `${l.correct}/${l.items}/${l.vouched ? 1 : 0}/${l.postReveal ? 1 : 0}`;
+      const byRec = new Map();
+      for (const l of scoped) {
+        const mm = byRec.get(l.modelRecord) ?? new Map();
+        mm.set(keyA(l), (mm.get(keyA(l)) ?? 0) + 1);
+        byRec.set(l.modelRecord, mm);
+      }
+      let rBad = 0;
+      for (const m of c.models) {
+        const want = byRec.get(m.recordPk) ?? new Map();
+        const got = new Map();
+        for (const r of m.receipts ?? []) { const k = key(r); got.set(k, (got.get(k) ?? 0) + 1); }
+        if (want.size !== got.size || ![...want].every(([k, n]) => got.get(k) === n)) rBad++;
+      }
+      rBad === 0 ? pass("receipt binding", `${c.models.length}/${c.models.length} models — embedded receipts == decoded ScoreLog multiset${p.bank ? " (bank-filtered)" : ""}`)
+        : fail("receipt binding", `${rBad}/${c.models.length} model(s) — embedded receipts ≠ decoded ScoreLog multiset`);
+      const truePks = new Set(A.modelRecords.map(r => r.pk));
+      const cardPks = new Set(c.models.map(m => m.recordPk));
+      const missing = [...truePks].filter(k => !cardPks.has(k));
+      const phantom = [...cardPks].filter(k => !truePks.has(k));
+      (missing.length === 0 && phantom.length === 0)
+        ? pass("record-set completeness", `${truePks.size} ModelRecords on-chain == ${c.models.length} listed`)
+        : fail("record-set completeness", `${missing.length} omitted · ${phantom.length} phantom`);
+    }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CERT VERIFIED" : "CERT FAILED"}</b> — ${c.models.length} records · policy: ${esc(JSON.stringify(p))}</div>`);
     res.innerHTML = rows.join("");
@@ -2757,6 +2818,30 @@ function verifyMatch() {
       (bBad === 0 && idOk)
         ? pass("snapshot binding", `${bN} receipts == ScoreLog bytes, each bound to its side's record · on-chain modelIds match`)
         : fail("snapshot binding", bBad ? `${bBad} receipt(s) differ from decoded ScoreLog bytes or point at the wrong record` : "on-chain modelIds don't match the card's a.id/b.id");
+      // completeness — the declared shared-bank set must EQUAL the audited
+      // snapshot's (banks where BOTH records carry ScoreLogs), and each
+      // side's receipts must equal the decoded logs on those banks. Dropping
+      // a losing bank re-verdicts cleanly on the subset — dies here.
+      const banksOf = pk => new Set(A5.scoreLogs.filter(l => l.modelRecord === pk).map(l => l.benchmark));
+      const trueShared = [...banksOf(c.a.recordPk)].filter(k => banksOf(c.b.recordPk).has(k));
+      const sharedSet = new Set(trueShared);
+      const cardBanks = new Set(c.banks.map(b => b.pk));
+      const missingB = trueShared.filter(k => !cardBanks.has(k));
+      const phantomB = [...cardBanks].filter(k => !sharedSet.has(k));
+      (missingB.length === 0 && phantomB.length === 0 && trueShared.length === c.banks.length)
+        ? pass("shared-bank completeness", `${trueShared.length} shared banks on-chain == ${c.banks.length} listed`)
+        : fail("shared-bank completeness", `${missingB.length} OMITTED · ${phantomB.length} PHANTOM — a dropped bank launders the head-to-head`);
+      let rcBad = 0;
+      for (const side of ["a", "b"]) {
+        const want = new Set(A5.scoreLogs.filter(l => l.modelRecord === c[side].recordPk && sharedSet.has(l.benchmark)).map(l => l.pk));
+        const got = new Set(c.receipts[side].map(l => l.pk));
+        if (want.size !== got.size || [...want].some(k => !got.has(k))) rcBad++;
+      }
+      rcBad === 0
+        ? pass("receipt completeness", "both sides — embedded receipts == decoded logs on every shared bank")
+        : fail("receipt completeness", `${rcBad} side(s) carry a receipt subset — a dropped receipt on a kept bank launders the delta`);
+    } else {
+      fail("snapshot binding", "audit not run — a match verified against nothing proves nothing (run the audit first)");
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "MATCH VERIFIED" : "MATCH FAILED"}</b> — ${esc(c.a.id)} vs ${esc(c.b.id)} · ${c.banks.length} shared banks · ${wins.a}-${wins.tie}-${wins.b}</div>`);
@@ -3199,7 +3284,7 @@ async function verifyTrail() {
     const c = JSON.parse(document.getElementById("trailjson").value);
     if (c.kind !== "sealed-trail/v1") throw new Error(`not a sealed-trail/v1 card (kind=${c.kind})`);
     if (c.snapshotSha256) {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… matches the card — bound to THESE account bytes`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}… — this card describes a different ledger`);
@@ -3405,7 +3490,7 @@ async function verifyDigest() {
     const d = JSON.parse(document.getElementById("digestjson").value);
     if (d.kind !== "sealed-evidence-digest/v1") throw new Error(`not a sealed-evidence-digest/v1 document (kind=${d.kind ?? "?"})`);
     const A = window.__audit;
-    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!A) { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> audit not run — a card verified against nothing proves nothing (run the audit first)</div>`; runAudit(); return; }
     // [1] snapshot binding — hash the bytes actually being audited.
     const snapText = await fetch("snapshot.json").then(r => { if (!r.ok) throw new Error("snapshot.json not reachable"); return r.text(); });
     const gotSha = hex(await sha(utf8(snapText)));
@@ -3497,7 +3582,7 @@ async function verifyBoard() {
     const c = JSON.parse(document.getElementById("boardjson").value);
     if (c.kind !== "sealed-board/v1") throw new Error(`not a sealed-board/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
-    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!A) { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> audit not run — a card verified against nothing proves nothing (run the audit first)</div>`; runAudit(); return; }
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
     const wilsonLcb = (w, n, z = 1.96) => n <= 0 ? 0 :
@@ -3600,6 +3685,27 @@ async function verifyBoard() {
     }
     bBad === 0 ? pass("snapshot binding", `${bN} receipts equal their ScoreLog accounts field-for-field; every score == Run.correct`)
       : fail("snapshot binding", `${bBad}/${bN} receipt(s) differ from the decoded accounts`);
+    // [7] completeness — a cropped leaderboard can keep every embedded row
+    // self-consistent; only the decoded account set can prove nothing was
+    // dropped. Every snapshot ModelRecord must appear, every ScoreLog must
+    // be embedded, and each record's declared totals must equal the bytes.
+    const recSet = new Set(c.models.map(m => m.recordPk));
+    const missRec = A.modelRecords.filter(r => !recSet.has(r.pk));
+    missRec.length === 0 ? pass("model-set completeness", `all ${A.modelRecords.length} ModelRecords represented`)
+      : fail("model-set completeness", `${missRec.length} record(s) erased from the card`);
+    const cardLogs = new Set(c.models.flatMap(m => m.receipts.map(l => l.pk)));
+    const missLog = A.scoreLogs.filter(l => !cardLogs.has(l.pk));
+    missLog.length === 0 ? pass("receipt completeness", `all ${A.scoreLogs.length} ScoreLogs embedded`)
+      : fail("receipt completeness", `${missLog.length} receipt(s) dropped from the card`);
+    const recMap = new Map(A.modelRecords.map(r => [r.pk, r]));
+    let totBad = 0;
+    for (const m of c.models) {
+      const a = recMap.get(m.recordPk);
+      if (!a || Number(a.totalCorrect) !== m.record.totalCorrect || Number(a.totalItems) !== m.record.totalItems ||
+          Number(a.runsScored) !== m.record.runsScored) totBad++;
+    }
+    totBad === 0 ? pass("record totals", "every declared record total equals the decoded ModelRecord account")
+      : fail("record totals", `${totBad} record(s) declare totals that differ from the account bytes`);
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOARD VERIFIED" : "BOARD FAILED"}</b> — ${c.totals?.models ?? c.models.length} models · ${c.totals?.receipts ?? rpN} receipts · ${c.totals?.pairs ?? rebuilt.length} ranked pairs; #1 ${esc(c.ranking?.[0]?.modelId ?? "?")}</div>`);
     res.innerHTML = rows.join("");
@@ -3634,7 +3740,7 @@ async function verifyBank() {
     const c = JSON.parse(document.getElementById("bankjson").value);
     if (c.kind !== "sealed-bank/v1") throw new Error(`not a sealed-bank/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
-    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!A) { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> audit not run — a card verified against nothing proves nothing (run the audit first)</div>`; runAudit(); return; }
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
     const u16 = (n) => { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, n, true); return b; };
@@ -3775,7 +3881,7 @@ async function verifyBank() {
 
     // [8] snapshot binding — the card must name THIS bundle's bytes.
     {
-      const snapSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await fetch("snapshot.json").then(r => { if (!r.ok) throw new Error("snapshot.json not reachable"); return r.text(); })))));
+      const snapSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await fetch("snapshot.json").then(r => { if (!r.ok) throw new Error("snapshot.json not reachable"); return r.arrayBuffer(); })))));
       snapSha === c.snapshot
         ? pass("snapshot binding", `sha256 ${snapSha.slice(0, 16)}… matches the card — bound to THESE bytes`)
         : fail("snapshot binding", `bundle sha256 ${snapSha.slice(0, 16)}… ≠ declared ${String(c.snapshot).slice(0, 16)}… — this card describes a different ledger`);
@@ -3812,7 +3918,7 @@ async function verifyPosition() {
     const c = JSON.parse(document.getElementById("posjson").value);
     if (c.kind !== "sealed-position/v1") throw new Error(`not a sealed-position/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
-    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!A) { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> audit not run — a card verified against nothing proves nothing (run the audit first)</div>`; runAudit(); return; }
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const mpid = new PK(c.programs?.market ?? MARKET_PID.toString());
     const venuePk = c.venue.pk, bettor = c.position.seeds.bettor;
@@ -3849,13 +3955,14 @@ async function verifyPosition() {
     const realVenue = A.markets.find(v => v.pk === venuePk) ?? A.ladders.find(v => v.pk === venuePk) ?? A.darkMarkets.find(v => v.pk === venuePk);
     if (!realVenue) fail("venue binding", "venue not in the snapshot");
     else {
+      const eqNul = (a, b) => a == null ? b == null : a === b;
       const ok = realVenue.status === c.venue.status && realVenue.feeBps === c.venue.feeBps
-        && (c.venue.outcome === null || realVenue.outcome === c.venue.outcome)
-        && (c.venue.mask === null || realVenue.resultMask === c.venue.mask)
-        && (c.venue.totals === null || JSON.stringify((realVenue.totals ?? []).map(String)) === JSON.stringify(c.venue.totals.map(String)))
-        && (c.venue.poolTotal === null || String(realVenue.poolTotal) === String(c.venue.poolTotal))
-        && (c.venue.winTotal === null || String(realVenue.winTotal) === String(c.venue.winTotal))
-        && (c.venue.tallied === null || Boolean(realVenue.tallied) === c.venue.tallied);
+        && eqNul(c.venue.outcome, realVenue.outcome)
+        && eqNul(c.venue.mask, realVenue.resultMask)
+        && (c.venue.totals == null ? realVenue.totals == null : JSON.stringify((realVenue.totals ?? []).map(String)) === JSON.stringify(c.venue.totals.map(String)))
+        && (c.venue.poolTotal == null ? realVenue.poolTotal == null : String(realVenue.poolTotal) === String(c.venue.poolTotal))
+        && (c.venue.winTotal == null ? realVenue.winTotal == null : String(realVenue.winTotal) === String(c.venue.winTotal))
+        && (c.venue.tallied == null ? (realVenue.tallied ?? null) === null : Boolean(realVenue.tallied) === c.venue.tallied);
       ok ? pass("venue binding", "status · outcome/mask · pools · fee all equal the decoded venue account")
         : fail("venue binding", "declared venue fields differ from the account bytes");
     }
@@ -3896,7 +4003,7 @@ async function verifyPosition() {
     } else fail("verdict replay", "missing account binding — cannot replay");
     // [6] snapshot binding.
     try {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
@@ -3932,7 +4039,7 @@ async function verifyBounty() {
     const c = JSON.parse(document.getElementById("bountyjson").value);
     if (c.kind !== "sealed-bounty/v1") throw new Error(`not a sealed-bounty/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
-    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!A) { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> audit not run — a card verified against nothing proves nothing (run the audit first)</div>`; runAudit(); return; }
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored bundle</div>`; return; }
     const mpid = new PK(c.programs?.market ?? MARKET_PID.toString());
     // [1] bounty PDA
@@ -3960,6 +4067,7 @@ async function verifyBounty() {
         const realRun = A.runs.find(r => r.pk === w.run);
         const now = Math.floor(Date.now() / 1000);
         const gate = {
+          isPaidWinner: w.run === c.bounty.winnerRun,
           bank: w.benchmark === c.bounty.seeds.bank,
           postdates: BigInt(w.createdAt) >= BigInt(c.bounty.createdAt),
           notSelf: w.runner !== c.bounty.seeds.sponsor,
@@ -3990,7 +4098,7 @@ async function verifyBounty() {
     }
     // [5] snapshot binding.
     try {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
@@ -4027,7 +4135,7 @@ async function verifyGrant() {
     const c = JSON.parse(document.getElementById("grantjson").value);
     if (c.kind !== "sealed-grant/v1") throw new Error(`not a sealed-grant/v1 card (kind=${c.kind ?? "?"})`);
     const A = window.__audit;
-    if (!A) { res.innerHTML = `<div class="kv">still loading…</div>`; return; }
+    if (!A) { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> audit not run — a card verified against nothing proves nothing (run the audit first)</div>`; runAudit(); return; }
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored bundle</div>`; return; }
     const spid = new PK(c.programs?.sealed ?? SEALED_PID.toString());
     // [1] grant PDA — [grant, bank, chunk_u16le, part_u8, viewer32]
@@ -4043,7 +4151,7 @@ async function verifyGrant() {
       // cts as one 64-byte hex — same bytes, compared by decoding back.
       const ctsHex = c.grant.ciphertexts.map(ct => hex(pkB(ct))).join("");
       const nonceLE = BigInt(c.grant.nonce).toString(16).padStart(32, "0").match(/../g).reverse().join("");
-      const ok = real.bench === c.grant.benchmark && real.chunk === c.grant.chunkIndex &&
+      const ok = c.grant.seeds.bank === c.grant.benchmark && real.bench === c.grant.benchmark && real.chunk === c.grant.chunkIndex &&
         real.part === c.grant.part && real.viewer === c.grant.viewer &&
         real.encKey === c.grant.encryptionKey && real.nonce === nonceLE &&
         real.cts === ctsHex && real.sharedAt === Number(c.grant.sharedAt);
@@ -4055,7 +4163,9 @@ async function verifyGrant() {
       ? pass("key echo", "encryption_key == viewer — the MPC bound output to the requested key")
       : fail("key echo", "encryption_key ≠ viewer — a re-targeted grant would look exactly like this");
     // [4] bank semantics — grants are evidence only on ciphertext banks.
-    if (c.bank) {
+    // A card that omits the bank block proves nothing about the exam it names.
+    if (!c.bank) fail("bank semantics", "card carries no bank context — the exam it claims to disclose is unbound");
+    else {
       const realBank = A.benches.find(b => b.pk === c.bank.pk);
       const ok = c.grant.benchmark === c.bank.pk && c.grant.seeds.bank === c.bank.pk && Number(c.bank.kind) === 2;
       ok ? pass("bank semantics", `${esc(realBank?.name ?? c.bank.name)} kind=2 — ciphertext-only exam; the questions moved without publishing`)
@@ -4072,7 +4182,7 @@ async function verifyGrant() {
     }
     // [6] snapshot binding.
     try {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
@@ -4190,6 +4300,8 @@ const FORGE_DEFS = {
     mutate: (c) => { if (c.ceiling.maxPctBp != null) { c.ceiling.maxPctBp = Math.max(0, c.ceiling.maxPctBp - 300); c.ceiling.maxPct = (c.ceiling.maxPctBp / 100).toFixed(1) + "%"; } return c; } },
   launderceil:{ label: "launder the ceiling — rename the model", file: "ceilings/llama-3.2-1b-instruct.json", ta: "ceiljson", res: "ceilres", sec: "sec-ceilingcard", verify: verifyCeiling,
     mutate: (c) => { c.model.id = "gpt-5-mega"; return c; } },
+  unpinceil:{ label: "unpin the ceiling — drop the snapshot hash", file: "ceilings/llama-3.2-1b-instruct.json", ta: "ceiljson", res: "ceilres", sec: "sec-ceilingcard", verify: verifyCeiling,
+    mutate: (c) => { delete c.snapshotSha256; return c; } },
   regrant: { label: "redirect a disclosure", file: "grants/sealed-priv-panel.json", ta: "grantjson", res: "grantres", sec: "sec-grantcard", verify: verifyGrant,
     mutate: (c) => { const v = c.grant.viewer; c.grant.viewer = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x"); c.grant.seeds.viewer = c.grant.viewer; return c; } },
   payout:  { label: "inflate a winning stake", file: "positions/winning-band.json", ta: "posjson", res: "posres", sec: "sec-poscard", verify: verifyPosition,
@@ -4367,7 +4479,7 @@ async function maybeAudit() {
   // ?decrypt=1 — the most visceral beat as a URL: the sealed exam
   // materializes in-page, decrypted from the committed demo delegate key.
   if (new URLSearchParams(location.search).get("decrypt")) await quickDecrypt({ disabled: false, textContent: "" });
-  // ?mega=1 — the whole demo as a URL: audit + all 142 artifacts + every
+  // ?mega=1 — the whole demo as a URL: audit + all 182 artifacts + every
   // forgery attack, cascading to EVERYTHING VERIFIED while you watch.
   if (new URLSearchParams(location.search).get("mega")) await megaAudit();
 }

@@ -111,7 +111,7 @@ not the commands.
   `chain anomalies` runs twelve hostile audits on its own bundle, and
   `chain market escrow` + `unclaimed` reconcile every staked lamport to
   the obligation — and the claimant — it sits with. `chain artifact
-  docs/evidence --recursive` replays all 176 committed artifacts in one
+  docs/evidence --recursive` replays all 182 committed artifacts in one
   pass; `chain fingerprint` folds the entire evidence base into a
   single sha256 the terminal and the browser agree on.
 - **Traction evidence:** 503 runs / 120 banks / 340 venues across six
@@ -151,8 +151,8 @@ betting closes before scoring starts, so nobody trades on leaked
 information. The repeatable one-liner: **the benchmark that can't leak.**
 
 And the evidence isn't a folder of promises — it is one hash. `chain
-fingerprint` re-hashes all 429 manifest-pinned files and prints a single
+fingerprint` re-hashes all 441 manifest-pinned files and prints a single
 `BUNDLE ROOT`; the explorer's bundle replay recomputes the same root
-in-browser after driving all 176 committed artifacts through their own
+in-browser after driving all 182 committed artifacts through their own
 verifiers. Terminal and browser agree, or the bundle is dirty. The
 submission ends in a sha256 — not a promise.

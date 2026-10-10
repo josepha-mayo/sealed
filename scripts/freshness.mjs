@@ -115,10 +115,13 @@ for (const f of files) {
   try { text = readFileSync(f, "utf8"); } catch { continue; }
   for (const [re, expected] of claims) {
     for (const m of text.matchAll(re)) {
-      const raw = m[1] ?? m[2] ?? m[3];
-      const n = raw != null && WORDS[raw.toLowerCase()] != null ? WORDS[raw.toLowerCase()] : Number(raw);
-      if (Number.isFinite(n) && n !== expected) {
-        console.log(`DRIFT ${f}: "${m[0]}" — doc claims ${n}, evidence bundle has ${expected}`);
+      const nums = m.slice(1).filter((v) => v !== undefined)
+        .map((raw) => (WORDS[String(raw).toLowerCase()] != null ? WORDS[String(raw).toLowerCase()] : Number(raw)))
+        .filter((n) => Number.isFinite(n));
+      if (nums.length === 0) continue;
+      const claim = new Set(nums).size === 1 ? nums[0] : null;
+      if (claim === null || claim !== expected) {
+        console.log(`DRIFT ${f}: "${m[0]}" — doc claims ${nums.join("/")}, evidence bundle has ${expected}`);
         bad++;
       }
     }

@@ -89,10 +89,14 @@ honesty flags) and settles a toy parimutuel escrow off `Run.correct`:
 node examples/mini-resolver.mjs        # reads the committed web/snapshot.json
 # mini-resolver — third-party consumer, no sealed code, no trust
 # gate: discriminator sha256("account:Run")[:8]=c7369b56eb73f6bd
-# runs decoded: 503 · finalized+eligible: 401
+# runs decoded: 503 · every address re-derived from its seeds · finalized+eligible: 401
 #   → picks the run the MPC scored lowest (the chain doesn't trust claims)
 #   → settles the pot to the side the MPC-written number favors
 ```
+
+It also re-derives every `Run` PDA from the account's own seeds — including the
+ed25519 off-curve check via the Legendre symbol, dependency-free — so a
+fabricated account drops before its fields are ever read.
 
 That is the composability claim made executable: a venue that did not exist
 when the score was written settles on it correctly — because `Run.correct`

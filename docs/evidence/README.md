@@ -110,9 +110,10 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
 - `run-gen6932-real-artifact.json` — its local artifact: raw outputs,
   canonical answers, per-item output hashes, `itemsRoot` binding it to
   this exact bank revision.
-- `prove-gen-item0.json` — Merkle proof that output 0 was in this run's
-  committed root (`runPda` field anchors it to the on-chain account —
-  the explorer's "load example" verifies it live).
+- `prove-cal3b-item0.json` / `prove-cal15b-item0.json` — Merkle proofs that
+  output 0 was in the calibration runs' committed roots (`runPda` fields
+  anchor them to live snapshot accounts — the verifier binds every proof
+  to the decoded Run, so a proof naming a wiped run is rejected).
 - `acct-4uns99WD….json` — second real-model run, `openai` (gpt-oss-20b)
   on authored bank 25864: `correct=64/64`, `outputs_root` `f6aa29a3…`,
   FINALIZED.
@@ -401,19 +402,20 @@ view of the questions was the on-chain grant trail.
 
 ### Proof + snapshot
 
-- `prove-gen-item0.json` / `prove-item0.json` — `sealed prove --run <artifact>
-  --item 0`: chunk-level Merkle proofs that output 0 was in each committed
-  root (gen-bank and 25864 runs respectively). Verify:
+- `prove-cal3b-item0.json` / `prove-cal15b-item0.json` — `sealed prove --run
+  <artifact> --item 0`: chunk-level Merkle proofs that output 0 was in each
+  calibration run's committed root (qwen2.5-3b and qwen2.5-1.5b — both runs
+  live in the bundled snapshot). Verify:
 
   ```bash
   # internal consistency (artifact's own outputsRoot):
-  node scripts/verify-proof.mjs docs/evidence/prove-item0.json
+  node scripts/verify-proof.mjs docs/evidence/prove-cal3b-item0.json
   # bound to the on-chain Run account (while that ledger is live):
-  node scripts/verify-proof.mjs docs/evidence/prove-gen-item0.json \
-    --run HW5H5bT716jdTL9zVA1WuzqFDpuzAxS4tKWAgxhuyRhU \
+  node scripts/verify-proof.mjs docs/evidence/prove-cal3b-item0.json \
+    --run GnrRt5GUu6pUQXi7gyXLn7mXMbhXDdneiXbaV6LFFHvi \
     --rpc http://127.0.0.1:8899
-  node scripts/verify-proof.mjs docs/evidence/prove-item0.json \
-    --run 4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1 \
+  node scripts/verify-proof.mjs docs/evidence/prove-cal15b-item0.json \
+    --run Hn21uoPQYi8xEsMGueWBeE9aLSnBywxcnwYueRr8WGW7 \
     --rpc http://127.0.0.1:8899
   # or paste it into the explorer's verify widget — "load example" loads a copy
   ```

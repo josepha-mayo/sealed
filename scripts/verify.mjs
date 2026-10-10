@@ -271,12 +271,16 @@ console.log("\n[5] market resolutions are pure functions of MPC scores");
 let mBad = 0, checked = 0;
 for (const [pkk, m] of markets) {
   const r = runs.get(m.run);
-  if (!r) { note(`market ${pkk.slice(0, 8)}`, "run not in snapshot"); continue; }
+  if (!r) {
+    if (m.status === M_RESOLVED) { mBad++; console.log(`    ! market ${pkk}: RESOLVED but run ${m.run.slice(0, 8)} absent — a claimed score with no evidence`); }
+    else note(`market ${pkk.slice(0, 8)}`, "run not in snapshot");
+    continue;
+  }
   if (m.status === M_RESOLVED) {
     checked++;
     if (m.duel) {
       const rb = runs.get(m.runB);
-      if (!rb) { note(`duel ${pkk.slice(0, 8)}`, "runB missing"); continue; }
+      if (!rb) { mBad++; console.log(`    ! duel ${pkk}: resolved but runB ${m.runB.slice(0, 8)} missing`); continue; }
       const expect = r.correct > rb.correct ? 0 : rb.correct > r.correct ? 1 : 2;
       const packed = (r.correct << 16) | rb.correct;
       if (m.outcome !== expect || m.resolvedScore !== packed) { mBad++; console.log(`    ! duel ${pkk}: outcome ${m.outcome}!=${expect} or packed ${m.resolvedScore}!=${packed}`); }
@@ -293,7 +297,7 @@ for (const l of ladders) {
   if (l.status !== M_RESOLVED) continue;
   lChecked++;
   const scores = l.legs.map((lp) => runs.get(lp)?.correct ?? null);
-  if (scores.includes(null)) { note(`ladder ${l.pk.slice(0, 8)}`, "leg run missing from snapshot"); continue; }
+  if (scores.includes(null)) { lBad++; console.log(`    ! ladder ${l.pk}: resolved but a leg run is absent — the mask can't be re-derived`); continue; }
   const max = Math.max(...scores);
   const expect = scores.reduce((m2, s, i) => (s === max ? m2 | (1 << i) : m2), 0);
   if (l.resultMask !== expect) { lBad++; console.log(`    ! ladder ${l.pk}: mask ${l.resultMask} != argmax ${expect} over ${scores}`); }
@@ -305,7 +309,9 @@ for (const [pkk, dm] of darks) {
   if (dm.status !== M_RESOLVED && dm.status !== M_CANCELLED) continue;
   const r = runs.get(dm.run);
   const pos = darkPos.filter((p) => p.market === pkk);
-  if (dm.status === M_RESOLVED && r) {
+  if (dm.status === M_RESOLVED && !r) {
+    dBad++; console.log(`    ! dark ${pkk}: RESOLVED but run ${dm.run.slice(0, 8)} absent — settlement with no oracle score behind it`);
+  } else if (dm.status === M_RESOLVED && r) {
     dChecked++;
     if (dm.resolvedScore !== r.correct || dm.outcome !== outcomeOf(dm.edges, dm.n, r.correct)) { dBad++; console.log(`    ! dark ${pkk}: outcome/score mismatch`); }
   }
@@ -394,7 +400,8 @@ regBad === 0 ? ok("capability registry", `${regChecked} records replayed bit-exa
 
 console.log("\n[6] cross-references");
 let xBad = 0;
-for (const [pkk, m] of markets) if (!runs.has(m.run)) xBad++;
+for (const [pkk, m] of markets) { if (!runs.has(m.run)) xBad++; if (m.duel && !runs.has(m.runB)) xBad++; }
+for (const [pkk, d] of darks) if (!runs.has(d.run)) xBad++;
 for (const b of bounties) { if (!benches.has(b.bank)) xBad++; if (b.status === 1 && !runs.has(b.winnerRun)) xBad++; }
 for (const l of ladders) for (const leg of l.legs) if (!runs.has(leg)) xBad++;
 for (const c of [...itemChunks, ...privChunks, ...chunks]) if (!benches.has(c.bench)) xBad++;
@@ -418,7 +425,9 @@ for (const f of proofs) {
     const slotOk = BigInt(p.outputHash) === BigInt(p.chunkOutputs[p.itemIndex % 32]);
     const run = runs.get(p.runPda);
     const chainOk = run ? run.outputsRoot === p.outputsRoot : null;
-    if (rootOk && slotOk && chainOk !== false) { pfOk++; } else { pfBad++; console.log(`    ! ${f}: root=${rootOk} slot=${slotOk} chain=${chainOk}`); }
+    // chainOk === null means the named run isn't even in the snapshot — a
+    // proof anchored to a run that doesn't exist proves nothing.
+    if (rootOk && slotOk && chainOk === true) { pfOk++; } else { pfBad++; console.log(`    ! ${f}: root=${rootOk} slot=${slotOk} chain=${chainOk}`); }
   } catch (e) { pfBad++; console.log(`    ! ${f}: ${e.message}`); }
 }
 pfBad === 0 ? ok("merkle proofs", `${pfOk} proof files verify end-to-end`) : bad("merkle proofs", `${pfBad} failed`);

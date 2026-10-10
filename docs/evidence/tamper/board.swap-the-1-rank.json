@@ -6,7 +6,7 @@
   "expectFail": [
     "ranking"
   ],
-  "forgedAt": "2026-10-08T21:06:21.815Z",
+  "forgedAt": "2026-10-10T18:51:18.061Z",
   "forged": {
     "kind": "sealed-board/v1",
     "generatedAt": "2026-10-07T06:52:28.017Z",

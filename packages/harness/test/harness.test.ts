@@ -1014,7 +1014,7 @@ test("chainCeiling mints a proof-of-a-negative — completeness kills the hidden
     process.exitCode = 0;
     const tr = (await artifactTamper(fp, snapPath)) as any;
     assert.equal(tr.ok, true);
-    assert.equal(tr.attacks, 3);
+    assert.equal(tr.attacks, 4);
     process.exitCode = 0;
   } finally { console.log = origLog; process.exitCode = 0; }
 });
@@ -1659,7 +1659,7 @@ test("sealed-board/v1 — the leaderboard card replays end-to-end; a flipped ran
     // verify the committed card — all checks including snapshot binding
     const ok = (await boardVerify(tmp, false, snapPath)) as any;
     assert.equal(ok.fail, 0);
-    assert.equal(ok.pass, 7);
+    assert.equal(ok.pass, 10);
     // a mutated ranking LCB breaks the ranking check
     const tampered = JSON.parse(readFileSync(tmp, "utf8"));
     tampered.ranking[0].pairwise.lcb = 99.9;
@@ -1744,13 +1744,32 @@ test("artifact --tamper — the CLI forgery lab: every canned attack dies at a n
       "docs/evidence/bounties/claimed-20of32.json",
       "docs/evidence/grants/sealed-priv-first.json",
       "docs/evidence/policies/min60-3runs.json",
+      "docs/evidence/ceilings/dark_model-a.json",
     ];
+    // per-kind canned-attack counts — a def silently shrinking or dropping
+    // must fail here, not just when the forgery would verify.
+    const expectedAttacks: Record<string, number> = {
+      "docs/evidence/board.json": 4,
+      "docs/evidence/matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json": 3,
+      "docs/evidence/claims/qwen2.5-3b-instruct.json": 3,
+      "docs/evidence/trails/qwen3b-ladder-deadheat.json": 2,
+      "docs/evidence/digest.json": 1,
+      "docs/evidence/banks/sealed-gen.json": 1,
+      "docs/evidence/artifacts.json": 1,
+      "docs/evidence/positions/winning-band.json": 1,
+      "docs/evidence/positions/sealed-dark.json": 1,
+      "docs/evidence/bounties/claimed-20of32.json": 1,
+      "docs/evidence/grants/sealed-priv-first.json": 1,
+      "docs/evidence/policies/min60-3runs.json": 3,
+      "docs/evidence/ceilings/dark_model-a.json": 4,
+    };
     for (const rel of cards) {
       process.exitCode = 0;
       const f = new URL(`../../../${rel}`, import.meta.url).pathname;
       const r = (await artifactTamper(f, snapPath)) as any;
       assert.equal(r.ok, true, `${rel}: a forgery verified`);
       assert.equal(r.caught, r.attacks);
+      assert.equal(r.attacks, expectedAttacks[rel], `${rel}: canned-attack coverage drifted`);
       process.exitCode = 0;
     }
   } finally { console.log = origLog; process.exitCode = 0; }
@@ -1931,9 +1950,10 @@ test("third-party consumer — examples/mini-resolver.mjs settles from raw bytes
   const repoRoot = new URL("../../../", import.meta.url).pathname;
   const out = String(execFileSync("node", ["examples/mini-resolver.mjs"],
     { cwd: repoRoot, timeout: 60000 }));
-  const m = out.match(/runs decoded: (\d+) · finalized\+eligible: (\d+)/);
-  assert.ok(m, "example must report the decoded run census");
+  const m = out.match(/runs decoded: (\d+) · every address re-derived from its seeds · finalized\+eligible: (\d+)/);
+  assert.ok(m, "example must report the decoded run census behind the PDA gate");
   assert.ok(Number(m[1]) > 100 && Number(m[2]) > 0, "snapshot must yield real eligible runs");
+  assert.match(out, /PDA|re-derived/i, "the example must prove addresses re-derive");
   assert.match(out, /payout\s+\w+ ← [\d.]+◎/, "a winner must be paid from the MPC count");
   assert.match(out, /integrator contract/, "the no-trust verdict must print");
 });
