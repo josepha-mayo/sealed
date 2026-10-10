@@ -4,7 +4,7 @@
     "name": "sealed",
     "version": "0.1.0",
     "spec": "0.1.0",
-    "description": "Created with Arcium & Anchor"
+    "description": "MPC-sealed benchmarks: banks minted inside Arcium, answers never plaintext, scores written by callback"
   },
   "instructions": [
     {
@@ -295,7 +295,6 @@
         },
         {
           "name": "items",
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -1941,8 +1940,7 @@
           "signer": true
         },
         {
-          "name": "benchmark",
-          "writable": true
+          "name": "benchmark"
         },
         {
           "name": "chunk",
@@ -3341,6 +3339,16 @@
       "code": 6037,
       "name": "ModelHashMismatch",
       "msg": "model_hash is not sha256(run.model_id) — registry PDA does not bind this run"
+    },
+    {
+      "code": 6038,
+      "name": "EmptyModelId",
+      "msg": "model_id is empty — the run could never be attributed"
+    },
+    {
+      "code": 6039,
+      "name": "EmptyOutputsRoot",
+      "msg": "outputs_root is zero — no Merkle leaf can reach it, the run is unscorable"
     }
   ],
   "types": [
@@ -4111,6 +4119,15 @@
                   }
                 ]
               }
+            }
+          },
+          {
+            "name": "field_2",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
             }
           }
         ]
@@ -4919,6 +4936,27 @@
                 4
               ]
             }
+          },
+          {
+            "name": "spec_commitments",
+            "docs": [
+              "MPC-minted public commitment to each part's spec plaintext",
+              "(sha3-256(\"sealed/v1/speccommit\\0\" || 8×[a,b,c,op0,op1])). A delegate",
+              "re-hashes its decrypted specs and compares — grants become",
+              "verifiable, not just deliverable. Tail-appended; zero for banks",
+              "minted before the field existed."
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                4
+              ]
+            }
           }
         ]
       }
@@ -4936,6 +4974,22 @@
             "name": "field_0",
             "type": {
               "defined": {
+                "name": "ResharePartOutputStruct0"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResharePartOutputStruct0",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field_0",
+            "type": {
+              "defined": {
                 "name": "SharedEncryptedStruct",
                 "generics": [
                   {
@@ -4945,12 +4999,26 @@
                 ]
               }
             }
+          },
+          {
+            "name": "field_1",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         ]
       }
     },
     {
       "name": "Reveal",
+      "docs": [
+        "Answer fingerprints for one part, declassified by a `reveal_part` computation",
+        "at the benchmark authority's request. These are hash commitments — the audit",
+        "primitive, not the answer key."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -5421,9 +5489,6 @@
     {
       "name": "ShareGrant",
       "docs": [
-        "Answer fingerprints for one part, declassified by a `reveal_part` computation",
-        "at the benchmark authority's request. These are hash commitments — the audit",
-        "primitive, not the answer key.",
         "A re-encryption of one private-bank part to a delegate's x25519 key, written",
         "by `reshare_part` callbacks. One PDA per (chunk, part, viewer) — the delegate",
         "fetches this account and decrypts the specs with their own wallet key.",
@@ -5493,6 +5558,21 @@
           {
             "name": "shared_at",
             "type": "i64"
+          },
+          {
+            "name": "spec_commitment",
+            "docs": [
+              "MPC-recomputed commitment to the specs this grant carries — equal to",
+              "`PrivItemChunk.spec_commitments[part]`. The delegate re-hashes its",
+              "decrypted specs and compares: a doctored exam can't pass the check.",
+              "Tail-appended; zero for grants minted before the field existed."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         ]
       }

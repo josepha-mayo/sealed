@@ -11,12 +11,12 @@ Three paths, fastest first:
 
 1. **One link, zero setup** — https://josepha-mayo.github.io/sealed/?mega=1
    runs the whole skeptic's suite in your browser (~8s): every account
-   address re-derived from its seeds, all 142 committed proof files
+   address re-derived from its seeds, all 187 committed proof files
    replayed, every forgery attack caught at the check that kills it,
    the sealed exam decrypted in-page — ending on EVERYTHING VERIFIED
    with a copyable verdict for your notes.
 2. **One line, zero clone** — `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote`
-   downloads a single stdlib Python file that fetches all 359 pinned
+   downloads a single stdlib Python file that fetches all 453 pinned
    bytes itself and re-verifies the entire evidence base independently —
    none of the code that produced it.
 3. **The full path** — `docs/judges.md` is the rubric-mapped deep-dive

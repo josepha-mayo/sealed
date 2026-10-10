@@ -1,7 +1,7 @@
 {
   "kind": "sealed-catalog/v1",
-  "root": "docs/evidence",
-  "count": 186,
+  "root": "../../docs/evidence",
+  "count": 202,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
@@ -11,11 +11,12 @@
     "sealed-claim/v1": 31,
     "sealed-evidence-digest/v1": 1,
     "sealed-grant/v1": 2,
+    "sealed-ledger/v1": 1,
     "sealed-match/v1": 73,
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
     "sealed-report/v1": 4,
-    "sealed-tamper/v1": 28,
+    "sealed-tamper/v1": 43,
     "sealed-trail/v1": 4
   },
   "artifacts": [
@@ -378,6 +379,11 @@
       "path": "grants/sealed-priv-panel.json",
       "kind": "sealed-grant/v1",
       "title": "sealed-priv part 3 → QwS93ebp… · 2 viewer(s)"
+    },
+    {
+      "path": "ledger/ledger.json",
+      "kind": "sealed-ledger/v1",
+      "title": "whole-ledger census — 1796 accounts"
     },
     {
       "path": "matches/dark_model-a-vs-duel_model-a.json",
@@ -850,9 +856,19 @@
       "title": "forgery: launder the loser — rename side A's model → dark_model-a-vs-duel_model-a.json"
     },
     {
+      "path": "tamper/dark_model-a-vs-duel_model-a.move-a-receipt-off-its-run-s-bank.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: move a receipt off its run's bank → dark_model-a-vs-duel_model-a.json"
+    },
+    {
       "path": "tamper/dark_model-a.drop-the-worst-receipt-rewrite-the-record-over-the-subset.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: drop the worst receipt — rewrite the record over the subset → dark_model-a.json"
+    },
+    {
+      "path": "tamper/dark_model-a.forge-a-priced-run-rewrite-the-leg-the-venue-scored.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: forge a priced run — rewrite the leg the venue scored → dark_model-a.json"
     },
     {
       "path": "tamper/dark_model-a.launder-the-receipts-rename-the-model.json",
@@ -863,6 +879,31 @@
       "path": "tamper/dark_model-a.mint-a-phantom-receipt.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: mint a phantom receipt → dark_model-a.json"
+    },
+    {
+      "path": "tamper/dark_model-a.omit-a-settled-venue-hide-the-loss.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: omit a settled venue — hide the loss → dark_model-a.json"
+    },
+    {
+      "path": "tamper/ledger.hide-a-bank-shave-the-benchmark-census.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: hide a bank — shave the Benchmark census → ledger.json"
+    },
+    {
+      "path": "tamper/ledger.launder-the-set-swap-the-pubkey-set-hash.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: launder the set — swap the pubkey-set hash → ledger.json"
+    },
+    {
+      "path": "tamper/ledger.phantom-run-pad-the-run-count.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: phantom run — pad the Run count → ledger.json"
+    },
+    {
+      "path": "tamper/ledger.re-date-the-dump-claim-a-fresh-census.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: re-date the dump — claim a fresh census → ledger.json"
     },
     {
       "path": "tamper/llama-3.2-1b-instruct.hide-the-argmax-run-erase-the-model-s-best-score.json",
@@ -900,6 +941,21 @@
       "title": "forgery: flip a model's gate verdict → min60-3runs.json"
     },
     {
+      "path": "tamper/min60-3runs.rename-a-model-ride-its-own-record.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: rename a model — ride its own record → min60-3runs.json"
+    },
+    {
+      "path": "tamper/qwen2.5-3b-instruct.edit-the-pinned-claim-hash.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: edit the pinned claim hash → qwen2.5-3b-instruct.md"
+    },
+    {
+      "path": "tamper/qwen2.5-3b-instruct.retitle-the-report-bind-a-different-model.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: retitle the report — bind a different model → qwen2.5-3b-instruct.md"
+    },
+    {
       "path": "tamper/qwen3b-ladder-deadheat.rewrite-the-settled-money.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: rewrite the settled money → qwen3b-ladder-deadheat.json"
@@ -920,9 +976,34 @@
       "title": "forgery: substitute the oracle — rewrite the MPC's score → qwen3b-private-duel.json"
     },
     {
+      "path": "tamper/sealed-priv-first.redescribe-the-exam-rename-the-bank-block.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: redescribe the exam — rename the bank block → sealed-priv-first.json"
+    },
+    {
       "path": "tamper/sealed-priv-first.redirect-the-disclosure-to-another-viewer.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: redirect the disclosure to another viewer → sealed-priv-first.json"
+    },
+    {
+      "path": "tamper/sealed-priv.backdate-a-grant-pretend-the-viewer-came-early.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: backdate a grant — pretend the viewer came early → sealed-priv.json"
+    },
+    {
+      "path": "tamper/sealed-priv.duplicate-a-reveal-pad-the-disclosure-count.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: duplicate a reveal — pad the disclosure count → sealed-priv.json"
+    },
+    {
+      "path": "tamper/sealed-priv.mint-a-phantom-run-on-the-exam.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: mint a phantom run on the exam → sealed-priv.json"
+    },
+    {
+      "path": "tamper/sealed-priv.re-seat-a-reveal-at-a-chunk-that-never-opened.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: re-seat a reveal at a chunk that never opened → sealed-priv.json"
     },
     {
       "path": "tamper/winning-band.inflate-a-winning-stake.json",

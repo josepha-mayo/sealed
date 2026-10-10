@@ -94,8 +94,11 @@ mod circuits {
         h
     }
 
-    /// Shared mint loop: 8 item specs drawn from MPC randomness plus their
-    /// answer fingerprints. Used by both the public and private gen variants.
+    /// Shared mint loop for PUBLIC banks: 8 item specs drawn from MPC
+    /// randomness plus their answer fingerprints. The specs are revealed
+    /// inside the circuit by design — a public bank publishes them on-chain
+    /// anyway, and the answers are recomputable from public specs, so
+    /// `reveal()` costs nothing and keeps the mint cheap.
     fn mint_part(benchmark_id: u32, base_index: u32) -> (GenPart, AnswerPart) {
         let mut specs = [ItemSpec {
             a: 0,
@@ -121,6 +124,37 @@ mod circuits {
         (GenPart { items: specs }, AnswerPart { hashes })
     }
 
+    /// The mint loop for PRIVATE banks — the one place the threat model
+    /// differs. `gen_public_*` reveals its draw to every cluster node; for a
+    /// confidential exam that would hand node operators the questions AND
+    /// (because `ans` derives from them) the answers at mint — a perfect
+    /// score, cryptographically valid, economically fake. Here every draw is
+    /// a `gen_integer_from_width` secret share, `ans` exists only as shares,
+    /// and the fingerprint is SHA3 over secret bytes — the nodes see nothing
+    /// but ciphertext in and ciphertext out. More expensive than the public
+    /// path (secret modulo + secret hashing), but minting is one-time.
+    fn mint_part_secret(benchmark_id: u32, base_index: u32) -> (GenPart, AnswerPart) {
+        let mut specs = [ItemSpec {
+            a: 0,
+            b: 0,
+            c: 0,
+            op0: 0,
+            op1: 0,
+        }; PART];
+        let mut hashes = [0u64; PART];
+        for i in 0..PART {
+            let a = ArcisRNG::gen_integer_from_width(6) as u8; // 0..63, secret
+            let b = ArcisRNG::gen_integer_from_width(6) as u8;
+            let c = ArcisRNG::gen_integer_from_width(6) as u8;
+            let op0 = (ArcisRNG::gen_integer_from_width(16) as u16 % 3) as u8;
+            let op1 = (ArcisRNG::gen_integer_from_width(16) as u16 % 3) as u8;
+            let ans = apply_op(apply_op(a as i64, op0, b as i64), op1, c as i64);
+            specs[i] = ItemSpec { a, b, c, op0, op1 };
+            hashes[i] = gen_answer_hash(benchmark_id, base_index + i as u32, ans);
+        }
+        (GenPart { items: specs }, AnswerPart { hashes })
+    }
+
     /// Mint one part of a generated bank: 8 items drawn from MPC randomness and
     /// their answer fingerprints, born encrypted to the MXE key. The item specs
     /// come back public; the answers never exist in plaintext anywhere.
@@ -130,21 +164,51 @@ mod circuits {
         (gen, Mxe::get().from_arcis(answers))
     }
 
-    /// Mint one part of a PRIVATE generated bank: same mint, but the specs come
-    /// back packed and encrypted to the viewer's x25519 key (`Shared`). Only the
-    /// designated viewer — in practice the benchmark authority — can render the
-    /// prompts; the answers are still born `Enc<Mxe>`. Result: a bank where the
-    /// questions are confidential *and* no answer key exists anywhere.
+    /// Public commitment to one part's spec plaintext: the first 32 bytes of
+    /// SHA3-256 over "sealed/v1/speccommit\0" || the canonical spec bytes
+    /// (8 × [a,b,c,op0,op1]). Emitted as a *public* output so a delegate —
+    /// who cannot see the bank's ciphertext fold — can re-hash its decrypted
+    /// specs and compare. A tampered snapshot, doctored grant, or malicious
+    /// re-encryption can't silently serve a different exam: the commitment
+    /// was minted inside MPC alongside the specs themselves.
+    fn spec_commitment(items: &[ItemSpec; PART]) -> [u8; 32] {
+        let domain = *b"sealed/v1/speccommit\0";
+        let mut msg = [0u8; 61];
+        for i in 0..21 {
+            msg[i] = domain[i];
+        }
+        for i in 0..PART {
+            msg[21 + i * 5] = items[i].a;
+            msg[21 + i * 5 + 1] = items[i].b;
+            msg[21 + i * 5 + 2] = items[i].c;
+            msg[21 + i * 5 + 3] = items[i].op0;
+            msg[21 + i * 5 + 4] = items[i].op1;
+        }
+        SHA3_256::new().digest(&msg)
+    }
+
+    /// Mint one part of a PRIVATE generated bank: the specs are drawn as
+    /// secret shares (`mint_part_secret` — never public-in-circuit), packed,
+    /// and encrypted to the viewer's x25519 key (`Shared`). Only the
+    /// designated viewer — in practice the benchmark authority — can render
+    /// the prompts; the answers are still born `Enc<Mxe>`. Result: a bank
+    /// where the questions are confidential *and* no answer key exists
+    /// anywhere — not even inside the executing cluster nodes. The third
+    /// output is the public spec commitment the delegate verifies against.
     #[instruction]
     pub fn gen_part_private(
         benchmark_id: u32,
         base_index: u32,
         viewer: ArcisX25519Pubkey,
-    ) -> (Enc<Shared, Pack<GenPart>>, Enc<Mxe, AnswerPart>) {
-        let (gen, answers) = mint_part(benchmark_id, base_index);
+    ) -> (Enc<Shared, Pack<GenPart>>, Enc<Mxe, AnswerPart>, [u8; 32]) {
+        let (gen, answers) = mint_part_secret(benchmark_id, base_index);
+        // The commitment is the one value we CHOOSE to publish: the digest
+        // alone reveals nothing about the specs it binds.
+        let commit = spec_commitment(&gen.items).reveal();
         (
             Shared::new(viewer).from_arcis(Pack::new(gen)),
             Mxe::get().from_arcis(answers),
+            commit,
         )
     }
 
@@ -152,13 +216,18 @@ mod circuits {
     /// submits the stored `Enc<Shared, Pack<GenPart>>` (theirs), MPC decrypts
     /// inside the enclave and re-encrypts to `viewer` — selective disclosure of
     /// the questions themselves, to a delegate, without ever publishing them.
-    /// The answer fingerprints stay `Enc<Mxe>`; only the specs move.
+    /// The answer fingerprints stay `Enc<Mxe>`; only the specs move. The
+    /// recomputed spec commitment rides along as the second output, so the
+    /// delegate's check binds the SAME specs the bank committed — the grant
+    /// itself becomes verifiable, not just deliverable.
     #[instruction]
     pub fn reshare_part(
         specs: Enc<Shared, Pack<GenPart>>,
         viewer: ArcisX25519Pubkey,
-    ) -> Enc<Shared, Pack<GenPart>> {
-        Shared::new(viewer).from_arcis(specs.to_arcis())
+    ) -> (Enc<Shared, Pack<GenPart>>, [u8; 32]) {
+        let plain = specs.to_arcis();
+        let commit = spec_commitment(&plain.unpack().items).reveal();
+        (Shared::new(viewer).from_arcis(plain), commit)
     }
 
     /// Declassify one part's answer fingerprints (not the answers — the hashes).

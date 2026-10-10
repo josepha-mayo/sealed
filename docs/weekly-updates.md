@@ -91,7 +91,7 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 187 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  all 203 committed artifacts: 31 claim cards, 73 match cards, 3 policy
   certificates, 4 custody trails, 4 capability reports, the ledger
   digest, the leaderboard card, 3 exam cards (one per commitment
   regime — authored, generated, private), 2 bettor-position cards
@@ -123,8 +123,8 @@ deadline.
   x25519 viewer key, `encryption_key == viewer` echo, and the panel
   tally re-derived: the questions moved, the answers never did).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
-  453 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 187 artifacts
+  487 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
+  explorer's "replay the whole bundle" button drives all 203 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
@@ -152,7 +152,7 @@ deadline.
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
-  audit, all 187 artifact replays, the full forgery sweep, AND the
+  audit, all 203 artifact replays, the full forgery sweep, AND the
   sealed-exam decrypt to EVERYTHING VERIFIED in ~8s, live in the
   judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
@@ -231,3 +231,29 @@ deadline.
   and the card's signPda must equal the account sitting in the
   same pinned snapshot every other artifact binds to. Same deployment,
   proven end to end.
+
+## Update 10 — "we hired the audit" (the hardening close)
+
+- 20s: six parallel audits — Rust correctness, verifier soundness,
+  three-language parity, judge experience, Arcium depth, genericness —
+  found four ways the verifiers could print VERIFIED over a lie, and
+  every fix shipped with the attack that would have beaten it.
+- 15s: the privacy-critical catch — the private-bank mint drew specs
+  through *public* RNG, so cluster nodes saw questions+answers at mint.
+  `gen_part_private` now draws secret shares end-to-end, computes
+  answers in-circuit, and reveals only a per-part SHA3-256 **spec
+  commitment** — stored on the chunk, recomputed onto every ShareGrant.
+  A delegate re-hashes its decrypted specs and proves it received THE
+  bank's committed exam, not a substitute.
+- 10s: `sealed-ledger/v1` — the census card. Every prior artifact bound
+  a slice of the ledger; this binds the ledger: all 1,796 raw accounts
+  classified, pubkey-set sha256s replayed per section. A snapshot that
+  silently dropped one bank breaks the census — cherry-picking the
+  evidence base is now provably impossible.
+- 15s: numbers — 203 artifacts replay in one recursive pass, 43 committed
+  forgery exhibits all die at named checks in TypeScript, Python AND the
+  browser (a rename attack, a subset lie, a phantom disclosure, a forged
+  venue leg — the lab is the spec), 75/75 unit tests, 487 pinned bytes,
+  and the whole thing anchors to one devnet memo.
+- Close: "We didn't just say the verifier is honest — we shipped the
+  attacks that would have fooled it, and it isn't."

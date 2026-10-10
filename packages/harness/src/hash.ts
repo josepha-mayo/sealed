@@ -9,6 +9,7 @@ const DOMAIN_CHUNK_OUT = utf8ToBytes("sealed/v1/chunkout\0");
 const DOMAIN_GEN_ANSWER = utf8ToBytes("sealed/v1/genanswer\0");
 const DOMAIN_GEN_ITEMS = utf8ToBytes("sealed/v1/genitems\0");
 const DOMAIN_PRIV_ITEMS = utf8ToBytes("sealed/v1/privitems\0");
+const DOMAIN_SPEC_COMMIT = utf8ToBytes("sealed/v1/speccommit\0");
 const DOMAIN_NODE = new Uint8Array([0x01]);
 
 export function u32le(n: number): Uint8Array {
@@ -61,6 +62,19 @@ export function genItemsFold(root: Uint8Array, chunkIndex: number, part: number,
 /** Same fold for PRIVATE banks: commits to the encrypted spec stream (cts + nonce). */
 export function privItemsFold(root: Uint8Array, chunkIndex: number, part: number, encBytes: Uint8Array): Uint8Array {
   return sha256(concatBytes(DOMAIN_PRIV_ITEMS, root, u32le(chunkIndex).subarray(0, 2), new Uint8Array([part]), encBytes));
+}
+
+/**
+ * MPC-minted commitment to one part's canonical spec bytes — the delegate's
+ * integrity anchor. `gen_part_private`/`reshare_part` emit this as a public
+ * circuit output (SHA3-256 over the domain + 5 bytes per spec); the holder
+ * of a grant re-hashes its decrypted specs and compares, so a doctored
+ * grant or tampered snapshot can't silently serve a different exam.
+ */
+export function specCommitment(specs: { a: number; b: number; c: number; op0: number; op1: number }[]): Uint8Array {
+  const body = new Uint8Array(specs.length * 5);
+  specs.forEach((s, i) => body.set([s.a, s.b, s.c, s.op0, s.op1], i * 5));
+  return sha3_256(concatBytes(DOMAIN_SPEC_COMMIT, body));
 }
 
 /** Merkle leaf committing to a question without revealing it (salted). */

@@ -39,6 +39,7 @@ import {
   bankFromChunks,
   decodeItemChunk,
   decodePrivItemChunk,
+  decodeShareGrant,
   privBankFromSpecs,
   privItemsRoot,
   renderPrompt,
@@ -49,7 +50,7 @@ import {
   type PrivItemChunkState,
 } from "./genbank.js";
 import { type RunArtifact, runChunkOutputs } from "./run.js";
-import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex, genItemsFold, privItemsFold } from "./hash.js";
+import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex, genItemsFold, privItemsFold, specCommitment } from "./hash.js";
 import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type GateCheck, type ScoreReceipt } from "./gate.js";
 import { classifyBoard, proven, type BoardRun } from "./board.js";
 import { decodeSnapshotSection, loadIdl, loadSnapshotJson, snapOf, type SnapAccount, type SnapMap } from "./snapshot.js";
@@ -631,12 +632,27 @@ export async function delegateBank(benchmarkPk: PublicKey, ctx = setup()): Promi
     const chunkParts: ItemSpec[][] = [];
     for (let p = 0; p < CHUNK / PART; p++) {
       const g = pd.grant(i, p, viewer.pub);
-      const grant: any = await fetchOrNull(acct.shareGrant.fetch(g));
-      if (!grant) throw new Error(`no ShareGrant for this wallet at chunk ${i} part ${p} — authority must reshare it first`);
+      // Raw fetch + manual decode — an Anchor `.fetch` under the new IDL
+      // EOF-bricks on pre-upgrade grants; the manual layout reads both.
+      const info = await provider.connection.getAccountInfo(g);
+      if (!info) throw new Error(`no ShareGrant for this wallet at chunk ${i} part ${p} — authority must reshare it first`);
+      const grant = decodeShareGrant(Buffer.from(info.data));
       const nb = new Uint8Array(16);
-      let n = BigInt(grant.nonce.toString());
+      let n = grant.nonce;
       for (let k = 0; k < 16; k++) { nb[k] = Number(n & 0xffn); n >>= 8n; }
-      chunkParts.push(unpackSpecs(cipher.decrypt(grant.ciphertexts.map((x: number[]) => Array.from(x)), nb)));
+      const specs = unpackSpecs(cipher.decrypt(grant.ciphertexts.map((x: Uint8Array) => Array.from(x)), nb));
+      // The delegate's integrity anchor (post-upgrade accounts): the circuit
+      // minted a public commitment to the spec plaintext, stored on both the
+      // grant and the bank's PrivItemChunk. Re-hash the decrypted specs and
+      // compare — a doctored grant can't silently serve a different exam.
+      const commit = specCommitment(specs);
+      const gc = grant.specCommitment;
+      const ic = decoded[i].specCommitments?.[p];
+      if (gc && !gc.every((b) => b === 0) && !Buffer.from(gc).equals(Buffer.from(commit)))
+        throw new Error(`spec commitment mismatch at chunk ${i} part ${p} — the grant's plaintext does not match the MPC-minted commitment`);
+      if (ic && !ic.every((b) => b === 0) && !Buffer.from(ic).equals(Buffer.from(commit)))
+        throw new Error(`spec commitment mismatch at chunk ${i} part ${p} — the grant does not carry the bank's committed specs`);
+      chunkParts.push(specs);
     }
     parts.push(chunkParts);
   }
@@ -827,7 +843,7 @@ export async function verifyRun(benchmarkPk: PublicKey, run: RunArtifact, runInd
   if (snapPath) {
     ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
     b = snapOf(ss, "Benchmark").find((x) => x.publicKey.equals(benchmarkPk))?.account;
-    if (!b) { console.log(`no benchmark ${benchmarkPk.toBase58()} in snapshot`); return; }
+    if (!b) { console.log(`no benchmark ${benchmarkPk.toBase58()} in snapshot`); process.exitCode = 1; return; }
     reveals = snapOf(ss, "Reveal").filter((x) => (x.account.benchmark as PublicKey).equals(benchmarkPk));
   } else {
     ctx ??= setup();
@@ -837,6 +853,7 @@ export async function verifyRun(benchmarkPk: PublicKey, run: RunArtifact, runInd
   }
   if (reveals.length === 0) {
     console.log(`no revealed parts for ${benchmarkPk.toBase58()} — ask the authority to 'chain reveal' first`);
+    process.exitCode = 2; // inconclusive, not a pass
     return;
   }
   // If the run is on-chain, prove the artifact's outputs are the committed ones.
@@ -866,6 +883,8 @@ export async function verifyRun(benchmarkPk: PublicKey, run: RunArtifact, runInd
     }
   }
   console.log(`audit: ${matched}/${checked} revealed positions match the run's committed outputs`);
+  if (checked === 0) process.exitCode = 2;           // nothing verified — inconclusive
+  else if (matched !== checked) process.exitCode = 1; // a revealed answer contradicts the run
   return { checked, matched };
 }
 
@@ -2300,6 +2319,13 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
     `${card.a.recordPk.slice(0, 12)}… = [modelrec, sha256(${card.a.id})]`);
   check("record PDA b", derive([Buffer.from("modelrec"), Buffer.from(card.b.seeds.modelHash, "hex")]) === card.b.recordPk,
     `${card.b.recordPk.slice(0, 12)}… = [modelrec, sha256(${card.b.id})]`);
+  // The seeds are self-declared too — a card can carry a consistent
+  // (modelHash, recordPk) pair while renaming the model. The declared name
+  // must hash to the declared seed, offline, or the whole check above
+  // proves seed-consistency only.
+  check("model identity", ["a", "b"].every((s) =>
+      createHash("sha256").update((card as any)[s].id ?? "", "utf8").digest("hex") === (card as any)[s].seeds.modelHash),
+    `declared ids hash to their declared seeds`);
   let bankOk = 0;
   for (const b of card.banks)
     if (derive([Buffer.from("benchmark"), pk(b.authority).toBuffer(), u32le(b.id)]) === b.pk) bankOk++;
@@ -2313,6 +2339,14 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
   for (const l of allRec)
     if (derive([Buffer.from("scorelog"), pk(l.run).toBuffer()]) === l.pk) logOk++;
   check("receipt PDAs", logOk === allRec.length, `${logOk}/${allRec.length} re-derived`);
+  // a receipt's bank must equal the bank of the run it cites — the run's
+  // benchmark is already PDA-bound above, so this closes the offline hole
+  // where a receipt moved to an unlisted bank drops out of the pooled
+  // aggregates and launders the verdict.
+  const runBank = new Map((card.runs as any[]).map((r) => [r.pk, r.benchmark]));
+  const misbound = allRec.filter((l) => runBank.get(l.run) !== l.benchmark).length;
+  check("receipt-bank binding", misbound === 0,
+    `${allRec.length - misbound}/${allRec.length} receipts bound to their run's PDA-proven bank`);
   // 2. the match replay — per-bank aggregates recomputed from receipts
   const bankPks = new Set(card.banks.map((b: any) => b.pk));
   const receiptsOnBanks = (ls: any[]) => ls.filter((l) => bankPks.has(l.benchmark));
@@ -2398,6 +2432,9 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
     check("receipt completeness", rcBad === 0,
       rcBad === 0 ? "both sides — embedded receipts == decoded logs on every shared bank"
         : `${rcBad} side(s) carry a receipt subset — a dropped receipt on a kept bank launders the bank's delta`);
+  } else {
+    check("snapshot binding", false,
+      "needs --snapshot — without the account dump a match card is self-certifying");
   }
   return { ok: fail === 0, pass, fail, fails, rows };
 }
@@ -2788,6 +2825,9 @@ export async function boardVerify(file: string, json = false, snapPath?: string)
     note(tBad === 0, "record totals",
       tBad === 0 ? "every declared record row == its decoded ModelRecord field-for-field"
         : `${tBad} record row(s) contradict the on-chain ModelRecord`);
+  } else {
+    note(false, "snapshot binding",
+      "needs --snapshot — without the account dump a leaderboard card is self-certifying");
   }
 
   const ok = fail === 0;
@@ -3032,10 +3072,34 @@ export async function bankVerify(file: string, json = false, snapPath?: string):
   }
   if (ss) {
     const onBank = (a: any) => (a.account.benchmark as PublicKey)?.toBase58() === card.bank.pk;
-    if (snapOf(ss, "Reveal").filter(onBank).length !== card.reveals.length) dBad++;
-    if (snapOf(ss, "ShareGrant").filter(onBank).length !== card.grants.length) dBad++;
+    const realR = new Map(snapOf(ss, "Reveal").filter(onBank).map((x) => [x.publicKey.toBase58(), x]));
+    const realG = new Map(snapOf(ss, "ShareGrant").filter(onBank).map((x) => [x.publicKey.toBase58(), x]));
+    // duplicates inflate the count without covering the set — a count-
+    // only check waves a duplicated real reveal past a missing one.
+    const dupR = new Set(card.reveals.map((r: any) => r.pk)).size !== card.reveals.length;
+    const dupG = new Set(card.grants.map((g: any) => g.pk)).size !== card.grants.length;
+    if (dupR || dupG) dBad++;
+    // exact pk sets — a phantom (chunk,part) re-derives a clean PDA but
+    // names no account; a swapped grant keeps the count. Only set
+    // equality binds "this is EVERYTHING disclosed".
+    const setEq = (want: Map<string, any>, got: any[]) =>
+      want.size === got.length && got.every((x) => want.has(x.pk));
+    if (!setEq(realR, card.reveals) || !setEq(realG, card.grants)) dBad++;
+    // every carried field binds to decoded bytes — timestamps and
+    // positions are what the card claims, so they're what must match.
+    for (const r of card.reveals) {
+      const a = realR.get(r.pk)?.account as any;
+      if (!a || Number(a.chunkIndex) !== r.chunkIndex || Number(a.part) !== r.part ||
+          Number(a.revealedAt) !== r.revealedAt) dBad++;
+    }
+    for (const g of card.grants) {
+      const a = realG.get(g.pk)?.account as any;
+      if (!a || Number(a.chunkIndex) !== g.chunkIndex || Number(a.part) !== g.part ||
+          new PublicKey(a.viewer as any).toBase58() !== g.viewer ||
+          Number(a.sharedAt) !== g.sharedAt) dBad++;
+    }
   }
-  note(dBad === 0, "disclosure surface", `${card.reveals.length} reveals + ${card.grants.length} grants — PDAs re-derive${ss ? " · counts complete" : ""}`);
+  note(dBad === 0, "disclosure surface", `${card.reveals.length} reveals + ${card.grants.length} grants — PDAs re-derive${ss ? " · exact sets · field-bound" : ""}`);
 
   // [7] receipts — every ScoreLog on this bank enumerated + field-bound.
   let lBad = 0;
@@ -3054,10 +3118,13 @@ export async function bankVerify(file: string, json = false, snapPath?: string):
   }
   note(!ss || lBad === 0, "receipt surface", `${card.receipts.length} score receipts on this bank — field-bound${ss ? " · complete" : ""}`);
 
-  // [8] snapshot binding.
+  // [8] snapshot binding — the card pins a snapshot sha, so verifying
+  // without one leaves every account-bound check unchecked.
   if (snapPath) {
     const digest = createHash("sha256").update(readFileSync(snapPath)).digest("hex");
     note(digest === card.snapshot, "snapshot binding", `sha256(${basename(snapPath)}) == card.snapshot`);
+  } else {
+    note(false, "snapshot binding", "needs --snapshot — the card pins one; verify against it");
   }
 
   const ok = fail === 0;
@@ -3496,11 +3563,21 @@ export async function grantVerify(file: string, json = false, snapPath?: string)
   // block proves nothing about the exam it names.
   {
     const bankOk = card.bank && card.grant.benchmark === card.bank.pk && card.grant.seeds.bank === card.bank.pk;
-    note(Boolean(bankOk) && Number(card.bank.kind) === 2, "bank semantics",
+    note(Boolean(bankOk) && Number(card.bank?.kind) === 2, "bank semantics",
       card.bank
         ? `${card.bank.name} kind=${card.bank.kind} — ciphertext-only exam; the questions moved without publishing`
         : "card carries no bank context — the exam it claims to disclose is unbound");
   }
+  // [4b] the bank block is card-say-so until it's bound — a forged card
+  // could claim kind=2 on an authored bank or a fake items_root.
+  if (snapPath) {
+    const ss2 = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const realBank = snapOf(ss2, "Benchmark").find((x) => x.publicKey.toBase58() === card.grant.benchmark)?.account as any;
+    note(!!card.bank && !!realBank &&
+      String(realBank.name) === card.bank.name && Number(realBank.kind) === Number(card.bank.kind) &&
+      Buffer.from(realBank.itemsRoot as number[]).toString("hex") === card.bank.itemsRoot,
+      "bank account binding", "card's bank block == decoded Benchmark (name · kind · items_root)");
+  } else note(false, "bank account binding", "needs --snapshot");
   // [5] panel tally — who else was shown the exam? Re-derived from the
   // snapshot, not the card's say-so.
   if (snapPath && gAcct) {
@@ -3863,7 +3940,7 @@ export async function reportVerify(file: string, snapPath?: string, json = false
     `${recordPk.slice(0, 12)}… = [modelrec, sha256(${model})] = card's bound record`);
   check("card digest binding", gotHash === wantHash,
     `sha256(canonical card) ${gotHash.slice(0, 16)}… ${gotHash === wantHash ? "=" : "≠"} printed ${wantHash.slice(0, 16)}…`);
-  const cr = verifyClaimCard(card);
+  const cr = verifyClaimCard(card, undefined, snapPath);
   check("bound card replay", cr.ok, `${cr.pass} claim checks pass${cr.ok ? "" : ` · ${cr.fails.join("; ")}`}`);
   const verdict = fail === 0 ? "REPORT VERIFIED" : "REPORT FAILED";
   if (json) console.log(JSON.stringify({ file, kind: "sealed-report/v1", model, verified: fail === 0,
@@ -4345,8 +4422,19 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
       try {
         const kind = kindOf(full);
         const route = kind ? ROUTES[kind] : null;
-        if (!route) { results.push({ file: f, kind: kind ?? null, ok: true, skipped: true });
-          if (!json) console.log(`  SKIP ${f} — ${kind ? `unrecognized kind ${kind}` : "not a sealed artifact"}`); continue; }
+        if (!route) {
+          // a file claiming a sealed-*/v1 kind with no route is a planted
+          // artifact, not a skip — fail closed. Non-sealed files skip.
+          if (kind?.startsWith("sealed-")) {
+            okAll = false;
+            results.push({ file: f, kind, ok: false, error: `unrecognized kind ${kind}` });
+            if (!json) console.log(`  FAIL ${f} — unrecognized kind ${kind}`);
+            continue;
+          }
+          results.push({ file: f, kind: kind ?? null, ok: true, skipped: true });
+          if (!json) console.log(`  SKIP ${f} — not a sealed artifact`);
+          continue;
+        }
         console.log = () => {};
         const r = await route(full).finally(() => { console.log = orig; });
         const ok = (r.ok ?? (r.fail === 0)) === true;
@@ -4398,13 +4486,22 @@ const ARTIFACT_ROUTES = (snapPath?: string, json = false): Record<string, (f: st
   "sealed-tamper/v1": (f) => tamperCardVerify(f, json, snapPath),
   "sealed-ceiling/v1": (f) => ceilingVerify(f, json, snapPath),
   "sealed-circuit/v1": (f) => circuitVerify(f, json, snapPath),
+  "sealed-ledger/v1": (f) => ledgerVerify(f, json, snapPath),
 });
 
 /** `chain artifact --tamper <file>` — the forgery lab for the terminal:
  *  mutate the card's own fields, re-run its verifier, and prove each
  *  forgery dies. Same checks as the in-page lab and `verify.py --tamper`
  *  — three surfaces, three languages of attack. */
-const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]> = {
+const TAMPER_DEFS: Record<string, { label: string; mutate?: (c: any) => void; mutateText?: (raw: string) => string }[]> = {
+  "sealed-report/v1": [
+    { label: "edit the pinned claim hash", mutateText: (raw) =>
+      raw.replace(/claim-card content sha256 `([0-9a-f]{64})`/, (_m, h: string) =>
+        `claim-card content sha256 \`${"0".repeat(63)}${h.endsWith("0") ? "1" : "0"}\``) },
+    { label: "retitle the report — bind a different model", mutateText: (raw) =>
+      raw.replace(/^(# Capability report — )(.+)$/m, (_m, pre: string, name: string) =>
+        `${pre}${name.trim() === "llama-3.2-1b-instruct" ? "qwen2.5-3b-instruct" : "llama-3.2-1b-instruct"}`) },
+  ],
   "sealed-board/v1": [
     { label: "inflate a receipt's score", mutate: (c) => { c.models[0].receipts[0].correct += 1; } },
     { label: "swap the #1 rank", mutate: (c) => { const t = c.ranking[0]; c.ranking[0] = c.ranking[1]; c.ranking[1] = t; } },
@@ -4460,10 +4557,60 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
       c.verdict.bankWins = wins;
       c.verdict.winner = c.verdict.pctA === c.verdict.pctB ? "tie" : c.verdict.pctA > c.verdict.pctB ? "a" : "b";
     } },
+    { label: "move a receipt off its run's bank", mutate: (c) => {
+      // re-seat a receipt on a different declared bank — the card's own
+      // aggregates still replay; only the run's PDA-proven bank catches it.
+      const l = c.receipts.a.find((l: any) => c.banks.length > 1 && l.benchmark !== c.banks[c.banks.length - 1].pk);
+      if (!l) return;
+      l.benchmark = c.banks[c.banks.length - 1].pk;
+    } },
   ],
   "sealed-claim/v1": [
     { label: "mint a phantom receipt", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0])); r.correct += 1; c.receipts.push(r); } },
     { label: "launder the receipts — rename the model", mutate: (c) => { c.model.id = "gpt-9000-ultra"; } },
+    { label: "forge a priced run — rewrite the leg the venue scored", mutate: (c) => {
+      // bump the score of a run a resolved venue priced — co-participant
+      // preferred (the verdict-bearing lie), else any priced run — then
+      // re-derive the venue's stored outcome so the card stays internally
+      // consistent. Only snapshot-bound account fields catch the lie.
+      const priced = new Set<string>();
+      for (const v of c.venues as any[]) {
+        if (v.status !== 1) continue;
+        if (v.run) priced.add(v.run);
+        if (v.runB) priced.add(v.runB);
+        for (const p of v.legs ?? []) priced.add(p);
+      }
+      const leg = (c.runs as any[]).find((r) => r.role === "co-participant" && priced.has(r.pk))
+        ?? (c.runs as any[]).find((r) => priced.has(r.pk));
+      if (!leg) return;
+      leg.correct += 1;
+      for (const v of c.venues) {
+        if (v.status !== 1) continue;
+        const runOf = (p: string) => (c.runs as any[]).find((r) => r.pk === p);
+        if (v.kind === "duel") {
+          const a = runOf(v.run), b = runOf(v.runB);
+          if (a && b) {
+            v.resolvedScore = (a.correct << 16) | b.correct;
+            v.outcome = a.correct > b.correct ? 0 : a.correct < b.correct ? 1 : 2;
+          }
+        } else if (v.kind === "ladder") {
+          const legs = (v.legs as string[]).map(runOf);
+          const best = Math.max(...legs.map((r) => r?.correct ?? 0));
+          v.resolvedScore = best;
+          v.resultMask = legs.reduce((s, r, i) => s + (r?.correct === best ? (1 << i) : 0), 0);
+        } else if (v.kind === "bounty" && v.winnerRun === leg.pk) {
+          v.winningScore = leg.correct;
+        } else if (v.run === leg.pk) {
+          v.resolvedScore = leg.correct;
+        }
+      }
+    } },
+    { label: "omit a settled venue — hide the loss", mutate: (c) => {
+      const i = (c.venues as any[]).findIndex((v) => v.status === 1);
+      if (i < 0) return;
+      c.venues.splice(i, 1);
+      if (c.verdicts) c.verdicts.venuesResolved -= 1, c.verdicts.venuesPriced -= 1;
+    } },
     { label: "drop the worst receipt — rewrite the record over the subset", mutate: (c) => {
       const worst = c.receipts.reduce((w: any, r: any) =>
         (r.correct / Math.max(1, r.items)) < (w.correct / Math.max(1, w.items)) ? r : w);
@@ -4497,6 +4644,35 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
   ],
   "sealed-bank/v1": [
     { label: "mint a phantom run on the exam", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.runs[0])); r.correct = (r.correct ?? 0) + 1; c.runs.push(r); } },
+    { label: "duplicate a reveal — pad the disclosure count", mutate: (c) => {
+      if (c.reveals.length) { c.reveals.push(JSON.parse(JSON.stringify(c.reveals[0]))); return; }
+      // nothing to dup — fabricate a phantom whose PDA still re-derives:
+      // the count check would pass; only the exact set catches it.
+      const [pk] = PublicKey.findProgramAddressSync(
+        [Buffer.from("reveal"), new PublicKey(c.bank.pk).toBuffer(),
+         u16le(Number(c.bank.chunkCount) + 7), Uint8Array.of(0)],
+        new PublicKey(c.programs.sealed));
+      c.reveals.push({ pk: pk.toBase58(), chunkIndex: Number(c.bank.chunkCount) + 7, part: 0, revealedAt: 1700000000 });
+    } },
+    { label: "re-seat a reveal at a chunk that never opened", mutate: (c) => {
+      const r = c.reveals[0];
+      if (r) { r.chunkIndex = Number(c.bank.chunkCount) + 7; r.revealedAt += 1; return; }
+      const [pk] = PublicKey.findProgramAddressSync(
+        [Buffer.from("reveal"), new PublicKey(c.bank.pk).toBuffer(),
+         u16le(Number(c.bank.chunkCount) + 7), Uint8Array.of(0)],
+        new PublicKey(c.programs.sealed));
+      c.reveals.push({ pk: pk.toBase58(), chunkIndex: Number(c.bank.chunkCount) + 7, part: 0, revealedAt: 1700000000 });
+    } },
+    { label: "backdate a grant — pretend the viewer came early", mutate: (c) => {
+      const g = c.grants[0];
+      if (g) { g.sharedAt -= 86400; return; }
+      // no grants to re-date — fabricate one to the bank's own authority.
+      const [pk] = PublicKey.findProgramAddressSync(
+        [Buffer.from("grant"), new PublicKey(c.bank.pk).toBuffer(),
+         u16le(0), Uint8Array.of(0), new PublicKey(c.bank.authority).toBuffer()],
+        new PublicKey(c.programs.sealed));
+      c.grants.push({ pk: pk.toBase58(), chunkIndex: 0, part: 0, viewer: c.bank.authority, sharedAt: 1700000000 });
+    } },
   ],
   "sealed-catalog/v1": [
     { label: "erase an artifact from the index", mutate: (c) => { c.artifacts.splice(3, 1); c.count -= 1; } },
@@ -4509,9 +4685,17 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
   ],
   "sealed-grant/v1": [
     { label: "redirect the disclosure to another viewer", mutate: (c) => { const v = c.grant.viewer; c.grant.viewer = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x"); c.grant.seeds.viewer = c.grant.viewer; } },
+    { label: "redescribe the exam — rename the bank block", mutate: (c) => { if (c.bank) c.bank.name = "some-other-exam"; } },
   ],
   "sealed-policy/v1": [
     { label: "flip a model's gate verdict", mutate: (c) => { const m = c.models.find((m: any) => !m.verdict.pass); m.verdict.pass = true; m.verdict.reason = "forged"; } },
+    { label: "rename a model — ride its own record", mutate: (c) => {
+      // keep recordPk + modelHash, change only the name — the cert's
+      // whole payload is the name→verdict mapping, so the name must be
+      // bound to the seed AND the account, not just declared.
+      const m = (c.models as any[]).find((m) => !m.verdict.pass) ?? c.models[0];
+      m.modelId = `${m.modelId}-2`;
+    } },
     { label: "drop a model's worst receipt — recompute the totals over the subset", mutate: (c) => {
       const m = (c.models as any[]).find((m) => m.receipts.length > 1 && !m.verdict.pass)
         ?? (c.models as any[]).find((m) => m.receipts.length > 1);
@@ -4561,6 +4745,12 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
     } },
     { label: "re-key the MXE — substitute the signPda address", mutate: (c) => { c.mxe.pda = c.signPda; } },
     { label: "fork the cluster — re-home the circuits to offset 0", mutate: (c) => { c.cluster.offset = 0; } },
+  ],
+  "sealed-ledger/v1": [
+    { label: "hide a bank — shave the Benchmark census", mutate: (c) => { c.census.sealed.kinds.Benchmark = (c.census.sealed.kinds.Benchmark ?? 0) - 1; } },
+    { label: "phantom run — pad the Run count", mutate: (c) => { c.census.sealed.kinds.Run = (c.census.sealed.kinds.Run ?? 0) + 1; c.census.sealed.accounts += 1; } },
+    { label: "launder the set — swap the pubkey-set hash", mutate: (c) => { c.census.sealed.pubkeySetSha256 = "00" + c.census.sealed.pubkeySetSha256.slice(2); } },
+    { label: "re-date the dump — claim a fresh census", mutate: (c) => { c.takenAt = new Date().toISOString(); } },
   ],
 };
 
@@ -4617,20 +4807,22 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
   const defs = TAMPER_DEFS[kind];
   console.log(`sealed-tamper/v1 — ${kind} · ${defs?.length ?? 0} canned attack(s)`);
   if (!defs?.length) {
-    console.log("  (no canned mutations for this kind — markdown reports are replayed wholesale)");
+    console.log("  (no canned mutations for this kind)");
     return { ok: true, attacks: 0 };
   }
-  const base = JSON.parse(raw);
+  const isText = kind === "sealed-report/v1"; // markdown artifacts mutate as text
+  const base = isText ? raw : JSON.parse(raw);
   const verify = ARTIFACT_ROUTES(snapPath, false)[kind];
   if (!verify) throw new Error(`no verifier route for ${kind}`);
   const dir = mkdtempSync(join(tmpdir(), "sealed-tamper-"));
   let caught = 0;
   const orig = console.log;
   for (let i = 0; i < defs.length; i++) {
-    const forged = JSON.parse(JSON.stringify(base));
-    defs[i].mutate(forged);
-    const fp = join(dir, `forged-${i}.json`);
-    writeFileSync(fp, JSON.stringify(forged, null, 2));
+    const forged: any = isText
+      ? (defs[i].mutateText ? defs[i].mutateText!(raw) : raw)
+      : (() => { const c = JSON.parse(JSON.stringify(base)); defs[i].mutate!(c); return c; })();
+    const fp = join(dir, `forged-${i}.${isText ? "md" : "json"}`);
+    writeFileSync(fp, isText ? forged : JSON.stringify(forged, null, 2));
     let ok = true, detail = "";
     const savedExit = process.exitCode;
     const lines: string[] = [];
@@ -4659,10 +4851,10 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
           expectFail: died,
           ...(expectThrow ? { expectThrow } : {}),
           forgedAt: new Date().toISOString(),
-          forged,
+          ...(isText ? { forgedMd: forged } : { forged }),
         };
         const slug = defs[i].label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-        const out = `${exhibitDir}/${(target.split("/").pop() ?? "card").replace(/\.json$/, "")}.${slug}.json`;
+        const out = `${exhibitDir}/${(target.split("/").pop() ?? "card").replace(/\.(json|md)$/, "")}.${slug}.json`;
         writeFileSync(out, JSON.stringify(exhibit, null, 2) + "\n");
         console.log(`    → exhibit written: ${out} (died at ${died.join(", ") || "thrown error"})`);
       }
@@ -4688,14 +4880,15 @@ export async function tamperCardVerify(file: string, json = false, snapPath?: st
   const { join } = await import("node:path");
   const card = JSON.parse(readFileSync(file, "utf8"));
   if (card.kind !== "sealed-tamper/v1") throw new Error(`not a sealed-tamper/v1 exhibit (kind=${card.kind})`);
-  if (!card.forged || card.forged.kind !== card.targetKind)
+  const isMd = typeof card.forgedMd === "string";
+  if (!isMd && (!card.forged || card.forged.kind !== card.targetKind))
     throw new Error("exhibit carries no forged target card");
   // the inner verifier must run in TEXT mode — json mode prints no
   // "FAIL <check>" lines, and those names are what the exhibit asserts.
   const route = ARTIFACT_ROUTES(snapPath, false)[card.targetKind];
   if (!route) throw new Error(`no verifier route for ${card.targetKind}`);
-  const tmp = join(mkdtempSync(join(tmpdir(), "sealed-exhibit-")), "forged.json");
-  writeFileSync(tmp, JSON.stringify(card.forged, null, 2));
+  const tmp = join(mkdtempSync(join(tmpdir(), "sealed-exhibit-")), `forged.${isMd ? "md" : "json"}`);
+  writeFileSync(tmp, isMd ? card.forgedMd : JSON.stringify(card.forged, null, 2));
   const lines: string[] = [];
   const orig = console.log;
   console.log = (...a: any[]) => { lines.push(a.map(String).join(" ")); };
@@ -4760,6 +4953,7 @@ async function scanArtifacts(dir: string) {
       case "sealed-tamper/v1": return `forgery: ${raw.attack ?? "?"} → ${raw.targetCard ?? base}`;
       case "sealed-ceiling/v1": return `${raw.model?.id ?? base} ≤ ${raw.ceiling?.maxPct ?? "∅"} over ${raw.scope?.finalizedRuns ?? "?"} run(s)`;
       case "sealed-circuit/v1": return `${raw.circuits?.length ?? "?"} Arcium circuits @ cluster ${raw.cluster?.offset ?? "?"}`;
+      case "sealed-ledger/v1": return `whole-ledger census — ${(raw.census?.sealed?.accounts ?? 0) + (raw.census?.market?.accounts ?? 0)} accounts`;
       default: return base;
     }
   };
@@ -6613,6 +6807,11 @@ export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, de
   // 1. every PDA re-derives — identity is cryptographic, not claimed
   check("record PDA", derive([Buffer.from("modelrec"), Buffer.from(card.record.seeds.modelHash, "hex")], sealedId) === card.record.pk,
     `${card.record.pk.slice(0, 12)}… = [modelrec, sha256(${card.model.id})]`);
+  // the seeds are self-declared — a consistent (modelHash, recordPk) pair
+  // can still rename the model. The name must hash to the declared seed,
+  // free and offline (account-level binding is in the snapshot block).
+  check("model identity", createHash("sha256").update(card.model.id ?? "", "utf8").digest("hex") === card.record.seeds.modelHash,
+    `declared model id hashes to its declared modelHash seed`);
   const runByPk = new Map(card.runs.map((r: any) => [r.pk, r]));
   let runOk = 0;
   for (const r of card.runs)
@@ -6734,6 +6933,105 @@ export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, de
     check("record totals", tOk,
       tOk ? `stored ${card.model.totalCorrect}/${card.model.totalItems} over ${card.model.runsScored} == decoded ModelRecord`
         : "declared totals contradict the on-chain ModelRecord");
+
+    // 5. run account binding — the venue-replay check above reads the
+    // CARD's copy of each run (incl. co-participant legs). Until now a
+    // card could carry a self-consistent fake leg: forge duel runB's
+    // score and the packed outcome still replays. Every embedded run
+    // must exist in the snapshot and match the decoded Run fields.
+    const runs = new Map(snapOf(ss, "Run").map((r) => [r.publicKey.toBase58(), r]));
+    let rBad = 0, rMiss = 0, roleBad = 0;
+    for (const r of card.runs as any[]) {
+      const real = runs.get(r.pk) as any;
+      if (!real) { rMiss++; continue; }
+      if ((real.account.benchmark as PublicKey).toBase58() !== r.benchmark ||
+          Number(real.account.index) !== r.index || Number(real.account.status) !== r.status ||
+          Number(real.account.correct) !== r.correct || Number(real.account.chunkCount) !== r.chunkCount ||
+          !!real.account.postReveal !== !!r.postReveal || !!real.account.attested !== !!r.attested) rBad++;
+      if ((r.role === "subject") !== (String(real.account.modelId) === card.model.id)) roleBad++;
+    }
+    check("run account binding", rBad === 0 && rMiss === 0 && roleBad === 0,
+      `${(card.runs as any[]).length - rBad - rMiss}/${(card.runs as any[]).length} runs == decoded Run bytes` +
+      (rMiss ? ` · ${rMiss} PHANTOM` : "") + (roleBad ? ` · ${roleBad} role lies` : ""));
+    // run completeness — the card must embed EVERY subject run (the mint
+    // takes them all) plus every co-participant leg the true venue set
+    // needs. Dropping a leg the venue replay reads laundered a verdict.
+    const subj = new Set((snapOf(ss, "Run") as any[])
+      .filter((r) => String(r.account.modelId) === card.model.id)
+      .map((r) => r.publicKey.toBase58()));
+    const sm = decodeSnapshotSection(loadSnapshotJson(snapPath), "market");
+    const mkt = snapOf(sm, "Market") as any[], drk = snapOf(sm, "DarkMarket") as any[],
+      lad = snapOf(sm, "Ladder") as any[], bty = snapOf(sm, "Bounty") as any[];
+    const def = PublicKey.default.toBase58();
+    const isDuelA = (a: any) => a.runB && a.runB.toBase58() !== def;
+    const trueVenue = new Set<string>([
+      ...mkt.filter((a) => subj.has(a.account.run.toBase58()) || (isDuelA(a.account) && subj.has(a.account.runB.toBase58()))).map((a) => a.publicKey.toBase58()),
+      ...drk.filter((a) => subj.has(a.account.run.toBase58())).map((a) => a.publicKey.toBase58()),
+      ...lad.filter((a) => (a.account.legs as PublicKey[]).slice(0, Number(a.account.legCount)).some((p) => subj.has(p.toBase58()))).map((a) => a.publicKey.toBase58()),
+    ]);
+    const coSet = new Set<string>();
+    for (const a of mkt) if (trueVenue.has(a.publicKey.toBase58())) { coSet.add(a.account.run.toBase58()); if (isDuelA(a.account)) coSet.add(a.account.runB.toBase58()); }
+    for (const a of drk) if (trueVenue.has(a.publicKey.toBase58())) coSet.add(a.account.run.toBase58());
+    for (const a of lad) if (trueVenue.has(a.publicKey.toBase58()))
+      for (const p of (a.account.legs as PublicKey[]).slice(0, Number(a.account.legCount))) coSet.add(p.toBase58());
+    const allPks = new Set([...subj, ...coSet]);
+    const bankSet2 = new Set((snapOf(ss, "Run") as any[]).filter((r) => allPks.has(r.publicKey.toBase58())).map((r) => r.account.benchmark.toBase58()));
+    for (const a of bty) if (bankSet2.has(a.account.bank.toBase58()) || (a.account.winnerRun && subj.has(a.account.winnerRun.toBase58()))) trueVenue.add(a.publicKey.toBase58());
+    const wantRuns = new Set([...subj, ...[...coSet].filter((p) => runs.has(p))]);
+    const gotRuns = new Set((card.runs as any[]).map((r) => r.pk));
+    const rOmit = [...wantRuns].filter((k) => !gotRuns.has(k));
+    check("run completeness", rOmit.length === 0,
+      `${wantRuns.size} subject+co-participant runs on-chain == ${gotRuns.size} embedded` +
+      (rOmit.length ? ` · ${rOmit.length} OMITTED (e.g. ${rOmit[0].slice(0, 12)}…)` : ""));
+    // 6. venue account binding + completeness — every declared venue must
+    // equal its decoded account fields, and the declared set must EQUAL
+    // the set the mint's rule re-derives from the snapshot's subject
+    // runs. Omitting a settled venue that contradicts the claim (or a
+    // ladder leg that loses) was invisible before.
+    const acctOf = (v: any) =>
+      v.kind === "dark" ? drk.find((a) => a.publicKey.toBase58() === v.pk)?.account
+      : v.kind === "ladder" ? lad.find((a) => a.publicKey.toBase58() === v.pk)?.account
+      : v.kind === "bounty" ? bty.find((a) => a.publicKey.toBase58() === v.pk)?.account
+      : mkt.find((a) => a.publicKey.toBase58() === v.pk)?.account;
+    let vBad = 0, vMiss = 0;
+    for (const v of card.venues as any[]) {
+      const a = acctOf(v);
+      if (!a) { vMiss++; continue; }
+      const pot2 = a.totals ? (a.totals as any[]).reduce((s: number, t: any) => s + Number(t?.toString?.() ?? t), 0) : undefined;
+      const same =
+        (v.kind === "bounty")
+          ? a.bank.toBase58() === v.bank && a.sponsor.toBase58() === v.sponsor &&
+            Number(a.salt) === v.salt && Number(a.status) === v.status && Number(a.threshold) === v.threshold &&
+            Number(a.amount) === v.amount && Number(a.winningScore) === v.winningScore &&
+            (a.winnerRun ? a.winnerRun.toBase58() : null) === v.winnerRun
+        : v.kind === "ladder"
+          ? (a.legs as PublicKey[]).slice(0, Number(a.legCount)).map((p) => p.toBase58()).join() === (v.legs as string[]).join() &&
+            Number(a.salt) === v.salt && Number(a.status) === v.status &&
+            Number(a.resultMask) === v.resultMask && Number(a.resolvedScore) === v.resolvedScore && pot2 === v.pot
+        : v.kind === "dark"
+          ? a.run.toBase58() === v.run && Number(a.salt) === v.salt && Number(a.status) === v.status &&
+            Number(a.outcome) === v.outcome && Number(a.resolvedScore) === v.resolvedScore &&
+            !!a.tallied === !!v.tallied && Number(a.poolTotal) === v.pool
+          : a.run.toBase58() === v.run &&
+            (a.runB && a.runB.toBase58() !== def ? a.runB.toBase58() : null) === v.runB &&
+            Number(a.salt) === v.salt && Number(a.status) === v.status &&
+            Number(a.outcome) === v.outcome && Number(a.resolvedScore) === v.resolvedScore && pot2 === v.pot;
+      if (!same) vBad++;
+    }
+    check("venue account binding", vBad === 0 && vMiss === 0,
+      `${(card.venues as any[]).length - vBad - vMiss}/${(card.venues as any[]).length} venues == decoded account fields` +
+      (vMiss ? ` · ${vMiss} PHANTOM` : ""));
+    const gotVen = new Set((card.venues as any[]).map((v) => v.pk));
+    const vOmit = [...trueVenue].filter((k) => !gotVen.has(k));
+    check("venue completeness", vOmit.length === 0 && gotVen.size === trueVenue.size,
+      `${trueVenue.size} venues pricing this record on-chain == ${gotVen.size} embedded` +
+      (vOmit.length ? ` · ${vOmit.length} OMITTED (e.g. ${vOmit[0].slice(0, 12)}…)` : ""));
+  } else {
+    // account-bound card, keyless replay: every check above is self-
+    // consistency — a well-formed forgery replays clean. Refuse to
+    // certify without the ledger it claims to describe.
+    check("snapshot binding", false,
+      "needs --snapshot — without the account dump a claim card is self-certifying");
   }
 
   return { ok: fail === 0, pass, fail, fails };
@@ -7112,6 +7410,124 @@ export function verifyCircuitCard(card: any, emit?: (what: string, ok: boolean, 
       .find((e: any) => Buffer.from(e.data, "base64").subarray(0, 8).toString("hex") === SIGN_PDA_DISC);
     check("signPda binding", !!entry && entry.pubkey === card.signPda && card.signPdaSnapshot === card.signPda,
       `snapshot SignPdaAccount ${entry ? entry.pubkey.slice(0, 12) + "…" : "ABSENT"} == card ${String(card.signPda).slice(0, 12)}…`);
+  } else if (card.snapshotSha256) {
+    // the card pins a bundle sha — verifying without the pinned dump
+    // leaves the only chain-bound anchor unchecked.
+    check("snapshot binding", false, "needs --snapshot — the card pins a bundle sha; verify against it");
+  }
+  return { ok: fail === 0, pass, fail, fails };
+}
+
+// ---- sealed-ledger/v1 — the "nothing-up-my-sleeve" census ------------------
+// Every negative claim in the evidence system (ceilings, board completeness,
+// the anomalies sweep) rests on one assumption: the snapshot is the WHOLE
+// account set, not a cherry-picked subset. This card makes that assumption
+// verifiable — a per-program census: account totals, per-kind counts by
+// discriminator, and a sha256 over the sorted pubkey set, all recomputed
+// from the raw bundle bytes by the verifier. Frame it honestly: the census
+// proves the dump is *enumerable* — a judge can re-derive the same set
+// independently with getProgramAccounts; it does not claim the chain has
+// no other accounts, only that THIS dump lists every one it claims to.
+const pubkeySetSha = (entries: any[]) =>
+  createHash("sha256").update(entries.map((e) => e.pubkey).sort().join("\n")).digest("hex");
+
+const censusOf = (entries: any[], discs: [string, Buffer][]) => {
+  const kinds: Record<string, number> = {};
+  let unknown = 0;
+  for (const e of entries) {
+    const buf = Buffer.from(e.data, "base64");
+    const hit = discs.find(([, d]) => buf.subarray(0, 8).equals(d));
+    if (buf.subarray(0, 8).toString("hex") === SIGN_PDA_DISC) {
+      kinds["SignPdaAccount"] = (kinds["SignPdaAccount"] ?? 0) + 1;
+    } else if (hit) {
+      kinds[hit[0]] = (kinds[hit[0]] ?? 0) + 1;
+    } else unknown++;
+  }
+  if (unknown) kinds["unknown"] = unknown;
+  return { accounts: entries.length, pubkeySetSha256: pubkeySetSha(entries), kinds };
+};
+
+const idlDiscs = (section: "sealed" | "market"): [string, Buffer][] => {
+  const idl = loadIdl(section);
+  const coder = new anchor.BorshAccountsCoder(idl);
+  return (idl.accounts ?? []).map((a: any) => [a.name, coder.accountDiscriminator(a.name)]);
+};
+
+export async function chainLedgerProve(out: string | undefined, snapPath: string) {
+  const snap = loadSnapshotJson(snapPath);
+  const card: any = {
+    kind: "sealed-ledger/v1",
+    generatedAt: new Date().toISOString(),
+    source: "chain ledger --prove",
+    programs: { sealed: snap.meta?.programs?.sealed ?? sealedProgramId().toBase58(),
+                market: snap.meta?.programs?.market },
+    snapshotSha256: createHash("sha256").update(readFileSync(snapPath)).digest("hex"),
+    takenAt: snap.meta?.takenAt ?? null,
+    note: snap.meta?.note ?? null,
+    census: {
+      sealed: censusOf(snap.sealed ?? [], idlDiscs("sealed")),
+      market: censusOf(snap.market ?? [], idlDiscs("market")),
+    },
+  };
+  const body = JSON.stringify(card, null, 2) + "\n";
+  if (out) { writeFileSync(out, body); console.log(`wrote ${out}`); }
+  else console.log(body);
+  return card;
+}
+
+export async function ledgerVerify(file: string, json = false, snapPath?: string) {
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  let pass = 0, fail = 0;
+  const fails: string[] = [];
+  const rows: any[] = [];
+  const emit = (what: string, ok: boolean, detail: string) => {
+    rows.push({ check: what, ok, detail });
+    if (!json) console.log(`  ${ok ? "PASS" : "FAIL"}  ${what}${detail ? ` — ${detail}` : ""}`);
+    if (ok) pass++; else { fail++; fails.push(what); }
+  };
+  emit("kind", card.kind === "sealed-ledger/v1", card.kind ?? "?");
+  verifyLedgerCard(card, emit, snapPath);
+  console.log(`${fail === 0 ? "LEDGER VERIFIED" : "LEDGER FAILED"} — ${pass} checks pass, ${fail} fail`);
+  if (json) console.log(JSON.stringify({ file, kind: card.kind, pass, fail, fails, checks: rows }));
+  if (fail) process.exitCode = 1;
+  return { ok: fail === 0, pass, fail, fails };
+}
+
+export function verifyLedgerCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void, snapPath?: string) {
+  let pass = 0, fail = 0;
+  const fails: string[] = [];
+  const check = (what: string, ok: boolean, detail = "") => {
+    emit?.(what, ok, detail);
+    if (ok) pass++; else { fail++; fails.push(what); }
+  };
+  check("program identity", card.programs?.sealed === sealedProgramId().toBase58()
+      && typeof card.programs?.market === "string" && card.programs.market.length > 30,
+    `sealed ${String(card.programs?.sealed).slice(0, 12)}… · market ${String(card.programs?.market).slice(0, 12)}…`);
+  if (!snapPath) {
+    check("snapshot binding", false, "a census with no pinned ledger proves nothing — pass --snapshot");
+    return { ok: false, pass, fail, fails };
+  }
+  const raw = readFileSync(snapPath);
+  const shaOk = createHash("sha256").update(raw).digest("hex") === card.snapshotSha256;
+  check("snapshot binding", shaOk, shaOk ? `sha256 == ${String(card.snapshotSha256).slice(0, 16)}…` : "bundle bytes differ — the census covers a different dump");
+  const snap = loadSnapshotJson(snapPath);
+  check("dump timestamp", card.takenAt === (snap.meta?.takenAt ?? null),
+    `takenAt ${card.takenAt ?? "∅"}`);
+  // the census recompute — classify every raw entry by discriminator and
+  // diff the card's declared counts + pubkey-set hashes, both sections.
+  for (const section of ["sealed", "market"] as const) {
+    const entries = snap[section] ?? [];
+    const want = censusOf(entries, idlDiscs(section));
+    const got = card.census?.[section] ?? {};
+    let bad = 0;
+    if (got.accounts !== want.accounts) bad++;
+    if (got.pubkeySetSha256 !== want.pubkeySetSha256) bad++;
+    const allKinds = new Set([...Object.keys(want.kinds), ...Object.keys(got.kinds ?? {})]);
+    const kindBad = [...allKinds].filter((k) => (got.kinds?.[k] ?? 0) !== want.kinds[k]);
+    bad += kindBad.length;
+    check(`${section} census`, bad === 0 && shaOk,
+      `${want.accounts} accounts · ${Object.keys(want.kinds).length} kind(s)` +
+      (bad ? ` · MISMATCH${got.accounts !== want.accounts ? ` total ${got.accounts}≠${want.accounts}` : ""}${got.pubkeySetSha256 !== want.pubkeySetSha256 ? " pubkey-set hash" : ""}${kindBad.length ? ` kinds ${kindBad.join(",")}` : ""}` : " — every raw entry classified, pubkey-set sha256 replays"));
   }
   return { ok: fail === 0, pass, fail, fails };
 }
@@ -7534,12 +7950,19 @@ export async function gateCertVerify(file: string, json = false, snapPath?: stri
     if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`);
     ok ? pass++ : fail++;
   };
-  let pdaOk = 0, verdictOk = 0;
+  let pdaOk = 0, verdictOk = 0, idOk = 0;
   for (const m of cert.models as any[]) {
     const want = m.recordPk;
     const got = PublicKey.findProgramAddressSync(
       [Buffer.from("modelrec"), Buffer.from(m.seeds.modelHash, "hex")], sealedId)[0].toBase58();
     if (got === want) pdaOk++;
+    // The cert's only payload is the name→verdict mapping — a renamed model
+    // launders a failing record onto a competitor. The declared name must
+    // hash to the declared seed (free, offline) AND equal the decoded
+    // account's modelId when a snapshot is bound (checked below).
+    if (typeof m.modelId === "string" &&
+        createHash("sha256").update(m.modelId, "utf8").digest("hex") === m.seeds.modelHash)
+      idOk++;
     const receipts: ScoreReceipt[] = (m.receipts as any[]).map((x) => ({
       correct: x.correct, items: x.items, vouchedAtRecord: x.vouchedAtRecord, postReveal: x.postReveal,
     }));
@@ -7551,6 +7974,8 @@ export async function gateCertVerify(file: string, json = false, snapPath?: stri
     else if (!json) console.log(`    ↳ ${m.modelId}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)`);
   }
   check("record PDAs", pdaOk === cert.models.length, `${pdaOk}/${cert.models.length} re-derived from [modelrec, sha256(model_id)]`);
+  check("model identity", idOk === cert.models.length,
+    `${idOk}/${cert.models.length} declared modelIds hash to their declared modelHash seeds — a rename can't ride another record's evidence`);
   check("verdict replay", verdictOk === cert.models.length, `${verdictOk}/${cert.models.length} verdicts recomputed from embedded receipts (pass/reason exact, pct within 0.01pp)`);
   const s = cert.summary;
   const recomp = { pass: (cert.models as any[]).filter((m) => m.verdict.pass).length,
@@ -7598,6 +8023,19 @@ export async function gateCertVerify(file: string, json = false, snapPath?: stri
     check("record-set completeness", missing.length === 0 && phantom.length === 0,
       `${truePks.size} ModelRecords on-chain == ${cert.models.length} listed` +
       (missing.length ? ` · ${missing.length} OMITTED` : "") + (phantom.length ? ` · ${phantom.length} PHANTOM` : ""));
+    // Account-level name binding: the declared modelId must equal the decoded
+    // ModelRecord's model_id — sha→seed alone isn't enough (the seeds are
+    // self-declared too; a consistent pair could still rename the evidence).
+    const recByPk = new Map((snapOf(ss, "ModelRecord") as any[])
+      .map((r) => [r.publicKey.toBase58(), String(r.account.modelId ?? r.account.model_id ?? "")]));
+    const nameBad = (cert.models as any[]).filter((m) => recByPk.has(m.recordPk) && recByPk.get(m.recordPk) !== m.modelId).length;
+    check("account modelId", nameBad === 0,
+      `${cert.models.length - nameBad}/${cert.models.length} declared names == decoded ModelRecord.model_id`);
+  } else {
+    // receipts + record set are account-bound claims — without the dump
+    // the cert self-certifies over its own embedded data.
+    check("snapshot binding", false,
+      "needs --snapshot — without the account dump a policy cert is self-certifying");
   }
   if (json) console.log(JSON.stringify({ file, kind: cert.kind, models: cert.models.length, verified: fail === 0,
     checks: rows, pass, fail, summary: cert.summary }));
@@ -8873,6 +9311,19 @@ export async function chainMain(cmd: string[], args: Args) {
     const dst = args.prove ?? args.out;
     await chainCircuitProve(dst ? String(dst) : undefined, args.snapshot ? String(args.snapshot) : undefined,
       args.rpc ? String(args.rpc) : undefined, Number(args.cluster ?? 456));
+    return;
+  }
+  if (sub === "ledger") {
+    // the "nothing-up-my-sleeve" census — per-program account totals,
+    // discriminator-kind counts, and a sha256 over the sorted pubkey set,
+    // all recomputed from the raw bundle by the verifier.
+    if (args.verify) {
+      await ledgerVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
+    const dst = args.prove ?? args.out;
+    await chainLedgerProve(dst ? String(dst) : undefined,
+      args.snapshot ? String(args.snapshot) : "web/snapshot.json");
     return;
   }
   if (sub === "badge") {

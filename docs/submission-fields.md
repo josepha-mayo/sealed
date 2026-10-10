@@ -42,7 +42,7 @@ A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, commit-reveal dark markets, and FCFS capability
 bounties (pot pays the first proven run's operator, not a bettor) —
 resolving permissionlessly on `Run.correct`; bets latch before the
-first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 74/74
+first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 75/75
 harness unit; four open-weights models settled real markets via MPC —
 a dead-heat, a reshare-grant private exam, a dark market on a
 ciphertext-only bank. Every primitive settled a real score.
@@ -84,9 +84,9 @@ the chain never trusts self-reported scores. The capability registry
 persists per-model records — 31 records / 292 receipts replayed
 bit-exact in-browser; the calibration specimen replays the same MPC
 arithmetic per-item (3b 7/32 vs 1.5b 2/32).
-Outputs are portable proof — 187 artifacts / 15 kinds replay
+Outputs are portable proof — 203 artifacts / 15 kinds replay
 keyless; `chain fingerprint` = one sha256 notarized on devnet;
-21 canned forgeries die at named checks; tamper/ pins 15 forged
+35 canned forgeries die at named checks; tamper/ pins 28 forged
 artifacts that verify by being REJECTED — `verify.py` redoes it
 in Python.
 
@@ -184,9 +184,9 @@ outlives the pitch.
   per `docs/video-script.md`; every beat is a real command with real output.
   An asciinema capture is pre-recorded at `docs/demo.cast` — render with
   `agg docs/demo.cast docs/demo.gif` or convert to mp4; embed in README.
-- Public URL: **https://josepha-mayo.github.io/sealed/** — live explorer,
-  auto-loads the bundled snapshot (no localnet needed); `?mega=1` runs the
-  entire proof cascade unaided (audit → 142 replays → forgery sweep →
+- Public URL: **https://josepha-mayo.github.io/sealed/?mega=1** — paste the
+  deep link, not the bare domain: it runs the whole proof cascade unaided
+  on open (audit → 187 replays → forgery sweep →
   sealed-exam decrypt → copyable verdict), `?decrypt=1` deep-links the
   payoff. Served by `.github/workflows/pages.yml` on every push. Local
   fallback:

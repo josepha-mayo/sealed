@@ -64,9 +64,11 @@ export interface GateCheck {
 
 export interface GateVerdict {
   pass: boolean;
-  /** "pass" | "no-record" | "no-evidence" | "policy" — no-evidence states
-   *  are distinct from a failed policy: absent proof ≠ disproof. */
-  reason: "pass" | "no-record" | "no-evidence" | "policy";
+  /** "pass" | "no-record" | "no-evidence" | "policy" | "no-policy" —
+   *  no-evidence states are distinct from a failed policy: absent
+   *  proof ≠ disproof. "no-policy" is the vacuous gate: a policy that
+   *  demands nothing proves nothing. */
+  reason: "pass" | "no-record" | "no-evidence" | "policy" | "no-policy";
   modelId: string | null;
   scope: "all" | "vouched";
   /** Selected-receipt aggregate — what the policy measured. */
@@ -144,6 +146,12 @@ export function evalGate(
       actual: `${lcb.toFixed(1)}% LCB (${correct}/${items})`,
       needed: `>= ${policy.minWilsonPct}%`,
     });
+  }
+  if (checks.length === 0) {
+    // a policy with zero demands is vacuous — it would "pass" every
+    // model unconditionally. Report it as its own failure class so a
+    // cert can't certify an empty claim.
+    return { pass: false, reason: "no-policy", ...base, checks };
   }
   const pass = checks.every((c) => c.pass);
   return { pass, reason: pass ? "pass" : "policy", ...base, checks };

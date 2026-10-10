@@ -8,7 +8,7 @@
     "account binding",
     "key echo"
   ],
-  "forgedAt": "2026-10-08T21:06:23.636Z",
+  "forgedAt": "2026-10-10T23:08:56.507Z",
   "forged": {
     "kind": "sealed-grant/v1",
     "generatedAt": "2026-10-07T14:12:14.972Z",

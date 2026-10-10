@@ -159,11 +159,18 @@ export interface PrivItemChunkState {
   nonces: bigint[];
   /** Landing sequence per part — the on-chain fold is landing-order-dependent. */
   mintOrder: number[];
+  /**
+   * MPC-minted commitment to each part's spec plaintext — the delegate's
+   * integrity anchor (sha3-256 of the canonical spec bytes, minted inside
+   * the circuit). Tail-appended; `undefined` on accounts predating the field.
+   */
+  specCommitments?: Uint8Array[];
 }
 
 /**
  * Decode a PrivItemChunk account:
- * 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 32 key | 64 nonces | 256 cts | 8 mint_order.
+ * 8 disc | 32 benchmark | 2 index | 1 bump | 1 parts | 32 key | 64 nonces | 256 cts | 8 mint_order
+ * [ | 128 spec_commitments (post-upgrade accounts only) ].
  */
 export function decodePrivItemChunk(data: Buffer): PrivItemChunkState {
   const len = 8 + 32 + 2 + 1 + 1 + 32 + PARTS * 16 + 8 * 32 + PARTS * 2;
@@ -174,7 +181,7 @@ export function decodePrivItemChunk(data: Buffer): PrivItemChunkState {
   for (let i = 0; i < 8; i++) ciphertexts.push(new Uint8Array(data.subarray(140 + i * 32, 172 + i * 32)));
   const mintOrder: number[] = [];
   for (let p = 0; p < PARTS; p++) mintOrder.push(data.readUInt16LE(396 + p * 2));
-  return {
+  const state: PrivItemChunkState = {
     benchmark: new PublicKey(data.subarray(8, 40)),
     index: data.readUInt16LE(40),
     partsWritten: data[43],
@@ -183,6 +190,12 @@ export function decodePrivItemChunk(data: Buffer): PrivItemChunkState {
     nonces,
     mintOrder,
   };
+  if (data.length >= len + PARTS * 32) {
+    state.specCommitments = [];
+    for (let p = 0; p < PARTS; p++)
+      state.specCommitments.push(new Uint8Array(data.subarray(len + p * 32, len + (p + 1) * 32)));
+  }
+  return state;
 }
 
 function readU128le(buf: Buffer, off: number): bigint {
@@ -213,6 +226,48 @@ export function unpackSpecs(fields: bigint[]): ItemSpec[] {
     specs.push(s);
   }
   return specs;
+}
+
+export interface ShareGrantState {
+  benchmark: PublicKey;
+  chunkIndex: number;
+  part: number;
+  viewer: Uint8Array;
+  encryptionKey: Uint8Array;
+  nonce: bigint;
+  ciphertexts: Uint8Array[];
+  sharedAt: bigint;
+  /** MPC-recomputed spec commitment — tail-appended; undefined pre-upgrade. */
+  specCommitment?: Uint8Array;
+}
+
+/**
+ * Decode a ShareGrant account:
+ * 8 disc | 32 benchmark | 2 chunk_index | 1 part | 1 bump | 32 viewer |
+ * 32 encryption_key | 16 nonce | 64 ciphertexts | 8 shared_at
+ * [ | 32 spec_commitment (post-upgrade accounts only) ].
+ * Manual decode keeps the delegate path working across the layout boundary —
+ * an Anchor `Account.fetch` under the new IDL would EOF-brick on old grants.
+ */
+export function decodeShareGrant(data: Buffer): ShareGrantState {
+  const len = 8 + 32 + 2 + 1 + 1 + 32 + 32 + 16 + 64 + 8;
+  if (data.length < len) throw new Error(`ShareGrant size mismatch: ${data.length}`);
+  const state: ShareGrantState = {
+    benchmark: new PublicKey(data.subarray(8, 40)),
+    chunkIndex: data.readUInt16LE(40),
+    part: data[42],
+    viewer: new Uint8Array(data.subarray(44, 76)),
+    encryptionKey: new Uint8Array(data.subarray(76, 108)),
+    nonce: readU128le(data, 108),
+    ciphertexts: [
+      new Uint8Array(data.subarray(124, 156)),
+      new Uint8Array(data.subarray(156, 188)),
+    ],
+    sharedAt: data.readBigInt64LE(188),
+  };
+  if (data.length >= len + 32)
+    state.specCommitment = new Uint8Array(data.subarray(len, len + 32));
+  return state;
 }
 
 /**

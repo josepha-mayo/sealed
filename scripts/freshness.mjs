@@ -81,7 +81,8 @@ const claims = [
   // artifact replay total (catalog entries + the catalog itself):
   // "all 142 artifacts", "All 142 artifact cards", "142 replayed",
   // "142 committed artifacts" — matched case-insensitively.
-  [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifacts?\s+replayed\b|(\d+)\s+replayed\b/gi, truth.artifacts],
+  // the (?<![a-z0-9]) lookbehind keeps "sha256 replayed" from counting its 256
+  [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifacts?\s+replayed\b|(?<![a-z0-9])(\d+)\s+replayed\b/gi, truth.artifacts],
   // the catalog's own line: "141 artifact(s)" — excludes itself
   [/(\d+)\s+artifact\(s\)\b/g, truth.catalog],
   // tamper exhibits: "15 tamper exhibits", "15× sealed-tamper/v1" — the

@@ -721,9 +721,11 @@ pub mod sealed {
         };
         // Tuple output: `field_0.field_0` = Enc<Shared, Pack<GenPart>>
         // (SharedEncryptedStruct<2>: ciphertexts + nonce), `field_0.field_1` =
-        // Enc<Mxe, AnswerPart> (MXEEncryptedStruct<8>).
+        // Enc<Mxe, AnswerPart> (MXEEncryptedStruct<8>), `field_0.field_2` =
+        // the public spec commitment the delegate re-hashes against.
         let enc_specs = o.field_0;
         let enc = o.field_1;
+        let spec_commit = o.field_2;
         let c = &mut ctx.accounts.chunk;
         // Stale-callback guard: after `reset_sealing` + re-queue, the OLD
         // computation's callback must not write over the new staging. The
@@ -748,7 +750,13 @@ pub mod sealed {
         let cs = part as usize * PRIV_CTS_PER_PART;
         items.ciphertexts[cs..cs + PRIV_CTS_PER_PART].copy_from_slice(&enc_specs.ciphertexts);
         items.nonces[part as usize] = enc_specs.nonce;
+        // The circuit echoes back the viewer key it encrypted to; require it
+        // to match the bank's pinned viewer. A divergent echo would corrupt
+        // the recorded key and silently break later reshare decryptions.
+        require!(enc_specs.encryption_key == ctx.accounts.benchmark.priv_viewer,
+            ErrorCode::ViewerKeyMismatch);
         items.encryption_key = enc_specs.encryption_key;
+        items.spec_commitments[part as usize] = spec_commit;
         items.parts_written |= bit;
 
         // items_root folds the *ciphertext* bytes: a running commitment to the
@@ -864,6 +872,12 @@ pub mod sealed {
             }
         };
         let reveal = &mut ctx.accounts.reveal;
+        // Two queues landing before the first callback must not double-apply:
+        // the queue-time `revealed_at == 0` gate alone admits a second
+        // in-flight computation, which would then double-count reveal_count
+        // and overwrite the part. Re-check the idempotence gate HERE so the
+        // second landing aborts instead of corrupting the spoilage count.
+        require!(reveal.revealed_at == 0, ErrorCode::PartAlreadyRevealed);
         for (k, h) in part.field_0.iter().enumerate() {
             reveal.hashes[k] = *h;
         }
@@ -953,7 +967,7 @@ pub mod sealed {
         ctx: Context<ResharePartCallback>,
         output: SignedComputationOutputs<ResharePartOutput>,
     ) -> Result<()> {
-        let enc = match output.verify_output(
+        let o = match output.verify_output(
             &ctx.accounts.cluster_account,
             &ctx.accounts.computation_account,
         ) {
@@ -963,10 +977,20 @@ pub mod sealed {
                 return Err(ErrorCode::AbortedComputation.into());
             }
         };
+        // Tuple output: `field_0.field_0` = the re-encrypted specs,
+        // `field_0.field_1` = the spec commitment recomputed inside MPC.
+        let enc = o.field_0;
         let grant = &mut ctx.accounts.grant;
+        // Same double-apply guard as reveal_part_callback: two in-flight
+        // reshares for one (bank, chunk, part, viewer) would let the second
+        // overwrite the grant's ciphertext+nonce mid-service. The overwrite
+        // is a valid re-encryption to the same viewer, but the recorded
+        // fields must reflect ONE landing — abort the second.
+        require!(grant.shared_at == 0, ErrorCode::PartAlreadyShared);
         grant.encryption_key = enc.encryption_key;
         grant.nonce = enc.nonce;
         grant.ciphertexts.copy_from_slice(&enc.ciphertexts);
+        grant.spec_commitment = o.field_1;
         grant.shared_at = Clock::get()?.unix_timestamp;
         emit!(PartReshared {
             benchmark: grant.benchmark,
@@ -1094,6 +1118,12 @@ pub mod sealed {
         outputs_root: [u8; 32],
     ) -> Result<()> {
         require!(model_id.len() <= 64, ErrorCode::NameTooLong);
+        // Self-grief guards: an empty model_id writes an unidentifiable
+        // record, and a zero outputs_root is unscorable (no leaf reaches a
+        // zero Merkle root) — both pay the run fee for nothing. Reject at
+        // registration rather than discover at scoring.
+        require!(!model_id.is_empty(), ErrorCode::EmptyModelId);
+        require!(outputs_root != [0u8; 32], ErrorCode::EmptyOutputsRoot);
         let b = &mut ctx.accounts.benchmark;
         require!(b.status == STATUS_LIVE, ErrorCode::BenchmarkNotLive);
         if b.fee_lamports > 0 {
@@ -1432,6 +1462,12 @@ pub struct PrivItemChunk {
     pub ciphertexts: [[u8; 32]; 8],
     /// Landing sequence per part (see ItemChunk.mint_order).
     pub mint_order: [u16; PARTS],
+    /// MPC-minted public commitment to each part's spec plaintext
+    /// (sha3-256("sealed/v1/speccommit\0" || 8×[a,b,c,op0,op1])). A delegate
+    /// re-hashes its decrypted specs and compares — grants become
+    /// verifiable, not just deliverable. Tail-appended; zero for banks
+    /// minted before the field existed.
+    pub spec_commitments: [[u8; 32]; PARTS],
 }
 
 /// A re-encryption of one private-bank part to a delegate's x25519 key, written
@@ -1452,6 +1488,11 @@ pub struct ShareGrant {
     pub nonce: u128,
     pub ciphertexts: [[u8; 32]; 2],
     pub shared_at: i64,
+    /// MPC-recomputed commitment to the specs this grant carries — equal to
+    /// `PrivItemChunk.spec_commitments[part]`. The delegate re-hashes its
+    /// decrypted specs and compares: a doctored exam can't pass the check.
+    /// Tail-appended; zero for grants minted before the field existed.
+    pub spec_commitment: [u8; 32],
 }
 
 /// Answer fingerprints for one part, declassified by a `reveal_part` computation
@@ -1926,7 +1967,6 @@ pub struct GenPart<'info> {
     )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
     #[account(
-        mut,
         seeds = [b"items", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
         bump = items.bump,
     )]
@@ -2157,7 +2197,7 @@ pub struct GenPartPrivateCallback<'info> {
 pub struct RevealPart<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(mut, constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
+    #[account(constraint = benchmark.authority == payer.key() @ ErrorCode::NotAuthority)]
     pub benchmark: Box<Account<'info, Benchmark>>,
     #[account(
         seeds = [b"chunk", benchmark.key().as_ref(), index.to_le_bytes().as_ref()],
@@ -2567,4 +2607,8 @@ pub enum ErrorCode {
     NothingToDrain,
     #[msg("model_hash is not sha256(run.model_id) — registry PDA does not bind this run")]
     ModelHashMismatch,
+    #[msg("model_id is empty — the run could never be attributed")]
+    EmptyModelId,
+    #[msg("outputs_root is zero — no Merkle leaf can reach it, the run is unscorable")]
+    EmptyOutputsRoot,
 }

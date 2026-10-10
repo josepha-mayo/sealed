@@ -242,7 +242,7 @@ failure; non-artifact files are skipped, not failed). Reports need
 and board cards need it to replay against the decoded accounts. The explorer's
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
-in-browser — all 187 committed artifacts driven through their own
+in-browser — all 203 committed artifacts driven through their own
 in-page check lists with live progress, ending in the bundle root.
 `chain catalog [--dir docs/evidence]` prints the evidence table of
 contents — every artifact grouped by kind with a human title;

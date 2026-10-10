@@ -2510,6 +2510,11 @@
       "code": 6041,
       "name": "NothingToDrain",
       "msg": "Account carries no lamports to drain"
+    },
+    {
+      "code": 6042,
+      "name": "ZeroCommitment",
+      "msg": "Commitment is zero — a dark position that can never be opened"
     }
   ],
   "types": [

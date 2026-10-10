@@ -1272,6 +1272,10 @@ pub mod market {
         lamports: u64,
     ) -> Result<()> {
         require!(lamports > 0, ErrorCode::ZeroAmount);
+        // A zero commitment can never be opened — the position would lock
+        // stake behind a reveal that can't exist. Reject the self-grief at
+        // the door; the stake stays with the bettor.
+        require!(commitment != [0u8; 32], ErrorCode::ZeroCommitment);
         let run = load_run(&ctx.accounts.run)?;
         require!(run.status == RUN_PENDING, ErrorCode::RunNotPending);
         require!(
@@ -2691,6 +2695,8 @@ pub enum ErrorCode {
     NotGriefedPda,
     #[msg("Account carries no lamports to drain")]
     NothingToDrain,
+    #[msg("Commitment is zero — a dark position that can never be opened")]
+    ZeroCommitment,
 }
 
 #[cfg(test)]

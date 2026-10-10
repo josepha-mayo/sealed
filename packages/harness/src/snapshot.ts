@@ -70,7 +70,19 @@ export function decodeSnapshotSection(snap: any, section: "sealed" | "market"): 
       const account: any = {};
       // This fork's coder returns snake_case field names; `.all()` consumers
       // expect camelCase — normalize so live and replay paths share one shape.
-      for (const [k, v] of Object.entries(coder.decode(hit[0], buf)))
+      // Tail-append tolerance: accounts minted before a field was added to
+      // the layout are too short for strict borsh — retry with a zero pad,
+      // which decodes the new tail fields as zero ("absent"). Only applies to
+      // a discriminator-matched account, so this can never launder a type.
+      let dec: any = null;
+      for (const pad of [0, 32, 64, 128, 256]) {
+        try {
+          dec = coder.decode(hit[0], pad ? Buffer.concat([buf, Buffer.alloc(pad)]) : buf);
+          break;
+        } catch { /* still short — pad more */ }
+      }
+      if (!dec) continue;
+      for (const [k, v] of Object.entries(dec))
         account[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = v;
       list.push({ publicKey: new PublicKey(e.pubkey), account });
       out.set(hit[0], list);

@@ -1,0 +1,52 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "phantom run — pad the Run count",
+  "targetKind": "sealed-ledger/v1",
+  "targetCard": "ledger.json",
+  "expectFail": [
+    "sealed census"
+  ],
+  "forgedAt": "2026-10-10T22:21:52.606Z",
+  "forged": {
+    "kind": "sealed-ledger/v1",
+    "generatedAt": "2026-10-10T22:21:23.934Z",
+    "source": "chain ledger --prove",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "takenAt": "2026-10-03T14:30:15.224Z",
+    "note": "Merged across 8 localnet ledger epochs (validator wipes between them). Old-epoch accounts are absent from the current chain by definition — every account still self-certifies via PDA re-derivation and MPC-signed fields; verify.mjs audits them all.",
+    "census": {
+      "sealed": {
+        "accounts": 1317,
+        "pubkeySetSha256": "2b07e5ec72b994606149a1b68df5fb79fdc834fab1283a45db75f6314a9cfb6a",
+        "kinds": {
+          "Benchmark": 120,
+          "Run": 504,
+          "ShareGrant": 145,
+          "ItemChunk": 41,
+          "AnswerChunk": 124,
+          "PrivItemChunk": 29,
+          "SignPdaAccount": 1,
+          "Reveal": 30,
+          "ScoreLog": 292,
+          "ModelRecord": 31
+        }
+      },
+      "market": {
+        "accounts": 480,
+        "pubkeySetSha256": "d10ad94f9e0fd303602c84b4bd3281e895119616bc0a930e6d64d79b134a2a0d",
+        "kinds": {
+          "Position": 137,
+          "DarkPosition": 3,
+          "Market": 208,
+          "DarkMarket": 47,
+          "Ladder": 48,
+          "Bounty": 37
+        }
+      }
+    }
+  }
+}

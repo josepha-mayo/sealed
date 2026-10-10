@@ -76,7 +76,7 @@
 <div class="nav">
   <span class="kv">ledger:</span><a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a>
   <span class="kv">proof:</span><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-tampercard" style="color:var(--warn)">lie exhibit</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#sec-catalog">catalog</a>
-  <details class="kv" style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--dim)">cards ▸</summary> <a href="#sec-claim" title="a model's portable proof card">model claim</a><a href="#sec-ceilingcard" title="proof of a negative — never scored above N%">ceiling</a><a href="#sec-circuitcard" title="the MPC itself — every Arcium circuit re-derived">circuit</a><a href="#sec-policy" title="a capability policy verdict">policy</a><a href="#sec-match" title="a head-to-head verdict card">head-to-head</a><a href="#sec-trail" title="a run's custody trail">custody</a><a href="#sec-report" title="a written audit report">report</a><a href="#sec-digest" title="the whole-ledger integrity digest">ledger digest</a><a href="#sec-boardcard" title="the leaderboard as a verifiable card">leaderboard</a><a href="#sec-bankcard" title="an exam's commitment card">exam</a><a href="#sec-poscard" title="a bettor's stake receipt">bettor</a><a href="#sec-bountycard" title="a sponsor's bounty certificate">bounty</a><a href="#sec-grantcard" title="a viewer's disclosure certificate">disclosure</a></details> <a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <details class="kv" style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--dim)">cards ▸</summary> <a href="#sec-claim" title="a model's portable proof card">model claim</a><a href="#sec-ceilingcard" title="proof of a negative — never scored above N%">ceiling</a><a href="#sec-circuitcard" title="the MPC itself — every Arcium circuit re-derived">circuit</a><a href="#sec-ledgercard" title="the nothing-up-my-sleeve census — every account disclosed">census</a><a href="#sec-policy" title="a capability policy verdict">policy</a><a href="#sec-match" title="a head-to-head verdict card">head-to-head</a><a href="#sec-trail" title="a run's custody trail">custody</a><a href="#sec-report" title="a written audit report">report</a><a href="#sec-digest" title="the whole-ledger integrity digest">ledger digest</a><a href="#sec-boardcard" title="the leaderboard as a verifiable card">leaderboard</a><a href="#sec-bankcard" title="an exam's commitment card">exam</a><a href="#sec-poscard" title="a bettor's stake receipt">bettor</a><a href="#sec-bountycard" title="a sponsor's bounty certificate">bounty</a><a href="#sec-grantcard" title="a viewer's disclosure certificate">disclosure</a></details> <a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -151,14 +151,20 @@
     <button onclick="forge('rank')">swap the #1 rank</button>
     <button onclick="forge('vouch')">un-vouch an attested receipt</button>
     <button onclick="forge('verdict')">flip a head-to-head verdict</button>
+    <button onclick="forge('movebench')">move a receipt off its run's bank</button>
     <button onclick="forge('phantom')">mint a phantom receipt</button>
     <button onclick="forge('pool')">inflate a settled pool</button>
     <button onclick="forge('counts')">re-age the ledger</button>
     <button onclick="forge('phanrun')">mint a phantom run</button>
+    <button onclick="forge('dupreveal')">duplicate a reveal</button>
+    <button onclick="forge('reseat')">re-seat a reveal at a dead chunk</button>
+    <button onclick="forge('backdate')">backdate a grant</button>
     <button onclick="forge('toc')">erase an artifact from the index</button>
     <button onclick="forge('payout')">inflate a winning stake</button>
     <button onclick="forge('claimwin')">steal the bounty</button>
     <button onclick="forge('launder')">launder receipts under a fake name</button>
+    <button onclick="forge('forgeleg')">forge a priced run</button>
+    <button onclick="forge('omitvenue')">omit a settled venue</button>
     <button onclick="forge('hidebest')">hide the argmax run</button>
     <button onclick="forge('shaveceil')">shave the ceiling</button>
     <button onclick="forge('launderceil')">launder the ceiling</button>
@@ -167,7 +173,14 @@
     <button onclick="forge('dropcirc')">retire a privacy circuit</button>
     <button onclick="forge('rekeymxe')">re-key the MXE</button>
     <button onclick="forge('forkclus')">fork the cluster</button>
+    <button onclick="forge('padruns')">pad the census</button>
+    <button onclick="forge('swapset')">swap the account set</button>
+    <button onclick="forge('redatedump')">re-date the dump</button>
     <button onclick="forge('regrant')">redirect a disclosure</button>
+    <button onclick="forge('bankrename')">redescribe the exam</button>
+    <button onclick="forge('renamemodel')">rename a model — ride its record</button>
+    <button onclick="forge('edithash')">edit the pinned claim hash</button>
+    <button onclick="forge('retitle')">retitle the report</button>
   </div>
   <div id="forgeres"></div>
 </div>
@@ -221,6 +234,15 @@
   <div><textarea id="circjson" rows="9" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-circuit/v1", &#8230;}'></textarea></div>
   <button onclick="verifyCircuit()">verify circuit</button>
   <div id="circres"></div>
+</div>
+<h2 id="sec-ledgercard">verify the ledger census — the nothing-up-my-sleeve card</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">every negative claim in this bundle — capability ceilings, leaderboard completeness, the anomalies sweep — rests on one assumption: the snapshot is the WHOLE account set, not a cherry-picked subset. A <code>sealed-ledger/v1</code> card (<code>chain ledger --prove</code> mints it) is the census: per-program account totals, per-kind discriminator counts, and a sha256 over the sorted pubkey set — all recomputed in-page from the raw bundle bytes. Hide one account and the count lies; swap the set and the hash dies. Honest scope: the census proves the dump is <em>enumerable</em> — a judge can re-derive the same set independently with <code>getProgramAccounts</code>; it doesn't pretend the chain holds nothing else, only that THIS dump discloses every account it claims to. Same checks as <code>chain ledger --verify</code>.</div>
+  <button onclick="loadLedger()">load the census card</button>
+  <span class="kv">one committed card — sha256-pinned in this bundle&#8217;s MANIFEST</span>
+  <div><textarea id="ledgerjson" rows="9" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-ledger/v1", &#8230;}'></textarea></div>
+  <button onclick="verifyLedger()">verify census</button>
+  <div id="ledgerres"></div>
 </div>
 <h2 id="sec-policy">verify a policy certificate</h2>
 <div class="card">
@@ -416,8 +438,18 @@ function parseBenchmark(d) {
     o += 4;
     if (nl > 32 || o + nl > d.length) nl = 0;
   }
-  const name = new TextDecoder().decode(d.slice(o, o + nl));
-  return { authority: b58(authority), id, status, chunkCount, chunksSealed, itemsRoot: hex(itemsRoot), feeLamports, runCount, createdAt, kind, name };
+  const name = new TextDecoder().decode(d.slice(o, o + nl)); o += nl;
+  // Privacy-bank tail (absent on pre-upgrade accounts — decodes as zero):
+  // priv_viewer pins the delegate x25519 key parts were minted for,
+  // mint_seq stamps each chunk's mint_order slot, reveal_count is the
+  // permanent declassification counter post_reveal runs are flagged from.
+  let privViewer = null, mintSeq = 0, revealCount = 0;
+  if (o + 38 <= d.length) {
+    privViewer = b58(d.slice(o, o + 32)); o += 32;
+    mintSeq = v.getUint16(o, true); o += 2;
+    revealCount = v.getUint32(o, true); o += 4;
+  }
+  return { authority: b58(authority), id, status, chunkCount, chunksSealed, itemsRoot: hex(itemsRoot), feeLamports, runCount, createdAt, kind, name, privViewer, mintSeq, revealCount };
 }
 // ItemChunk: disc8 + benchmark32 + index u16 + bump + parts_written + specs[32][5]
 // + mint_order[4]u16 (tail — callback landing sequence per part)
@@ -441,7 +473,7 @@ function parsePrivItemChunk(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
   const mintOrder = [];
   for (let p = 0; p < 4; p++) mintOrder.push(396 + p * 2 + 2 <= d.length ? v.getUint16(396 + p * 2, true) : p);
-  return {
+  const pc = {
     index: v.getUint16(40, true), partsWritten: d[43],
     encryptionKey: b58(d.slice(44, 76)),
     cts0: hex(d.slice(140, 140 + 64)), // first part's two packed ciphertexts
@@ -449,6 +481,10 @@ function parsePrivItemChunk(d) {
     ciphertexts: d.slice(140, 140 + 256), // [8]×32B — two per part
     mintOrder,
   };
+  // spec_commitments 4×32B — tail-appended on post-upgrade accounts.
+  if (d.length >= 532)
+    pc.specCommitments = [hex(d.slice(404, 436)), hex(d.slice(436, 468)), hex(d.slice(468, 500)), hex(d.slice(500, 532))];
+  return pc;
 }
 // Reveal: disc8 + benchmark32 + chunk u16 + part u8 + bump + revealed_at i64 + hashes[8]u64
 function parseReveal(d) {
@@ -465,13 +501,17 @@ function parseReveal(d) {
 function parseShareGrant(d) {
   if (d.length < 196) throw new Error("truncated ShareGrant (" + d.length + "B < 196B)");
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
-  return {
+  const g = {
     chunk: v.getUint16(40, true), part: d[42],
     viewer: b58(d.slice(44, 76)), encKey: b58(d.slice(76, 108)),
     nonce: hex(d.slice(108, 124)),
     cts: hex(d.slice(124, 188)),
     sharedAt: Number(v.getBigInt64(188, true)),
   };
+  // spec_commitment 32B — tail-appended on post-upgrade accounts; absent
+  // on the 196-byte legacy layout (no commitment, not malformed).
+  if (d.length >= 228) g.specCommitment = hex(d.slice(196, 228));
+  return g;
 }
 // ModelRecord: disc8 + model_hash32 + model_id(u32+bytes) + runs_scored u32
 // + total_correct u64 + total_items u64 + best_correct u32 + best_items u32
@@ -893,6 +933,7 @@ function applySnapshot(snap) {
   // snapshot-bound caches must not survive a different bundle — a card
   // verified against yesterday's sha would false-FAIL today.
   window.__snapSha = undefined; window.__signPda = undefined; window.__reportBoundCard = undefined;
+  window.__snapJson = snap; // the ledger census reads raw entries per section
   window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
   document.getElementById("net").textContent =
@@ -1089,11 +1130,14 @@ function renderAll(sealedAccs, marketAccs) {
       const items = (b ? b.chunkCount : r.chunkCount) * 32;
       return { r, b, items, pct: items ? (100 * r.correct) / items : 0 };
     }).sort((a, b2) => b2.pct - a.pct || Number(a.r.finalizedAt) - Number(b2.r.finalizedAt));
+    const recordIds = new Set(modelRecords.map(m => m.modelId));
     h += `<h2 id="sec-leaderboard">leaderboard — every score finalized by the MPC cluster</h2><div class="card"><table>` +
       `<tr><th>rank</th><th>model</th><th>benchmark</th><th>score</th><th>runner</th><th>run</th><th>finalized</th></tr>`;
     board.forEach((e, i) => {
+      const cardLink = recordIds.has(e.r.modelId)
+        ? ` <a class="kv" href="?card=claims/${e.r.modelId.replace(/[^a-zA-Z0-9._-]+/g, "_")}.json" title="this row is itself verifiable — replay the model's claim card">card ↗</a>` : "";
       h += `<tr${i < 3 ? ` class="top${i + 1}"` : ""}><td>#${i + 1}</td>
-        <td class="mono">${esc(e.r.modelId)}${e.r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ` <span class="pill" title="self-reported model id">unattested</span>`}${modelTag(e.r.modelId)}</td>
+        <td class="mono">${esc(e.r.modelId)}${e.r.attested ? ` <span class="pill resolved" title="benchmark authority attested this run">attested ✓</span>` : ` <span class="pill" title="self-reported model id">unattested</span>`}${modelTag(e.r.modelId)}${cardLink}</td>
         <td>${e.b ? esc(e.b.name) : short(e.r.benchmark)}</td>
         <td class="score">${e.r.correct}/${e.items} (${e.pct.toFixed(1)}%)<div class="bar"><i style="width:${e.pct}%"></i></div></td>
         <td class="mono">${short(e.r.runner)}</td>
@@ -1877,7 +1921,7 @@ function renderAll(sealedAccs, marketAccs) {
         <span class="pill ${MSTATUS[m.status] ?? "unknown"}">${MSTATUS[m.status] ?? "state " + m.status}</span>
         <span class="kv">pot <b>${pot.toFixed(3)} SOL</b></span>
         <span class="kv">acct ${link(m.pk)}</span></div>
-        <div class="proof">run ${link(m.run)}${m.duel ? ` vs ${link(m.runB)}` : ""} &middot; resolved score ${rs}${m.feeBps ? ` &middot; fee ${(m.feeBps / 100).toFixed(1)}%${m.status === 1 ? ` (${sol(m.feesAccrued)} SOL${m.feesAccrued === 0n ? " claimed" : ""})` : ""}` : ""}${m.closesAt ? ` &middot; bets close ${fmtTs(m.closesAt)}` : ""}${m.resolveBy ? ` &middot; expires ${fmtTs(m.resolveBy)}` : ""}</div>
+        <div class="proof">run ${link(m.run)}${m.duel ? ` vs ${link(m.runB)}` : ""} &middot; resolved score ${rs}${m.status === 1 ? ` &middot; settled by <a href="?pk=${m.run}" title="the score was written on-chain by the MPC cluster's callback — no operator key">MPC-written Run.correct ↗</a>` : ""}${m.feeBps ? ` &middot; fee ${(m.feeBps / 100).toFixed(1)}%${m.status === 1 ? ` (${sol(m.feesAccrued)} SOL${m.feesAccrued === 0n ? " claimed" : ""})` : ""}` : ""}${m.closesAt ? ` &middot; bets close ${fmtTs(m.closesAt)}` : ""}${m.resolveBy ? ` &middot; expires ${fmtTs(m.resolveBy)}` : ""}</div>
         <table><tr>`;
       for (let i = 0; i < n; i++) {
         const t = Number(m.totals[i]), share = pot ? (100 * t) / (pot * 1e9) : 0;
@@ -2343,6 +2387,13 @@ async function verifyClaim() {
     drv([utf8("modelrec"), hex2u8(c.record.seeds.modelHash)], spid) === c.record.pk
       ? pass("record PDA", `${short(c.record.pk)} = [modelrec, sha256(${esc(c.model.id)})]`)
       : fail("record PDA", `declared ${short(c.record.pk)} — re-derived different address`);
+    // the card's story is "these receipts belong to model X" — but the
+    // record seed is card-say-so. Re-derive it from the NAME: a card
+    // renamed to a weaker model while keeping the real record's receipts
+    // survives every self-consistency check and dies here.
+    hex(await sha(utf8(c.model.id))) === c.record.seeds.modelHash
+      ? pass("model identity", `sha256(${esc(c.model.id)}) == declared record seed`)
+      : fail("model identity", `sha256(${esc(c.model.id)}) ≠ declared seed ${String(c.record.seeds.modelHash).slice(0, 16)}… — a renamed card rides the real record's receipts`);
     const runByPk = new Map(c.runs.map(r => [r.pk, r]));
     const runOk = c.runs.filter(r => drv([utf8("run"), pkB(r.benchmark), u64le(r.index)], spid) === r.pk).length;
     runOk === c.runs.length ? pass("run PDAs", `${runOk}/${c.runs.length} re-derived`) : fail("run PDAs", `${runOk}/${c.runs.length} re-derived`);
@@ -2430,6 +2481,88 @@ async function verifyClaim() {
       tOk
         ? pass("record totals", `stored ${c.model.totalCorrect}/${c.model.totalItems} over ${c.model.runsScored} == decoded ModelRecord`)
         : fail("record totals", "declared totals contradict the on-chain ModelRecord");
+      // run account binding — the venue-replay above reads the CARD's copy
+      // of each run (incl. co-participant legs). A card could carry a
+      // self-consistent fake leg: forge duel runB's score and the packed
+      // outcome still replays. Every embedded run must exist in the
+      // snapshot and match the decoded Run fields.
+      const realRuns = new Map(A5.runs.map(r => [r.pk, r]));
+      let rBad = 0, rMiss = 0, roleBad = 0;
+      for (const r of c.runs) {
+        const real = realRuns.get(r.pk);
+        if (!real) { rMiss++; continue; }
+        if (real.benchmark !== r.benchmark || Number(real.index) !== r.index ||
+            Number(real.status) !== r.status || Number(real.correct) !== r.correct ||
+            Number(real.chunkCount) !== r.chunkCount || !!real.postReveal !== !!r.postReveal ||
+            !!real.attested !== !!r.attested) rBad++;
+        if ((r.role === "subject") !== (real.modelId === c.model.id)) roleBad++;
+      }
+      (rBad === 0 && rMiss === 0 && roleBad === 0)
+        ? pass("run account binding", `${c.runs.length}/${c.runs.length} runs == decoded Run bytes`)
+        : fail("run account binding", `${rBad + rMiss} run(s) mismatch${rMiss ? ` · ${rMiss} PHANTOM` : ""}${roleBad ? ` · ${roleBad} role lies` : ""}`);
+      // run completeness — the card must embed EVERY subject run plus every
+      // co-participant leg the true venue set needs. The set is re-derivable
+      // from the snapshot: venues touching subject runs declare their legs.
+      const subj = new Set(A5.runs.filter(r => r.modelId === c.model.id).map(r => r.pk));
+      const mkt = A5.markets ?? [], drk = A5.darkMarkets ?? [], lad = A5.ladders ?? [], bty = A5.bounties ?? [];
+      const trueVenue = new Set([
+        ...mkt.filter(a => subj.has(a.run) || (a.duel && subj.has(a.runB))).map(a => a.pk),
+        ...drk.filter(a => subj.has(a.run)).map(a => a.pk),
+        ...lad.filter(a => a.legs.slice(0, a.legCount).some(p => subj.has(p))).map(a => a.pk),
+      ]);
+      const coSet = new Set();
+      for (const a of mkt) if (trueVenue.has(a.pk)) { coSet.add(a.run); if (a.duel) coSet.add(a.runB); }
+      for (const a of drk) if (trueVenue.has(a.pk)) coSet.add(a.run);
+      for (const a of lad) if (trueVenue.has(a.pk)) for (const p of a.legs.slice(0, a.legCount)) coSet.add(p);
+      const allPks = new Set([...subj, ...coSet]);
+      const bankSet2 = new Set(A5.runs.filter(r => allPks.has(r.pk)).map(r => r.benchmark));
+      for (const a of bty) if (bankSet2.has(a.bank) || subj.has(a.winnerRun)) trueVenue.add(a.pk);
+      const wantRuns = new Set([...subj, ...[...coSet].filter(p => realRuns.has(p))]);
+      const gotRuns = new Set(c.runs.map(r => r.pk));
+      const rOmit = [...wantRuns].filter(k => !gotRuns.has(k));
+      rOmit.length === 0
+        ? pass("run completeness", `${wantRuns.size} subject+co-participant runs on-chain == ${gotRuns.size} embedded`)
+        : fail("run completeness", `${rOmit.length} run(s) OMITTED (e.g. ${short(rOmit[0])}) — a dropped leg launders the venue replay`);
+      // venue account binding + completeness — every declared venue must
+      // equal its decoded account fields, and the declared set must EQUAL
+      // the re-derived true set. Omitting a settled venue that contradicts
+      // the claim was invisible before.
+      const acctOf = (v) =>
+        v.kind === "dark" ? drk.find(a => a.pk === v.pk)
+        : v.kind === "ladder" ? lad.find(a => a.pk === v.pk)
+        : v.kind === "bounty" ? bty.find(a => a.pk === v.pk)
+        : mkt.find(a => a.pk === v.pk);
+      let vBad = 0, vMiss = 0;
+      for (const v of c.venues) {
+        const a = acctOf(v);
+        if (!a) { vMiss++; continue; }
+        const pot = a.totals ? Number(a.totals.reduce((s, t) => s + t, 0n)) : undefined;
+        const same = v.kind === "bounty"
+          ? a.bank === v.bank && a.sponsor === v.sponsor && Number(a.salt) === v.salt &&
+            Number(a.status) === v.status && Number(a.threshold) === v.threshold &&
+            Number(a.amount) === v.amount && Number(a.winningScore) === v.winningScore &&
+            a.winnerRun === v.winnerRun
+          : v.kind === "ladder"
+            ? a.legs.slice(0, a.legCount).join() === (v.legs ?? []).join() &&
+              Number(a.salt) === v.salt && Number(a.status) === v.status &&
+              Number(a.resultMask) === v.resultMask && Number(a.resolvedScore) === v.resolvedScore && pot === v.pot
+            : v.kind === "dark"
+              ? a.run === v.run && Number(a.salt) === v.salt && Number(a.status) === v.status &&
+                Number(a.outcome) === v.outcome && Number(a.resolvedScore) === v.resolvedScore &&
+                !!a.tallied === !!v.tallied && Number(a.poolTotal) === v.pool
+              : a.run === v.run && (a.duel ? a.runB : null) === v.runB &&
+                Number(a.salt) === v.salt && Number(a.status) === v.status &&
+                Number(a.outcome) === v.outcome && Number(a.resolvedScore) === v.resolvedScore && pot === v.pot;
+        if (!same) vBad++;
+      }
+      (vBad === 0 && vMiss === 0)
+        ? pass("venue account binding", `${c.venues.length}/${c.venues.length} venues == decoded account fields`)
+        : fail("venue account binding", `${vBad + vMiss} venue(s) mismatch${vMiss ? ` · ${vMiss} PHANTOM` : ""}`);
+      const gotVen = new Set(c.venues.map(v => v.pk));
+      const vOmit = [...trueVenue].filter(k => !gotVen.has(k));
+      (vOmit.length === 0 && gotVen.size === trueVenue.size)
+        ? pass("venue completeness", `${trueVenue.size} venues pricing this record on-chain == ${gotVen.size} embedded`)
+        : fail("venue completeness", `${vOmit.length} venue(s) OMITTED (e.g. ${short(vOmit[0] ?? "")})${gotVen.size !== trueVenue.size ? ` · ${gotVen.size - trueVenue.size} phantom` : ""}`);
     } else {
       // fail closed — a claim verified against no accounts is just a
       // self-consistent story. Same contract as the ceiling card.
@@ -2684,6 +2817,79 @@ async function verifyCircuit() {
   }
 }
 
+async function loadLedger() {
+  const c = await (await fetch("ledger/ledger.json")).json();
+  document.getElementById("ledgerjson").value = JSON.stringify(c, null, 2);
+}
+
+/* ---- sealed-ledger/v1 — the nothing-up-my-sleeve census. Recomputes the
+   per-program account census from the raw bundle bytes itself: discriminator-
+   kind counts + totals + a sha256 over the sorted pubkey set, then diffs the
+   card's declared census. Hiding one account, padding one count, or swapping
+   the set all die here — the same semantics the CLI's `chain ledger --verify`
+   and verify.py enforce. */
+const SEALED_CENSUS = { [DISC.benchmark]: "Benchmark", [DISC.run]: "Run", [DISC.answerChunk]: "AnswerChunk", [DISC.itemChunk]: "ItemChunk", [DISC.privItemChunk]: "PrivItemChunk", [DISC.reveal]: "Reveal", [DISC.shareGrant]: "ShareGrant", [DISC.modelRecord]: "ModelRecord", [DISC.scoreLog]: "ScoreLog", d69d7a72752cd64a: "SignPdaAccount" };
+const MARKET_CENSUS = { [DISC.market]: "Market", [DISC.ladder]: "Ladder", [DISC.position]: "Position", [DISC.darkMarket]: "DarkMarket", [DISC.darkPosition]: "DarkPosition", [DISC.bounty]: "Bounty" };
+async function censusJs(entries, kindMap) {
+  const kinds = {}; let unknown = 0;
+  const pks = [];
+  for (const e of entries ?? []) {
+    pks.push(e.pubkey);
+    const u8 = Uint8Array.from(atob(e.data), (ch) => ch.charCodeAt(0));
+    const kind = u8.length >= 8 ? kindMap[hex(u8.slice(0, 8))] : undefined;
+    if (kind) kinds[kind] = (kinds[kind] ?? 0) + 1; else unknown++;
+  }
+  if (unknown) kinds.unknown = unknown;
+  pks.sort();
+  const pubkeySetSha256 = hex(await sha(new TextEncoder().encode(pks.join("\n"))));
+  return { accounts: (entries ?? []).length, pubkeySetSha256, kinds };
+}
+async function verifyLedger() {
+  const res = document.getElementById("ledgerres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("ledgerjson").value);
+    if (c.kind !== "sealed-ledger/v1") throw new Error(`not a sealed-ledger/v1 card (kind=${c.kind})`);
+    (c.programs?.sealed === SEALED_PID.toString() && c.programs?.market === MARKET_PID.toString())
+      ? pass("program identity", `sealed ${short(c.programs.sealed)} · market ${short(c.programs.market)}`)
+      : fail("program identity", `sealed ${short(c.programs?.sealed ?? "?")} · market ${short(c.programs?.market ?? "?")} — a census of different programs proves nothing about this network`);
+    if (!window.__audit) { if (typeof runAudit === "function") runAudit(); fail("snapshot binding", "audit not run — a census verified against nothing proves nothing (run the audit first)"); }
+    else {
+      const claimed = typeof c.snapshotSha256 === "string" ? c.snapshotSha256 : "";
+      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const shaOk = claimed.length === 64 && gotSha === claimed;
+      shaOk
+        ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… — this census covers THIS dump`)
+        : fail("snapshot binding", claimed
+          ? `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${claimed.slice(0, 16)}… — this census covers a different dump`
+          : "card carries no snapshotSha256 — the census has nothing to bind to");
+      const snap = window.__snapJson;
+      const metaTaken = snap?.meta?.takenAt ?? null;
+      (c.takenAt === metaTaken)
+        ? pass("dump timestamp", `takenAt ${c.takenAt ?? "∅"}`)
+        : fail("dump timestamp", `card claims ${c.takenAt ?? "∅"} but the dump was taken ${metaTaken ?? "∅"} — a re-dated census hides staleness`);
+      for (const [section, kindMap] of [["sealed", SEALED_CENSUS], ["market", MARKET_CENSUS]]) {
+        const want = await censusJs(snap?.[section] ?? [], kindMap);
+        const got = c.census?.[section] ?? {};
+        const kindBad = [...new Set([...Object.keys(want.kinds), ...Object.keys(got.kinds ?? {})])]
+          .filter((k) => (got.kinds?.[k] ?? 0) !== want.kinds[k]);
+        const bad = (got.accounts !== want.accounts ? 1 : 0) + (got.pubkeySetSha256 !== want.pubkeySetSha256 ? 1 : 0) + kindBad.length;
+        (bad === 0 && shaOk)
+          ? pass(`${section} census`, `${want.accounts} accounts · ${Object.keys(want.kinds).length} kind(s) — every raw entry classified, pubkey-set sha256 replays`)
+          : fail(`${section} census`, `MISMATCH${got.accounts !== want.accounts ? ` total ${got.accounts}≠${want.accounts}` : ""}${got.pubkeySetSha256 !== want.pubkeySetSha256 ? " pubkey-set hash" : ""}${kindBad.length ? ` kinds ${kindBad.join(",")}` : ""} — a hidden or phantom account moves this number`);
+      }
+    }
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    const total = (c.census?.sealed?.accounts ?? 0) + (c.census?.market?.accounts ?? 0);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "LEDGER VERIFIED" : "LEDGER FAILED"}</b> — ${total} accounts censused across both programs</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
 async function loadCert(file) {
   const ta = document.getElementById("certjson");
   try {
@@ -2710,7 +2916,7 @@ loadCertIndex();
 // sealed-policy/v1 verifier — mirrors `chain gate --certify-verify`:
 // every record PDA re-derives, evalGate replays each verdict bit-exact
 // from the embedded receipts, and the stored summary re-checks.
-function verifyCert() {
+async function verifyCert() {
   const res = document.getElementById("certres");
   const rows = [];
   const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
@@ -2738,9 +2944,14 @@ function verifyCert() {
         (p.minWilsonPct === undefined || p.minWilsonPct === null || wilson(correct, items) >= p.minWilsonPct);
       return { pass: ok, reason: ok ? "pass" : "policy", runs, items, correct, pct, postRevealRuns };
     };
-    let pdaOk = 0, vOk = 0;
+    let pdaOk = 0, vOk = 0, idOk = 0;
     for (const m of c.models) {
       if (pdaB([utf8("modelrec"), hex2u8(m.seeds.modelHash)], spid) === m.recordPk) pdaOk++;
+      // the cert's only payload is the name→verdict mapping — a renamed
+      // model launders a failing record onto a competitor. The declared
+      // name must hash to the declared seed (free, offline) AND equal the
+      // decoded account's modelId when a snapshot is bound (below).
+      if (typeof m.modelId === "string" && hex(await sha(utf8(m.modelId))) === m.seeds.modelHash) idOk++;
       const v = evalGateIn(m.receipts || []);
       const w = m.verdict;
       if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) <= 0.01 &&
@@ -2749,6 +2960,9 @@ function verifyCert() {
     }
     pdaOk === c.models.length ? pass("record PDAs", `${pdaOk}/${c.models.length} re-derived from [modelrec, sha256(model_id)]`)
       : fail("record PDAs", `${pdaOk}/${c.models.length} re-derived`);
+    idOk === c.models.length
+      ? pass("model identity", `${idOk}/${c.models.length} declared modelIds hash to their declared modelHash seeds — a rename can't ride another record's evidence`)
+      : fail("model identity", `${idOk}/${c.models.length} declared modelIds hash to their declared modelHash seeds`);
     vOk === c.models.length ? pass("verdict replay", `${vOk}/${c.models.length} verdicts recomputed from embedded receipts (pass/reason exact, pct within 0.01pp)`)
       : fail("verdict replay", `${vOk}/${c.models.length} verdicts recomputed`);
     const s = c.summary;
@@ -2769,6 +2983,7 @@ function verifyCert() {
     if (!A) {
       fail("receipt binding", "audit not run — a cert verified against nothing proves nothing (run the audit first)");
       fail("record-set completeness", "audit not run — completeness needs the decoded account set");
+      fail("account modelId", "audit not run — name binding needs the decoded ModelRecords");
     } else {
       const bankSet = p.bank ? new Set(A.benches.filter(b => b.pk === p.bank || b.name === p.bank).map(b => b.pk)) : null;
       const scoped = bankSet ? A.scoreLogs.filter(l => bankSet.has(l.benchmark)) : A.scoreLogs;
@@ -2796,6 +3011,14 @@ function verifyCert() {
       (missing.length === 0 && phantom.length === 0)
         ? pass("record-set completeness", `${truePks.size} ModelRecords on-chain == ${c.models.length} listed`)
         : fail("record-set completeness", `${missing.length} omitted · ${phantom.length} phantom`);
+      // account-level name binding — sha→seed alone isn't enough (the
+      // seeds are self-declared too). The declared modelId must equal the
+      // decoded ModelRecord's model_id.
+      const recByPk = new Map(A.modelRecords.map(r => [r.pk, r.modelId]));
+      const nameBad = c.models.filter(m => recByPk.has(m.recordPk) && recByPk.get(m.recordPk) !== m.modelId).length;
+      nameBad === 0
+        ? pass("account modelId", `${c.models.length}/${c.models.length} declared names == decoded ModelRecord.model_id`)
+        : fail("account modelId", `${nameBad}/${c.models.length} declared names ≠ the account's model_id — a renamed model rides a borrowed record`);
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CERT VERIFIED" : "CERT FAILED"}</b> — ${c.models.length} records · policy: ${esc(JSON.stringify(p))}</div>`);
@@ -2831,7 +3054,7 @@ loadMatchIndex();
 // sealed-match/v1 verifier — mirrors `chain compare --match-verify`:
 // both record PDAs, every bank/run/receipt PDA re-derived, the per-bank
 // aggregates recomputed from embedded receipts, the verdict replayed.
-function verifyMatch() {
+async function verifyMatch() {
   const res = document.getElementById("matchres");
   const rows = [];
   const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
@@ -2848,6 +3071,14 @@ function verifyMatch() {
     pdaB([utf8("modelrec"), hex2u8(c.b.seeds.modelHash)], spid) === c.b.recordPk
       ? pass("record PDA b", `${c.b.recordPk.slice(0, 12)}… = [modelrec, sha256(${esc(c.b.id)})]`)
       : fail("record PDA b", `${c.b.recordPk.slice(0, 12)}… ≠ [modelrec, sha256(${esc(c.b.id)})]`);
+    // the seeds are self-declared too — a card can carry a consistent
+    // (modelHash, recordPk) pair while renaming the model. The declared
+    // name must hash to the declared seed, free and offline, or the PDAs
+    // above prove seed-consistency only.
+    const hashA = hex(await sha(utf8(c.a.id ?? ""))), hashB = hex(await sha(utf8(c.b.id ?? "")));
+    (hashA === c.a.seeds.modelHash && hashB === c.b.seeds.modelHash)
+      ? pass("model identity", "declared ids hash to their declared seeds")
+      : fail("model identity", "a declared model id does NOT hash to its declared modelHash seed — a renamed model rides a borrowed record");
     const bankOk = c.banks.filter(b => pdaB([utf8("benchmark"), pkB(b.authority), u32le(b.id)], spid) === b.pk).length;
     bankOk === c.banks.length ? pass("bank PDAs", `${bankOk}/${c.banks.length} re-derived`)
       : fail("bank PDAs", `${bankOk}/${c.banks.length} re-derived`);
@@ -2858,6 +3089,16 @@ function verifyMatch() {
     const logOk = allRec.filter(l => pdaB([utf8("scorelog"), pkB(l.run)], spid) === l.pk).length;
     logOk === allRec.length ? pass("receipt PDAs", `${logOk}/${allRec.length} re-derived`)
       : fail("receipt PDAs", `${logOk}/${allRec.length} re-derived`);
+    // a receipt's bank must equal the bank of the run it cites — the run's
+    // benchmark is already PDA-bound above, so this closes the offline hole
+    // where a receipt moved to an unlisted bank drops out of the pooled
+    // aggregates and launders the verdict. A receipt citing an undeclared
+    // run is misbound.
+    const runBank = new Map(c.runs.map(r => [r.pk, r.benchmark]));
+    const misbound = allRec.filter(l => runBank.get(l.run) !== l.benchmark).length;
+    misbound === 0
+      ? pass("receipt-bank binding", `${allRec.length}/${allRec.length} receipts bound to their run's PDA-proven bank`)
+      : fail("receipt-bank binding", `${misbound}/${allRec.length} receipts cite a bank their run never ran on — moved to launder the pools`);
     const bankPks = new Set(c.banks.map(b => b.pk));
     const agg = (ls) => {
       const m = new Map();
@@ -2991,6 +3232,7 @@ async function renderCatalog() {
     "sealed-claim/v1": "a model's whole evidentiary record",
     "sealed-ceiling/v1": "proof of a negative — the model's true cap",
     "sealed-circuit/v1": "the MPC itself — every Arcium circuit re-derived",
+    "sealed-ledger/v1": "the nothing-up-my-sleeve census — every account disclosed",
     "sealed-policy/v1": "a governance decision + its receipts",
     "sealed-match/v1": "a portable head-to-head",
     "sealed-trail/v1": "proof the money followed the MPC score",
@@ -3040,7 +3282,7 @@ async function verifyCatalog() {
   ck("kind", doc.kind === "sealed-catalog/v1");
   const listed = new Set((doc.artifacts ?? []).map(a => a.path));
   const expected = new Set();
-  for (const dir of ["claims", "ceilings", "circuit", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants", "tamper"]) {
+  for (const dir of ["claims", "ceilings", "circuit", "ledger", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants", "tamper"]) {
     try { for (const f of await (await fetch(`${dir}/index.json`)).json()) expected.add(`${dir}/${f}`); } catch {}
   }
   for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); } catch {} }
@@ -3197,6 +3439,7 @@ function verifyAnyArtifact() {
       "sealed-claim/v1": ["claimjson", "sec-claim", verifyClaim],
       "sealed-ceiling/v1": ["ceiljson", "sec-ceilingcard", verifyCeiling],
       "sealed-circuit/v1": ["circjson", "sec-circuitcard", verifyCircuit],
+      "sealed-ledger/v1": ["ledgerjson", "sec-ledgercard", verifyLedger],
       "sealed-policy/v1": ["certjson", "sec-policy", verifyCert],
       "sealed-match/v1": ["matchjson", "sec-match", verifyMatch],
       "sealed-trail/v1": ["trailjson", "sec-trail", verifyTrail],
@@ -3255,6 +3498,7 @@ async function replayBundle() {
     ["claims", "claimjson", "claimres", verifyClaim, "sealed-claim/v1"],
     ["ceilings", "ceiljson", "ceilres", verifyCeiling, "sealed-ceiling/v1"],
     ["circuit", "circjson", "circres", verifyCircuit, "sealed-circuit/v1"],
+    ["ledger", "ledgerjson", "ledgerres", verifyLedger, "sealed-ledger/v1"],
     ["policies", "certjson", "certres", verifyCert, "sealed-policy/v1"],
     ["matches", "matchjson", "matchres", verifyMatch, "sealed-match/v1"],
     ["trails", "trailjson", "trailres", verifyTrail, "sealed-trail/v1"],
@@ -3919,7 +4163,7 @@ async function verifyBank() {
         real.name !== c.bank.name || real.kind !== c.bank.kind ||
         real.chunkCount !== c.bank.chunkCount || real.chunksSealed !== c.bank.chunksSealed ||
         real.itemsRoot !== c.bank.itemsRoot || !cmp(real.feeLamports, c.bank.feeLamports) ||
-        !cmp(real.runCount, c.bank.runCount) || (A.reveals.filter(r => r.bench === c.bank.pk).length) !== c.bank.revealCount ||
+        !cmp(real.runCount, c.bank.runCount) || !cmp(real.revealCount ?? 0, c.bank.revealCount) ||
         real.createdAt !== c.bank.createdAt || real.status !== c.bank.status;
       !bad ? pass("bank fields", "authority · id · name · kind · counts · items_root · fee · status all equal the decoded account")
         : fail("bank fields", "declared bank fields differ from the decoded Benchmark account");
@@ -3943,17 +4187,34 @@ async function verifyBank() {
         : fail("run surface", `${rBad} run(s) mismatch — ${rBound}/${(c.runs ?? []).length} field-bound`);
     }
 
-    // [6] disclosure surface — reveals + grants re-derive, counts complete.
+    // [6] disclosure surface — reveals + grants re-derive and enumerate
+    // completely: the card claims "this is EVERYTHING disclosed on this
+    // exam". Exact pk sets + field binding, not counts — a duplicated
+    // real reveal waves a missing one past a count, a phantom re-derives
+    // a clean PDA for an account that doesn't exist.
     {
       let dBad = 0;
       for (const r of c.reveals ?? [])
         if (pdaB([utf8("reveal"), pkB(c.bank.pk), u16(r.chunkIndex), new Uint8Array([r.part])], spid) !== r.pk) dBad++;
       for (const g of c.grants ?? [])
         if (pdaB([utf8("grant"), pkB(c.bank.pk), u16(g.chunkIndex), new Uint8Array([g.part]), pkB(g.viewer)], spid) !== g.pk) dBad++;
-      if (A.reveals.filter(r => r.bench === c.bank.pk).length !== (c.reveals ?? []).length) dBad++;
-      if (A.grants.filter(g => g.bench === c.bank.pk).length !== (c.grants ?? []).length) dBad++;
+      const realR = new Map(A.reveals.filter(x => x.bench === c.bank.pk).map(x => [x.pk, x]));
+      const realG = new Map(A.grants.filter(x => x.bench === c.bank.pk).map(x => [x.pk, x]));
+      const cR = c.reveals ?? [], cG = c.grants ?? [];
+      if (new Set(cR.map(r => r.pk)).size !== cR.length) dBad++;
+      if (new Set(cG.map(g => g.pk)).size !== cG.length) dBad++;
+      const setEq = (want, got) => want.size === got.length && got.every(x => want.has(x.pk));
+      if (!setEq(realR, cR) || !setEq(realG, cG)) dBad++;
+      for (const r of cR) {
+        const a = realR.get(r.pk);
+        if (!a || a.chunk !== r.chunkIndex || a.part !== r.part || a.revealedAt !== r.revealedAt) dBad++;
+      }
+      for (const g of cG) {
+        const a = realG.get(g.pk);
+        if (!a || a.chunk !== g.chunkIndex || a.part !== g.part || a.viewer !== g.viewer || a.sharedAt !== g.sharedAt) dBad++;
+      }
       dBad === 0
-        ? pass("disclosure surface", `${(c.reveals ?? []).length} reveals + ${(c.grants ?? []).length} grants — PDAs re-derive · counts complete`)
+        ? pass("disclosure surface", `${cR.length} reveals + ${cG.length} grants — PDAs re-derive · exact sets · field-bound`)
         : fail("disclosure surface", `${dBad} disclosure row(s) mismatch`);
     }
 
@@ -4267,6 +4528,15 @@ async function verifyGrant() {
       ok ? pass("bank semantics", `${esc(realBank?.name ?? c.bank.name)} kind=2 — ciphertext-only exam; the questions moved without publishing`)
         : fail("bank semantics", "grant/bank mismatch, or the bank isn't a private ciphertext exam");
     }
+    // [4b] the bank block is card-say-so until it's bound — a forged card
+    // could claim kind=2 on an authored bank or a fake items_root.
+    {
+      const realBank = A.benches.find(b => b.pk === c.grant.benchmark);
+      (c.bank && realBank && realBank.name === c.bank.name && Number(realBank.kind) === Number(c.bank.kind) &&
+        realBank.itemsRoot === c.bank.itemsRoot)
+        ? pass("bank account binding", "card's bank block == decoded Benchmark (name · kind · items_root)")
+        : fail("bank account binding", "declared bank name/kind/items_root differ from the decoded Benchmark");
+    }
     // [5] panel tally — re-derived from the snapshot, not the card.
     if (A.grants) {
       const onBank = A.grants.filter(g => g.bench === c.grant.benchmark);
@@ -4313,12 +4583,15 @@ async function verifyTamper() {
   try {
     const c = JSON.parse(document.getElementById("tamperjson").value);
     if (c.kind !== "sealed-tamper/v1") throw new Error(`not a sealed-tamper/v1 exhibit (kind=${c.kind ?? "?"})`);
-    const f = c.forged;
-    if (!f || f.kind !== c.targetKind) throw new Error("exhibit carries no forged target card");
+    const isMd = typeof c.forgedMd === "string";
+    const f = isMd ? { kind: c.targetKind } : c.forged;
+    if (!isMd && (!f || f.kind !== c.targetKind)) throw new Error("exhibit carries no forged target card");
     const INNER = {
+      "sealed-report/v1": ["reportjson", "reportres", verifyReport],
       "sealed-claim/v1": ["claimjson", "claimres", verifyClaim],
       "sealed-ceiling/v1": ["ceiljson", "ceilres", verifyCeiling],
       "sealed-circuit/v1": ["circjson", "circres", verifyCircuit],
+      "sealed-ledger/v1": ["ledgerjson", "ledgerres", verifyLedger],
       "sealed-policy/v1": ["certjson", "certres", verifyCert],
       "sealed-match/v1": ["matchjson", "matchres", verifyMatch],
       "sealed-trail/v1": ["trailjson", "trailres", verifyTrail],
@@ -4335,7 +4608,7 @@ async function verifyTamper() {
     const [taId, resId, fn] = r;
     const ta = document.getElementById(taId), inner = document.getElementById(resId);
     const savedTa = ta.value, savedHtml = inner.innerHTML;
-    ta.value = JSON.stringify(f, null, 2);
+    ta.value = isMd ? c.forgedMd : JSON.stringify(f, null, 2);
     inner.innerHTML = "";
     let verdictHtml = "", threw = "";
     try { await fn(); verdictHtml = inner.innerHTML; }
@@ -4374,11 +4647,65 @@ const FORGE_DEFS = {
              mutate: (c) => { const l = c.models.flatMap((m) => m.receipts).find((x) => x.vouched === 1); l.vouched = 0; return c; } },
   verdict: { label: "flip a head-to-head verdict", file: "matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json", ta: "matchjson", res: "matchres", sec: "sec-match", verify: verifyMatch,
              mutate: (c) => { c.verdict.winner = c.verdict.winner === "a" ? "b" : "a"; return c; } },
+  movebench:{ label: "move a receipt off its run's bank", file: "matches/dark_model-a-vs-duel_model-a.json", ta: "matchjson", res: "matchres", sec: "sec-match", verify: verifyMatch,
+             mutate: (c) => {
+               // re-seat a receipt on a different declared bank — the card's
+               // own aggregates still replay; only the run's PDA-proven bank
+               // (and the decoded ScoreLog) catch it.
+               const l = (c.receipts?.a ?? []).find(l => (c.banks?.length ?? 0) > 1 && l.benchmark !== c.banks[c.banks.length - 1].pk);
+               if (l) l.benchmark = c.banks[c.banks.length - 1].pk;
+               return c; } },
   phantom: { label: "mint a phantom receipt", file: "claims/qwen2.5-3b-instruct.json", ta: "claimjson", res: "claimres", sec: "sec-claim", verify: verifyClaim,
              mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0]));
                r.pk = r.pk.slice(0, -1) + (r.pk.endsWith("x") ? "y" : "x"); c.receipts.push(r); return c; } },
   launder: { label: "launder real receipts under a fake name", file: "claims/qwen2.5-3b-instruct.json", ta: "claimjson", res: "claimres", sec: "sec-claim", verify: verifyClaim,
              mutate: (c) => { c.model.id = "gpt-9000-ultra"; return c; } },
+  forgeleg:{ label: "forge a priced run — rewrite the leg the venue scored", file: "claims/dark_model-a.json", ta: "claimjson", res: "claimres", sec: "sec-claim", verify: verifyClaim,
+             mutate: (c) => {
+               // bump the score of a run a resolved venue priced — co-
+               // participant preferred (the verdict-bearing lie), else any
+               // priced run — then re-derive the venue's stored outcome so
+               // the card stays internally consistent. Only snapshot-bound
+               // account fields catch the lie.
+               const priced = new Set();
+               for (const v of c.venues ?? []) {
+                 if (v.status !== 1) continue;
+                 if (v.run) priced.add(v.run);
+                 if (v.runB) priced.add(v.runB);
+                 for (const p of v.legs ?? []) priced.add(p);
+               }
+               const leg = (c.runs ?? []).find(r => r.role === "co-participant" && priced.has(r.pk))
+                 ?? (c.runs ?? []).find(r => priced.has(r.pk));
+               if (!leg) return c;
+               leg.correct += 1;
+               const runOf = (p) => (c.runs ?? []).find(r => r.pk === p);
+               for (const v of c.venues ?? []) {
+                 if (v.status !== 1) continue;
+                 if (v.kind === "duel") {
+                   const a = runOf(v.run), b = runOf(v.runB);
+                   if (a && b) {
+                     v.resolvedScore = (a.correct << 16) | b.correct;
+                     v.outcome = a.correct > b.correct ? 0 : a.correct < b.correct ? 1 : 2;
+                   }
+                 } else if (v.kind === "ladder") {
+                   const legs = (v.legs ?? []).map(runOf);
+                   const best = Math.max(...legs.map(r => r?.correct ?? 0));
+                   v.resolvedScore = best;
+                   v.resultMask = legs.reduce((s, r, i) => s + (r?.correct === best ? (1 << i) : 0), 0);
+                 } else if (v.kind === "bounty" && v.winnerRun === leg.pk) {
+                   v.winningScore = leg.correct;
+                 } else if (v.run === leg.pk) {
+                   v.resolvedScore = leg.correct;
+                 }
+               }
+               return c; } },
+  omitvenue:{ label: "omit a settled venue — hide the loss", file: "claims/dark_model-a.json", ta: "claimjson", res: "claimres", sec: "sec-claim", verify: verifyClaim,
+             mutate: (c) => {
+               const i = (c.venues ?? []).findIndex(v => v.status === 1);
+               if (i < 0) return c;
+               c.venues.splice(i, 1);
+               if (c.verdicts) { c.verdicts.venuesResolved -= 1; c.verdicts.venuesPriced -= 1; }
+               return c; } },
   pool:    { label: "inflate a settled pool", file: "trails/qwen3b-ladder-deadheat.json", ta: "trailjson", res: "trailres", sec: "sec-trail", verify: verifyTrail,
              mutate: (c) => { c.venues[0].poolTotal += 1; return c; } },
   counts:  { label: "re-age the ledger", file: "digest.json", ta: "digestjson", res: "digestres", sec: "sec-digest", verify: verifyDigest,
@@ -4386,6 +4713,33 @@ const FORGE_DEFS = {
   phanrun: { label: "mint a phantom run on an exam", file: "banks/sealed-gen.json", ta: "bankjson", res: "bankres", sec: "sec-bankcard", verify: verifyBank,
              mutate: (c) => { const r = JSON.parse(JSON.stringify(c.runs[0]));
                r.index = 999; r.pk = r.pk.slice(0, -1) + (r.pk.endsWith("x") ? "y" : "x"); c.runs.push(r); return c; } },
+  dupreveal:{ label: "duplicate a reveal — pad the disclosure count", file: "banks/sealed-test.json", ta: "bankjson", res: "bankres", sec: "sec-bankcard", verify: verifyBank,
+             mutate: (c) => {
+               c.reveals ??= []; c.grants ??= [];
+               if (c.reveals.length) { c.reveals.push(JSON.parse(JSON.stringify(c.reveals[0]))); return c; }
+               // nothing to dup — fabricate a phantom whose PDA still
+               // re-derives: the count check would pass; only the exact
+               // set catches it.
+               const pk = pdaB([utf8("reveal"), pkB(c.bank.pk), u16b(Number(c.bank.chunkCount) + 7), Uint8Array.of(0)], new PK(c.programs.sealed));
+               c.reveals.push({ pk, chunkIndex: Number(c.bank.chunkCount) + 7, part: 0, revealedAt: 1700000000 });
+               return c; } },
+  reseat:  { label: "re-seat a reveal at a chunk that never opened", file: "banks/sealed-test.json", ta: "bankjson", res: "bankres", sec: "sec-bankcard", verify: verifyBank,
+             mutate: (c) => {
+               c.reveals ??= []; c.grants ??= [];
+               const r = c.reveals[0];
+               if (r) { r.chunkIndex = Number(c.bank.chunkCount) + 7; r.revealedAt += 1; return c; }
+               const pk = pdaB([utf8("reveal"), pkB(c.bank.pk), u16b(Number(c.bank.chunkCount) + 7), Uint8Array.of(0)], new PK(c.programs.sealed));
+               c.reveals.push({ pk, chunkIndex: Number(c.bank.chunkCount) + 7, part: 0, revealedAt: 1700000000 });
+               return c; } },
+  backdate:{ label: "backdate a grant — pretend the viewer came early", file: "banks/sealed-priv.json", ta: "bankjson", res: "bankres", sec: "sec-bankcard", verify: verifyBank,
+             mutate: (c) => {
+               c.reveals ??= []; c.grants ??= [];
+               const g = c.grants[0];
+               if (g) { g.sharedAt -= 86400; return c; }
+               // no grants to re-date — fabricate one to the bank's own authority.
+               const pk = pdaB([utf8("grant"), pkB(c.bank.pk), u16b(0), Uint8Array.of(0), pkB(c.bank.authority)], new PK(c.programs.sealed));
+               c.grants.push({ pk, chunkIndex: 0, part: 0, viewer: c.bank.authority, sharedAt: 1700000000 });
+               return c; } },
   toc:     { label: "erase an artifact from the index", file: "artifacts.json", ta: "catalogjson", res: "catres", sec: "sec-catalog", verify: verifyCatalog,
              mutate: (c) => { c.artifacts.splice(3, 1); c.count -= 1; return c; } },
   claimwin:{ label: "steal the bounty", file: "bounties/claimed-20of32.json", ta: "bountyjson", res: "bountyres", sec: "sec-bountycard", verify: verifyBounty,
@@ -4401,6 +4755,16 @@ const FORGE_DEFS = {
     mutate: (c) => { delete c.snapshotSha256; return c; } },
   regrant: { label: "redirect a disclosure", file: "grants/sealed-priv-panel.json", ta: "grantjson", res: "grantres", sec: "sec-grantcard", verify: verifyGrant,
     mutate: (c) => { const v = c.grant.viewer; c.grant.viewer = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x"); c.grant.seeds.viewer = c.grant.viewer; return c; } },
+  bankrename:{ label: "redescribe the exam — rename the bank block", file: "grants/sealed-priv-first.json", ta: "grantjson", res: "grantres", sec: "sec-grantcard", verify: verifyGrant,
+    mutate: (c) => { if (c.bank) c.bank.name = "some-other-exam"; return c; } },
+  renamemodel:{ label: "rename a model — ride its own record", file: "policies/min60-3runs.json", ta: "certjson", res: "certres", sec: "sec-policy", verify: verifyCert,
+    mutate: (c) => {
+      // keep recordPk + modelHash, change only the name — the cert's whole
+      // payload is the name→verdict mapping, so the name must be bound to
+      // the seed AND the account, not just declared.
+      const m = (c.models ?? []).find(m => !m.verdict?.pass) ?? (c.models ?? [])[0];
+      if (m) m.modelId = `${m.modelId}-2`;
+      return c; } },
   payout:  { label: "inflate a winning stake", file: "positions/winning-band.json", ta: "posjson", res: "posres", sec: "sec-poscard", verify: verifyPosition,
              mutate: (c) => { c.stake.amounts[1] = "900000000"; c.verdict.estPayout = "999000000"; c.verdict.staked = "930000000"; return c; } },
   reroute: { label: "reroute the scoring circuit to a phantom pda", file: "circuit/arcium-devnet.json", ta: "circjson", res: "circres", sec: "sec-circuitcard", verify: verifyCircuit,
@@ -4411,6 +4775,20 @@ const FORGE_DEFS = {
     mutate: (c) => { c.mxe.pda = c.signPda; return c; } },
   forkclus:{ label: "fork the cluster — re-home the circuits to offset 0", file: "circuit/arcium-devnet.json", ta: "circjson", res: "circres", sec: "sec-circuitcard", verify: verifyCircuit,
     mutate: (c) => { c.cluster.offset = 0; return c; } },
+  shavecensus:{ label: "hide a bank — shave the Benchmark census", file: "ledger/ledger.json", ta: "ledgerjson", res: "ledgerres", sec: "sec-ledgercard", verify: verifyLedger,
+    mutate: (c) => { c.census.sealed.kinds.Benchmark -= 1; return c; } },
+  padruns:{ label: "phantom run — pad the Run count", file: "ledger/ledger.json", ta: "ledgerjson", res: "ledgerres", sec: "sec-ledgercard", verify: verifyLedger,
+    mutate: (c) => { c.census.sealed.kinds.Run += 1; c.census.sealed.accounts += 1; return c; } },
+  swapset:{ label: "launder the set — swap the pubkey-set hash", file: "ledger/ledger.json", ta: "ledgerjson", res: "ledgerres", sec: "sec-ledgercard", verify: verifyLedger,
+    mutate: (c) => { c.census.sealed.pubkeySetSha256 = "00" + c.census.sealed.pubkeySetSha256.slice(2); return c; } },
+  redatedump:{ label: "re-date the dump — claim a fresh census", file: "ledger/ledger.json", ta: "ledgerjson", res: "ledgerres", sec: "sec-ledgercard", verify: verifyLedger,
+    mutate: (c) => { c.takenAt = new Date().toISOString(); return c; } },
+  edithash:{ label: "edit the pinned claim hash", file: "reports/qwen2.5-3b-instruct.md", ta: "reportjson", res: "reportres", sec: "sec-report", verify: verifyReport,
+    mutateText: (raw) => raw.replace(/claim-card content sha256 `([0-9a-f]{64})`/, (_m, h) =>
+      `claim-card content sha256 \`${"0".repeat(63)}${h.endsWith("0") ? "1" : "0"}\``) },
+  retitle:{ label: "retitle the report — bind a different model", file: "reports/qwen2.5-3b-instruct.md", ta: "reportjson", res: "reportres", sec: "sec-report", verify: verifyReport,
+    mutateText: (raw) => raw.replace(/^(# Capability report — )(.+)$/m, (_m, pre, name) =>
+      `${pre}${name.trim() === "llama-3.2-1b-instruct" ? "qwen2.5-3b-instruct" : "llama-3.2-1b-instruct"}`) },
 };
 const __forgeOut = {};
 async function forge(k) {
@@ -4418,8 +4796,10 @@ async function forge(k) {
   __forgeOut[k] = { label: d.label, sec: d.sec, state: "running…" };
   renderForge();
   try {
-    const c = JSON.parse(await (await fetch(d.file)).text());
-    document.getElementById(d.ta).value = JSON.stringify(d.mutate(c));
+    const raw = await (await fetch(d.file)).text();
+    document.getElementById(d.ta).value = d.mutateText
+      ? d.mutateText(raw)
+      : JSON.stringify(d.mutate(JSON.parse(raw)));
     await d.verify();
     const m = (document.getElementById(d.res).innerHTML ?? "")
       .match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
@@ -5313,6 +5693,68 @@ function runWhy() {
   out.innerHTML = `<pre class="kv" style="font-size:11px;margin:0">policy envelope — ${name(rec)}\n${rowsHtml}\n${gaps.length ? "binding: " + gaps.join("; ") : "binding: none — the registry can set any threshold"}</pre>`;
 }
 
+// Receipt-scoped head-to-head — mirrors `chain compare` in chain.ts exactly:
+// ScoreLogs joined by benchmark, per-bank paired deltas, pooled shared-item
+// verdict. Disjoint coverage reports "unrankable", never an aggregate lie.
+function runCompare() {
+  const out = document.getElementById("cmpOut");
+  const a = window.__audit || {};
+  const pkA = document.getElementById("cmpA").value, pkB = document.getElementById("cmpB").value;
+  if (pkA === pkB) { out.innerHTML = "pick two different records"; return; }
+  const recA = (a.modelRecords || []).find(m => m.pk === pkA), recB = (a.modelRecords || []).find(m => m.pk === pkB);
+  const name = r => r ? esc(r.modelId) : "?";
+  const byBank = pk => {
+    const m = new Map();
+    for (const l of a.scoreLogs || []) {
+      if (l.modelRecord !== pk) continue;
+      const e = m.get(l.benchmark) || { correct: 0, items: 0, runs: 0 };
+      e.correct += l.correct; e.items += l.items; e.runs++;
+      m.set(l.benchmark, e);
+    }
+    return m;
+  };
+  const mA = byBank(pkA), mB = byBank(pkB);
+  const shared = [...mA.keys()].filter(k => mB.has(k));
+  if (!shared.length) {
+    out.innerHTML = `<span class="pill cancelled">UNRANKABLE</span> no shared benchmark — ` +
+      `${name(recA)} covered ${mA.size} bank(s), ${name(recB)} ${mB.size}, disjoint. ` +
+      `aggregate leaderboards would still rank them — shared evidence won't.`;
+    return;
+  }
+  const rows = shared.map(k => {
+    const ea = mA.get(k), eb = mB.get(k);
+    const bench = (a.benches || []).find(b => b.pk === k);
+    const pa = ea.items ? 100 * ea.correct / ea.items : 0, pb = eb.items ? 100 * eb.correct / eb.items : 0;
+    return { k, name: bench ? bench.name : k.slice(0, 8), ea, eb, pa, pb, d: pa - pb };
+  }).sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
+  const sA = rows.reduce((s, r) => s + r.ea.correct, 0), sAi = rows.reduce((s, r) => s + r.ea.items, 0);
+  const sB = rows.reduce((s, r) => s + r.eb.correct, 0), sBi = rows.reduce((s, r) => s + r.eb.items, 0);
+  const pA = sAi ? 100 * sA / sAi : 0, pB = sBi ? 100 * sB / sBi : 0;
+  const wA = rows.filter(r => r.d > 0).length, wB = rows.filter(r => r.d < 0).length, ties = rows.length - wA - wB;
+  const verdict = pA === pB ? null : pA > pB ? name(recA) : name(recB);
+  out.innerHTML = `<span class="pill ${verdict ? "resolved" : ""}">${verdict ? `${verdict} +${Math.abs(pA - pB).toFixed(1)}pp` : "TIE"}</span> ` +
+    `${shared.length} shared bank(s) — pooled ${sA}/${sAi} (${pA.toFixed(1)}%) vs ${sB}/${sBi} (${pB.toFixed(1)}%); ` +
+    `bank wins ${wA}–${wB}–${ties}` +
+    `<table style="margin-top:6px"><tr><th>bank</th><th>${name(recA)}</th><th>${name(recB)}</th><th>Δ</th></tr>` +
+    rows.map(r => `<tr><td class="mono">${link(r.k)} ${esc(r.name)}</td>` +
+      `<td class="score">${r.pa.toFixed(1)}% <span class="kv">${r.ea.correct}/${r.ea.items}·${r.ea.runs}r</span></td>` +
+      `<td class="score">${r.pb.toFixed(1)}% <span class="kv">${r.eb.correct}/${r.eb.items}·${r.eb.runs}r</span></td>` +
+      `<td class="score">${r.d >= 0 ? "+" : ""}${r.d.toFixed(1)}</td></tr>`).join("") +
+    `</table><div class="kv">same verdict on the CLI: <span class="mono">sealed chain compare ${name(recA)} ${name(recB)}</span></div>`;
+}
+
+// `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.
+// On a hosted origin (github.io) the pinned bundle IS the ledger — skip the
+// localnet attempt entirely so first paint isn't an error banner; `?rpc=`
+// or the connect button still goes live explicitly.
+const snapUrl = params.get("snapshot");
+const hosted = !["localhost", "127.0.0.1", ""].includes(location.hostname) && !params.get("rpc");
+if (snapUrl) loadSnapshotUrl(snapUrl);
+else if (hosted) loadSnapshotUrl("snapshot.json");
+else { load(); setInterval(load, 15000); }
+</script>
+</body>
+</html>
 // Receipt-scoped head-to-head — mirrors `chain compare` in chain.ts exactly:
 // ScoreLogs joined by benchmark, per-bank paired deltas, pooled shared-item
 // verdict. Disjoint coverage reports "unrankable", never an aggregate lie.

@@ -32,7 +32,7 @@ after sealing, and nobody can fabricate a score.
 | Bets are placed without leaked score info | `bet`/`create_market` reject runs where `scored_mask != 0` — once MPC scoring starts, partial scores could leak information |
 | Judges can audit a run without trusting us | `sealed prove --item i` emits a Merkle proof against the onchain `outputs_root`; the web verifier recomputes it in-browser |
 | A generated bank has no answer key to leak | `gen_part` draws item specs from `ArcisRNG` inside MPC, computes answers in-circuit, fingerprints them (SHA3-256 over raw i64 bytes), and returns them `Enc<Mxe>`. Plaintext answers never exist on any machine. |
-| A private bank's questions stay confidential | `gen_part_private` returns the specs as `Enc<Shared, Pack<GenPart>>` to a viewer x25519 key (the authority's, derived from their Solana keypair). `PrivItemChunk` stores ciphertext + nonce + the recipient pubkey only — a public RPC reader sees encrypted bytes. The `items_root` fold commits to the ciphertext itself (`sealed/v1/privitems` over cts‖nonce), so the mint transcript is verifiable by anyone without the key. Only the authority decrypts (`DH(viewer_priv, mxe_pub)`); a wrong key yields garbage that fails the spec range check. |
+| A private bank's questions stay confidential | `gen_part_private` returns the specs as `Enc<Shared, Pack<GenPart>>` to a viewer x25519 key (the authority's, derived from their Solana keypair). `PrivItemChunk` stores ciphertext + nonce + the recipient pubkey only — a public RPC reader sees encrypted bytes. The `items_root` fold commits to the ciphertext itself (`sealed/v1/privitems` over cts‖nonce), so the mint transcript is verifiable by anyone without the key. Only the authority decrypts (`DH(viewer_priv, mxe_pub)`); a wrong key yields garbage that fails the spec range check. The mint also publishes a **spec commitment** per part (SHA3-256 over the plaintext specs, revealed by the circuit): the callback writes it onto `PrivItemChunk.spec_commitments[part]`, and `reshare_part` recomputes it onto every `ShareGrant` — a delegate re-hashes its decrypted specs and proves the grant carries THE bank's committed exam, not a doctored substitute. |
 | Generated items can't be planted or pre-leaked | Specs are drawn at mint time from cluster randomness — after the benchmark is created, after models trained. No operator authored them, so nothing was cherry-picked for a favored model. |
 | Generated specs are auditable | Every spec lands publicly in an `ItemChunk` account; the benchmark's `items_root` is a running SHA-256 fold over the exact spec bytes — anyone can re-render prompts and re-fold to verify. |
 | A score can be spot-checked without a key | `reveal_part` declassifies one part's eight answer *fingerprints* at the authority's request — the circuit decrypts inside MPC and returns hashes, never plaintext. `chain verify` compares them to a run's committed output hashes, so anyone can recompute what `score_chunk` counted on the revealed positions. The authority chooses what to declassify; MPC mediates so even it never receives answers. |
@@ -73,16 +73,20 @@ after sealing, and nobody can fabricate a score.
   whoever holds that wallet, while answers remain MXE-sealed. The residual
   trust is that the authority doesn't publish the decrypted prompts (they
   hold the questions but still cannot produce answer plaintext).
-  **Mint-time caveat**: `mint_part` draws specs via
-  `ArcisRNG::gen_public_integer_from_width` — circuit-*public* values,
-  meaning the specs (and derived answers) exist as plaintext inside the
-  executing MXE nodes for the duration of the mint computation. On-chain
-  readers see only ciphertext, but an honest-but-curious node (or its
-  execution log) saw the exam at birth. "The answer key never exists"
-  therefore means *never exists outside the cluster's t-of-n umbrella*;
-  for generated banks the umbrella is additionally momentary (mint only).
-  If Arcis ever exposes secret-shared draws, `specs.to_arcis()` is the
-  migration path — `reshare_part` already proves that shape works.
+  **Mint-time secrecy — CLOSED for private banks**: `gen_part_private`
+  draws specs via `ArcisRNG::gen_integer_from_width` — a *secret-shared*
+  draw — and the plaintext spec vector never exists whole on any node:
+  the circuit computes answers and the SHA3-256 spec commitment over
+  secret shares, reveals only the commitment, and delivers the specs
+  `Enc<Shared>` to the viewer key. What an MXE node holds during mint
+  is shares of a bank it cannot reconstruct. **Public generated banks
+  intentionally still draw publicly** (`gen_public_integer_from_width`):
+  their specs land plaintext in `ItemChunk` accounts by design — the
+  questions are public goods, only the *answer fingerprints* are born
+  sealed, and public draws make the mint transcript maximally
+  reproducible. The earlier caveat — that private-bank specs transited
+  public circuit values at birth — is closed; `mint_part_secret` is
+  the fix and the spec-commitment field is its audit hook.
   Markets on
   private-bank runs ("unseen-exam" markets, `scripts/unseen.sh`) inherit a
   second disclosed assumption: bettors can verify *that* an exam exists,

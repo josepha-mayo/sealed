@@ -943,14 +943,14 @@ test("chainProve mints a claim card that verifies — and fails on tamper", asyn
     const dir = mkdtempSync(join(tmpdir(), "sealed-claim-"));
     const good = join(dir, "claim.json");
     writeFileSync(good, JSON.stringify(card));
-    const ok = (await chainProveVerify(good)) as any;
+    const ok = (await chainProveVerify(good, undefined, false, snapPath)) as any;
     assert.equal(ok.fail, 0);
     // a tampered aggregate must fail exactly at the replay check
     card.model.totalCorrect += 50;
     const bad = join(dir, "tampered.json");
     writeFileSync(bad, JSON.stringify(card));
     process.exitCode = 0;
-    await chainProveVerify(bad);
+    await chainProveVerify(bad, undefined, false, snapPath);
     assert.equal(process.exitCode, 1);
     process.exitCode = 0;
   } finally { console.log = origLog; process.exitCode = 0; }
@@ -1079,6 +1079,54 @@ test("sealed-circuit/v1 — the MPC itself as evidence: every Arcium PDA re-deri
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("sealed-ledger/v1 — the nothing-up-my-sleeve census: every raw entry re-classified, forgeries die", async () => {
+  const { chainLedgerProve, verifyLedgerCard, artifactTamper } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const card = (await chainLedgerProve(undefined, snapPath)) as any;
+    assert.equal(card.kind, "sealed-ledger/v1");
+    assert.equal(card.census.sealed.accounts + card.census.market.accounts, 1796);
+    assert.equal(card.census.sealed.kinds.Run, 503);
+    assert.equal(card.census.sealed.kinds.unknown, undefined); // zero unknown discriminators
+    // the honest card passes every check, snapshot-bound
+    const r = verifyLedgerCard(card, undefined, snapPath);
+    assert.equal(r.fail, 0, r.fails.join(", "));
+    // 1. hide a bank — the recomputed census kills it
+    const shaved = JSON.parse(JSON.stringify(card));
+    shaved.census.sealed.kinds.Benchmark -= 1;
+    assert.ok(verifyLedgerCard(shaved, undefined, snapPath).fails.includes("sealed census"));
+    // 2. phantom run — padding the count can't pad the pubkey set
+    const padded = JSON.parse(JSON.stringify(card));
+    padded.census.sealed.kinds.Run += 1;
+    padded.census.sealed.accounts += 1;
+    assert.ok(verifyLedgerCard(padded, undefined, snapPath).fails.includes("sealed census"));
+    // 3. launder the set — a swapped pubkey-set hash dies
+    const laundered = JSON.parse(JSON.stringify(card));
+    laundered.census.sealed.pubkeySetSha256 = "00" + laundered.census.sealed.pubkeySetSha256.slice(2);
+    assert.ok(verifyLedgerCard(laundered, undefined, snapPath).fails.includes("sealed census"));
+    // 4. re-date the dump — the dump's own timestamp is the check
+    const redated = JSON.parse(JSON.stringify(card));
+    redated.takenAt = new Date().toISOString();
+    assert.ok(verifyLedgerCard(redated, undefined, snapPath).fails.includes("dump timestamp"));
+    // a census with no pinned ledger proves nothing
+    assert.equal(verifyLedgerCard(card, undefined, undefined).fail > 0, true);
+    // the CLI forgery lab carries the canned attacks
+    const tmp = mkdtempSync(join(tmpdir(), "sealed-ledger-"));
+    const fp = join(tmp, "l.json");
+    writeFileSync(fp, JSON.stringify(card));
+    process.exitCode = 0;
+    const tr = (await artifactTamper(fp, snapPath)) as any;
+    assert.equal(tr.ok, true);
+    assert.equal(tr.attacks, 4);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+
 test("gateSweep frontiers — every model gets its strictest cleared line", async () => {
   const { gateSweep } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
@@ -1138,14 +1186,14 @@ test("gateCert — a policy certificate verifies, and a flipped verdict fails", 
     assert.equal(cert.kind, "sealed-policy/v1");
     assert.equal(cert.models.length, 31);
     assert.equal(cert.summary.pass + cert.summary.fail + cert.summary.noEvidence, 31);
-    const ok = (await gateCertVerify(good)) as any;
+    const ok = (await gateCertVerify(good, false, snapPath)) as any;
     assert.equal(ok.fail, 0);
     // flip one stored verdict — the receipt replay must catch it
     cert.models[0].verdict.pass = !cert.models[0].verdict.pass;
     const bad = join(dir, "bad.json");
     writeFileSync(bad, JSON.stringify(cert));
     process.exitCode = 0;
-    await gateCertVerify(bad);
+    await gateCertVerify(bad, false, snapPath);
     assert.equal(process.exitCode, 1);
     process.exitCode = 0;
   } finally { console.log = origLog; process.exitCode = 0; }
@@ -1169,10 +1217,10 @@ test("gate --all --cert + --prove — the governance kit in one command", async 
     const cards = readdirSync(cardsDir).filter(f => f.endsWith(".json"));
     assert.equal(cards.length, 11, "one card per policy passer");
     const { gateCertVerify, chainProveVerify } = await import("../src/chain.js");
-    const ok = (await gateCertVerify(certPath)) as any;
+    const ok = (await gateCertVerify(certPath, false, snapPath)) as any;
     assert.equal(ok.fail, 0);
     for (const c of cards) {
-      const v = (await chainProveVerify(join(cardsDir, c))) as any;
+      const v = (await chainProveVerify(join(cardsDir, c), undefined, false, snapPath)) as any;
       assert.equal(v.fail, 0, `${c} must verify`);
     }
   } finally { console.log = origLog; }
@@ -1327,19 +1375,20 @@ test("verifiers --json — machine-readable checks for judge CI", async () => {
   const cert = new URL("../../../docs/evidence/policies/min60-3runs.json", import.meta.url).pathname;
   const out: string[] = [];
   const origLog = console.log;
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
   console.log = (...a: any[]) => out.push(a.join(" "));
   try {
-    const dir = (await chainProveVerify(claims, undefined, true)) as any;
+    const dir = (await chainProveVerify(claims, undefined, true, snapPath)) as any;
     assert.equal(dir.ok, true);
     assert.equal(dir.cards.length, 31);
     assert.ok(dir.cards.every((c: any) => c.ok && c.fail === 0));
-    const card = (await chainProveVerify(`${claims}/qwen2.5-3b-instruct.json`, undefined, true)) as any;
+    const card = (await chainProveVerify(`${claims}/qwen2.5-3b-instruct.json`, undefined, true, snapPath)) as any;
     assert.equal(card.fail, 0);
     const j = JSON.parse(out[out.length - 1]);
     assert.equal(j.verified, true);
-    assert.equal(j.checks.length, 9);
+    assert.equal(j.checks.length, 17);
     assert.ok(j.checks.every((c: any) => c.ok));
-    const cv = (await gateCertVerify(cert, true)) as any;
+    const cv = (await gateCertVerify(cert, true, snapPath)) as any;
     assert.equal(cv.fail, 0);
     const cj = JSON.parse(out[out.length - 1]);
     assert.equal(cj.verified, true);
@@ -1363,20 +1412,20 @@ test("sealed-match/v1 — mint, verify, and a flipped verdict fails", async () =
     assert.equal(card.kind, "sealed-match/v1");
     assert.equal(card.verdict.winner, "a");
     assert.equal(card.verdict.sharedBanks, 2);
-    const ok = (await matchVerify(good)) as any;
+    const ok = (await matchVerify(good, false, snapPath)) as any;
     assert.equal(ok.fail, 0);
     card.verdict.winner = "b";
     const bad = join(dir, "bad.json");
     writeFileSync(bad, JSON.stringify(card));
     process.exitCode = 0;
-    await matchVerify(bad);
+    await matchVerify(bad, false, snapPath);
     assert.equal(process.exitCode, 1);
     process.exitCode = 0;
     // disjoint pair — minting must still produce a verifiable (0-shared) card
     const m2 = join(dir, "m2.json");
     const c2 = (await compareMatch("qwen2.5-3b-instruct", "qwen2.5-0.5b-instruct", m2, snapPath)) as any;
     assert.equal(c2.verdict.sharedBanks >= 0, true);
-    const ok2 = (await matchVerify(m2)) as any;
+    const ok2 = (await matchVerify(m2, false, snapPath)) as any;
     assert.equal(ok2.fail, 0);
     // batch: --all --prove mints every shared-evidence pair; the dir verifier
     // replays all of them (and skips index.json itself)
@@ -1384,10 +1433,12 @@ test("sealed-match/v1 — mint, verify, and a flipped verdict fails", async () =
     const allDir = join(dir, "all");
     const minted = (await compareMatchAll(allDir, snapPath)) as number;
     assert.equal(minted, 73);
-    const batch = (await matchVerify(allDir)) as any;
+    const batch = (await matchVerify(allDir, false, snapPath)) as any;
     assert.equal(batch.ok, true);
     assert.equal(batch.cards.length, 73);
-    assert.equal(batch.cards.every((c: any) => c.ok && c.pass === 9), true);
+    // 14 checks per card: PDAs + replay + model identity + receipt-bank
+    // binding + the snapshot-bound trio
+    assert.equal(batch.cards.every((c: any) => c.ok && c.pass === 14), true);
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
@@ -1441,18 +1492,19 @@ test("chain artifact — the universal verifier routes every kind", async () => 
   const origLog = console.log;
   console.log = () => {};
   const origExit = process.exitCode;
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
   try {
     // single file — kind detected, routed, verified
-    const r1 = (await artifactVerify(join(new URL("../../../docs/evidence/trails", import.meta.url).pathname, "qwen3b-ladder-deadheat.json"))) as any;
+    const r1 = (await artifactVerify(join(new URL("../../../docs/evidence/trails", import.meta.url).pathname, "qwen3b-ladder-deadheat.json"), false, snapPath)) as any;
     assert.equal(r1.fail, 0);
-    const r2 = (await artifactVerify(join(new URL("../../../docs/evidence/claims", import.meta.url).pathname, "qwen2.5-3b-instruct.json"))) as any;
+    const r2 = (await artifactVerify(join(new URL("../../../docs/evidence/claims", import.meta.url).pathname, "qwen2.5-3b-instruct.json"), false, snapPath)) as any;
     assert.equal(r2.fail, 0);
     // mixed-kind directory — every artifact verified in one pass
     const dir = mkdtempSync(join(tmpdir(), "sealed-art-"));
     copyFileSync(join(new URL("../../../docs/evidence/trails", import.meta.url).pathname, "qwen3b-private-duel.json"), join(dir, "t.json"));
     copyFileSync(join(new URL("../../../docs/evidence/claims", import.meta.url).pathname, "qwen2.5-3b-instruct.json"), join(dir, "c.json"));
     copyFileSync(join(new URL("../../../docs/evidence/policies", import.meta.url).pathname, "min60-3runs.json"), join(dir, "p.json"));
-    const batch = (await artifactVerify(dir)) as any;
+    const batch = (await artifactVerify(dir, false, snapPath)) as any;
     assert.equal(batch.ok, true);
     assert.equal(batch.artifacts.length, 3);
     assert.deepEqual(batch.artifacts.map((a: any) => a.kind).sort(),
@@ -1460,19 +1512,18 @@ test("chain artifact — the universal verifier routes every kind", async () => 
     // unknown-kind files are skipped (a future artifact version), not failed;
     // a real artifact that FAILS its replay still flips the batch verdict
     writeFileSync(join(dir, "mystery.json"), JSON.stringify({ kind: "bogus/v9" }));
-    const batch2 = (await artifactVerify(dir)) as any;
+    const batch2 = (await artifactVerify(dir, false, snapPath)) as any;
     assert.equal(batch2.ok, true);
     assert.equal(batch2.artifacts.find((a: any) => a.file === "mystery.json").skipped, true);
     const tampered = JSON.parse((await import("node:fs")).readFileSync(join(dir, "t.json"), "utf8"));
     tampered.verdict.poolsLamports += 1;
     process.exitCode = 0;
     writeFileSync(join(dir, "t.json"), JSON.stringify(tampered));
-    const batch3 = (await artifactVerify(dir)) as any;
+    const batch3 = (await artifactVerify(dir, false, snapPath)) as any;
     assert.equal(batch3.ok, false);
     assert.equal(process.exitCode, 1);
     process.exitCode = origExit;
     // reports route through the same universal verifier (needs the bundle)
-    const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
     const rep = (await artifactVerify(
       join(new URL("../../../docs/evidence/reports", import.meta.url).pathname, "qwen2.5-3b-instruct.md"),
       false, snapPath)) as any;
@@ -1625,7 +1676,7 @@ test("sealed-grant/v1 — the viewer's card proves disclosure; a redirected gran
     for (const f of ["sealed-priv-panel.json", "sealed-priv-first.json"]) {
       const r = (await grantVerify(join(dir0, f), false, snap)) as any;
       assert.equal(r.fail, 0, f);
-      assert.equal(r.pass, 6, f);
+      assert.equal(r.pass, 7, f);
     }
     // redirecting the viewer dies at PDA + binding + key echo — the
     // viewer is a seed, so every leg sees the swap.
@@ -1806,24 +1857,28 @@ test("artifact --tamper — the CLI forgery lab: every canned attack dies at a n
       "docs/evidence/policies/min60-3runs.json",
       "docs/evidence/ceilings/dark_model-a.json",
       "docs/evidence/circuit/arcium-devnet.json",
+      "docs/evidence/ledger/ledger.json",
+      "docs/evidence/reports/qwen2.5-3b-instruct.md",
     ];
     // per-kind canned-attack counts — a def silently shrinking or dropping
     // must fail here, not just when the forgery would verify.
     const expectedAttacks: Record<string, number> = {
       "docs/evidence/board.json": 4,
-      "docs/evidence/matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json": 3,
-      "docs/evidence/claims/qwen2.5-3b-instruct.json": 3,
+      "docs/evidence/matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json": 4,
+      "docs/evidence/claims/qwen2.5-3b-instruct.json": 5,
       "docs/evidence/trails/qwen3b-ladder-deadheat.json": 2,
       "docs/evidence/digest.json": 1,
-      "docs/evidence/banks/sealed-gen.json": 1,
+      "docs/evidence/banks/sealed-gen.json": 4,
       "docs/evidence/artifacts.json": 1,
       "docs/evidence/positions/winning-band.json": 1,
       "docs/evidence/positions/sealed-dark.json": 1,
       "docs/evidence/bounties/claimed-20of32.json": 1,
-      "docs/evidence/grants/sealed-priv-first.json": 1,
-      "docs/evidence/policies/min60-3runs.json": 3,
+      "docs/evidence/grants/sealed-priv-first.json": 2,
+      "docs/evidence/policies/min60-3runs.json": 4,
       "docs/evidence/ceilings/dark_model-a.json": 4,
       "docs/evidence/circuit/arcium-devnet.json": 4,
+      "docs/evidence/ledger/ledger.json": 4,
+      "docs/evidence/reports/qwen2.5-3b-instruct.md": 2,
     };
     for (const rel of cards) {
       process.exitCode = 0;
@@ -1904,7 +1959,10 @@ test("sealed-tamper/v1 — the lie exhibit replays: forged cards die at their re
       process.exitCode = 0;
       const card = JSON.parse(readFileSync(`${dir}${f}`, "utf8"));
       assert.equal(card.kind, "sealed-tamper/v1", f);
-      assert.ok(card.forged && card.forged.kind === card.targetKind, `${f}: forged payload must be a real artifact`);
+      assert.ok(
+        (card.forged && card.forged.kind === card.targetKind) ||
+        (typeof card.forgedMd === "string" && card.targetKind === "sealed-report/v1"),
+        `${f}: forged payload must be a real artifact`);
       const r = (await tamperCardVerify(`${dir}${f}`, true, snapPath)) as any;
       assert.equal(r.ok, true, `${f}: the forgery must still be rejected`);
       // and it routes through the universal verifier like any artifact
