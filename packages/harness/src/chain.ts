@@ -4288,7 +4288,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
   }
   const kind = kindOf(target);
   const route = kind ? ROUTES[kind] : null;
-  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog|position|bounty|grant/v1)`);
+  if (!route) throw new Error(`unrecognized artifact: ${target} (kind=${kind ?? "?"} — expected sealed-claim|policy|match|trail|report|evidence-digest|board|bank|catalog|position|bounty|grant|ceiling/v1)`);
   if (!json) console.log(`detected ${kind} — routing to its verifier`);
   return route(target);
 }
@@ -4309,6 +4309,7 @@ const ARTIFACT_ROUTES = (snapPath?: string, json = false): Record<string, (f: st
   "sealed-bounty/v1": (f) => bountyVerify(f, json, snapPath),
   "sealed-grant/v1": (f) => grantVerify(f, json, snapPath),
   "sealed-tamper/v1": (f) => tamperCardVerify(f, json, snapPath),
+  "sealed-ceiling/v1": (f) => ceilingVerify(f, json, snapPath),
 });
 
 /** `chain artifact --tamper <file>` — the forgery lab for the terminal:
@@ -4374,6 +4375,16 @@ const TAMPER_DEFS: Record<string, { label: string; mutate: (c: any) => void }[]>
       if (c.stake.amounts) { c.stake.amounts[1] = "900000000"; c.verdict.estPayout = "999000000"; c.verdict.staked = "930000000"; }
       else { c.stake.amount = String(BigInt(c.stake.amount) * 2n); if (c.verdict.staked) c.verdict.staked = c.stake.amount; }
     } },
+  ],
+  "sealed-ceiling/v1": [
+    { label: "hide the argmax run — erase the model's best score", mutate: (c) => {
+      const i = c.runs.findIndex((r: any) => r.pk === c.ceiling.bestRun?.pk);
+      if (i >= 0) c.runs.splice(i, 1); c.scope.subjectRuns -= 1; c.scope.finalizedRuns -= 1;
+    } },
+    { label: "shave the ceiling — claim a lower max than the data shows", mutate: (c) => {
+      if (c.ceiling.maxPctBp != null) { c.ceiling.maxPctBp = Math.max(0, c.ceiling.maxPctBp - 500); c.ceiling.maxPct = `${(c.ceiling.maxPctBp / 100).toFixed(1)}%`; }
+    } },
+    { label: "launder the ceiling — rename the model", mutate: (c) => { c.model.id = "safety-washed-model"; } },
   ],
 };
 
@@ -4571,6 +4582,7 @@ async function scanArtifacts(dir: string) {
       case "sealed-grant/v1": return `${raw.bank?.name ?? "?"} part ${raw.grant?.part ?? "?"} → ${String(raw.grant?.viewer ?? "").slice(0, 8)}… · ${raw.panel?.viewersOnBank ?? "?"} viewer(s)`;
       case "sealed-trail/v1": return `run ${String(raw.run?.pk ?? base).slice(0, 8)}… (${base})`;
       case "sealed-tamper/v1": return `forgery: ${raw.attack ?? "?"} → ${raw.targetCard ?? base}`;
+      case "sealed-ceiling/v1": return `${raw.model?.id ?? base} ≤ ${raw.ceiling?.maxPct ?? "∅"} over ${raw.scope?.finalizedRuns ?? "?"} run(s)`;
       default: return base;
     }
   };
@@ -6530,6 +6542,209 @@ export function verifyClaimCard(card: any, emit?: (what: string, ok: boolean, de
   return { ok: fail === 0, pass, fail, fails };
 }
 
+/** `chain ceiling <model> --out <f> --snapshot <f>` — mint
+ *  `sealed-ceiling/v1`: proof of a NEGATIVE. A claim card says "this run
+ *  happened"; a ceiling card says "NO finalized run of this model ever
+ *  scored above N" — a statement over absence, checkable only because the
+ *  snapshot is an exhaustive account dump and every subject run is inside.
+ *  The card lists the ENTIRE subject set; the verifier re-derives the set
+ *  itself from the snapshot, so dropping the argmax run dies at
+ *  completeness — you cannot hide a run to lower the ceiling, and you
+ *  cannot add a phantom run to raise it. */
+export async function chainCeiling(modelStr: string | undefined, out: string | undefined, snapPath?: string, all = false) {
+  const snap = snapPath ? loadSnapshotJson(snapPath) : null;
+  const ss = snap ? decodeSnapshotSection(snap, "sealed") : null;
+  const sAcct = () => sealedProgram().program;
+  type Acct = { publicKey: PublicKey; account: any };
+  const [runs, records]: Acct[][] =
+    ss ? ["Run", "ModelRecord"].map((n) => snapOf(ss, n))
+       : await Promise.all(["run", "modelRecord"].map((n) => tolerantAll(sAcct(), n)));
+  const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+  const itemsOf = (r: Acct) => num(r.account.chunkCount) * 32;
+  const pctBp = (r: Acct) => { const i = itemsOf(r); return i ? Math.floor(num(r.account.correct) * 10000 / i) : 0; };
+  const buildCard = (rec: Acct) => {
+    const modelId = String(rec.account.modelId);
+    const mine = runs.filter((r) => String(r.account.modelId) === modelId)
+      .sort((a, b) => num(a.account.index) - num(b.account.index)
+        || a.publicKey.toBase58().localeCompare(b.publicKey.toBase58()));
+    const scoped = mine.filter((r) => num(r.account.status) === 1);
+    let best: Acct | null = null;
+    for (const r of scoped) if (!best || pctBp(r) > pctBp(best) ||
+      (pctBp(r) === pctBp(best) && num(r.account.correct) > num(best.account.correct))) best = r;
+    return {
+      kind: "sealed-ceiling/v1",
+      generatedAt: new Date().toISOString(),
+      source: snapPath ?? "live",
+      snapshotSha256: snapPath ? createHash("sha256").update(readFileSync(snapPath)).digest("hex") : null,
+      programs: { sealed: sealedProgramId().toBase58(), market: MARKET_PROGRAM_ID.toBase58() },
+      model: { id: modelId, recordPk: rec.publicKey.toBase58() },
+      record: { pk: rec.publicKey.toBase58(), seeds: { prefix: "modelrec", modelHash: createHash("sha256").update(Buffer.from(modelId, "utf8")).digest("hex") } },
+      scope: {
+        claim: "no finalized subject run scored above ceiling.maxPct",
+        subjectRuns: mine.length,
+        finalizedRuns: scoped.length,
+        unfinishedRuns: mine.length - scoped.length,
+        postRevealRuns: scoped.filter((r) => !!r.account.postReveal).length,
+      },
+      ceiling: {
+        maxPctBp: best ? pctBp(best) : null,
+        maxPct: best ? `${(pctBp(best) / 100).toFixed(1)}%` : null,
+        bestRun: best ? { pk: best.publicKey.toBase58(), benchmark: best.account.benchmark.toBase58(),
+          index: num(best.account.index), correct: num(best.account.correct), items: itemsOf(best),
+          postReveal: !!best.account.postReveal } : null,
+      },
+      runs: mine.map((r) => ({ pk: r.publicKey.toBase58(), benchmark: r.account.benchmark.toBase58(),
+        index: num(r.account.index), status: num(r.account.status), correct: num(r.account.correct),
+        chunkCount: num(r.account.chunkCount), postReveal: !!r.account.postReveal, attested: !!r.account.attested })),
+    };
+  };
+  if (all) {
+    const dir = out ?? "ceilings";
+    mkdirSync(dir, { recursive: true });
+    console.log(`minting ceiling cards for ${records.length} records → ${dir}/`);
+    for (const rec of records) {
+      const card = buildCard(rec);
+      const fname = `${String(rec.account.modelId).replace(/[^a-zA-Z0-9._-]+/g, "_")}.json`;
+      writeFileSync(`${dir}/${fname}`, JSON.stringify(card, null, 2) + "\n");
+      console.log(`  ${card.model.id.padEnd(36)} ceiling ${String(card.ceiling.maxPct ?? "∅").padStart(6)} over ${card.scope.finalizedRuns} finalized/${card.scope.subjectRuns} subject runs → ${dir}/${fname}`);
+    }
+    console.log(`${records.length} ceiling cards minted — verify all: chain ceiling --verify ${dir} --snapshot <f>`);
+    return;
+  }
+  const rec = records.find((x) => x.publicKey.toBase58() === modelStr)
+    ?? records.find((x) => String(x.account.modelId) === modelStr);
+  if (!rec) throw new Error(`no ModelRecord for ${modelStr} (try chain records for the list)`);
+  const card = buildCard(rec);
+  const text = JSON.stringify(card, null, 2) + "\n";
+  if (out) { writeFileSync(out, text); console.log(`wrote ${out} — ${card.model.id} ceiling ${card.ceiling.maxPct ?? "∅"} over ${card.scope.finalizedRuns} finalized runs (of ${card.scope.subjectRuns} subject)`); }
+  else console.log(text);
+  return card;
+}
+
+/** `chain ceiling --verify <file|dir>` — replay a ceiling card keyless:
+ *  record + run PDAs re-derive, every listed run is field-bound to its
+ *  decoded account, the run set must EQUAL the snapshot's subject set
+ *  (completeness is the whole claim), and the argmax recomputes. */
+export async function ceilingVerify(file: string, json = false, snapPath?: string) {
+  const { statSync, readdirSync } = await import("node:fs");
+  if (statSync(file).isDirectory()) {
+    const files = readdirSync(file).filter((f) => f.endsWith(".json")).sort();
+    if (!files.length) throw new Error(`no ceiling cards (*.json) in ${file}`);
+    let okAll = true;
+    const results: any[] = [];
+    if (!json) console.log(`verifying ${files.length} ceiling card(s) in ${file}/`);
+    for (const f of files) {
+      try {
+        const card = JSON.parse(readFileSync(`${file}/${f}`, "utf8"));
+        const r = verifyCeilingCard(card, undefined, snapPath);
+        results.push({ file: f, model: card.model?.id ?? null, ok: r.ok, pass: r.pass, fail: r.fail, fails: r.fails });
+        if (!json) console.log(`  ${r.ok ? "PASS" : "FAIL"} ${f.padEnd(40)} ${card.model?.id ?? "?"} ≤ ${card.ceiling?.maxPct ?? "∅"} — ${r.pass} checks${r.ok ? "" : ` · ${r.fails.join("; ")}`}`);
+        okAll &&= r.ok;
+      } catch (e: any) { okAll = false; results.push({ file: f, ok: false, error: String(e?.message ?? e) }); if (!json) console.log(`  FAIL ${f} — ${e?.message ?? e}`); }
+    }
+    if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
+    else console.log(`${okAll ? "ALL CARDS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
+    if (!okAll) process.exit(1);
+    return { ok: okAll, cards: results };
+  }
+  const card = JSON.parse(readFileSync(file, "utf8"));
+  if (card.kind !== "sealed-ceiling/v1") throw new Error(`not a sealed-ceiling/v1 file (kind=${card.kind})`);
+  const rows: { what: string; ok: boolean; detail: string }[] = [];
+  const r = verifyCeilingCard(card, (what, ok, detail) => { rows.push({ what, ok, detail }); if (!json) console.log(`  ${ok ? "PASS" : "FAIL"} ${what}${detail ? ` — ${detail}` : ""}`); }, snapPath);
+  const summary = `${card.model.id}: ${r.pass} checks pass, ${r.fail} fail · ceiling ${card.ceiling?.maxPct ?? "∅"} over ${card.scope?.finalizedRuns ?? "?"} finalized run(s)`;
+  if (!json) console.log(`${r.ok ? "CEILING VERIFIED" : "CEILING FAILED"} — ${summary}`);
+  if (r.fail) process.exitCode = 1;
+  if (json) console.log(JSON.stringify({ file, model: card.model.id, verified: r.ok, checks: rows, pass: r.pass, fail: r.fail }));
+  return { pass: r.pass, fail: r.fail, ok: r.ok };
+}
+
+/** The sealed-ceiling/v1 checks. Without --snapshot the identity checks
+ *  (PDAs + internal consistency) still run; the completeness/binding
+ *  checks need the pinned account dump the card was minted over. */
+export function verifyCeilingCard(card: any, emit?: (what: string, ok: boolean, detail: string) => void, snapPath?: string) {
+  const sealedId = new PublicKey(card.programs.sealed);
+  const u64le = (n: number) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
+  const pk = (s: string) => new PublicKey(s);
+  const derive = (seeds: Buffer[]) => PublicKey.findProgramAddressSync(seeds, sealedId)[0].toBase58();
+  let pass = 0, fail = 0;
+  const fails: string[] = [];
+  const check = (what: string, ok: boolean, detail = "") => {
+    emit?.(what, ok, detail);
+    if (ok) pass++; else { fail++; fails.push(what); }
+  };
+
+  // 1. identities: record PDA + every listed run PDA re-derives
+  check("record PDA", derive([Buffer.from("modelrec"), Buffer.from(card.record.seeds.modelHash, "hex")]) === card.record.pk,
+    `${card.record.pk.slice(0, 12)}… = [modelrec, sha256(${card.model.id})]`);
+  let pdaOk = 0;
+  for (const r of card.runs)
+    if (derive([Buffer.from("run"), pk(r.benchmark).toBuffer(), u64le(r.index)]) === r.pk) pdaOk++;
+  check("run PDAs", pdaOk === card.runs.length, `${pdaOk}/${card.runs.length} re-derived`);
+
+  // 2. internal consistency of the ceiling arithmetic itself
+  const pctBpOf = (r: any) => { const i = r.chunkCount * 32; return i ? Math.floor(r.correct * 10000 / i) : 0; };
+  const scoped = card.runs.filter((r: any) => r.status === 1);
+  const claimedBp = card.ceiling.maxPctBp;
+  if (scoped.length) {
+    const maxBp = Math.max(...scoped.map(pctBpOf));
+    const argmax = scoped.filter((r: any) => pctBpOf(r) === maxBp);
+    const bpOk = claimedBp === maxBp;
+    const bestOk = !!card.ceiling.bestRun && argmax.some((r: any) => r.pk === card.ceiling.bestRun.pk)
+      && card.ceiling.bestRun.correct === card.runs.find((r: any) => r.pk === card.ceiling.bestRun.pk)?.correct
+      && card.ceiling.bestRun.items === (card.runs.find((r: any) => r.pk === card.ceiling.bestRun.pk)?.chunkCount ?? 0) * 32;
+    check("ceiling exact", bpOk, `max floor(correct×10000/items) over finalized = ${maxBp}bp = ${(maxBp / 100).toFixed(1)}%${bpOk ? "" : ` — claimed ${claimedBp}`}`);
+    check("bestRun = argmax", bestOk, bestOk ? `${card.ceiling.bestRun.pk.slice(0, 12)}… ${card.ceiling.bestRun.correct}/${card.ceiling.bestRun.items}` : "claimed bestRun is not a recomputed argmax");
+  } else {
+    check("ceiling exact", claimedBp === null && card.ceiling.bestRun === null,
+      scoped.length ? `maxBp ${claimedBp}` : "no finalized subject runs — ceiling vacuous (null)");
+  }
+  check("scope tallies", card.scope.subjectRuns === card.runs.length
+      && card.scope.finalizedRuns === scoped.length
+      && card.scope.unfinishedRuns === card.runs.length - scoped.length
+      && card.scope.postRevealRuns === scoped.filter((r: any) => !!r.postReveal).length,
+    `${card.scope.finalizedRuns} finalized / ${card.scope.subjectRuns} subject · ${card.scope.postRevealRuns} post-reveal`);
+
+  // 3. snapshot binding: the run set must EQUAL the decoded subject set —
+  //    the negative claim lives here. An omitted run lowers the ceiling;
+  //    a phantom run raises it; both die.
+  if (snapPath && card.snapshotSha256) {
+    const snapRaw = readFileSync(snapPath);
+    const shaOk = createHash("sha256").update(snapRaw).digest("hex") === card.snapshotSha256;
+    check("snapshot binding", shaOk, `sha256(${basename(snapPath)}) == ${card.snapshotSha256.slice(0, 16)}…`);
+    const ss = decodeSnapshotSection(loadSnapshotJson(snapPath), "sealed");
+    const allRuns = snapOf(ss, "Run");
+    const recs = new Map(snapOf(ss, "ModelRecord").map((r) => [r.publicKey.toBase58(), r]));
+    const num = (x: any) => x?.toNumber ? x.toNumber() : Number(x ?? 0);
+    // record identity — the card's model.id must be the on-chain id of
+    // the record it names (a ceiling minted under a friendlier name dies)
+    const rec = recs.get(card.record.pk);
+    check("record identity", !!rec && String(rec.account.modelId) === card.model.id && card.model.recordPk === card.record.pk,
+      `on-chain modelId = ${rec ? String(rec.account.modelId) : "NO SUCH RECORD"}`);
+    const subject = new Map(allRuns.filter((r) => String(r.account.modelId) === card.model.id)
+      .map((r) => [r.publicKey.toBase58(), r]));
+    const listed = new Set(card.runs.map((r: any) => r.pk));
+    const missing = [...subject.keys()].filter((k) => !listed.has(k));
+    const phantom = card.runs.filter((r: any) => !subject.has(r.pk));
+    check("run-set completeness", missing.length === 0 && phantom.length === 0 && subject.size === card.runs.length,
+      `${subject.size} subject runs in snapshot == ${card.runs.length} listed` +
+      (missing.length ? ` · ${missing.length} OMITTED (e.g. ${missing[0].slice(0, 12)}…)` : "") +
+      (phantom.length ? ` · ${phantom.length} PHANTOM` : ""));
+    // field binding — every listed run equals its decoded account bytes
+    let fieldBad = 0;
+    for (const r of card.runs) {
+      const real = subject.get(r.pk) as any;
+      if (!real) { fieldBad++; continue; }
+      const a = real.account;
+      if (a.benchmark.toBase58() !== r.benchmark || num(a.index) !== r.index || num(a.status) !== r.status ||
+          num(a.correct) !== r.correct || num(a.chunkCount) !== r.chunkCount ||
+          !!a.postReveal !== !!r.postReveal || !!a.attested !== !!r.attested) fieldBad++;
+    }
+    check("run field binding", fieldBad === 0, `${card.runs.length - fieldBad}/${card.runs.length} runs == decoded Run bytes`);
+  }
+
+  return { ok: fail === 0, pass, fail, fails };
+}
+
 /** `chain feed [--limit N] [--type a,b] [--since ts] [--json]` — the
  *  network's activity stream: every timestamped event across both
  *  programs (bank created → run queued → MPC finalized → receipt
@@ -8219,6 +8434,17 @@ export async function chainMain(cmd: string[], args: Args) {
     }
     if (args.all) { await chainProve(undefined, args.out ? String(args.out) : "claims", args.snapshot ? String(args.snapshot) : undefined, true); return; }
     await chainProve(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
+    return;
+  }
+  if (sub === "ceiling") {
+    // proof of a negative — "no finalized run of M scored above N%".
+    // completeness against the pinned snapshot IS the claim.
+    if (args.verify) {
+      await ceilingVerify(String(args.verify), Boolean(args.json), args.snapshot ? String(args.snapshot) : undefined);
+      return;
+    }
+    if (args.all) { await chainCeiling(undefined, args.out ? String(args.out) : "ceilings", args.snapshot ? String(args.snapshot) : undefined, true); return; }
+    await chainCeiling(String(cmd[1] ?? ""), args.out ? String(args.out) : undefined, args.snapshot ? String(args.snapshot) : undefined);
     return;
   }
   if (sub === "badge") {

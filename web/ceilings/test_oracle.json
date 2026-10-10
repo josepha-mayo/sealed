@@ -1,0 +1,292 @@
+{
+  "kind": "sealed-ceiling/v1",
+  "generatedAt": "2026-10-10T01:34:13.829Z",
+  "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "test/oracle",
+    "recordPk": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn"
+  },
+  "record": {
+    "pk": "HCrmnszdxXTmmF3cZZiwr8U1nv69U9P4VLT8H1mFoEbn",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "e59e599a88a99fcd579b00ba8701253c8c264d05e796c334d21796f7456d0bb7"
+    }
+  },
+  "scope": {
+    "claim": "no finalized subject run scored above ceiling.maxPct",
+    "subjectRuns": 25,
+    "finalizedRuns": 25,
+    "unfinishedRuns": 0,
+    "postRevealRuns": 1
+  },
+  "ceiling": {
+    "maxPctBp": 7031,
+    "maxPct": "70.3%",
+    "bestRun": {
+      "pk": "2QGfCKZnvAMP9t1FTo5co9zYoCsomBcYma1ETogpqCab",
+      "benchmark": "2ARmVtk7qHgaogGPRaLyHim3amkJu2DFqW2QVJSZnED6",
+      "index": 0,
+      "correct": 45,
+      "items": 64,
+      "postReveal": false
+    }
+  },
+  "runs": [
+    {
+      "pk": "2QGfCKZnvAMP9t1FTo5co9zYoCsomBcYma1ETogpqCab",
+      "benchmark": "2ARmVtk7qHgaogGPRaLyHim3amkJu2DFqW2QVJSZnED6",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "3aEgjoabejFsRtsSTE89jvsPbFfnMZnqTytsTCCvGUe9",
+      "benchmark": "yvBcKijewXNwQgRqZFT4NRzBB1K5dRpYw2JqAQgBMyM",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": true,
+      "attested": false
+    },
+    {
+      "pk": "4MXJ6zsJuEaM9y4N488xrB9dDGFYuqzTdFxEtm21mWa8",
+      "benchmark": "28ogPX26aH6DGqnhiUDPSqAVeyCXfcmNbnyMBzJeBPS5",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "4owcQAPLx6ELeeZcoJouSaCjNNvKD3c1GDDwpRtspfMD",
+      "benchmark": "9VByiNFNGyaVBTv65jP1P4EBxsPLM29GQL75EvmPvW4U",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "4tQc8q89quDt1ux78mcEhwjCux4ZMiAingjpFPKuBqVQ",
+      "benchmark": "4XUcqetzqjWVL7ZFbwuMmdbu225YW7ch4iXx4TN6EbBh",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "5hjtBjSMTQRxr8HiSU8oTNTZTgoBcpvVDdaF4CTK4TAk",
+      "benchmark": "3C1dCBh4Qg7Uf3jHshq5vHAARAEcGGTEsNwqDMHKHLuV",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "763gszes4hBLQZsMhSVqAoNavks2aAaNzN3C9oNHqEfM",
+      "benchmark": "BDnWoJsVNHAa2Fb9jCfaUBeXKx74bPCqoSBRJsqrJX5c",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "7r1QZLKfH2DjxdxQ2V9whWx1ZJEyvRN9jjAot8VXhEBT",
+      "benchmark": "Bp8iFPoHqp15bJL3E5frQHPcxJiBToJpeg68q7UR42ic",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "7TL6gAnTb3bnoJaK1Hm8F7A9Wd2ryhpfzaBtTbS5kx6E",
+      "benchmark": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "9g1hnfGoMAaXuPxdtnuHvjdmziHBGwpgegJBhbh8yzNS",
+      "benchmark": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "9tyyiw4UofvpLhnL7khBKTB57TtCvVZoVLgRtRtFoKuk",
+      "benchmark": "8KG9gFRsYwtTv9xPhwU92ymeK4V3wKpgSMYH8w6TiM19",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "A6pCRHsPgTg3kmU2janJ4pMKMmQcKWtKzHeanJZFuWYG",
+      "benchmark": "9juDu5ZsjgGEDZ23psNksAENkf5rwAyixTrebvpCS7Uo",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "AwSiAfRzvekQCHvtTqnSfQHVSwuy74PJnNz9Rf4jekW9",
+      "benchmark": "1RsmwbTNxP5SBS8MXwBPJkHbktdsMSMYGCBteXk7U75",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "BfY22YuvSKo6g8PBL44Zvv98gmsGAULV9aoygExnWy2",
+      "benchmark": "A5Hscivpnk2hDrMfnXyk3cP82zvg4m3XxYZ56amkBhVr",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "BGv2jNdcSmLGiLDHK3ZMQFQnmMkzB23q2WgqDjz7EDSf",
+      "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "CAPHGusoKyCSNQxApFmPodLtGH1LvggehwucKAbbXqvL",
+      "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "CjzFYTXFceH7euo6o8WFVcvMZ1qnh5NmXuJjjtXQRVHE",
+      "benchmark": "4mGzzTZMrbwxw5VBdBvrRgeU2sfgB7sojjQDFGngQWRj",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "DxaigAN9Sa7HuAJbriThTohZpbcGwWqkNqAAXfnWeDXc",
+      "benchmark": "CTF7g4FPZBT9FqW6mr7ztKNzDSKPfT3sexTneUX7K8dJ",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "EFrYohP3qfSEkfRxZmwPe1ex5Q6JH1quKu7BP2o781o2",
+      "benchmark": "7WjbnmVa12xSo7mpWx6TbqBA9VatmTbkML4peVX4i6SY",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "FogPak5RW7usKdWewav7hSMuaEbv9e9d43u36cH41y3H",
+      "benchmark": "4pPHx9eVBpAhjo94WW2oLLXYo547jmQSq1QJW2PELyom",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "GWK3b4NNrRj268R9njMi1fmz9NF5RizV497zqZqTyA3r",
+      "benchmark": "pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "HjH5BHJGb8ko2x9e5qLr9gHeT7JTSyuvxB5YMcf72QRe",
+      "benchmark": "B1kWPVm1o861mPV5VAApaCdwrxXLwfo7AwZPJhC5JYUi",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "HncF9SBsh6zUmpnKm7hhCNSfGNkU9aBtSM6Pizfd7itT",
+      "benchmark": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "HWuVmurTJXhBx7ahLAS9nKVB2sBNUrZ9w2sL2BWjm7xJ",
+      "benchmark": "HtnrezGoFZFgCsq6dv2QFsafRtKx1NQzGkMumjKgTkMQ",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "UFSNVQsAUSWxbKQ1ziekGcVqxUsd6ojNpG1SZhb2J51",
+      "benchmark": "ErBrCuKMSqzSmfecqvNqfDJpFtoEvGWWDYbi28zXDYkz",
+      "index": 0,
+      "status": 1,
+      "correct": 45,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    }
+  ]
+}

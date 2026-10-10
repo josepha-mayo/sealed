@@ -1,11 +1,12 @@
 {
   "kind": "sealed-catalog/v1",
-  "root": "docs/evidence",
-  "count": 141,
+  "root": "../../docs/evidence",
+  "count": 175,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
     "sealed-bounty/v1": 2,
+    "sealed-ceiling/v1": 31,
     "sealed-claim/v1": 31,
     "sealed-evidence-digest/v1": 1,
     "sealed-grant/v1": 2,
@@ -13,7 +14,7 @@
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
     "sealed-report/v1": 4,
-    "sealed-tamper/v1": 15,
+    "sealed-tamper/v1": 18,
     "sealed-trail/v1": 4
   },
   "artifacts": [
@@ -46,6 +47,161 @@
       "path": "bounties/open-sealed-test.json",
       "kind": "sealed-bounty/v1",
       "title": "open · 0.200 SOL · ≥32/64 — 4RUW4pDm…"
+    },
+    {
+      "path": "ceilings/dark_model-a.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "dark/model-a ≤ 93.8% over 22 run(s)"
+    },
+    {
+      "path": "ceilings/delegate_runner-1.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "delegate/runner-1 ≤ 59.4% over 24 run(s)"
+    },
+    {
+      "path": "ceilings/duel_model-a.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "duel/model-a ≤ 78.1% over 22 run(s)"
+    },
+    {
+      "path": "ceilings/duel_model-b.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "duel/model-b ≤ 59.4% over 22 run(s)"
+    },
+    {
+      "path": "ceilings/ladder_model-a.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "ladder/model-a ≤ 93.8% over 23 run(s)"
+    },
+    {
+      "path": "ceilings/ladder_model-b.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "ladder/model-b ≤ 62.5% over 23 run(s)"
+    },
+    {
+      "path": "ceilings/ladder_model-c.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "ladder/model-c ≤ 31.3% over 23 run(s)"
+    },
+    {
+      "path": "ceilings/ladder_tie-a.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "ladder/tie-a ≤ 78.1% over 23 run(s)"
+    },
+    {
+      "path": "ceilings/ladder_tie-b.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "ladder/tie-b ≤ 78.1% over 22 run(s)"
+    },
+    {
+      "path": "ceilings/ladder_tie-c.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "ladder/tie-c ≤ 31.3% over 22 run(s)"
+    },
+    {
+      "path": "ceilings/llama-3.2-1b-instruct.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "llama-3.2-1b-instruct ≤ 3.1% over 2 run(s)"
+    },
+    {
+      "path": "ceilings/mock_oracle-0.25.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "mock/oracle-0.25 ≤ 23.4% over 1 run(s)"
+    },
+    {
+      "path": "ceilings/mock_oracle-0.5.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "mock/oracle-0.5 ≤ 62.5% over 4 run(s)"
+    },
+    {
+      "path": "ceilings/mock_oracle-0.50.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "mock/oracle-0.50 ≤ 50.0% over 1 run(s)"
+    },
+    {
+      "path": "ceilings/mock_oracle-0.75.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "mock/oracle-0.75 ≤ 82.8% over 2 run(s)"
+    },
+    {
+      "path": "ceilings/qwen2.5-0.5b-instruct.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "qwen2.5-0.5b-instruct ≤ 6.3% over 4 run(s)"
+    },
+    {
+      "path": "ceilings/qwen2.5-1.5b-instruct.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "qwen2.5-1.5b-instruct ≤ 25.0% over 8 run(s)"
+    },
+    {
+      "path": "ceilings/qwen2.5-3b-instruct.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "qwen2.5-3b-instruct ≤ 28.1% over 7 run(s)"
+    },
+    {
+      "path": "ceilings/test_bounty-claimant.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/bounty-claimant ≤ 62.5% over 21 run(s)"
+    },
+    {
+      "path": "ceilings/test_bounty-wrong-payee.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/bounty-wrong-payee ≤ 62.5% over 7 run(s)"
+    },
+    {
+      "path": "ceilings/test_gen-oracle.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/gen-oracle ≤ 53.1% over 25 run(s)"
+    },
+    {
+      "path": "ceilings/test_market-run.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/market-run ≤ 15.6% over 16 run(s)"
+    },
+    {
+      "path": "ceilings/test_oracle.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/oracle ≤ 70.3% over 25 run(s)"
+    },
+    {
+      "path": "ceilings/test_post-reveal-35953.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/post-reveal-35953 ≤ 12.5% over 1 run(s)"
+    },
+    {
+      "path": "ceilings/test_post-reveal-87070.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/post-reveal-87070 ≤ 12.5% over 1 run(s)"
+    },
+    {
+      "path": "ceilings/test_post-reveal-scored.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/post-reveal-scored ≤ 12.5% over 1 run(s)"
+    },
+    {
+      "path": "ceilings/test_priv-oracle.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/priv-oracle ≤ 65.6% over 25 run(s)"
+    },
+    {
+      "path": "ceilings/test_registry-model-35953.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/registry-model-35953 ≤ 75.0% over 2 run(s)"
+    },
+    {
+      "path": "ceilings/test_registry-model-87070.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/registry-model-87070 ≤ 75.0% over 2 run(s)"
+    },
+    {
+      "path": "ceilings/test_registry-model.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/registry-model ≤ 75.0% over 3 run(s)"
+    },
+    {
+      "path": "ceilings/test_sweep-run.json",
+      "kind": "sealed-ceiling/v1",
+      "title": "test/sweep-run ≤ 100.0% over 22 run(s)"
     },
     {
       "path": "claims/dark_model-a.json",
@@ -666,6 +822,21 @@
       "path": "tamper/dark_model-a.mint-a-phantom-receipt.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: mint a phantom receipt → dark_model-a.json"
+    },
+    {
+      "path": "tamper/llama-3.2-1b-instruct.hide-the-argmax-run-erase-the-model-s-best-score.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: hide the argmax run — erase the model's best score → llama-3.2-1b-instruct.json"
+    },
+    {
+      "path": "tamper/llama-3.2-1b-instruct.launder-the-ceiling-rename-the-model.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: launder the ceiling — rename the model → llama-3.2-1b-instruct.json"
+    },
+    {
+      "path": "tamper/llama-3.2-1b-instruct.shave-the-ceiling-claim-a-lower-max-than-the-data-shows.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: shave the ceiling — claim a lower max than the data shows → llama-3.2-1b-instruct.json"
     },
     {
       "path": "tamper/min60-3runs.flip-a-model-s-gate-verdict.json",

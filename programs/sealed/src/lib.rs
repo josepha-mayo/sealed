@@ -1434,9 +1434,6 @@ pub struct PrivItemChunk {
     pub mint_order: [u16; PARTS],
 }
 
-/// Answer fingerprints for one part, declassified by a `reveal_part` computation
-/// at the benchmark authority's request. These are hash commitments — the audit
-/// primitive, not the answer key.
 /// A re-encryption of one private-bank part to a delegate's x25519 key, written
 /// by `reshare_part` callbacks. One PDA per (chunk, part, viewer) — the delegate
 /// fetches this account and decrypts the specs with their own wallet key.
@@ -1457,6 +1454,9 @@ pub struct ShareGrant {
     pub shared_at: i64,
 }
 
+/// Answer fingerprints for one part, declassified by a `reveal_part` computation
+/// at the benchmark authority's request. These are hash commitments — the audit
+/// primitive, not the answer key.
 #[account]
 #[derive(InitSpace)]
 pub struct Reveal {
@@ -2491,6 +2491,7 @@ pub struct ScoreRecorded {
 pub enum ErrorCode {
     #[msg("The computation was aborted")]
     AbortedComputation,
+    // Retired label — kept so later variants keep their Anchor error codes.
     #[msg("Cluster not set")]
     ClusterNotSet,
     #[msg("Signer is not the benchmark authority")]
@@ -2525,6 +2526,7 @@ pub enum ErrorCode {
     ChunkAlreadyScored,
     #[msg("A score for this chunk is already pending")]
     ChunkScorePending,
+    // Retired label — kept so later variants keep their Anchor error codes.
     #[msg("No score is pending for this chunk")]
     ChunkScoreNotPending,
     #[msg("Run is already finalized")]

@@ -1,0 +1,62 @@
+{
+  "kind": "sealed-ceiling/v1",
+  "generatedAt": "2026-10-10T01:34:13.869Z",
+  "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "test/registry-model-35953",
+    "recordPk": "8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ"
+  },
+  "record": {
+    "pk": "8VdWxiYGqGTotVeZ37ZNbrXb9Ko82AG8AAjgbyVrnkUZ",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "2938369c3fb42f6d4b81472efa25317576c76e529acf26761ec5aff32d6564aa"
+    }
+  },
+  "scope": {
+    "claim": "no finalized subject run scored above ceiling.maxPct",
+    "subjectRuns": 2,
+    "finalizedRuns": 2,
+    "unfinishedRuns": 0,
+    "postRevealRuns": 0
+  },
+  "ceiling": {
+    "maxPctBp": 7500,
+    "maxPct": "75.0%",
+    "bestRun": {
+      "pk": "67PexoYKbp99QAPqDQj2Ye7JrM8vjXG4NSns3w1mRRTn",
+      "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "index": 8,
+      "correct": 48,
+      "items": 64,
+      "postReveal": false
+    }
+  },
+  "runs": [
+    {
+      "pk": "67PexoYKbp99QAPqDQj2Ye7JrM8vjXG4NSns3w1mRRTn",
+      "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "index": 8,
+      "status": 1,
+      "correct": 48,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": true
+    },
+    {
+      "pk": "BU4wACQF2XWatRKqgE6VikRBvrTPeFS6pzFeGFSby2Ac",
+      "benchmark": "4HtcRYTziJans3qPEjyac6Ahyz1YVvG1dC2fqaB5AcPM",
+      "index": 9,
+      "status": 1,
+      "correct": 16,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    }
+  ]
+}

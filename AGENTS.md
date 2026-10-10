@@ -18,7 +18,7 @@ parimutuel markets resolved from `Run.correct`.
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
   closer): offline verify + headless browser audit + grant-decrypt
-  regression + calibration rescore + recursive artifact replay (142
+  regression + calibration rescore + recursive artifact replay (175
   artifacts in one pass) + evidence/web manifests + doc-count freshness
   + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
@@ -49,14 +49,16 @@ parimutuel markets resolved from `Run.correct`.
   via sha256("account:Name"), not hardcoded). Artifact coverage is TOTAL:
   every committed artifact replays — board, all 73 match cards, all 31
   claims (receipts bound to decoded ScoreLog bytes AND the named record's
-  on-chain modelId — a card renaming the model dies),
+  on-chain modelId — a card renaming the model dies), all 31 ceilings
+  (the exhaustive negative: every subject run rebound, argmax
+  membership, recomputed max == claimed ceiling),
   trails (leg runs bound, dark forfeits recomputed from DarkPosition
   bytes), positions, bounties, grants, reports (canonical claim-card
   hash), policy certs (evalGate ported line-for-line + receipt↔ScoreLog
   multiset binding), the catalog index, bank dossiers (items_root fold
   replayed in mint_order — gen banks fold specs, private fold
   ciphertexts+nonces), the whole-ledger digest (integrity rows + keeper
-  classification), and the 15 tamper exhibits which MUST be rejected.
+  classification), and the 18 tamper exhibits which MUST be rejected.
   No node, no pip, no RPC — proof the evidence is language-agnostic.
   `--tamper` forges each card family and asserts the catch at a named
   check. `--decrypt` ports the whole disclosure stack — RFC7748 x25519
@@ -140,15 +142,26 @@ parimutuel markets resolved from `Run.correct`.
   distribution artifact a model provider embeds (committed examples:
   docs/badges/ — deliberately unpinned; badges are pointers to evidence,
   not evidence). `--verify` re-renders and byte-compares.
+  `chain ceiling <model> --out <f> --snapshot <f2>` mints
+  `sealed-ceiling/v1` — the NEGATIVE claim a claim card can't make:
+  "no finalized subject run of this model ever scored above N". The
+  card embeds every subject run for the record (not just the max), the
+  argmax run(s), and the snapshot sha; `--all` mints one per record into
+  a dir, `--verify <f|dir>` replays it keyless — per-run PDA re-derive,
+  per-run account binding, argmax membership, recomputed max == claimed
+  ceiling, record-identity binding — so hiding the argmax, shaving the
+  number, or renaming the model all die at named checks (committed
+  examples: docs/evidence/ceilings/ + web/ceilings/ — one per record,
+  served in-page at "verify a ceiling card").
   `chain artifact <file|dir>` is the universal verifier — detects any
-  sealed-claim/policy/match/trail/report/evidence-digest/board/bank/
-  position/bounty/grant/catalog/tamper/v1 payload and routes to the
+  sealed-claim/ceiling/policy/match/trail/report/evidence-digest/board/
+  bank/position/bounty/grant/catalog/tamper/v1 payload and routes to the
   right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 142 artifacts in one pass). `chain artifact <file>
+  replays all 175 artifacts in one pass). `chain artifact <file>
   --tamper` is the CLI forgery lab: kind-aware mutations re-run the
   verifier and MUST fail — a forged card that verifies exits 1 (all
-  12 JSON kinds carry canned attacks; the harness test pins all 12).
+  13 JSON kinds carry canned attacks; the harness test pins all 13).
   `chain catalog` prints the
   evidence table of contents (every artifact grouped by kind with a
   title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json

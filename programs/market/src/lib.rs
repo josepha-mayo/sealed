@@ -110,6 +110,9 @@ fn load_run(info: &AccountInfo) -> Result<Run> {
 /// 41B tail (attested1+attested_at8+pending_since8+first_pending_at8+
 /// ever_queued_mask8+all_queued_at8) + post_reveal1. Pre-upgrade accounts
 /// lack the byte — `get()` returns None and they read untainted.
+/// Raw tail-byte read with NO owner/discriminator check of its own —
+/// call only AFTER `load_run` has bound the account (owner + sealed::Run
+/// discriminator + benchmark PDA). Every current call site does.
 fn run_post_reveal(info: &AccountInfo) -> Result<bool> {
     let data = info.try_borrow_data()?;
     Ok(run_post_reveal_bytes(&data))
@@ -2301,6 +2304,10 @@ pub struct RevealDark<'info> {
     pub position: Account<'info, DarkPosition>,
 }
 
+/// Deliberately unconstrained: finalization is permissionless — anyone may
+/// settle the tally once the state machine allows it (RESOLVED, !tallied,
+/// reveal window closed). There is no signer because there is nothing to
+/// gate: the account's own status + timestamps are the authorization.
 #[derive(Accounts)]
 pub struct FinalizeDark<'info> {
     #[account(mut)]

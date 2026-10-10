@@ -97,7 +97,7 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 >
 > Verify it in seconds, not trust: the explorer's **`?mega=1`** link runs
 > the entire audit in your browser (~8s) — every account's PDA re-derived,
-> all 142 artifacts replayed, 12 forgeries dying at named checks, the
+> all 176 artifacts replayed, 12 forgeries dying at named checks, the
 > sealed exam decrypted in-page. Or `curl …/verify.py | python3 - --remote`
 > — one stdlib file re-verifies all 351 served bytes, zero clone. The
 > forgery lab lets you run the attacks yourself.
@@ -136,7 +136,7 @@ Body (paste-ready; numbers verified against web/snapshot.json):
   share no bank — paired ranking != aggregate), `banks --depth`.
 - Verifier chain: `chain stats` replays 31 aggregates + 201 resolutions
   inline, `chain items` regenerates an MPC-minted exam from raw chunks,
-  `chain artifact docs/evidence --recursive` replays all 142 artifacts,
+  `chain artifact docs/evidence --recursive` replays all 176 artifacts,
   `chain fingerprint` folds everything to one BUNDLE ROOT. `chain prove`
   mints `sealed-claim/v1` cards (31 committed, `--verify claims/`
   replays 279 checks; `--min-pct N` re-grades against caller policy);

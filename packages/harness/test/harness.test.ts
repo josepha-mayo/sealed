@@ -956,6 +956,69 @@ test("chainProve mints a claim card that verifies — and fails on tamper", asyn
   } finally { console.log = origLog; process.exitCode = 0; }
 });
 
+test("chainCeiling mints a proof-of-a-negative — completeness kills the hidden-run lie", async () => {
+  const { chainCeiling, verifyCeilingCard, artifactTamper } = await import("../src/chain.js");
+  const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;
+  const { mkdtempSync, writeFileSync, readdirSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const origLog = console.log;
+  console.log = () => {};
+  try {
+    const card = (await chainCeiling("llama-3.2-1b-instruct", undefined, snapPath)) as any;
+    assert.equal(card.kind, "sealed-ceiling/v1");
+    assert.equal(card.scope.subjectRuns, card.runs.length);
+    // the cheat-catch model: MPC never scored it above 3.1%
+    assert.equal(card.ceiling.maxPct, "3.1%");
+    assert.equal(card.scope.finalizedRuns, 2);
+    // honest card passes every check including the snapshot-bound negatives
+    const r = verifyCeilingCard(card, undefined, snapPath);
+    assert.equal(r.fail, 0);
+    assert.equal(r.pass, 9);
+    // 1. hide the argmax run — the completeness + argmax checks must die
+    const hidden = JSON.parse(JSON.stringify(card));
+    hidden.runs = hidden.runs.filter((x: any) => x.pk !== hidden.ceiling.bestRun.pk);
+    hidden.scope.subjectRuns -= 1; hidden.scope.finalizedRuns -= 1;
+    const rHidden = verifyCeilingCard(hidden, undefined, snapPath);
+    assert.ok(rHidden.fail > 0);
+    assert.ok(rHidden.fails.includes("run-set completeness"));
+    // 2. shave the ceiling — claim a lower max than the data shows
+    const shaved = JSON.parse(JSON.stringify(card));
+    shaved.ceiling.maxPctBp = Math.max(0, shaved.ceiling.maxPctBp - 300);
+    const rShaved = verifyCeilingCard(shaved, undefined, snapPath);
+    assert.ok(rShaved.fails.includes("ceiling exact"));
+    // 3. launder the model — the record's on-chain modelId kills it
+    const washed = JSON.parse(JSON.stringify(card));
+    washed.model.id = "safety-washed-model";
+    const rWashed = verifyCeilingCard(washed, undefined, snapPath);
+    assert.ok(rWashed.fails.includes("record identity"));
+    // 4. a phantom run inflates the set — dies at completeness AND binding
+    const phantom = JSON.parse(JSON.stringify(card));
+    const fake = JSON.parse(JSON.stringify(phantom.runs[0]));
+    fake.pk = fake.pk.slice(0, -1) + (fake.pk.endsWith("x") ? "y" : "x");
+    fake.correct += 1;
+    phantom.runs.push(fake); phantom.scope.subjectRuns += 1;
+    const rPhantom = verifyCeilingCard(phantom, undefined, snapPath);
+    assert.ok(rPhantom.fails.includes("run-set completeness"));
+    // the committed cards all verify through the same path
+    const dir = new URL("../../../docs/evidence/ceilings", import.meta.url).pathname;
+    for (const f of readdirSync(dir).filter((f) => f.endsWith(".json") && f !== "index.json")) {
+      const c = JSON.parse(readFileSync(join(dir, f), "utf8"));
+      const rr = verifyCeilingCard(c, undefined, snapPath);
+      assert.equal(rr.fail, 0, `${f}: ${rr.fails.join(", ")}`);
+    }
+    // the CLI forgery lab carries the canned attacks
+    const tmp = mkdtempSync(join(tmpdir(), "sealed-ceil-"));
+    const fp = join(tmp, "c.json");
+    writeFileSync(fp, JSON.stringify(card));
+    process.exitCode = 0;
+    const tr = (await artifactTamper(fp, snapPath)) as any;
+    assert.equal(tr.ok, true);
+    assert.equal(tr.attacks, 3);
+    process.exitCode = 0;
+  } finally { console.log = origLog; process.exitCode = 0; }
+});
+
 test("gateSweep frontiers — every model gets its strictest cleared line", async () => {
   const { gateSweep } = await import("../src/chain.js");
   const snapPath = new URL("../../../web/snapshot.json", import.meta.url).pathname;

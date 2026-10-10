@@ -76,7 +76,7 @@
 <div class="nav">
   <span class="kv">ledger:</span><a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a>
   <span class="kv">proof:</span><a href="#sec-audit">audit</a><a href="#sec-anomalies">anomalies</a><a href="#sec-verify">verify</a><a href="#sec-artifact">verify anything</a><a href="#sec-tampercard" style="color:var(--warn)">lie exhibit</a><a href="#sec-forge" style="color:var(--warn)">forgery lab</a><a href="#sec-catalog">catalog</a>
-  <details class="kv" style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--dim)">cards ▸</summary> <a href="#sec-claim" title="a model's portable proof card">model claim</a><a href="#sec-policy" title="a capability policy verdict">policy</a><a href="#sec-match" title="a head-to-head verdict card">head-to-head</a><a href="#sec-trail" title="a run's custody trail">custody</a><a href="#sec-report" title="a written audit report">report</a><a href="#sec-digest" title="the whole-ledger integrity digest">ledger digest</a><a href="#sec-boardcard" title="the leaderboard as a verifiable card">leaderboard</a><a href="#sec-bankcard" title="an exam's commitment card">exam</a><a href="#sec-poscard" title="a bettor's stake receipt">bettor</a><a href="#sec-bountycard" title="a sponsor's bounty certificate">bounty</a><a href="#sec-grantcard" title="a viewer's disclosure certificate">disclosure</a></details> <a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
+  <details class="kv" style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--dim)">cards ▸</summary> <a href="#sec-claim" title="a model's portable proof card">model claim</a><a href="#sec-ceilingcard" title="proof of a negative — never scored above N%">ceiling</a><a href="#sec-policy" title="a capability policy verdict">policy</a><a href="#sec-match" title="a head-to-head verdict card">head-to-head</a><a href="#sec-trail" title="a run's custody trail">custody</a><a href="#sec-report" title="a written audit report">report</a><a href="#sec-digest" title="the whole-ledger integrity digest">ledger digest</a><a href="#sec-boardcard" title="the leaderboard as a verifiable card">leaderboard</a><a href="#sec-bankcard" title="an exam's commitment card">exam</a><a href="#sec-poscard" title="a bettor's stake receipt">bettor</a><a href="#sec-bountycard" title="a sponsor's bounty certificate">bounty</a><a href="#sec-grantcard" title="a viewer's disclosure certificate">disclosure</a></details> <a href="#" onclick="startTour();return false" style="color:var(--acc)">▶ tour</a>
   <input id="pksearch" placeholder="paste a pubkey — run, bank, venue, receipt, position, grant…" spellcheck="false">
   <span id="pkmsg" class="kv"></span>
 </div>
@@ -131,7 +131,7 @@
 
 <h2 id="sec-artifact">verify anything</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/policy/match/trail/report/evidence-digest/board/bank/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
+  <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/ceiling/policy/match/trail/report/evidence-digest/board/bank/catalog/position/bounty/grant/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
   <textarea id="artifactjson" rows="6" oninput="window.__cardSrc=null" ondragover="event.preventDefault()" ondrop="dropArtifact(event)" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}  — or drop a card file here'></textarea>
   <button onclick="verifyAnyArtifact()">verify artifact</button>
   <button onclick="document.getElementById('artifactPick').click()" title="verify a card YOU downloaded — or one you just edited">load a file…</button>
@@ -159,6 +159,9 @@
     <button onclick="forge('payout')">inflate a winning stake</button>
     <button onclick="forge('claimwin')">steal the bounty</button>
     <button onclick="forge('launder')">launder receipts under a fake name</button>
+    <button onclick="forge('hidebest')">hide the argmax run</button>
+    <button onclick="forge('shaveceil')">shave the ceiling</button>
+    <button onclick="forge('launderceil')">launder the ceiling</button>
     <button onclick="forge('regrant')">redirect a disclosure</button>
   </div>
   <div id="forgeres"></div>
@@ -194,6 +197,16 @@
   <span class="kv">+ your policy:</span> min-pct <input id="claimPct" size="4"> min-runs <input id="claimRuns" size="3"> min-items <input id="claimItems" size="4">
   <span class="kv">— authenticity AND sufficiency, in one verdict</span>
   <div id="claimres"></div>
+</div>
+<h2 id="sec-ceilingcard">verify a ceiling card — proof of a negative</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the anti-claim — a <code>sealed-ceiling/v1</code> card (<code>chain ceiling &lt;model&gt; --snapshot</code> mints them) proves a negative: <i>&#8220;no finalized run of this model EVER scored above N%&#8221;</i>. Claim cards prove existence — show the receipt. A ceiling card proves nonexistence, possible only because the snapshot is an exhaustive account dump: the card lists EVERY subject run and the page re-derives that set itself from the decoded accounts — a hidden argmax run dies at completeness, a phantom run dies at binding, a shaved number dies at the argmax replay. The primitive a regulator or deployer actually wants: an enforceable upper bound on demonstrated capability. Same checks as <code>chain ceiling --verify</code>.</div>
+  <div><select id="ceilpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick one of 31 committed ceiling cards —</option></select>
+  <button onclick="loadCeiling(document.getElementById('ceilpick').value || 'llama-3.2-1b-instruct.json')">load card</button>
+  <span class="kv">every card is sha256-pinned in this bundle&#8217;s MANIFEST — llama-3.2-1b is the cheat-catch: ceiling 3.1%</span></div>
+  <div><textarea id="ceiljson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-ceiling/v1", &#8230;}'></textarea></div>
+  <button onclick="verifyCeiling()">verify ceiling</button>
+  <div id="ceilres"></div>
 </div>
 <h2 id="sec-policy">verify a policy certificate</h2>
 <div class="card">
@@ -2444,6 +2457,118 @@ async function verifyClaim() {
   }
 }
 
+async function loadCeiling(file) {
+  const ta = document.getElementById("ceiljson");
+  try {
+    const src = `ceilings/${file || "llama-3.2-1b-instruct.json"}`;
+    const r = await fetch(src);
+    if (!r.ok) throw new Error(String(r.status));
+    ta.value = await r.text(); window.__cardSrc = src;
+  } catch (e) { ta.value = ""; document.getElementById("ceilres").innerHTML = `<div class="kv">committed ceiling card not reachable from this page (serve the repo root or use the hosted explorer)</div>`; }
+}
+async function loadCeilingIndex() {
+  const sel = document.getElementById("ceilpick");
+  if (!sel) return;
+  try {
+    const r = await fetch("ceilings/index.json");
+    if (!r.ok) throw new Error(String(r.status));
+    for (const f of await r.json()) {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = f.replace(/\.json$/, "").replace(/_/g, " ");
+      sel.appendChild(o);
+    }
+  } catch (e) { /* picker stays on the default option — cards still pasteable */ }
+}
+loadCeilingIndex();
+// the anti-claim — "no finalized run of M EVER scored above N%". The card
+// lists the entire subject run set; completeness against the decoded
+// snapshot IS the claim. Any hole (dropped argmax, phantom run, renamed
+// model, shaved maxPct) dies at a named check.
+async function verifyCeiling() {
+  const res = document.getElementById("ceilres");
+  const rows = [];
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  try {
+    const c = JSON.parse(document.getElementById("ceiljson").value);
+    if (c.kind !== "sealed-ceiling/v1") throw new Error(`not a sealed-ceiling/v1 card (kind=${c.kind})`);
+    if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
+    const spid = new PK(c.programs.sealed);
+    const drv = (seeds) => pdaB(seeds, spid);
+    const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
+    // [1] identities — record + every listed run PDA re-derive
+    drv([utf8("modelrec"), hex2u8(c.record.seeds.modelHash)], spid) === c.record.pk
+      ? pass("record PDA", `${short(c.record.pk)} = [modelrec, sha256(${esc(c.model.id)})]`)
+      : fail("record PDA", `declared ${short(c.record.pk)} — re-derived different address`);
+    const runOk = c.runs.filter(r => drv([utf8("run"), pkB(r.benchmark), u64le(r.index)], spid) === r.pk).length;
+    runOk === c.runs.length ? pass("run PDAs", `${runOk}/${c.runs.length} re-derived`) : fail("run PDAs", `${runOk}/${c.runs.length} re-derived`);
+    // [2] ceiling arithmetic — argmax over finalized runs recomputes
+    const pctBp = r => r.chunkCount ? Math.floor(r.correct * 10000 / (r.chunkCount * 32)) : 0;
+    const scoped = c.runs.filter(r => r.status === 1);
+    if (scoped.length) {
+      const maxBp = Math.max(...scoped.map(pctBp));
+      const argmax = new Set(scoped.filter(r => pctBp(r) === maxBp).map(r => r.pk));
+      c.ceiling.maxPctBp === maxBp
+        ? pass("ceiling exact", `max over ${scoped.length} finalized = ${(maxBp / 100).toFixed(1)}%`)
+        : fail("ceiling exact", `claimed ${(c.ceiling.maxPctBp / 100).toFixed(1)}% — recomputed ${(maxBp / 100).toFixed(1)}%`);
+      const br = c.ceiling.bestRun, brRun = br && c.runs.find(r => r.pk === br.pk);
+      (br && argmax.has(br.pk) && brRun && br.correct === brRun.correct && br.items === brRun.chunkCount * 32)
+        ? pass("bestRun = argmax", `${short(br.pk)} — ${br.correct}/${br.items}${br.postReveal ? " (post-reveal)" : ""}`)
+        : fail("bestRun = argmax", "claimed bestRun is not a recomputed argmax over the listed set");
+    } else {
+      (c.ceiling.maxPctBp === null && c.ceiling.bestRun === null)
+        ? pass("ceiling exact", "no finalized subject runs — ceiling vacuous")
+        : fail("ceiling exact", "no finalized runs but a non-null ceiling was claimed");
+    }
+    (c.scope.subjectRuns === c.runs.length && c.scope.finalizedRuns === scoped.length
+      && c.scope.unfinishedRuns === c.runs.length - scoped.length
+      && c.scope.postRevealRuns === scoped.filter(r => !!r.postReveal).length)
+      ? pass("scope tallies", `${scoped.length} finalized / ${c.runs.length} subject · ${c.scope.postRevealRuns} post-reveal`)
+      : fail("scope tallies", `claimed ${JSON.stringify(c.scope)} doesn't recount`);
+    // [3] snapshot binding — the negative claim: card set must EQUAL the
+    // snapshot's subject set. An omitted run lowers the ceiling undetected;
+    // a phantom inflates it. Both die here.
+    const A = window.__audit;
+    if (A) {
+      if (c.snapshotSha256) {
+        const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(utf8(await (await fetch("snapshot.json")).text()))));
+        gotSha === c.snapshotSha256
+          ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… — this card is pinned to THIS account dump`)
+          : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}… — this card describes a different ledger`);
+      }
+      const rec = A.modelRecords.find(m => m.pk === c.record.pk);
+      (rec && rec.modelId === c.model.id && c.model.recordPk === c.record.pk)
+        ? pass("record identity", `on-chain modelId == ${esc(c.model.id)}`)
+        : fail("record identity", `record ${short(c.record.pk)} carries modelId ${esc(rec?.modelId ?? "?")}, not ${esc(c.model.id)}`);
+      const subject = new Map(A.runs.filter(r => r.modelId === c.model.id).map(r => [r.pk, r]));
+      const listed = new Set(c.runs.map(r => r.pk));
+      const missing = [...subject.keys()].filter(k => !listed.has(k));
+      const phantom = c.runs.filter(r => !subject.has(r.pk));
+      (missing.length === 0 && phantom.length === 0 && subject.size === c.runs.length)
+        ? pass("run-set completeness", `${subject.size} subject runs in snapshot == ${c.runs.length} listed — the negative holds over ALL of them`)
+        : fail("run-set completeness", `${missing.length} omitted (e.g. ${short(missing[0] ?? "")}) · ${phantom.length} phantom — the ceiling is only as strong as the set`);
+      let fieldBad = 0;
+      for (const r of c.runs) {
+        const real = subject.get(r.pk);
+        if (!real || real.benchmark !== r.benchmark || Number(real.index) !== r.index ||
+            Number(real.status) !== r.status || Number(real.correct) !== r.correct ||
+            Number(real.chunkCount) !== r.chunkCount || !!real.postReveal !== !!r.postReveal ||
+            !!real.attested !== !!r.attested) fieldBad++;
+      }
+      fieldBad === 0
+        ? pass("run field binding", `${c.runs.length}/${c.runs.length} runs == decoded Run bytes`)
+        : fail("run field binding", `${fieldBad} run(s) differ from decoded account bytes`);
+    } else {
+      rows.push(`<div class="kv">snapshot not decoded yet — completeness + field binding skipped (run the audit first, or use <code>chain ceiling --verify</code> which binds against web/snapshot.json)</div>`);
+    }
+    const nFail = rows.filter(r => r.includes("pill cancelled")).length;
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CEILING VERIFIED" : "CEILING FAILED"}</b> — ${esc(c.model.id)} never scored above ${esc(c.ceiling.maxPct ?? "∅")} across ${c.scope?.finalizedRuns ?? "?"} finalized run(s)${c.scope?.postRevealRuns ? ` · ${c.scope.postRevealRuns} post-reveal` : ""}</div>`);
+    res.innerHTML = rows.join("");
+  } catch (e) {
+    res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
+  }
+}
+
 async function loadCert(file) {
   const ta = document.getElementById("certjson");
   try {
@@ -2686,6 +2811,7 @@ async function renderCatalog() {
   if (!el) return;
   const BLURB = {
     "sealed-claim/v1": "a model's whole evidentiary record",
+    "sealed-ceiling/v1": "proof of a negative — the model's true cap",
     "sealed-policy/v1": "a governance decision + its receipts",
     "sealed-match/v1": "a portable head-to-head",
     "sealed-trail/v1": "proof the money followed the MPC score",
@@ -2735,7 +2861,7 @@ async function verifyCatalog() {
   ck("kind", doc.kind === "sealed-catalog/v1");
   const listed = new Set((doc.artifacts ?? []).map(a => a.path));
   const expected = new Set();
-  for (const dir of ["claims", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants", "tamper"]) {
+  for (const dir of ["claims", "ceilings", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants", "tamper"]) {
     try { for (const f of await (await fetch(`${dir}/index.json`)).json()) expected.add(`${dir}/${f}`); } catch {}
   }
   for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); } catch {} }
@@ -2890,6 +3016,7 @@ function verifyAnyArtifact() {
     catch { kind = raw.includes("sealed-report/v1") ? "sealed-report/v1" : null; }
     const ROUTE = {
       "sealed-claim/v1": ["claimjson", "sec-claim", verifyClaim],
+      "sealed-ceiling/v1": ["ceiljson", "sec-ceilingcard", verifyCeiling],
       "sealed-policy/v1": ["certjson", "sec-policy", verifyCert],
       "sealed-match/v1": ["matchjson", "sec-match", verifyMatch],
       "sealed-trail/v1": ["trailjson", "sec-trail", verifyTrail],
@@ -2904,7 +3031,7 @@ function verifyAnyArtifact() {
       "sealed-tamper/v1": ["tamperjson", "sec-tampercard", verifyTamper],
     };
     const r = kind ? ROUTE[kind] : null;
-    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/policy/match/trail/report/evidence-digest/board/bank/catalog/position/v1)`; return; }
+    if (!r) { note.innerHTML = ` — unrecognized kind <code>${esc(kind ?? "?")}</code> (expected sealed-claim/ceiling/policy/match/trail/report/evidence-digest/board/bank/catalog/position/bounty/grant/tamper/v1)`; return; }
     document.getElementById(r[0]).value = raw;
     const cardLink = window.__cardSrc && /^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(window.__cardSrc)
       ? ` · shareable verdict: <a href="?card=${encodeURIComponent(window.__cardSrc)}">?card=${esc(window.__cardSrc)}</a>` : "";
@@ -2946,6 +3073,7 @@ async function replayBundle() {
   if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI recursive verifier works without it)</div>`; return; }
   const KINDS = [
     ["claims", "claimjson", "claimres", verifyClaim, "sealed-claim/v1"],
+    ["ceilings", "ceiljson", "ceilres", verifyCeiling, "sealed-ceiling/v1"],
     ["policies", "certjson", "certres", verifyCert, "sealed-policy/v1"],
     ["matches", "matchjson", "matchres", verifyMatch, "sealed-match/v1"],
     ["trails", "trailjson", "trailres", verifyTrail, "sealed-trail/v1"],
@@ -2965,7 +3093,7 @@ async function replayBundle() {
   }
   for (const id of ["claimPct", "claimRuns", "claimItems"]) { const e = document.getElementById(id); saved.set(id, { value: e.value }); e.value = ""; }
   const restore = () => { for (const [id, s] of saved) { const e = document.getElementById(id); if (s.value !== undefined) e.value = s.value; if (s.html !== undefined) e.innerHTML = s.html; } };
-  res.innerHTML = `<div class="kv">replaying… fetching the ten indexes, then every artifact through its own verifier — including the lie exhibit, which passes by being rejected</div>`;
+  res.innerHTML = `<div class="kv">replaying… fetching the ${KINDS.length} indexes, then every artifact through its own verifier — including the lie exhibit, which passes by being rejected</div>`;
   try {
     for (const [dir, taId, resId, fn, kind] of KINDS) {
       let files;
@@ -3983,6 +4111,7 @@ async function verifyTamper() {
     if (!f || f.kind !== c.targetKind) throw new Error("exhibit carries no forged target card");
     const INNER = {
       "sealed-claim/v1": ["claimjson", "claimres", verifyClaim],
+      "sealed-ceiling/v1": ["ceiljson", "ceilres", verifyCeiling],
       "sealed-policy/v1": ["certjson", "certres", verifyCert],
       "sealed-match/v1": ["matchjson", "matchres", verifyMatch],
       "sealed-trail/v1": ["trailjson", "trailres", verifyTrail],
@@ -4054,6 +4183,13 @@ const FORGE_DEFS = {
              mutate: (c) => { c.artifacts.splice(3, 1); c.count -= 1; return c; } },
   claimwin:{ label: "steal the bounty", file: "bounties/claimed-20of32.json", ta: "bountyjson", res: "bountyres", sec: "sec-bountycard", verify: verifyBounty,
     mutate: (c) => { c.winner.correct = c.bounty.threshold - 1; c.bounty.winningScore = c.bounty.threshold - 1; return c; } },
+  hidebest:{ label: "hide the argmax run — erase the model's best score", file: "ceilings/llama-3.2-1b-instruct.json", ta: "ceiljson", res: "ceilres", sec: "sec-ceilingcard", verify: verifyCeiling,
+    mutate: (c) => { const i = c.runs.findIndex(r => r.pk === c.ceiling.bestRun?.pk);
+      if (i >= 0) c.runs.splice(i, 1); c.scope.subjectRuns -= 1; c.scope.finalizedRuns -= 1; return c; } },
+  shaveceil:{ label: "shave the ceiling — claim a lower max", file: "ceilings/llama-3.2-1b-instruct.json", ta: "ceiljson", res: "ceilres", sec: "sec-ceilingcard", verify: verifyCeiling,
+    mutate: (c) => { if (c.ceiling.maxPctBp != null) { c.ceiling.maxPctBp = Math.max(0, c.ceiling.maxPctBp - 300); c.ceiling.maxPct = (c.ceiling.maxPctBp / 100).toFixed(1) + "%"; } return c; } },
+  launderceil:{ label: "launder the ceiling — rename the model", file: "ceilings/llama-3.2-1b-instruct.json", ta: "ceiljson", res: "ceilres", sec: "sec-ceilingcard", verify: verifyCeiling,
+    mutate: (c) => { c.model.id = "gpt-5-mega"; return c; } },
   regrant: { label: "redirect a disclosure", file: "grants/sealed-priv-panel.json", ta: "grantjson", res: "grantres", sec: "sec-grantcard", verify: verifyGrant,
     mutate: (c) => { const v = c.grant.viewer; c.grant.viewer = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x"); c.grant.seeds.viewer = c.grant.viewer; return c; } },
   payout:  { label: "inflate a winning stake", file: "positions/winning-band.json", ta: "posjson", res: "posres", sec: "sec-poscard", verify: verifyPosition,

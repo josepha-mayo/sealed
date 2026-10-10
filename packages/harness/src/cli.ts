@@ -174,6 +174,8 @@ async function main() {
   sealed chain board --verify <file|dir> [--snapshot f]    replay a board card — PDAs, aggregates, pairwise verdicts, Wilson order
   sealed chain prove <model> [--out file] [--snapshot f]   mint a claim card — record+receipts+runs+venues+PDA seeds
   sealed chain prove --all [--out dir] [--snapshot f]      mint one claim card per record — the whole registry as verifiable artifacts
+  sealed chain ceiling <model> [--out f] [--snapshot f]    mint sealed-ceiling/v1 — proof of a negative: no finalized run scored above N%
+  sealed chain ceiling --verify <file|dir> [--snapshot f]  replay a ceiling card — PDAs + run-set completeness + argmax recomputation
   sealed chain prove --verify <file|dir> [--json]           verify a claim card (or every card in a directory) offline — every PDA re-derived, verdicts replayed (--json = machine-readable checks for CI)
   sealed chain badge --card <claim.json> [--out f.svg]      render a shields-style SVG badge bound to the claim's sha256 — the distribution artifact model providers embed
   sealed chain badge --card <claim.json> --verify <f.svg>   re-render and byte-compare — a badge that doesn't match its receipt fails

@@ -1,0 +1,262 @@
+{
+  "kind": "sealed-ceiling/v1",
+  "generatedAt": "2026-10-10T01:34:13.798Z",
+  "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "duel/model-b",
+    "recordPk": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB"
+  },
+  "record": {
+    "pk": "Duc2GiRahe7Qxj8fmNrBbcop9ZZftUSSSSSbg6Lc5iSB",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "c7b79a37a2ec9c645c22a85cf8ec7e5cb94e6fe4042515af72d41a3f1f7e86a7"
+    }
+  },
+  "scope": {
+    "claim": "no finalized subject run scored above ceiling.maxPct",
+    "subjectRuns": 22,
+    "finalizedRuns": 22,
+    "unfinishedRuns": 0,
+    "postRevealRuns": 0
+  },
+  "ceiling": {
+    "maxPctBp": 5937,
+    "maxPct": "59.4%",
+    "bestRun": {
+      "pk": "2F6ki4mZ1igaUu1ZaqV2V3R5m9MoykjuAp4Hucmn2qc1",
+      "benchmark": "3AZG8LzDa1rULxiobLc69jWZHP1YMjsjCcc5E7CxorN8",
+      "index": 2,
+      "correct": 19,
+      "items": 32,
+      "postReveal": false
+    }
+  },
+  "runs": [
+    {
+      "pk": "2F6ki4mZ1igaUu1ZaqV2V3R5m9MoykjuAp4Hucmn2qc1",
+      "benchmark": "3AZG8LzDa1rULxiobLc69jWZHP1YMjsjCcc5E7CxorN8",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "3xNwk9Fy2KrUkEMfKeGzeVDJ5jDHtyUfoNmftod1ywb1",
+      "benchmark": "GhYQGtzZLpVh54wocML48xWMf3Pwx7jHRMvZ3ieEjjie",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "3ZjGzeKrJa4dS4XYgQmoF8An9BLthwWAaLCauceUUoDK",
+      "benchmark": "B5dHZzxyzY7wiJT4fUQ2EikPt8m7nWtSMdVe8ThKhxUF",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "5nKZDL4NmmsTyPHUiGtssJKEy8RWovrUpznMXUNr2qKL",
+      "benchmark": "GbtMPLPCw4QLchoPaX4Z3VL3pge1cAAugb3JwmGFP5VQ",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "6gCvPSCS7cNbHJp4YFdzNkJiYUiidvk19JfaYS1ayeEt",
+      "benchmark": "3ztyHnaCayXpMNZ9MFepfq6Loofud9aXoidNUy5vw8rR",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "8NScp85y8KNex7h8WtZMfzpb8Ajw7teYozyK5Rp9bVvu",
+      "benchmark": "CUqNdpieZvxERgmWrnh8nabuL7CL9DsS5L9Wpp1E3sak",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "A2XAduU11VFAe4SFbem4Fw23xywBgrFPFcNjvvUdrDXb",
+      "benchmark": "9YrYzAJFfHU7XdcXj9VZGsd2d3iTXWHqCy2zdVogPBoq",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "C5cY4LRbL7Y8NyNF5hnKoszToqBnHhQSBDPgYdPoCQrk",
+      "benchmark": "D4bgMZUKYcWnAM32MXocEuEZUG8zNXoytTLujMrjS9XF",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "CAoEgfLnMGFSkoDemEcBQDPVzxAPYq1dyvk7xQ8QXdhk",
+      "benchmark": "6vWq6XnE7m2ChSmQbzpYodQySPVZm8ysaEzxEkoqtvSL",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "Ckff9sDaJkS9fjxTRYzXHhtdvg912cvvvrEAWXNBG3Kq",
+      "benchmark": "ELka8otjbPTGBXPrxLSm5p6AEEdr8WKq4DWiJDxt1GqG",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "CxdEWc2Rg7yymSohhoqm4wGRRYxVX1tLpq9pfCax2dkY",
+      "benchmark": "zWBQE1aaJ4MEyJTBGpzLJXNHGbGWQWBKW3DAjCoNvoV",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "D5RM8mtgcX79phHuwyWkQ1WmQAvTcZP2qY9V4HxMxJvJ",
+      "benchmark": "GmTCS2vHEpWQdgVJAVSETYLnjV3bs9tzKSZGMTZfD7b4",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "DNZaRUS6b58dadHtkbHWUsYjkzE5UE1UUPVAruBpFTBB",
+      "benchmark": "8FoR83eiNPfd8vPtRBRtFCgA1BsUnKmHUTcLTGjPiETb",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "DU2ER9FTSJdYb4UWuGsKtfmXTk2V1Rvp2Sd2Sq5yNpUb",
+      "benchmark": "zgjCLgtCN9vGi8qdCcbC2mvjHky5S8f8Tfcrgv4VU1y",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "EbXv6BWz96qqF5hb1uVe7bLWF4sSiZYUNhSmtw1AF2cZ",
+      "benchmark": "HmAtFrceCGKELVcpF7RhLPPx1uwDFitEoznqBrAv1tA3",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "ENJmYA5g534zL8qvAFdNTQ86UqZatNwGQhfSMb1PATuN",
+      "benchmark": "2cwT4xY7e6UDFePX7tB5PoiihJDfFT2kEqefayVtMVxZ",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "Erpv2uxVMDeE7wkb6QUkxRu1Y24gDRFkpBBLkk1BWur2",
+      "benchmark": "7fBMG7SRS9MZkAuQi1umG5Wwy1nUSX9v2E7AfwfDKmZy",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "FMMvF5J3r4MmAJTmJyESz3AhbGP4KsPb5v54vGVJcYVk",
+      "benchmark": "58Td3xu3WCMv9mYtwWkgEB1bcst3gZ21Whg6NMiH6WM1",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "FzMZuZdLQp1E3UDGAYn5QTcC8tnYYuDgd5wWpaMGDtRq",
+      "benchmark": "9mWBh3cMREi6zqEjZATyjiLudFMsG4KtzVNzQY9NJEPq",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "GwyadQXNrn1eng6aKer7M5zvUvrwGRjd2mWqkNi7UUbH",
+      "benchmark": "62RrhYXPNE3sRU78cnNVYsNzogBqSEkVd1YJMrzz8cia",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "J3DtRsrHapZ4E22afB4n9GPoCvn8dh9Uj1UMLkq73EG",
+      "benchmark": "13jRVvQ6ESmmKjq5oqgznUnTXqZyY5XL8PzpVfznVVB6",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "J5EQ8HSDf2KRr5sP2cCFnZn9DJpVeycA3PJHxEfggD6u",
+      "benchmark": "AFTSaVq1Kw6fNYqernLn9dR88z33ErLR2seXMmvg2pEW",
+      "index": 2,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    }
+  ]
+}

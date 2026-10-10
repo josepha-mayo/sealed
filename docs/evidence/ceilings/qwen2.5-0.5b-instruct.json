@@ -1,0 +1,82 @@
+{
+  "kind": "sealed-ceiling/v1",
+  "generatedAt": "2026-10-10T01:34:13.792Z",
+  "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "qwen2.5-0.5b-instruct",
+    "recordPk": "CXt66U71eShBAX3k7ATCzcU6MokgTobVvKwBtmvTZ4Js"
+  },
+  "record": {
+    "pk": "CXt66U71eShBAX3k7ATCzcU6MokgTobVvKwBtmvTZ4Js",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "77ec8b2565cd4ff90d33956ecf41bb84c611df53059372f3a67ae696582f3572"
+    }
+  },
+  "scope": {
+    "claim": "no finalized subject run scored above ceiling.maxPct",
+    "subjectRuns": 4,
+    "finalizedRuns": 4,
+    "unfinishedRuns": 0,
+    "postRevealRuns": 0
+  },
+  "ceiling": {
+    "maxPctBp": 625,
+    "maxPct": "6.3%",
+    "bestRun": {
+      "pk": "3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d",
+      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
+      "index": 2,
+      "correct": 2,
+      "items": 32,
+      "postReveal": false
+    }
+  },
+  "runs": [
+    {
+      "pk": "E8wRqWtjdNNPPbn8dU94shJ2ML2nPsFLXYt86xqd13B4",
+      "benchmark": "2RPWrmbqLmx7y9qu9iRaQr1DxVKcSaq2P2xgvqfptCpW",
+      "index": 1,
+      "status": 1,
+      "correct": 1,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "3c1672zTzZ8zb2KTqhA41NdUPukFPSeMY7bxhkj9DP1d",
+      "benchmark": "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug",
+      "index": 2,
+      "status": 1,
+      "correct": 2,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "DMf2vZaDhw1HfWZTmeDdjpPHkAVWK9TMU5ejLHZtAA31",
+      "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+      "index": 2,
+      "status": 1,
+      "correct": 0,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "BVEDvezs7Pz4pQQZSdXdXAF2BxXP45xXxJSkFBznyW7",
+      "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+      "index": 3,
+      "status": 1,
+      "correct": 0,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    }
+  ]
+}

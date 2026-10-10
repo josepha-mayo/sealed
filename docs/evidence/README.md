@@ -25,7 +25,7 @@ while that ledger is up; the artifacts are also self-checking offline.
 
 ### Portable artifacts — verify without a ledger
 
-The three artifact formats a judge can hold in one hand and check in the
+The artifact formats a judge can hold in one hand and check in the
 other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
 
 - `claims/` — **31 `sealed-claim/v1` cards**, one per registry record.
@@ -36,6 +36,20 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   `chain prove --verify docs/evidence/claims` (279 checks across 31 cards).
   Overlay your own policy while you're at it:
   `chain prove --verify claims/qwen2.5-3b-instruct.json --min-pct 20`.
+- `ceilings/` — **31 `sealed-ceiling/v1` cards**, one per registry
+  record — proof of a *negative*: "no finalized run of this model ever
+  scored above N%". A claim card proves existence (show the receipt);
+  a ceiling card proves nonexistence, possible only because the
+  snapshot is an exhaustive account dump. The card lists EVERY subject
+  run and the verifier re-derives that set itself — a dropped argmax
+  run dies at `run-set completeness`, a phantom at field binding, a
+  shaved `maxPct` at `ceiling exact`, a renamed model at
+  `record identity`. This is the primitive a capability ceiling or a
+  deployment policy actually wants — an upper bound you don't have to
+  trust. `chain ceiling --verify ceilings --snapshot ../../web/snapshot.json`
+  replays all 31 (9 checks each). The honest marquee:
+  `llama-3.2-1b-instruct` ≤ **3.1%** — the model whose self-reported
+  64/64 the MPC scored 1/64.
 - `policies/` — **`sealed-policy/v1` certificates**: a policy + every
   record's verdict + the embedded receipts the verdict replayed from.
   `min60-3runs.json` (whole registry), `strict70-vouched.json` (attested

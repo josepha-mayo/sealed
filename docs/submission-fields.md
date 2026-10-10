@@ -42,7 +42,7 @@ A second program hosts parimutuel markets — score bands, duels, ladder
 races, unseen-exam, commit-reveal dark markets, and FCFS capability
 bounties (pot pays the first proven run's operator, not a bettor) —
 resolving permissionlessly on `Run.correct`; bets latch before the
-first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 72/72
+first scored chunk. Verified: 17/17 E2E on a real MPC localnet + 73/73
 harness unit; four open-weights models settled real markets via MPC —
 a dead-heat, a reshare-grant private exam, a dark market on a
 ciphertext-only bank. Every primitive settled a real score.
@@ -86,7 +86,7 @@ bit-exact in-browser; the calibration specimen replays the same MPC
 arithmetic per-item (3b 7/32 vs 1.5b 2/32).
 Outputs are portable proof — 142 artifacts / 13 kinds replay
 keyless; `chain fingerprint` = one sha256 notarized on devnet;
-13 canned forgeries die at named checks; tamper/ pins 15 forged
+16 canned forgeries die at named checks; tamper/ pins 15 forged
 artifacts that verify by being REJECTED — `verify.py` redoes it
 in Python.
 

@@ -91,7 +91,7 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 142 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  all 176 committed artifacts: 31 claim cards, 73 match cards, 3 policy
   certificates, 4 custody trails, 4 capability reports, the ledger
   digest, the leaderboard card, 3 exam cards (one per commitment
   regime — authored, generated, private), 2 bettor-position cards
@@ -123,8 +123,8 @@ deadline.
   x25519 viewer key, `encryption_key == viewer` echo, and the panel
   tally re-derived: the questions moved, the answers never did).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
-  359 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 142 artifacts
+  429 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
+  explorer's "replay the whole bundle" button drives all 176 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
@@ -152,7 +152,7 @@ deadline.
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
-  audit, all 142 artifact replays, the full forgery sweep, AND the
+  audit, all 176 artifact replays, the full forgery sweep, AND the
   sealed-exam decrypt to EVERYTHING VERIFIED in ~8s, live in the
   judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.

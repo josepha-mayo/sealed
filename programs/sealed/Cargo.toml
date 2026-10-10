@@ -1,7 +1,7 @@
 [package]
 name = "sealed"
 version = "0.1.0"
-description = "Created with Arcium & Anchor"
+description = "MPC-sealed benchmarks: banks minted inside Arcium, answers never plaintext, scores written by callback"
 edition = "2021"
 
 [lib]

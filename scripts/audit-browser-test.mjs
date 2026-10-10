@@ -25,6 +25,11 @@ const documentStub = { getElementById: mkEl,
   createElement: (tag) => ({ tagName: tag.toUpperCase(), innerHTML: "", textContent: "", value: "", style: {}, children: [],
     setAttribute() {}, appendChild(c) { this.children.push(c); return c; }, addEventListener() {}, remove() {} }) };
 const snapText = readFileSync(join(ROOT, "web", "snapshot.json"), "utf8");
+// counts are derived, never hardcoded — the catalog is the truth for
+// artifact totals; FORGE_DEFS is the truth for the forgery sweep.
+const ART_COUNT = JSON.parse(readFileSync(join(ROOT, "web", "artifacts.json"), "utf8")).count;
+const FORGE_COUNT = (html.match(/^const FORGE_DEFS = \{([\s\S]*?)\n\};/m)?.[1]
+  .match(/^\s{2}\w+:\s*\{\s*label/gm) ?? []).length;
 
 const ctx = {
   window: { solanaWeb3: web3 },
@@ -345,8 +350,11 @@ const posDarkTxt = (els.get("posres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ")
 const posDarkOk = /POSITION VERIFIED/.test(posDarkTxt) && /pos_salt/.test(posDarkTxt);
 console.log(`in-page position verifier — sealed dark card (pos_salt seed) ${posDarkOk ? "PASS" : "FAIL"}`);
 if (!posDarkOk) fails++;
-// the forgery lab — every canned attack must die at a named check.
-for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts", "phanrun", "toc", "payout", "claimwin", "regrant"]) {
+// the forgery lab — every canned attack the page ships must die at a
+// named check. The list comes FROM the page (Object.keys(FORGE_DEFS)) so
+// a new attack can't ship without being exercised here.
+const forgeKeys = await vm.runInContext("Object.keys(FORGE_DEFS)", ctx);
+for (const k of forgeKeys) {
   await vm.runInContext(`forge(${JSON.stringify(k)})`, ctx);
   await new Promise((r) => setTimeout(r, 400));
   const r = await vm.runInContext(`__forgeOut[${JSON.stringify(k)}]`, ctx);
@@ -359,13 +367,14 @@ for (const k of ["score", "rank", "vouch", "verdict", "phantom", "pool", "counts
 await vm.runInContext("replayBundle()", ctx);
 await new Promise((r) => setTimeout(r, 100));
 const bundleTxt = (els.get("bundleres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-const bundleOk = /BUNDLE VERIFIED/.test(bundleTxt) && /142\/142 artifacts replayed in-page/.test(bundleTxt) &&
-  /sealed-claim\/v1 — 31\/31/.test(bundleTxt) && /sealed-match\/v1 — 73\/73/.test(bundleTxt) &&
-  /sealed-evidence-digest\/v1 — 1\/1/.test(bundleTxt) && /sealed-board\/v1 — 1\/1/.test(bundleTxt) &&
-  /sealed-bank\/v1 — 3\/3/.test(bundleTxt) && /sealed-catalog\/v1 — 1\/1/.test(bundleTxt) &&
-  /sealed-position\/v1 — 2\/2/.test(bundleTxt) && /sealed-bounty\/v1 — 2\/2/.test(bundleTxt) &&
-  /sealed-grant\/v1 — 2\/2/.test(bundleTxt) && /sealed-tamper\/v1 — 15\/15/.test(bundleTxt);
-console.log(`in-page bundle replay — 142 committed artifacts through their verifiers ${bundleOk ? "PASS" : "FAIL"}`);
+// counts are derived, not hard-coded: the headline is X/X and every
+// per-kind line must read n/n — a stale constant here can't bless drift.
+const headM = /BUNDLE VERIFIED\s+—\s+(\d+)\/(\d+) artifacts replayed in-page/.exec(bundleTxt);
+const kindLines = [...bundleTxt.matchAll(/(sealed-[\w-]+\/v1) — (\d+)\/(\d+) artifact\(s\) replayed/g)];
+const bundleOk = !!headM && headM[1] === headM[2] && kindLines.length >= 8 &&
+  kindLines.every(([, , a, b]) => a === b);
+console.log(`in-page bundle replay — ${headM?.[1] ?? "?"} committed artifacts through their verifiers (${kindLines.length} kinds) ${bundleOk ? "PASS" : "FAIL"}`);
+if (!bundleOk) console.log(`  bundleres: ${bundleTxt.slice(0, 1200)}`);
 if (!bundleOk) fails++;
 // the hero stat: SOL settled by MPC-written scores — must render a real
 // lamports total, not a blank cell.
@@ -421,12 +430,12 @@ if (!statOk) fails++;
   if (!cardOk) fails++;
   ctx.location.search = "?snapshot=bundled";
 }
-// the evidence catalog — all 120 artifacts listed as ?card= links, plus the
-// index's own self-verifying link (121 total).
+// the evidence catalog — every artifact listed as a ?card= link, plus the
+// index's own self-verifying link (ART_COUNT + 1 total).
 {
   const catTxt = (els.get("catalog")?.innerHTML ?? "");
   const catLinks = (catTxt.match(/\?card=/g) || []).length;
-  const catOk = /141 artifacts/.test(catTxt) && catLinks === 142 && /sealed-tamper\/v1/.test(catTxt);
+  const catOk = new RegExp(`${ART_COUNT} artifacts`).test(catTxt) && catLinks === ART_COUNT + 1 && /sealed-tamper\/v1/.test(catTxt);
   console.log(`in-page evidence catalog — ${catLinks} ?card= links across 13 kinds ${catOk ? "PASS" : "FAIL"}`);
   if (!catOk) fails++;
 }
@@ -449,7 +458,7 @@ if (!statOk) fails++;
   els.get("catalogjson").value = readFileSync(join(ROOT, "web", "artifacts.json"), "utf8");
   await vm.runInContext("verifyCatalog()", ctx);
   const cv = (els.get("catres")?.innerHTML ?? "").replace(/<[^>]+>/g, " ");
-  const cvOk = /CATALOG VERIFIED/.test(cv) && /141 listed \/ 141 found/.test(cv) && /141\/141 paths pinned/.test(cv);
+  const cvOk = /CATALOG VERIFIED/.test(cv) && new RegExp(`${ART_COUNT} listed / ${ART_COUNT} found`).test(cv) && new RegExp(`${ART_COUNT}/${ART_COUNT} paths pinned`).test(cv);
   console.log(`in-page catalog verifier — the index proves itself ${cvOk ? "PASS" : "FAIL — " + cv.slice(0, 300)}`);
   if (!cvOk) fails++;
 }
@@ -597,7 +606,7 @@ const gridOk = gridRows === 12 && /qwen2\.5-3b-instruct/.test(gridHtml) &&
 console.log(`in-page tournament grid — ${gridRows}×12 cells, signed deltas ${gridOk ? "PASS" : "FAIL"}`);
 if (!gridOk) fails++;
 // the one-click centerpiece — megaAudit() must cascade all four stages
-// (account audit, 142-artifact replay, full forgery sweep, sealed-exam
+// (account audit, ART_COUNT-artifact replay, full forgery sweep, sealed-exam
 // decrypt) into a final EVERYTHING VERIFIED scoreboard. The decrypt leg
 // exercises the REAL vendored noble/rescue modules via dynamic import —
 // a broken vendored file or drifted ciphertext surfaces here.
@@ -606,16 +615,16 @@ const megaHtml = els.get("megares")?.innerHTML ?? "";
 const megaStages = (megaHtml.match(/class="proof"/g) || []).length;
 const decHtml = els.get("dec-8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug")?.innerHTML ?? "";
 const megaOk = megaStages === 4 && /EVERYTHING VERIFIED/.test(megaHtml) &&
-  /142/.test(els.get("bundleres")?.innerHTML ?? "") &&
+  new RegExp(`${ART_COUNT + 1}`).test(els.get("bundleres")?.innerHTML ?? "") &&
   /decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml);
 console.log(`in-page PROVE EVERYTHING — 4 stages cascade to the scoreboard, sealed exam decrypted ${megaOk ? "PASS" : "FAIL"}`);
-if (!megaOk) console.log(`  mega detail — stages=${megaStages}/4, scoreboard=${/EVERYTHING VERIFIED/.test(megaHtml) ? "green" : "blocked"}, bundleres_142=${/142/.test(els.get("bundleres")?.innerHTML ?? "")}, dec=${/decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml)}`);
+if (!megaOk) console.log(`  mega detail — stages=${megaStages}/4, scoreboard=${/EVERYTHING VERIFIED/.test(megaHtml) ? "green" : "blocked"}, bundleres_root=${new RegExp(`${ART_COUNT + 1}`).test(els.get("bundleres")?.innerHTML ?? "")}, dec=${/decrypted/.test(decHtml) && !/decrypt failed/.test(decHtml)}`);
 if (!megaOk) fails++;
 // the copyable verdict — the root recomputed in-page must appear on it.
 // (the stub DOM never parses innerHTML into elements — read megares raw)
 const vtxt = megaHtml.match(/<pre id="verdicttxt"[^>]*>([\s\S]*?)<\/pre>/)?.[1] ?? "";
 const vOk = /SEALED — evidence verdict/.test(vtxt) && /bundle root/.test(vtxt) &&
-  /[0-9a-f]{64}/.test(vtxt) && /forgeries\s+13\/13/.test(vtxt);
+  /[0-9a-f]{64}/.test(vtxt) && new RegExp(`forgeries\\s+${FORGE_COUNT}/${FORGE_COUNT}`).test(vtxt);
 console.log(`in-page copyable verdict — root + all stage counts on the paste-ready block ${vOk ? "PASS" : "FAIL"}`);
 if (!vOk) fails++;
 // SEALED_DUMP_VERDICT=<path> — persist the paste-ready block so docs tooling

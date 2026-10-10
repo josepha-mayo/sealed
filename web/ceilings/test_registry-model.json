@@ -1,0 +1,92 @@
+{
+  "kind": "sealed-ceiling/v1",
+  "generatedAt": "2026-10-10T01:34:13.699Z",
+  "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "test/registry-model",
+    "recordPk": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK"
+  },
+  "record": {
+    "pk": "BPEm7wpeWHNWRrKLXuJmsLHU2AYySZuLNyr4fCRFrtrK",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "13df86ebdff45c9dcb250d88cf4d7af05e680390ccdd0c0d8cc074be7adfe7a0"
+    }
+  },
+  "scope": {
+    "claim": "no finalized subject run scored above ceiling.maxPct",
+    "subjectRuns": 5,
+    "finalizedRuns": 3,
+    "unfinishedRuns": 2,
+    "postRevealRuns": 0
+  },
+  "ceiling": {
+    "maxPctBp": 7500,
+    "maxPct": "75.0%",
+    "bestRun": {
+      "pk": "DiU9cKdJtraFLLYRcveY5SAEoRf1A6B4hBpdXqPN4Vwr",
+      "benchmark": "pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci",
+      "index": 8,
+      "correct": 48,
+      "items": 64,
+      "postReveal": false
+    }
+  },
+  "runs": [
+    {
+      "pk": "7UdMCXhrL54HJd6hjxoteurLjpuDisy3Uxrm92E667QV",
+      "benchmark": "8RKUNMKH8ZMEcBL6BjZimMu4phG8NX7wCUJFrV3QGrJY",
+      "index": 8,
+      "status": 0,
+      "correct": 0,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "DiU9cKdJtraFLLYRcveY5SAEoRf1A6B4hBpdXqPN4Vwr",
+      "benchmark": "pwcCRW4WgGyuiPWsPmWrJ5eKZE4cdZvxcyicdpxzEci",
+      "index": 8,
+      "status": 1,
+      "correct": 48,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": true
+    },
+    {
+      "pk": "HxJDkWAKVCH65NzxBnmHT5CCX8aouth8DKwQFo87SoZk",
+      "benchmark": "f5Qn6xA2gcud3Ve3oPFc4zpbgTeipbDTcjTACrmUn2D",
+      "index": 8,
+      "status": 0,
+      "correct": 0,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "J1zCYGJ7gWEm5MZEkBH3h3SrYyuqQNMmXi2sQ8nazTQp",
+      "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+      "index": 8,
+      "status": 1,
+      "correct": 48,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": true
+    },
+    {
+      "pk": "B6YGugnq95JxD4nbQh7fjVdD67Pbz5Fw5Pj7t6GHgPjC",
+      "benchmark": "272UVdLFj8kjcJHjhwXxvGnu1uWqdPwvdGZrtuTmgc7u",
+      "index": 9,
+      "status": 1,
+      "correct": 16,
+      "chunkCount": 2,
+      "postReveal": false,
+      "attested": false
+    }
+  ]
+}

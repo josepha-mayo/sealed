@@ -49,9 +49,15 @@ Checks:
      sealed-claim/v1 model cards (all 31) replay the same checks the
      TypeScript verifier runs — plus ScoreLog/Run account binding the
      TS path doesn't perform.
- 12. sealed-tamper/v1 exhibits — the eleven committed forgeries are
+ 12. sealed-tamper/v1 exhibits — the committed forgeries are
      replayed through Python's decoders and MUST be rejected; a lie
      that verifies under the second implementation fails the audit.
+     sealed-ceiling/v1 — proof-of-a-negative cards (all 31): the card
+     lists the ENTIRE subject run set, and the verifier re-derives that
+     set from the snapshot — completeness is the claim. The argmax
+     (max floor(correct*10000/items) over finalized runs) is recomputed;
+     an omitted run, a phantom run, a renamed model, or a shaved maxPct
+     all die at named checks.
  13. sealed-report/v1 — each narrated report's canonical claim-card
      sha256 recomputed (generatedAt/source excluded) and compared.
  14. sealed-policy/v1 — evalGate() ported line-for-line: vouchedOnly /
@@ -76,7 +82,7 @@ Checks:
      is used identically to chain.ts — every evidence window in the
      committed bundle is long past, so the board is stable.
 
-Coverage: every committed artifact — all 12 JSON kinds (134 files) and
+Coverage: every committed artifact — all 13 JSON kinds and
 the 4 markdown reports — replays under this second implementation.
 
   python3 scripts/verify.py --tamper    # the forgery lab, re-run here
@@ -1472,6 +1478,84 @@ def main():
                     f"{c_n - c_bad}/{c_n} model claims: every PDA re-derived, run + receipt "
                     f"bytes bound, venues replayed from Run.correct")
 
+    # --- sealed-ceiling/v1 — proof-of-a-negative cards --------------------
+    # "No finalized run of this model scored above N%." The card lists the
+    # ENTIRE subject run set; we re-derive that set from the snapshot, so
+    # an omitted argmax run dies at completeness and a phantom dies too.
+    kdir = ROOT / "docs" / "evidence" / "ceilings"
+    if kdir.is_dir():
+        k_n, k_bad = 0, 0
+        # the subject sets — every decoded Run grouped by its on-chain modelId
+        subj_by_model = {}
+        for e in SNAP["sealed"]:
+            d = base64.b64decode(e["data"])
+            if d[:8] != disc("Run"):
+                continue
+            dr = decode_run(d)
+            subj_by_model.setdefault(dr["modelId"], {})[e["pubkey"]] = dr
+        for card_path in card_iter(kdir, kind="sealed-ceiling/v1"):
+            if card_path.name == "index.json":
+                continue
+            card = json.loads(card_path.read_text())
+            if card.get("kind") != "sealed-ceiling/v1":
+                continue
+            k_n += 1
+            spid = card["programs"]["sealed"]
+            try:
+                okc = b58encode_check(
+                    pda([b"modelrec", bytes.fromhex(card["record"]["seeds"]["modelHash"])],
+                        spid) or b"", card["record"]["pk"])
+                # the record's on-chain modelId must BE the card's model
+                rec_raw = find_account(SNAP["sealed"], card["record"]["pk"], disc("ModelRecord"))
+                rec_dec = decode_model_record(rec_raw) if rec_raw else None
+                okc &= bool(rec_dec) and rec_dec["modelId"] == card["model"]["id"]
+                # every listed run re-derives its PDA
+                okc &= all(
+                    b58encode_check(pda([b"run", b58decode(r["benchmark"]),
+                                         u64le(r["index"])], spid) or b"", r["pk"])
+                    for r in card["runs"])
+                # completeness — card set == snapshot subject set, both ways
+                subject = subj_by_model.get(card["model"]["id"], {})
+                listed = {r["pk"] for r in card["runs"]}
+                okc &= listed == set(subject.keys())
+                # field binding — every listed run equals its decoded bytes
+                for r in card["runs"]:
+                    dr = subject.get(r["pk"])
+                    okc &= bool(dr) and dr["benchmark"] == r["benchmark"] \
+                        and dr["index"] == r["index"] and dr["status"] == r["status"] \
+                        and dr["correct"] == r["correct"] and dr["chunkCount"] == r["chunkCount"] \
+                        and dr["postReveal"] == bool(r["postReveal"]) \
+                        and bool(dr["attested"]) == bool(r["attested"])
+                # ceiling arithmetic — recompute argmax over status==1
+                scoped = [r for r in card["runs"] if r["status"] == 1]
+                scope_ok = (card["scope"]["subjectRuns"] == len(card["runs"])
+                            and card["scope"]["finalizedRuns"] == len(scoped)
+                            and card["scope"]["unfinishedRuns"] == len(card["runs"]) - len(scoped)
+                            and card["scope"]["postRevealRuns"] == sum(1 for r in scoped if r["postReveal"]))
+                if scoped:
+                    bp = {r["pk"]: (r["correct"] * 10000 // (r["chunkCount"] * 32))
+                          if r["chunkCount"] else 0 for r in scoped}
+                    mx = max(bp.values())
+                    argmax = [p for p, b in bp.items() if b == mx]
+                    br = card["ceiling"]["bestRun"] or {}
+                    scope_ok &= (card["ceiling"]["maxPctBp"] == mx
+                                 and br.get("pk") in argmax
+                                 and br.get("correct") == subject[br["pk"]]["correct"]
+                                 and br.get("items") == subject[br["pk"]]["chunkCount"] * 32)
+                else:
+                    scope_ok &= card["ceiling"]["maxPctBp"] is None and card["ceiling"]["bestRun"] is None
+                okc &= scope_ok
+                # snapshot hash pin — the negative is only defined vs THIS dump
+                if card.get("snapshotSha256"):
+                    okc &= card["snapshotSha256"] == snap_hash
+                if not okc:
+                    k_bad += 1
+            except Exception:
+                k_bad += 1
+        ok &= check("sealed-ceiling/v1 cards", k_bad == 0,
+                    f"{k_n - k_bad}/{k_n} ceiling cards: PDAs re-derived, subject-set "
+                    f"completeness vs snapshot, argmax recomputed")
+
     # --- sealed-report/v1 — the narrated capability cards (.md) -----------
     # A report proves its numbers by committing to the claim card's
     # canonical sha256 (generatedAt/source excluded). Recompute it.
@@ -2668,6 +2752,33 @@ def forged_card_rejected(f):
                     or v.get("pooledB") != pb_c):
                 return True
             return False
+        if kind == "sealed-ceiling/v1":
+            # the negative claim: modelId must be the named record's on-chain
+            # id; the listed run set must EQUAL the snapshot's subject set;
+            # the ceiling must equal the recomputed argmax.
+            rec_raw = find_account(SNAP["sealed"], f["model"]["recordPk"], disc("ModelRecord"))
+            rec_dec = decode_model_record(rec_raw) if rec_raw else None
+            if not rec_dec or rec_dec["modelId"] != f["model"]["id"]:
+                return True
+            subject = {}
+            for e in SNAP["sealed"]:
+                d = base64.b64decode(e["data"])
+                if d[:8] != disc("Run"):
+                    continue
+                dr = decode_run(d)
+                if dr["modelId"] == f["model"]["id"]:
+                    subject[e["pubkey"]] = dr
+            if {r["pk"] for r in f.get("runs", [])} != set(subject.keys()):
+                return True
+            scoped = [r for r in f["runs"] if r["status"] == 1]
+            if scoped:
+                mx = max((r["correct"] * 10000 // (r["chunkCount"] * 32))
+                         if r["chunkCount"] else 0 for r in scoped)
+                if f["ceiling"]["maxPctBp"] != mx:
+                    return True
+            elif f["ceiling"]["maxPctBp"] is not None:
+                return True
+            return False
     except Exception:
         return True  # a malformed forgery is a rejected forgery
     return False  # unknown kind — a forgery we never checked is not a rejection
@@ -3114,6 +3225,23 @@ def tamper_demo():
                     'forgery dies at "snapshot binding — MODEL ID MISMATCH"'
                     if caught else "FORGERY PASSED")
 
+    # 9. the hidden-argmax lie — a ceiling card claiming a 0% cap while
+    #    quietly dropping the model's best run. Completeness kills it:
+    #    the snapshot's subject set is recomputed, not read from the card.
+    card = json.loads((ROOT / "docs/evidence/ceilings/llama-3.2-1b-instruct.json").read_text())
+    forged = copy.deepcopy(card)
+    best = forged["ceiling"]["bestRun"]["pk"]
+    forged["runs"] = [r for r in forged["runs"] if r["pk"] != best]
+    forged["scope"]["subjectRuns"] -= 1
+    forged["scope"]["finalizedRuns"] -= 1
+    forged["ceiling"]["maxPctBp"] = 0
+    forged["ceiling"]["maxPct"] = "0.0%"
+    forged["ceiling"]["bestRun"] = None
+    caught = forged_card_rejected(forged)
+    all_ok &= check("hidden argmax (ceiling 3.1%→0% via dropped run)", caught,
+                    'forgery dies at "run-set completeness" / "ceiling exact"'
+                    if caught else "FORGERY PASSED")
+
     print("\n" + ("ALL FORGERIES CAUGHT — the Python verifier rejects its own lies"
                   if all_ok else "FORGERY LAB FAILED — a forged card verified"))
     return all_ok
@@ -3338,7 +3466,7 @@ def check_anchor():
 KNOWN_KINDS = {f"sealed-{k}/v1" for k in
                ("position", "bounty", "grant", "trail", "board", "match",
                 "claim", "policy", "catalog", "bank", "evidence-digest",
-                "tamper", "report")}
+                "tamper", "report", "ceiling")}
 
 if __name__ == "__main__":
     argv = sys.argv[1:]

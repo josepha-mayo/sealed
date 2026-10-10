@@ -17,8 +17,8 @@ Plain instructions:
 | `create_run(model_id, harness_hash, outputs_root)` | mints `Run` PDA `[run, benchmark, run_index]` committing to every output hash | stamps `post_reveal=1` if `benchmark.reveal_count > 0` (F1); `model_id` is self-reported runner metadata — the scored outputs + runner key are the trust-bearing fields |
 | `attest_run(run_index)` | authority vouches for a run's model identity | benchmark authority only |
 | `record_score(run_index, model_hash)` | enrolls a finalized run's score into the persistent `ModelRecord` aggregate + writes a `ScoreLog` receipt | permissionless; run must be finalized; `model_hash` must be `sha256(run.model_id)` so the entry binds the run's declared identity; `score_log`'s `init` on `[scorelog, run]` makes double-counting structurally impossible |
-| `reset_pending` / `reset_sealing` | liveness sweeps: clear stalled pending bits / sealing locks | permissionless — a stalled queue can be cleared by anyone |
-| `retire_benchmark` | stops new runs/chunks on the bank | authority; refused while runs pending |
+| `reset_pending` / `reset_sealing` | liveness sweeps: clear stalled pending bits / sealing locks | `reset_pending`: the runner, or anyone once the pending is stale; `reset_sealing`: bank authority |
+| `retire_benchmark` | stops new runs/chunks on the bank | authority (pending runs still score — `score_chunk` never consults bank status) |
 
 MPC-boundary instructions (queue → Arcium computes → `*_callback` writes):
 
@@ -26,7 +26,7 @@ MPC-boundary instructions (queue → Arcium computes → `*_callback` writes):
 |---|---|---|
 | `seal_part(index, part)` | `seal_part`: `Enc<Shared> → Enc<Mxe>` re-encryption | sealed ciphertext into `AnswerChunk` |
 | `gen_part(id, base_index)` | `gen_part`: ArcisRNG specs + in-circuit answers | public `ItemChunk` specs + sealed answer ciphertext |
-| `gen_part_private` | same, but specs returned `Enc<Shared>` to authority | ciphertext-only `PrivItemChunk` |
+| `gen_part_private` | same, but specs returned `Enc<Shared>` to a viewer key | ciphertext-only `PrivItemChunk` |
 | `score_chunk(run_index, index)` | `score_chunk`: compares committed output hashes vs sealed answers, reveals count only | `scored_mask` bit + `correct` count on `Run` |
 | `reveal_part(index, part)` | `reveal_part`: declassifies fingerprints | `Reveal` account + bumps `benchmark.reveal_count` (burn) |
 | `reshare_part(index, part, viewer)` | `reshare_part`: re-encrypts specs to viewer x25519 | `ShareGrant` PDA — questions only, never answers |
@@ -242,7 +242,7 @@ failure; non-artifact files are skipped, not failed). Reports need
 and board cards need it to replay against the decoded accounts. The explorer's
 "verify anything" panel does the same routing in-page, and its
 "replay the whole bundle" button is the recursive verifier
-in-browser — all 142 committed artifacts driven through their own
+in-browser — all 176 committed artifacts driven through their own
 in-page check lists with live progress, ending in the bundle root.
 `chain catalog [--dir docs/evidence]` prints the evidence table of
 contents — every artifact grouped by kind with a human title;
@@ -547,8 +547,8 @@ reclaim (market/duel/position/ladder/dark/darkpos/bounty layouts), e.g.
 ```rust
 seal_part(Enc<Shared, AnswerPart>)          -> Enc<Mxe, AnswerPart>
 gen_part(benchmark_id, base_index)          -> (GenPart, Enc<Mxe, AnswerPart>)
-gen_part_private(benchmark_id, base_index)  -> (Enc<Shared, GenPart>, Enc<Mxe, AnswerPart>)
-reshare_part(Enc<Mxe, Pack<GenPart>>, viewer_x25519) -> Enc<Shared, Pack<GenPart>>
+gen_part_private(benchmark_id, base_index, viewer_x25519) -> (Enc<Shared, Pack<GenPart>>, Enc<Mxe, AnswerPart>)
+reshare_part(Enc<Shared, Pack<GenPart>>, viewer_x25519) -> Enc<Shared, Pack<GenPart>>  // authority's stored ciphertext re-keyed — never an MXE input
 reveal_part(Enc<Mxe, AnswerPart>)           -> AnswerPart            // plaintext u64 fingerprints
 score_chunk(outputs[32]u64, Enc<Mxe, AnswerPart>×4) -> u8            // count only — match bits stay inside
 ```

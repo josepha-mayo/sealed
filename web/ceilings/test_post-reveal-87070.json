@@ -1,0 +1,52 @@
+{
+  "kind": "sealed-ceiling/v1",
+  "generatedAt": "2026-10-10T01:34:13.865Z",
+  "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "test/post-reveal-87070",
+    "recordPk": "7irQFc6oMCSua79XajcGFSty9mn1ifxWR9rETf5T1pJo"
+  },
+  "record": {
+    "pk": "7irQFc6oMCSua79XajcGFSty9mn1ifxWR9rETf5T1pJo",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "dffcec96d2396b3ad9ca91da1b2f0aa365f9100e9141510cef2fe9ef9fc54ef2"
+    }
+  },
+  "scope": {
+    "claim": "no finalized subject run scored above ceiling.maxPct",
+    "subjectRuns": 1,
+    "finalizedRuns": 1,
+    "unfinishedRuns": 0,
+    "postRevealRuns": 1
+  },
+  "ceiling": {
+    "maxPctBp": 1250,
+    "maxPct": "12.5%",
+    "bestRun": {
+      "pk": "5hoTAUTGkiouRujgoujnGk5nWdTexaJCHPG66N17kHgv",
+      "benchmark": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+      "index": 11,
+      "correct": 8,
+      "items": 64,
+      "postReveal": true
+    }
+  },
+  "runs": [
+    {
+      "pk": "5hoTAUTGkiouRujgoujnGk5nWdTexaJCHPG66N17kHgv",
+      "benchmark": "A6UkXHYNM8msZgw2PNwAXAj4jTLFLM4equFEZoFtCty1",
+      "index": 11,
+      "status": 1,
+      "correct": 8,
+      "chunkCount": 2,
+      "postReveal": true,
+      "attested": false
+    }
+  ]
+}

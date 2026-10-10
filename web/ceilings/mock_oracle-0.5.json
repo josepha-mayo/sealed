@@ -1,0 +1,92 @@
+{
+  "kind": "sealed-ceiling/v1",
+  "generatedAt": "2026-10-10T01:34:13.853Z",
+  "source": "../../web/snapshot.json",
+  "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+  "programs": {
+    "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+    "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+  },
+  "model": {
+    "id": "mock/oracle-0.5",
+    "recordPk": "uGbfq9L7DZATq7RFfG1JfsGopEuWSc4Xc4GzZe3tEfA"
+  },
+  "record": {
+    "pk": "uGbfq9L7DZATq7RFfG1JfsGopEuWSc4Xc4GzZe3tEfA",
+    "seeds": {
+      "prefix": "modelrec",
+      "modelHash": "e1d06fe57227d851b48e1ec757b593cf73e50c58b5e3e6dbc2ce93fcb0e6fa3b"
+    }
+  },
+  "scope": {
+    "claim": "no finalized subject run scored above ceiling.maxPct",
+    "subjectRuns": 5,
+    "finalizedRuns": 4,
+    "unfinishedRuns": 1,
+    "postRevealRuns": 0
+  },
+  "ceiling": {
+    "maxPctBp": 6250,
+    "maxPct": "62.5%",
+    "bestRun": {
+      "pk": "DMyCmrS3t2peZ56Jhe1xwtAGbKPLcopF3tnUBPKA9ci8",
+      "benchmark": "AWRZR3mqDjHJVuE1QZzDzWyL2J7RFwARqjcWYBwWswy7",
+      "index": 0,
+      "correct": 20,
+      "items": 32,
+      "postReveal": false
+    }
+  },
+  "runs": [
+    {
+      "pk": "4yiXg1ryaA8n1k5V7AqkZr3BWQvQT3jv83nWH66cKMSG",
+      "benchmark": "4bmE97KvQPnxRJvwSeXM3thhbksgKMnwnZnVxeVVeYHx",
+      "index": 0,
+      "status": 1,
+      "correct": 19,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "5kxsiwjWp66ioUi6FrL7vRohtQdk2LpoVLCvQHgh8pf9",
+      "benchmark": "ErzxiCv4k62XM1r76yjh17CZFXBGtrWfWqeZwhoeY3oo",
+      "index": 0,
+      "status": 0,
+      "correct": 0,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "CMQTohb1pi6XiaEo9UCuoZGFZLHUWQ319q8PrDj2oKkh",
+      "benchmark": "BHnDiakE2BPYrtGHWsRSazs31HoiojsTV8G99RNL66K7",
+      "index": 0,
+      "status": 1,
+      "correct": 15,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "DMyCmrS3t2peZ56Jhe1xwtAGbKPLcopF3tnUBPKA9ci8",
+      "benchmark": "AWRZR3mqDjHJVuE1QZzDzWyL2J7RFwARqjcWYBwWswy7",
+      "index": 0,
+      "status": 1,
+      "correct": 20,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    },
+    {
+      "pk": "oJf5Zhi6sEcL893ftXUaNz8a6tyfXUp5Sc9bHjeXETh",
+      "benchmark": "DQ4Hum2qF81w67HBrFx7nwGaDSUGP7krqqh7koDxxqMx",
+      "index": 0,
+      "status": 1,
+      "correct": 17,
+      "chunkCount": 1,
+      "postReveal": false,
+      "attested": false
+    }
+  ]
+}

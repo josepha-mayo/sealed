@@ -1,0 +1,72 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "shave the ceiling — claim a lower max than the data shows",
+  "targetKind": "sealed-ceiling/v1",
+  "targetCard": "llama-3.2-1b-instruct.json",
+  "expectFail": [
+    "ceiling exact"
+  ],
+  "forgedAt": "2026-10-10T01:51:20.197Z",
+  "forged": {
+    "kind": "sealed-ceiling/v1",
+    "generatedAt": "2026-10-10T01:34:13.839Z",
+    "source": "../../web/snapshot.json",
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "market": "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
+    },
+    "model": {
+      "id": "llama-3.2-1b-instruct",
+      "recordPk": "HT5SbpWXhi9mUgQDn6Y8TiuBu29qFT9WsGPbt4cwKf1c"
+    },
+    "record": {
+      "pk": "HT5SbpWXhi9mUgQDn6Y8TiuBu29qFT9WsGPbt4cwKf1c",
+      "seeds": {
+        "prefix": "modelrec",
+        "modelHash": "07b96f33ffe7e931fd8413f52a535bb8b4bea05e012ab1a47f94228f19a07ff8"
+      }
+    },
+    "scope": {
+      "claim": "no finalized subject run scored above ceiling.maxPct",
+      "subjectRuns": 2,
+      "finalizedRuns": 2,
+      "unfinishedRuns": 0,
+      "postRevealRuns": 0
+    },
+    "ceiling": {
+      "maxPctBp": 0,
+      "maxPct": "0.0%",
+      "bestRun": {
+        "pk": "7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj",
+        "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+        "index": 2,
+        "correct": 1,
+        "items": 32,
+        "postReveal": false
+      }
+    },
+    "runs": [
+      {
+        "pk": "7EKy2w9WENZTydEpzcyLVp8dyrbL5L4TbtbVRZSxFLAj",
+        "benchmark": "BoKj4kY1TMh9H3pPGk7v7LPys4fkZGw4NrwbjKXfNbij",
+        "index": 2,
+        "status": 1,
+        "correct": 1,
+        "chunkCount": 1,
+        "postReveal": false,
+        "attested": false
+      },
+      {
+        "pk": "HQJL9gjCJbS8t3hVKaLc8jmZfK9nvteb1JcKtUqLAHcw",
+        "benchmark": "BqC4fmNq7JVDiAuPGQbMDU5bTpdMHNPv9V6hPFMfmoAw",
+        "index": 3,
+        "status": 1,
+        "correct": 0,
+        "chunkCount": 1,
+        "postReveal": false,
+        "attested": false
+      }
+    ]
+  }
+}
