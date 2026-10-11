@@ -2,26 +2,41 @@
 
 The paths below replay captured account and artifact consistency. Independent historical chain origin, model identity, and committee honesty remain separate assumptions. See `audit-2026-10-11.md` for the latest verification scope.
 
-> **Skeptic's TL;DR** — if you do one thing: open
-> [`?mega=1`](https://josepha-mayo.github.io/sealed/?mega=1) (the whole audit
-> runs itself on load). If you doubt the page: run the forgery — press
-> **"forge a +1 score"** in the lab and watch the verifier kill it. If you
-> doubt the *implementation*: `curl -sL …/verify.py | python3 - --remote`
-> re-verifies all 518 pinned bytes in a second language, no clone.
+## The first 90 seconds
+
+1. Open [the Proof Room](https://sealed-eval.netlify.app/). Five workspace
+   tabs replace the long explorer. The evidence vault opens one section at a
+   time; its tables and account cards are paginated.
+2. In **Decision room**, use the public calibration exam, a 20% score floor
+   and one receipt. One named runner's pre-reveal evidence clears the rule.
+   Increase the minimum to **three receipts**. Nobody qualifies. Inspect why;
+   this disclosed exam requires a new sealed bank for future fresh trials.
+3. **Verify & export** the decision. It contains all records, not just the
+   four visible named runners. Run `python3 scripts/verify.py --card
+   sealed-evaluation-decision.json` against the matching repository/snapshot.
+4. Expand **Could someone forge this decision?** Clone a record, invent an
+   exam, or claim an extra qualifier. Each attack must fail the same verifier.
+5. In **Challenge lab**, run the receipt-cloning attack. In **Payout proof**,
+   replay the captured bounty. That payout uses its own captured bank and
+   single-run contract gate; the desk's aggregate policy is not a transaction.
+
+The new workflow makes a negative result useful: a sponsor can hand another
+person the reason it declined an evaluation claim. Hiding runner names is a
+presentation choice, not cryptographic anonymity. The shipped demo uses
+captured localnet arithmetic evidence, not customer traction or a new devnet
+MPC execution. The engine and every original verifier remain in the vault.
 
 ## The one-line pitch
 
-A benchmark whose items are **minted inside an MPC cluster** — questions drawn
-from the cluster’s RNG, answers computed and fingerprinted in-circuit — so
-the generated circuits emit fingerprints rather than a plaintext answer file. Public arithmetic specs are solvable; authorized private-question viewers may solve or leak their questions. In the private variant, questions are encrypted on-chain. Models are scored inside
-the cluster; only the count leaves it — and markets settle on that count directly. No referee, no oracle operator.
+A proof room for funding model capability: define the evidence rule, try to
+corrupt the result, and keep a decision another person can independently replay.
 
 ## Reproduction — pick your depth
 
 **Three steps, no repo needed:**
 
-1. Open [the hosted explorer's `?mega=1`](https://josepha-mayo.github.io/sealed/?mega=1) — the whole audit runs itself on load, ending on a copyable verdict. Then press **anchor this verdict on devnet** — a public demo-key integrity witness becomes a memo tx (`sealed-verdict/v1 <sha256>` over the exact verdict you just recomputed); come back next week and it's still there.
-2. Try to break it — [`?forge=score`](https://josepha-mayo.github.io/sealed/?forge=score) runs the attack in-page; then sit the sealed exam yourself at [`?quiz=1`](https://josepha-mayo.github.io/sealed/?quiz=1) — your score is graded by the same fingerprint the MPC used.
+1. Open [the hosted explorer's `?mega=1`](https://sealed-eval.netlify.app/?mega=1) — the whole audit runs itself on load, ending on a copyable verdict. Then press **anchor this verdict on devnet** — a public demo-key integrity witness becomes a memo tx (`sealed-verdict/v1 <sha256>` over the exact verdict you just recomputed); come back next week and it's still there.
+2. Try to break it — [`?forge=score`](https://sealed-eval.netlify.app/?forge=score) runs the attack in-page; then sit the sealed exam yourself at [`?quiz=1`](https://sealed-eval.netlify.app/?quiz=1) — your score is graded by the same fingerprint the MPC used.
 3. `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — a second implementation re-verifies all 518 pinned bytes off the hosted site. Want full depth? The localnet rebuild is below.
 
 **Cloned the repo instead?** The two load-bearing commands are
@@ -93,15 +108,15 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 
 # 2. eyeball the chain state — ciphertext-only private chunks, grant trail,
 #    minted specs, scores, resolved markets
-#   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
-#   ONE LINK, EVERY PROOF: https://josepha-mayo.github.io/sealed/?mega=1 —
+#   HOSTED (zero setup): https://sealed-eval.netlify.app/
+#   ONE LINK, EVERY PROOF: https://sealed-eval.netlify.app/?mega=1 —
 #   opens the page and runs the whole skeptic's suite while you watch:
 #   account audit → all 217 artifacts through their verifiers → every
 #   forgery attack in the lab → the sealed exam decrypting in-browser,
 #   landing "EVERYTHING VERIFIED" on load — with a copyable verdict block
 #   (counts, bundle root, anchor state) you can paste straight into
 #   review notes.
-#   GUIDED: https://josepha-mayo.github.io/sealed/?tour=1 — the explorer
+#   GUIDED: https://sealed-eval.netlify.app/?tour=1 — the explorer
 #   demos itself: an auto-walk through all twenty-five stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   TERMINAL: bash scripts/judge-demo.sh — the 90-second keyless audit
@@ -475,14 +490,14 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snap
 #     Sibling param: ?card=<path> makes every committed artifact a
 #     shareable self-verifying link — the page fetches the named card,
 #     routes it to its verifier, and lands on the check list. e.g.
-#       https://josepha-mayo.github.io/sealed/?card=banks/sealed-priv.json
+#       https://sealed-eval.netlify.app/?card=banks/sealed-priv.json
 #     lands on the private exam card with the ciphertext fold replayed.
 #     The catalog itself is an artifact: ?card=artifacts.json replays
 #     sealed-catalog/v1 — the index proves it lists EVERY artifact
 #     (completeness + hash-pinning vs SHA256SUMS). Two more params:
 #     ?forge=<attack> runs a live lab attack and lands on FORGERY CAUGHT;
 #     ?tamper=<exhibit> replays a committed sealed-tamper/v1 lie, e.g.
-#       https://josepha-mayo.github.io/sealed/?tamper=qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json
+#       https://sealed-eval.netlify.app/?tamper=qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json
 #     opens on EXHIBIT VERIFIED — the oracle-substituted trail card died
 #     at run binding, exactly as recorded when it was minted. And
 #     ?decrypt=1 is the payoff as a URL — the sealed private exam

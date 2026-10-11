@@ -8327,8 +8327,8 @@ export async function gateCertVerify(file: string, json = false, snapPath?: stri
   const recomp = { pass: (cert.models as any[]).filter((m) => m.verdict.pass).length,
     fail: (cert.models as any[]).filter((m) => m.verdict.reason === "policy").length,
     noEvidence: (cert.models as any[]).filter((m) => m.verdict.reason === "no-evidence").length };
-  check("summary consistent", s.pass === recomp.pass && s.fail === recomp.fail && s.noEvidence === recomp.noEvidence,
-    `${s.pass}/${s.fail}/${s.noEvidence} stored = ${recomp.pass}/${recomp.fail}/${recomp.noEvidence} recomputed`);
+  check("summary consistent", s.records === cert.models.length && s.pass === recomp.pass && s.fail === recomp.fail && s.noEvidence === recomp.noEvidence,
+    `${s.records}/${cert.models.length} records; ${s.pass}/${s.fail}/${s.noEvidence} stored = ${recomp.pass}/${recomp.fail}/${recomp.noEvidence} recomputed`);
   // account binding — every embedded receipt must equal a decoded
   // ScoreLog of that record (with the same bank filter the mint applied),
   // and the cert's model set must equal the snapshot's ModelRecord set.
@@ -8342,6 +8342,7 @@ export async function gateCertVerify(file: string, json = false, snapPath?: stri
           .filter((b) => b.publicKey.toBase58() === cert.policy.bank || b.account.name === cert.policy.bank)
           .map((b) => b.publicKey.toBase58()))
       : null;
+    if (bankSet) check("exam scope", bankSet.size > 0, "the named exam exists in the decoded snapshot");
     const scoped = bankSet ? allLogs.filter((l: any) => bankSet.has(l.account.benchmark.toBase58())) : allLogs;
     const key = (r: any) => `${r.correct}/${r.items}/${r.vouchedAtRecord ? 1 : 0}/${r.postReveal ? 1 : 0}`;
     const byRec = new Map<string, Map<string, number>>();
@@ -8366,7 +8367,7 @@ export async function gateCertVerify(file: string, json = false, snapPath?: stri
     const cardPks = new Set((cert.models as any[]).map((m) => m.recordPk));
     const missing = [...truePks].filter((k) => !cardPks.has(k));
     const phantom = [...cardPks].filter((k) => !truePks.has(k));
-    check("record-set completeness", missing.length === 0 && phantom.length === 0,
+    check("record-set completeness", missing.length === 0 && phantom.length === 0 && cert.models.length === truePks.size && cardPks.size === cert.models.length,
       `${truePks.size} ModelRecords on-chain == ${cert.models.length} listed` +
       (missing.length ? ` · ${missing.length} OMITTED` : "") + (phantom.length ? ` · ${phantom.length} PHANTOM` : ""));
     // Account-level name binding: the declared modelId must equal the decoded

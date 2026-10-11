@@ -4,11 +4,11 @@ Prepared from the code and replay evidence. These are draft answer blocks; map t
 
 ## shortDescription
 
-Private exams. Public scores. Markets that settle themselves. Sealed uses Arcium MPC to score committed model outputs on Solana, then pays capability bounties and resolves markets from the result account.
+Proof before payout. Sealed helps evaluation sponsors set an evidence rule, reject weak model claims and export a decision another person can verify. Its Proof Room supports blind review, receipt-completeness attacks and a captured bounty replay over Solana accounts and Arcium MPC scores. The wallet-free demo uses localnet arithmetic evidence.
 
 ## problemStatement
 
-An evaluation sponsor wants to pay for a model that meets a target without publishing the exam or trusting a runner’s score. A market pricing that target needs a precise settlement source. A private spreadsheet protects the exam only while its custodian stays honest; a public leaderboard discloses data and still relies on its operator. Sealed separates the questions, the committed outputs, and the public result. Our concrete starting point is sponsored evaluations for a narrow, machine-checkable task, with a bounty paid to the first qualifying run.
+A sponsor choosing a model needs to know whether its own task and evidence requirements were met. A high aggregate score can hide different exams, exposed answers, thin samples or duplicated receipts. Sealed binds the decision to one exact exam, checks all captured receipt membership, and reports missing proof. If nobody qualifies, it exports that refusal rather than recommending a winner. The first intended users are evaluation organizers and AI application teams funding a narrow, machine-checkable trial.
 
 ## technicalApproach
 
@@ -24,7 +24,7 @@ Engineering evidence, not customer traction: the merged localnet capture has 120
 
 ## targetAudience
 
-Start with a sponsor choosing a model for one measurable task: an evaluation organization, AI application team, or model competition organizer. They need a sealed test, a reproducible result, and a payout condition. Runners get a defined target and a receipt; judges get delegated question access and verifiable evidence. Prediction-market builders are a follow-on integration because they can consume the same result account. We will validate the sponsor workflow before expanding to general AI capability markets.
+Start with an evaluation sponsor funding one measurable model capability: a competition organizer, evaluation organization or AI application team. The Proof Room defines a score/sample rule, filters post-reveal receipts, hides names for a blind review, explains evidence gaps and exports a complete policy certificate. The sponsor can attack that certificate and independently replay it. On-chain capability bounties are the separate payout rail. Demand remains unvalidated; the next commercial test is one useful sponsored evaluation.
 
 ## businessModel
 
@@ -32,16 +32,16 @@ The prototype implements two fee paths: a bank authority can charge a per-run la
 
 ## competitiveLandscape
 
-A hosted evaluator keeps a private exam but owns the scoring service. A public benchmark is easy to inspect but can become available to runners in advance. An encrypted-position market protects bets while still depending on its resolution source. Sealed’s combination is a confidential exam, committed outputs, an MPC-written score and contracts that settle from that score. It removes a single scoring operator from the result path under the MPC committee’s assumptions. It does not eliminate insider knowledge, prove model identity, or certify general intelligence. The shipped arithmetic tasks demonstrate custody and settlement integrity; harder task families are future work.
+Private benchmarking is prior art: TRUCE describes confidential evaluation, and Gensyn Delphi has model-performance markets. Sealed does not claim to invent either. Its focused workflow makes an evaluation funding decision inspectable, including a no-qualifier refusal, complete record/receipt binding, generated decision forgeries and a separate payout proof. Solana supplies commitments and escrow; Arcium supplies confidential computation. The current arithmetic capture demonstrates protocol integrity, not validated customer utility or independently attested model identity.
 
 ## futureVision
 
-Make a funded capability target as inspectable as a token transfer: define the bank and threshold, disclose only the necessary questions, commit outputs, compute the result and pay from escrow. First validate repeat sponsored evaluations with a narrow task family. Then add independent model-runner attestation and more useful confidential task families. Confidential inference could later extend the trust boundary, but it is not shipped. Our near-term distribution is an open result-account interface and shareable proof cards that an evaluation sponsor or market can integrate.
+Make an evaluation funding decision as inspectable as its payout. First validate one repeat sponsored evaluation on a useful machine-checkable task, measuring setup cost, time to a defensible decision, repeat usage and willingness to pay. Add independent runner attestation and richer confidential task families after that. The current product already exports both positive and negative policy decisions, flags exposed-answer evidence, explains when a new exam is needed and lets a sponsor test decision forgeries.
 
 ## teamBackground
 
-Joseph Mayo owns and leads Sealed. The repository contains two Anchor programs, six Arcis circuits, a TypeScript harness, Python replay verifier and browser explorer. Development and audit work used Devin and Codex assistance; the security and product claims are tied to reproducible artifacts rather than agent assurances. The visible repository history begins on September 15, 2026. Relevant experience, time commitment, prior work outside this repository and other founder details must be supplied by Joseph where the form requests them; they are not inferred from the code.
+Joseph is an 18-year-old AI/ML developer and second-year student based in Ilorin, Nigeria. He owns product direction and the submission. Devin and Codex provided substantial implementation and audit assistance. The public MIT repository contains two Anchor programs, six circuits and three replay implementations. Visible repository history begins September 15, 2026; work before the eligibility period is not inferred from that history.
 
 ## demoVideo
 
-Public product: https://josepha-mayo.github.io/sealed/ . Audit deep link: https://josepha-mayo.github.io/sealed/?mega=1 . Source: https://github.com/josepha-mayo/sealed . Video URLs remain pending. Colosseum’s public FAQ asks for a presentation of up to two minutes and a separate product demo of no more than three minutes. The live Colosseum form confirms separate pitch and demo URLs. It states no face-on-camera requirement. The product demo can show the case file, receipt-cloning rejection, delegated question decrypt and complete replay. The presentation covers the sponsor problem, commercial hypothesis, evidence and honest limits.
+Public product: https://sealed-eval.netlify.app/ . Source: https://github.com/josepha-mayo/sealed . The authenticated form requires a separate pitch of at most two minutes and a live product demo of at most three minutes on YouTube, Loom or Vimeo. No explicit face requirement appeared. Video cuts show the exact-exam decision, a three-receipt refusal, decision-certificate forgery rejection and the captured bounty replay. Joseph records narration; public video links and final submission remain pending.

@@ -26,3 +26,14 @@ Other current show-and-tell posts read: Tnega, Ksha, Neon Memoir, Frenlock and M
 The hackathon judges can inspect an actual failure, attempt an actual forgery and replay the contract’s qualification inputs. The product’s initial customer is an evaluation sponsor, and the first proposed commercial test is one useful, sponsored confidential evaluation. Sponsor demand, pricing and useful task families remain unvalidated; these are the next product experiments, not existing traction.
 
 The broad AI-oracle framing is less memorable than “which score gets to move the money?” MPC protects the scoring path under its committee assumptions. It does not identify the model, make public arithmetic unsolvable, or prevent an authorized question viewer from deriving or leaking answers.
+
+
+## Proof Room rebuild
+
+The first pass applied these patterns too narrowly. The release now changes
+the buyer's actual interaction: exact-exam requirements, missing-proof
+explanations, a portable positive or negative decision, blind name display,
+forgeries of that newly generated decision and a separate payout gate.
+Five task tabs, mobile navigation, proof-kind/card selectors and paginated
+ledger evidence replace the long default explorer. See proof-room.md for the
+implemented scope, relevant prior art and the remaining commercial gaps.

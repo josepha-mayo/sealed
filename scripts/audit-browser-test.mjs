@@ -681,5 +681,60 @@ if (process.env.SEALED_DUMP_VERDICT) {
   const { writeFileSync } = await import("node:fs");
   writeFileSync(process.env.SEALED_DUMP_VERDICT, vtxt.replace(/<[^>]+>/g, "") + "\n");
 }
+// New buyer workflow: use real decoded accounts, not a synthetic UI success.
+const roomA=ctx.window.__audit;
+const roomBank=roomA.benches.find(b=>b.id===77007);
+ctx.__roomPolicy={bank:roomBank.pk,minPct:20,minRuns:1,minItems:32,vouchedOnly:false,noPostReveal:true};
+const roomRows=vm.runInContext('proofRoomEvaluate(window.__audit,__roomPolicy)',ctx);
+const q3=roomRows.find(r=>r.rec.modelId==='qwen2.5-3b-instruct');
+const q15=roomRows.find(r=>r.rec.modelId==='qwen2.5-1.5b-instruct');
+const exactExamOk=q3.verdict.pass&&q3.verdict.correct===7&&q3.verdict.items===32&&q15.verdict.reason==='no-evidence'&&q15.excluded===1;
+ctx.__roomPolicy.minRuns=3;
+const strictRows=vm.runInContext('proofRoomEvaluate(window.__audit,__roomPolicy)',ctx);
+const strictOk=strictRows.every(r=>!r.verdict.pass)&&strictRows.find(r=>r.rec.modelId==='qwen2.5-3b-instruct').verdict.reason==='policy';
+ctx.__roomPolicy.minRuns=1;ctx.__roomPolicy.noPostReveal=false;
+const permissiveRows=vm.runInContext('proofRoomEvaluate(window.__audit,__roomPolicy)',ctx);
+const exposureOk=permissiveRows.find(r=>r.rec.modelId==='qwen2.5-1.5b-instruct').verdict.correct===2;
+console.log(`Proof Room exact exam + exposed receipt + repeat evidence — ${exactExamOk&&strictOk&&exposureOk?'PASS':'FAIL'}`);
+if(!exactExamOk||!strictOk||!exposureOk)fails++;
+let duplicateOk=false,unknownBankOk=false,invalidRuleOk=false;
+ctx.__roomForged={...roomA,scoreLogs:[...roomA.scoreLogs,roomA.scoreLogs[0]]};
+try{vm.runInContext('proofRoomEvaluate(__roomForged,__roomPolicy)',ctx);}catch(e){duplicateOk=/Duplicate/.test(e.message);}
+ctx.__roomPolicy.bank='unknown-bank';
+try{vm.runInContext('proofRoomEvaluate(window.__audit,__roomPolicy)',ctx);}catch(e){unknownBankOk=/exact captured exam/.test(e.message);}
+ctx.__roomPolicy.bank=roomBank.pk;ctx.__roomPolicy.minRuns=NaN;
+try{vm.runInContext('proofRoomEvaluate(window.__audit,__roomPolicy)',ctx);}catch(e){invalidRuleOk=/Invalid evidence rule/.test(e.message);}
+console.log(`Proof Room guardrails — duplicate receipts, unknown exam, invalid rule ${duplicateOk&&unknownBankOk&&invalidRuleOk?'PASS':'FAIL'}`);
+if(!duplicateOk||!unknownBankOk||!invalidRuleOk)fails++;
+ctx.__roomPolicy={bank:roomBank.pk,minPct:20,minRuns:3,minItems:32,vouchedOnly:false,noPostReveal:true};
+const roomCert=await vm.runInContext('proofRoomCertificate(window.__audit,__roomPolicy)',ctx);
+mkEl('certjson').value=JSON.stringify(roomCert);
+const roomCertResult=await vm.runInContext('verifyCert()',ctx);
+const roomCertOk=roomCertResult?.ok&&roomCert.models.length===roomA.modelRecords.length&&roomCert.summary.pass===0;
+console.log(`Proof Room export — full record set, no-qualifier certificate independently replayed ${roomCertOk?'PASS':'FAIL'}`);
+if(!roomCertOk)fails++;
+roomCert.summary.pass=1;mkEl('certjson').value=JSON.stringify(roomCert);
+const falsifiedDecision=await vm.runInContext('verifyCert()',ctx);
+console.log(`Proof Room export tamper — changed decision summary rejected ${!falsifiedDecision?.ok?'PASS':'FAIL'}`);
+if(falsifiedDecision?.ok)fails++;
+roomCert.summary.pass=0;
+for(const attack of ['duplicate','exam','summary','empty']){
+  ctx.__roomOriginal=roomCert;ctx.__roomAttack=attack;
+  const forged=vm.runInContext('proofRoomForgeCertificate(__roomOriginal,__roomAttack)',ctx);
+  mkEl('certjson').value=JSON.stringify(forged.card);
+  const verdict=await vm.runInContext('verifyCert()',ctx);
+  const proof=els.get('certres').innerHTML;
+  const caught=!verdict?.ok&&proof.includes(forged.expected)&&/CERT FAILED/.test(proof);
+  console.log(`Proof Room decision attack ${attack} — caught at ${forged.expected} ${caught?'PASS':'FAIL'}`);
+  if(!caught)fails++;
+  if(process.env.SEALED_DUMP_DECISION){const{writeFileSync}=await import('node:fs');writeFileSync(process.env.SEALED_DUMP_DECISION.replace(/\.json$/,'.'+attack+'.json'),JSON.stringify(forged.card,null,2)+'\n');}
+}
+if(process.env.SEALED_DUMP_DECISION){const{writeFileSync}=await import('node:fs');writeFileSync(process.env.SEALED_DUMP_DECISION,JSON.stringify(roomCert,null,2)+'\n');}
+for(const [key,value,label]of [['minRuns',1.5,'fractional-run'],['minItems',32.5,'fractional-item']]){
+  const fractional=JSON.parse(JSON.stringify(roomCert));fractional.policy.minRuns=1;fractional.policy[key]=value;mkEl('certjson').value=JSON.stringify(fractional);
+  const result=await vm.runInContext('verifyCert()',ctx);console.log(`Proof Room imported ${label} criterion — exact comparison ${result?.ok?'PASS':'FAIL'}`);if(!result?.ok)fails++;
+  if(process.env.SEALED_DUMP_DECISION){const{writeFileSync}=await import('node:fs');writeFileSync(process.env.SEALED_DUMP_DECISION.replace(/\.json$/,'.'+label+'.json'),JSON.stringify(fractional,null,2)+'\n');}
+}
+
 console.log(`\n${fails === 0 ? "ALL GREEN" : fails + " FAILURES"} (render ok: ${rendered.length} chars)`);
 process.exit(fails === 0 ? 0 : 1);

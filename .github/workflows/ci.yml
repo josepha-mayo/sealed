@@ -33,7 +33,9 @@ jobs:
       - name: offline cryptographic audit of the evidence snapshot
         run: node scripts/verify.mjs
       - name: in-browser audit regression (headless)
-        run: node scripts/audit-browser-test.mjs
+        run: SEALED_DUMP_DECISION=/tmp/sealed-room-decision.json node scripts/audit-browser-test.mjs
+      - name: buyer-generated decision — TypeScript/Python replay and named forgery rejection
+        run: bash scripts/proof-room-parity.sh /tmp/sealed-room-decision.json
       - name: in-browser grant decryption regression (vendored RescueCipher + demo key)
         run: node scripts/decrypt-grants-test.mjs
       - name: integrity manifests (evidence bundle + served web assets)

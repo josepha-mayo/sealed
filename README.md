@@ -1,39 +1,60 @@
 # Sealed
 
 [![CI](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml/badge.svg)](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml)
-[![explorer](https://img.shields.io/badge/explorer-live-4ef0a8)](https://josepha-mayo.github.io/sealed/)
+[![explorer](https://img.shields.io/badge/explorer-live-4ef0a8)](https://sealed-eval.netlify.app/)
 
-**Private exams. Public scores. Markets that settle themselves.**
+**Proof before payout. Put model evidence on trial, then decide what to fund.**
 
-A stale model artifact claimed **64/64**. Against the actual committed exam,
-Arcium MPC scored it **1/64**. Sealed makes the second number the one a contract
-can settle on. [Open the case file](https://josepha-mayo.github.io/sealed/).
+[Open the Proof Room](https://sealed-eval.netlify.app/) ·
+[Decision room](https://sealed-eval.netlify.app/?view=decision) ·
+[Challenge lab](https://sealed-eval.netlify.app/?view=challenge)
 
-Sealed is a confidential evaluation and settlement protocol on Solana. A sponsor
-can fund a measurable capability target; runners commit outputs; MPC compares
-them against sealed answer fingerprints; markets and capability bounties read
-the resulting `Run.correct` account. Private generated exams disclose questions
-only to authorized viewer keys. The answer fingerprints stay inside MPC.
+Sealed is a decision desk for evaluation sponsors. Choose one exact exam,
+set a score floor and a minimum amount of evidence, and inspect which
+captured receipts satisfy the rule. Hide runner names for a blind review.
+If nobody qualifies, **export that refusal** as a `sealed-policy/v1`
+certificate: all records remain included, even those hidden by display
+filters. Browser, TypeScript and Python independently replay the decision.
 
-**The distinctive part is the resolution source.** Encrypting a bet protects a
-position. Sealed also supports encrypted exam state behind the result that
-moves the money. [Try cloning a winning receipt](https://josepha-mayo.github.io/sealed/?tamper=dark_model-a-vs-duel_model-a.clone-a-winning-receipt-buy-the-verdict-wholesale.json):
-every copied receipt is real, but the forged extra weight still fails completeness.
+The desk also attacks **the decision you just created**: clone a candidate,
+invent an exam, or claim an extra qualifier. The verifier must reject the
+forged certificate at a named check. The Challenge Lab shows a separate,
+committed receipt-cloning attack: every receipt is real, but counting one
+twice cannot buy extra weight. The Payout Proof replays the captured
+winning score 20/32 against threshold 4/32 and checks bank, timing and
+runner binding. These are real replay operations, not a payment simulation.
 
-Generated banks avoid a separately custodied answer file. This is not a claim
-that nobody can calculate an answer: public arithmetic specs are solvable, and
-authorized private-exam viewers can solve or disclose their questions. Model
-identity is runner-declared; scoring proves the submitted outputs' result,
-not which model produced them. [Threat model](docs/threat-model.md).
+A saved stale-output transcript claimed **64/64**; its pinned historical
+MPC result was **1/64**. The mismatch motivates the product; it is not an
+accusation against a model provider. The current demonstration uses
+arithmetic exams and a merged localnet capture, not production evaluations.
 
-Built for [Colosseum's Crypto World's Fair](https://colosseum.com/worldsfair),
-with Solana commitments and escrow, Anchor programs, and Arcium confidential
-computation. The first commercial hypothesis is sponsored evaluation bounties
-for a specific measurable task; external demand is still to be validated.
+Under the interface, two Anchor programs on Solana store output commitments,
+MPC callback scores, receipts and escrow. Arcium supports generated exams,
+confidential scoring and selective question disclosure. Markets and bounties
+settle from `Run.correct`. Revealing answer fingerprints burns an exam for
+future fresh-evidence trials; the decision desk explains when a new exam is
+needed instead of promising that more runs can repair a disclosed one.
+
+Private benchmarking and model-performance markets have prior art. Our
+focused product is an inspectable funding decision—including an honest
+no-qualifier result—with complete evidence and a reproducible attack path.
+[Product choices and prior art](docs/proof-room.md).
+
+Public arithmetic specs are solvable; authorized question viewers can derive
+or leak answers. Model identity is runner-declared. MPC confidentiality
+depends on its committee; replay checks the capture's consistency rather
+than independently establishing its chain origin.
+[Threat model](docs/threat-model.md).
+
+Built for [Colosseum's Crypto World's Fair](https://colosseum.com/worldsfair).
+The first commercial experiment is one sponsored evaluation with a useful,
+machine-checkable task, charging for private evaluation setup and repeat
+runs. Useful task families, sponsor demand and pricing remain unvalidated.
 
 > ## Judge it yourself — pick your depth
 >
-> - **8 seconds, zero setup:** [josepha-mayo.github.io/sealed/**?mega=1**](https://sealed-eval.netlify.app/?mega=1) — one click runs the whole thing:
+> - **8 seconds, zero setup:** [sealed-eval.netlify.app/**?mega=1**](https://sealed-eval.netlify.app/?mega=1) — one click runs the whole thing:
 >   - **the sealed exam decrypts in your browser** (the ciphertext-only private bank, via the committed throwaway delegate key),
 >   - **all 217 proof files replay** — every PDA re-derived, every venue re-resolved,
 >   - **38 canned forgeries die** at the exact check designed to kill them —
@@ -59,15 +80,15 @@ for a specific measurable task; external demand is still to be validated.
 >
 > </details>
 >
-> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/4XNhP9WvdMb68rijaMfApMQ7uhmCnQYoDjLd85iWqmPn35RS5rMvBYNix1SbHJNVzU3F9LnXdmLzhed9QBYkcjeq?cluster=devnet) — all three clickable, all verifiable by anyone.
+> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/45h7bpMUhztTSoFcwozUPHrvXF58XjiGMpy5QUuR7PZhXz52fSQY5e6teBvDV7WW2U79JJjxT3YpLXVXFq9swNoP?cluster=devnet) — all three clickable, all verifiable by anyone.
 >
-> **Honest status:** the full loop is proven end-to-end on Arcium localnet and both baseline programs were byte-verified on devnet; the latest Rust hardening must be redeployed before claiming that the current source is live; the shared devnet MPC cluster is currently withholding callbacks (a probe ran 40 attempts over 7.5h — disclosed in [docs/submission.md](docs/submission.md)'s devnet note). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
+> **Honest status:** the full loop is proven end-to-end on Arcium localnet and both baseline programs were byte-verified on devnet; the latest Rust hardening must be redeployed before claiming that the current source is live; a historical shared-cluster probe withheld callbacks over 40 attempts and 7.5h; current callback availability was not remeasured (disclosed in [docs/submission.md](docs/submission.md)'s devnet note). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
 >
 > **The numbers behind it:** **503 run accounts (406 MPC-finalized, the rest pending/partial in the merged localnet epochs) · 340 venues exercised · 4 real open-weights models · 217 replayable proof artifacts · 292 on-chain score receipts** — every figure on this page re-derives from raw account bytes; the freshness gate fails CI if a doc drifts from the bundle.
 >
-> **Judge shortcut:** [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
+> **Judge shortcut:** [standalone.html](https://sealed-eval.netlify.app/standalone.html) is the page + snapshot + every artifact + its own verifiers as one offline file. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
 >
-> Most submissions can't offer this step at all: plaintext answers for one deliberately-public bank are in the repo, so `scripts/rescore.mjs` recomputes every answer fingerprint, checks them against the on-chain reveals, and recounts — **identical to what the MPC cluster wrote** (7/32 vs 2/32 for two real models). Or [sit the exam yourself](https://josepha-mayo.github.io/sealed/?quiz=1): the page grades *your* typed answers under the exact `sealed/v1/answer` fingerprint the MPC used, against the on-chain reveal hashes.
+> Plaintext answers for one deliberately-public bank are in the repo, so `scripts/rescore.mjs` recomputes every answer fingerprint, checks them against the on-chain reveals, and recounts — **identical to what the MPC cluster wrote** (7/32 vs 2/32 for two real models). Or [sit the exam yourself](https://sealed-eval.netlify.app/?quiz=1): the page grades *your* typed answers under the exact `sealed/v1/answer` fingerprint the MPC used, against the on-chain reveal hashes.
 
 [![EVERYTHING VERIFIED — the in-page audit's copyable verdict, rendered from real output](docs/verified.svg)](https://sealed-eval.netlify.app/?mega=1)
 
@@ -79,7 +100,7 @@ for a specific measurable task; external demand is still to be validated.
 
 The distribution artifact — badges rendered *from* claim cards, bound to their sha256 (`chain badge --card <claim.json>`; even the honest zeros ship):
 
-[![qwen2.5-3b](docs/badges/qwen2.5-3b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/qwen2.5-3b-instruct.json) [![qwen2.5-1.5b](docs/badges/qwen2.5-1.5b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/qwen2.5-1.5b-instruct.json) [![qwen2.5-0.5b](docs/badges/qwen2.5-0.5b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/qwen2.5-0.5b-instruct.json) [![llama-3.2-1b](docs/badges/llama-3.2-1b-instruct.svg)](https://josepha-mayo.github.io/sealed/?card=claims/llama-3.2-1b-instruct.json)
+[![qwen2.5-3b](docs/badges/qwen2.5-3b-instruct.svg)](https://sealed-eval.netlify.app/?card=claims/qwen2.5-3b-instruct.json) [![qwen2.5-1.5b](docs/badges/qwen2.5-1.5b-instruct.svg)](https://sealed-eval.netlify.app/?card=claims/qwen2.5-1.5b-instruct.json) [![qwen2.5-0.5b](docs/badges/qwen2.5-0.5b-instruct.svg)](https://sealed-eval.netlify.app/?card=claims/qwen2.5-0.5b-instruct.json) [![llama-3.2-1b](docs/badges/llama-3.2-1b-instruct.svg)](https://sealed-eval.netlify.app/?card=claims/llama-3.2-1b-instruct.json)
 
 More live runs: [full demo](docs/demo.gif) (mint → private bank → disclosure → 4 market types → settle+claim) · [dark market](docs/dark.gif) (sealed bets on an exam that was never published) · [the keyless audit](docs/audit.gif) (Python second verdict → forgery lab → one devnet-anchored hash) · [demo.mp4](docs/demo.mp4) (the rendered 114s cut) · the judge TL;DR: [JUDGING.md](JUDGING.md).
 

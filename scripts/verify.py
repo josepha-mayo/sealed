@@ -2231,6 +2231,8 @@ def main():
                         continue
                     if a["pubkey"] == bank_arg or decode_benchmark(d)["name"] == bank_arg:
                         bank_pks.add(a["pubkey"])
+            if bank_arg:
+                ok &= check(f"{name}: exam scope", bool(bank_pks), "the named exam exists in the decoded snapshot")
             logs_by_rec = {}
             for a in SNAP["sealed"]:
                 d = base64.b64decode(a["data"])
@@ -2285,7 +2287,7 @@ def main():
                         f"{s.get('records')} records · {s.get('pass')} pass · {s.get('fail')} fail · {s.get('noEvidence')} no-evidence")
             true_pks = set(snap_idx()["recs"])
             card_pks = {m["recordPk"] for m in card["models"]}
-            ok &= check(f"{name}: record-set completeness", true_pks == card_pks,
+            ok &= check(f"{name}: record-set completeness", true_pks == card_pks and len(card["models"]) == len(true_pks) and len(card_pks) == len(card["models"]),
                         f"{len(true_pks)} ModelRecords on-chain == {len(card_pks)} listed")
             # account-level name binding — sha→seed alone isn't enough (the
             # seeds are self-declared too): the declared modelId must equal
@@ -2922,11 +2924,14 @@ def eval_gate(receipts, pol):
     if pol.get("minPct") is not None:
         checks.append(pct >= float(pol["minPct"]))
     if pol.get("minRuns") is not None:
-        checks.append(runs >= int(pol["minRuns"]))
+        checks.append(runs >= float(pol["minRuns"]))
     if pol.get("minItems") is not None:
-        checks.append(it >= int(pol["minItems"]))
+        checks.append(it >= float(pol["minItems"]))
     if pol.get("minWilsonPct") is not None:
         checks.append(wilson_lcb(c, it) >= float(pol["minWilsonPct"]))
+    if not checks:
+        return {"pass": False, "reason": "no-policy", "runs": runs,
+                "items": it, "correct": c, "pct": pct, "postRevealRuns": post}
     ok = all(checks)
     return {"pass": ok, "reason": "pass" if ok else "policy", "runs": runs,
             "items": it, "correct": c, "pct": pct, "postRevealRuns": post}

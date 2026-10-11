@@ -11,7 +11,10 @@ say "1/8 offline cryptographic audit (PDA re-derivation, commitment folds, resol
 node scripts/verify.mjs
 
 say "2/8 in-browser audit regression (same suite, headless)"
-node scripts/audit-browser-test.mjs
+SEALED_DUMP_DECISION=/tmp/sealed-room-decision.json node scripts/audit-browser-test.mjs
+
+say "2b. buyer-generated decision — independent TypeScript/Python replay and forgery rejection"
+bash scripts/proof-room-parity.sh /tmp/sealed-room-decision.json
 
 say "3/8 delegate grant decryption via the vendored RescueCipher"
 node scripts/decrypt-grants-test.mjs
