@@ -33,6 +33,10 @@ for (const rel of man) {
 // MANIFEST isn't pinned inside itself — embed it explicitly so the
 // in-page integrity re-hash resolves offline too.
 files["MANIFEST"] = readFileSync(resolve(WEB, "MANIFEST"), "utf8");
+// …and under its canonical hosted URL, so a fetched absolute MANIFEST
+// resolves to the same pinned bytes without touching the network.
+files["https://raw.githubusercontent.com/josepha-mayo/sealed/main/web/MANIFEST"] =
+  readFileSync(resolve(WEB, "MANIFEST"), "utf8");
 // the anchor doc lives outside the manifests by design (it timestamps the
 // root) — inline it under the canonical URL the page fetches.
 const anchorPath = resolve(repo, "docs/evidence-anchor.json");
@@ -63,12 +67,13 @@ for (const [from, mod] of [
 // 3. fetch override + the file map, injected before </head>
 const shim = `<script>
 /* standalone capsule — every fetch resolves from the embedded file map.
-   The page's verifiers run identically; nothing touches the network. */
+   The page's verifiers run identically; nothing touches the network.
+   Unlisted URLs MUST reject — a live passthrough would let a served remote
+   asset silently differ from the pinned bytes the capsule re-hashes. */
 window.__FILES = ${JSON.stringify(files).replace(/<\//g, "<\\/")};
-(() => { const __f = window.fetch?.bind(window);
-  window.fetch = (u, o) => { const k = String(u);
-    if (k in window.__FILES) return Promise.resolve(new Response(window.__FILES[k], { status: 200 }));
-    return __f ? __f(u, o) : Promise.reject(new Error("offline capsule: no " + k)); }; })();
+window.fetch = (u, o) => { const k = String(u);
+  if (k in window.__FILES) return Promise.resolve(new Response(window.__FILES[k], { status: 200 }));
+  return Promise.reject(new Error("offline capsule: no " + k)); };
 </script>
 </head>`;
 if (!html.includes("</head>")) throw new Error("index.html has no </head>");

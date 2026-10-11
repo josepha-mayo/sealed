@@ -66,24 +66,9 @@ export function decodeSnapshotSection(snap: any, section: "sealed" | "market"): 
     const hit = discs.find(([, d]) => buf.subarray(0, 8).equals(d));
     if (!hit) continue;
     try {
+      const account = decodeAccountTolerant(coder, hit[0], buf);
+      if (!account) continue;
       const list = out.get(hit[0]) ?? [];
-      const account: any = {};
-      // This fork's coder returns snake_case field names; `.all()` consumers
-      // expect camelCase — normalize so live and replay paths share one shape.
-      // Tail-append tolerance: accounts minted before a field was added to
-      // the layout are too short for strict borsh — retry with a zero pad,
-      // which decodes the new tail fields as zero ("absent"). Only applies to
-      // a discriminator-matched account, so this can never launder a type.
-      let dec: any = null;
-      for (const pad of [0, 32, 64, 128, 256]) {
-        try {
-          dec = coder.decode(hit[0], pad ? Buffer.concat([buf, Buffer.alloc(pad)]) : buf);
-          break;
-        } catch { /* still short — pad more */ }
-      }
-      if (!dec) continue;
-      for (const [k, v] of Object.entries(dec))
-        account[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = v;
       list.push({ publicKey: new PublicKey(e.pubkey), account });
       out.set(hit[0], list);
     } catch {
@@ -91,6 +76,28 @@ export function decodeSnapshotSection(snap: any, section: "sealed" | "market"): 
     }
   }
   return out;
+}
+
+/** Decode raw account bytes for IDL account `name`, tolerating layouts
+ *  older than the current IDL: a strict decode fails on accounts minted
+ *  before tail fields were appended (live `.fetch` EOF-bricks on these),
+ *  so we retry with a zero pad — appended fields decode as zero ("absent").
+ *  Only applies to caller-discriminator-matched bytes, so this can never
+ *  launder a type. Field names normalize snake_case → camelCase — the
+ *  shape `.all()`/`fetch` consumers expect. */
+export function decodeAccountTolerant(coder: any, name: string, buf: Buffer): any | null {
+  let dec: any = null;
+  for (const pad of [0, 32, 64, 128, 256]) {
+    try {
+      dec = coder.decode(name, pad ? Buffer.concat([buf, Buffer.alloc(pad)]) : buf);
+      break;
+    } catch { /* still short — pad more */ }
+  }
+  if (!dec) return null;
+  const account: any = {};
+  for (const [k, v] of Object.entries(dec))
+    account[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = v;
+  return account;
 }
 
 export const snapOf = (m: SnapMap, name: string): SnapAccount[] => m.get(name) ?? [];

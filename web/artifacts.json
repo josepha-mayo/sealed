@@ -1,7 +1,7 @@
 {
   "kind": "sealed-catalog/v1",
   "root": "../../docs/evidence",
-  "count": 202,
+  "count": 205,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
@@ -16,7 +16,7 @@
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
     "sealed-report/v1": 4,
-    "sealed-tamper/v1": 43,
+    "sealed-tamper/v1": 46,
     "sealed-trail/v1": 4
   },
   "artifacts": [
@@ -801,9 +801,19 @@
       "title": "forgery: fork the cluster — re-home the circuits to offset 0 → arcium-devnet.json"
     },
     {
+      "path": "tamper/arcium-devnet.invent-the-committee-fabricate-the-cluster-s-bls-key.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: invent the committee — fabricate the cluster's BLS key → arcium-devnet.json"
+    },
+    {
       "path": "tamper/arcium-devnet.re-key-the-mxe-substitute-the-signpda-address.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: re-key the MXE — substitute the signPda address → arcium-devnet.json"
+    },
+    {
+      "path": "tamper/arcium-devnet.repoint-the-bytecode-move-a-raw-circuit-to-a-phantom-pda.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: repoint the bytecode — move a raw circuit to a phantom pda → arcium-devnet.json"
     },
     {
       "path": "tamper/arcium-devnet.reroute-score-chunk-point-the-scoring-circuit-at-a-phantom-pda.json",
@@ -814,6 +824,11 @@
       "path": "tamper/arcium-devnet.retire-the-privacy-circuit-drop-reshare-part.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: retire the privacy circuit — drop reshare_part → arcium-devnet.json"
+    },
+    {
+      "path": "tamper/arcium-devnet.swap-the-bytecode-record-a-phantom-raw-circuit-hash.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: swap the bytecode — record a phantom raw-circuit hash → arcium-devnet.json"
     },
     {
       "path": "tamper/board.erase-the-1-model-re-rank-a-cropped-leaderboard.json",

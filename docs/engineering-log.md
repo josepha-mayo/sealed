@@ -218,7 +218,7 @@ gaps in the verifiers, not just in the programs:
   is parsed back from the replay output; the verdict counts itself, so
   it can't drift again. Same fix class for og:description + buttons.
 - **Spelled-out counts evaded the freshness gate.** freshness.mjs pinned
-  `(\d+)` claims; "eleven sealed-tamper cards" / "twelve canned attacks"
+  `(\d+)` claims; "eleven sealed-tamper cards" / "a dozen canned attacks"
   / a stale pinned-bytes figure lived in prose the gate never saw — and
   the gate itself hardcoded the tour-stop and artifact totals it was
   supposed to enforce. Fixed properly: the gate now *derives* the tour

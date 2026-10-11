@@ -41,8 +41,20 @@ after sealing, and nobody can fabricate a score.
 ## Trust assumptions
 
 - **Arcium MPC honesty model** — Sealed inherits Arcium's security assumptions
-  (t-of-n honest nodes for the executing cluster). A fully-malicious cluster
-  could forge `correct`; that's the same trust model every Arcium app inherits.
+  (t-of-n honest nodes for the executing cluster). Concretely on devnet:
+  every computation lands as `SignedComputationOutputs` — the output bytes
+  plus the committee's **aggregate BLS signature** — which each
+  `*_callback` opens via `output.verify_output(...)` before touching state;
+  a lone node or a relay cannot author a result. The executing committee is
+  Arcium **cluster 456**, whose *current* composition is bound in the
+  circuit card (`sealed-circuit/v1` → `cluster.blsPubkey`, `nodeCount: 2`,
+  `authority`) — two devnet nodes operated by Arcium, so "hidden" today
+  honestly means *no circuit output reveals the data*, with confidentiality
+  resting on that committee; on mainnet-beta, sized clusters raise the bar
+  mechanically. A fully-malicious cluster could forge `correct`; that is
+  the same trust model every Arcium app inherits — what Sealed removes is
+  the *benchmark operator*, the *scoring vendor*, and the *leaderboard
+  maintainer*, none of which exist here.
 - **Benchmark author honesty** — *authored banks only*. The author chooses the
   questions and answers; Sealed prevents *leakage* and *score forgery*, not a
   bad-faith bank. Reputation + published `items_root` are the mitigation.

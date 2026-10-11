@@ -17,7 +17,7 @@ a8b77ba902c15a996629ee99ae1f17e3a056c86d8de36b386418e0821b2d1987  ./acct-HW5H5bT
 d89d09b043820f3816d2464da8b85e0b92754db67d40db07b2554e46207d83ad  ./acct-HnM9ffHULWHBDAP4E8VaFFKRf7ckJCv9JMTvuGsSYkeL.json
 7a03c2dd181820f95872db7310d4630db4944000dee21fa29b58fcb7ee63ffd8  ./acct-VyAAjrsBiUkMumc8PqpA9nTzMyBsQ7uHMDf1AWQHFk3.json
 0f92df3cc6c204a44a756ab5044be1b2f50e3a018eb28c03ff4668d9e2ce97ed  ./acct-zbgZVGwLLvi9YcUsy3VZTpVLuw2qf6bHcdVsbZjEydj.json
-b86f80e0d7b37d51409b3b74804ce045ee20d0d7d02590e493d05844b8ce8c91  ./artifacts.json
+7e20d72ef958f2f1f6b0fd6f048942b3b85d6a47e47253336b86f88cba57a2d0  ./artifacts.json
 266fa9904a385df504617ea5b818cf9e57003ffee2dd30e1eb786157a87794df  ./band-local-cancelled.txt
 8d778bd2fe275f53687f035d3f7f5a60ed645a2ba849e607db115f20b8bf93d9  ./band-local.txt
 7e286f9b9cf4431a6958ddff7cbf9528ff2269c85cbb579b3d10e33f972fc765  ./banks/index.json
@@ -66,7 +66,7 @@ ec5fe81e1ab12618312dc3a0a1bd628ab8e926151b791faf3e2aa2ca91d80dcb  ./ceilings/tes
 de72004c6722d35d4360da4ef177b98297a54852cfc82db83891b02d2ead3f52  ./ceilings/test_registry-model-87070.json
 42a6300c0fc9e9e76c6b6284d74106aac5b4a726bafbce3b25beec804e27faa8  ./ceilings/test_registry-model.json
 a2c11ba13eef634ea82308a20307e07ae4354bf0c55cd873134d9ce0dd555a11  ./ceilings/test_sweep-run.json
-f52c6bf100fa6593d2098e7ab5b95172d6400de398e80ee6d2e14f10dfce56a9  ./circuit/arcium-devnet.json
+a02c5cc653fab24ff6ec892478a3879df530d81b009dd73d66a8fb84c34d47eb  ./circuit/arcium-devnet.json
 614bb03ed823bd014f87e64d221ebf08b05ea72df957d6b15b1a7f472a5f38d7  ./circuit/index.json
 013d4232e08304f1476b9d740b3f598d2359c7a65001526028c8bd11dd3cb24a  ./claims/dark_model-a.json
 4d457d43bd1969e848a939c16b7ea57f171b89f4f7aa0750b7f50f7999183b4c  ./claims/delegate_runner-1.json
@@ -206,10 +206,13 @@ aff12ca02fb6d2051e485cf60f3f9e9e0adc42b0f29d3fb3de4f8ba04d0eef58  ./run-25864-v2
 f56b8baf358d50565ba3e3ea070477556abf06cd9579b48119b4a2054b8dba39  ./run-gen6932-real-artifact.json
 7beef10868663385c299c12c4835671a26b252ba74d9f548e73e2bd96a0094f7  ./run-real-99003-artifact.json
 ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079  ./snapshot.json
-ba610984299adf233b843c7b89558c6015031696cf7f2972eb1e4eab936fcf41  ./tamper/arcium-devnet.fork-the-cluster-re-home-the-circuits-to-offset-0.json
-9dd948242421e3e5e4de1cb636f9637fbe4a5e484843beb541df4a862a61cf30  ./tamper/arcium-devnet.re-key-the-mxe-substitute-the-signpda-address.json
-d064829bdb63367d0327643fe2337061907de6f11e6b0d3ba811a8b529fd8a84  ./tamper/arcium-devnet.reroute-score-chunk-point-the-scoring-circuit-at-a-phantom-pda.json
-ee5513adc29f918c01feee52343646b8e504f9e8a4230b7bac55b461dd667692  ./tamper/arcium-devnet.retire-the-privacy-circuit-drop-reshare-part.json
+ca81491eb3c9a14aae2628b12fb51b1dafa869b87e9194d0ecb9c39e330e16bc  ./tamper/arcium-devnet.fork-the-cluster-re-home-the-circuits-to-offset-0.json
+80b52f7a927e0826de5ad88dc1f92b7e7f0137c3b24374a2ea5d81f870d97b75  ./tamper/arcium-devnet.invent-the-committee-fabricate-the-cluster-s-bls-key.json
+2b12a00e7cb59a91794b3852f641d4614e509e86afd1c5afe6e9e072bce8f89c  ./tamper/arcium-devnet.re-key-the-mxe-substitute-the-signpda-address.json
+1ff5e79af45ff52ab84e3199e9a646fdff15e07fba29186ce8317c0f377ca782  ./tamper/arcium-devnet.repoint-the-bytecode-move-a-raw-circuit-to-a-phantom-pda.json
+a019c8b4d1f0a9e6fabb7ddc5f12d497f36b30a225c28a48863c5651c7c5d6ca  ./tamper/arcium-devnet.reroute-score-chunk-point-the-scoring-circuit-at-a-phantom-pda.json
+20f0eb068dc73aa46dfb9b85497b4c8d9126d4dbdef77b44337e37f7f7109960  ./tamper/arcium-devnet.retire-the-privacy-circuit-drop-reshare-part.json
+594ddd5498526af3f553155027bfd32f9a601f0165417077a1a9e307751507c0  ./tamper/arcium-devnet.swap-the-bytecode-record-a-phantom-raw-circuit-hash.json
 b4f9b689ae7f7e9ba6ddefec59e1f737a67746ddcd16f25bb4a60297dd54d98f  ./tamper/board.erase-the-1-model-re-rank-a-cropped-leaderboard.json
 e70555f42647415b3336880adfff7d5a26f7c7a07a72bcdb697ba61193b144d7  ./tamper/board.inflate-a-receipt-s-score.json
 7a5711c8313005d08419767e1ca3f509ccd5cbc692bcbfdc6cdec1f2fbae1d73  ./tamper/board.swap-the-1-rank.json
@@ -224,7 +227,7 @@ c4385341433784f4d0166aa4e065a417c0a57fadc5b8d3c775076dc4fc6943c1  ./tamper/dark_
 16d912eba9f7e434dbd400851e87797f8158fd011156d50c19aff86f01ff9abc  ./tamper/dark_model-a.launder-the-receipts-rename-the-model.json
 ed8324e4a90c7bc3c050171defd22394538eb5f97705b92b49333e7780691263  ./tamper/dark_model-a.mint-a-phantom-receipt.json
 d5e6c6e1b9130e1dcdd242b0fdc9858de35d43bea1c01be607c4442340c85ef7  ./tamper/dark_model-a.omit-a-settled-venue-hide-the-loss.json
-3d4a98e0913a1a648d98d34dffb4c900a5d9e77e3262c0c1deb655bd74bbde56  ./tamper/index.json
+05a289abf7462394af6db756a6417e305d820321b0ff4d13aa3b44ea2fec35f3  ./tamper/index.json
 28a78107d368835b652afe53e20119d643a56c9715dcab37aeeeb89e7b2ab9c7  ./tamper/ledger.hide-a-bank-shave-the-benchmark-census.json
 47adf2b72a26c1c96c25466b22b4e85a295b220cebf8363c379e6fcdc48a8d93  ./tamper/ledger.launder-the-set-swap-the-pubkey-set-hash.json
 32b03136900ceea38332e322e5fcef0a74e127c75651f3a82878f10021a307a8  ./tamper/ledger.phantom-run-pad-the-run-count.json

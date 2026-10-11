@@ -58,12 +58,17 @@ Checks:
      (max floor(correct*10000/items) over finalized runs) is recomputed;
      an omitted run, a phantom run, a renamed model, or a shaved maxPct
      all die at named checks.
-     sealed-circuit/v1 — the MPC itself as evidence: all 9 Arcium PDAs
+     sealed-circuit/v1 — the MPC itself as evidence: all Arcium PDAs
      re-derived with the same ed25519 math (6 compdefs from
-     sha256(name)[:4] seeds, MXE, cluster, SignPda), program identity
-     against the deployed Arcium program, the canonical six-circuit set,
-     and the SignPda bound to the snapshot's SignPdaAccount — a phantom
-     referee dies at derivation, not at plausibility.
+     sha256(name)[:4] seeds, the raw bytecode accounts from
+     [ComputationDefinitionRaw, compdef, u8] seeds, MXE, cluster,
+     SignPda), program identity against the deployed Arcium program,
+     the canonical six-circuit set, the card's recorded account-content
+     sha256s bound against the committed web/arcium-infra.json bytes,
+     the cluster committee's aggregated BLS key proven present inside
+     the bound cluster account, and the SignPda bound to the snapshot's
+     SignPdaAccount — a phantom referee dies at derivation, a
+     re-uploaded circuit at the content hash, not at plausibility.
  13. sealed-report/v1 — each narrated report's canonical claim-card
      sha256 recomputed (generatedAt/source excluded) and compared.
  14. sealed-policy/v1 — evalGate() ported line-for-line: vouchedOnly /
@@ -291,6 +296,17 @@ def fetch_remote(web_base: str = WEB_BASE, raw_base: str = RAW_BASE) -> Path:
         dst.write_bytes(body)
     print(f"          {len(jobs)}/{len(jobs)} mirrored into {tmp} — "
           f"running the full pass on served bytes")
+    # web/arcium-infra.json — the circuit card's content-binding payload
+    # (the bytes the cluster executes) lives under web/ but is not
+    # necessarily MANIFEST-pinned; mirror it best-effort so the remote
+    # "account binding"/"cluster committee" checks run on served bytes
+    # too (if the site doesn't serve it, those checks report it absent).
+    if not (tmp / "web" / "arcium-infra.json").exists():
+        try:
+            (tmp / "web" / "arcium-infra.json").write_bytes(
+                get(f"{web_base}/arcium-infra.json"))
+        except Exception as e:
+            print(f"          (web/arcium-infra.json not served — {e})")
     return tmp
 
 
@@ -317,6 +333,124 @@ def snapshot_text():
 
 def snapshot_bytes():
     return snapshot_path().read_bytes()
+
+
+# --- sealed-circuit/v1 content binding (chain.ts verifyCircuitCard 3b–3d) ---
+ARCIUM_PID = "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+RAW_CIRCUIT_SEED = b"ComputationDefinitionRaw"  # [RAW, compdef, u8(idx)] PDAs
+
+
+def arcium_infra():
+    """Load web/arcium-infra.json — the committed Arcium-infrastructure
+    dump (6 compdef headers, 6 raw-circuit bytecode accounts, MXE, the
+    offset-456 cluster): the bytes the cluster executes. Mirror of
+    chain.ts loadArciumInfra(). Returns {"byPk": pubkey→raw bytes,
+    "fileSha": sha256 of the file itself} or None when absent — absence
+    is a check failure, not a crash ("cannot prove which bytes the
+    cluster executes"). SEALED_ARCIUM_INFRA overrides the path the way
+    SEALED_SNAPSHOT overrides the snapshot."""
+    p = Path(os.environ.get("SEALED_ARCIUM_INFRA",
+                            str(ROOT / "web" / "arcium-infra.json")))
+    try:
+        raw = p.read_bytes()
+        doc = json.loads(raw)
+        return {"byPk": {a["pubkey"]: base64.b64decode(a["data"])
+                         for a in doc.get("accounts") or []},
+                "fileSha": hashlib.sha256(raw).hexdigest()}
+    except Exception:
+        return None
+
+
+def circuit_raw_pdas(card, arcium_pid):
+    """"raw-circuit PDAs" replay — each compdef's bytecode lives in
+    [ComputationDefinitionRaw, compdefPda, u8(index)] accounts under the
+    Arcium program; a hash recorded under a made-up PDA binds nothing.
+    Returns (ok, ran): ran is False when the card records no rawCircuits
+    entries at all (old-format cards skip the check, same as TS)."""
+    raw_ok = raw_n = 0
+    for c in card.get("circuits") or []:
+        for r in c.get("rawCircuits") or []:
+            raw_n += 1
+            got = pda([RAW_CIRCUIT_SEED, b58decode(c["pda"]),
+                       bytes([int(r.get("index") or 0) & 0xFF])], arcium_pid)
+            if b58encode_check(got or b"", str(r.get("pda") or "")) \
+                    and re.fullmatch(r"[0-9a-f]{64}", str(r.get("sha256") or "")):
+                raw_ok += 1
+    return raw_ok == raw_n, raw_n > 0
+
+
+def circuit_account_binding(card):
+    """"account binding" replay — the card pins sha256 of the actual
+    account bytes (compdef headers, raw bytecode, MXE, cluster); the
+    committed arcium-infra.json supplies those bytes offline, so a
+    re-uploaded circuit keeps its PDA but dies on the hash. Returns None
+    when the card records no content hashes (old-format cards skip);
+    False when it does but the infra dump is absent, its pinned file sha
+    differs, or any recorded hash misses/mismatches the account bytes."""
+    needed = any((c.get("rawCircuits") or []) or c.get("compdefSha256")
+                 for c in card.get("circuits") or []) \
+        or (card.get("cluster") or {}).get("sha256") \
+        or (card.get("mxe") or {}).get("sha256")
+    if not needed:
+        return None
+    infra = arcium_infra()
+    if infra is None:
+        return False
+    pin = (card.get("infra") or {}).get("sha256")
+    file_ok = (not pin) or pin == infra["fileSha"]
+    a_ok = a_n = 0
+
+    def expect(addr, want_sha):
+        nonlocal a_ok, a_n
+        if not want_sha or not addr:
+            return
+        a_n += 1
+        b = infra["byPk"].get(addr)
+        if b is not None and hashlib.sha256(b).hexdigest() == want_sha:
+            a_ok += 1
+
+    for c in card.get("circuits") or []:
+        expect(c.get("pda"), c.get("compdefSha256"))
+        for r in c.get("rawCircuits") or []:
+            expect(r.get("pda"), r.get("sha256"))
+    expect((card.get("cluster") or {}).get("pda"),
+           (card.get("cluster") or {}).get("sha256"))
+    expect((card.get("mxe") or {}).get("pda"),
+           (card.get("mxe") or {}).get("sha256"))
+    return bool(file_ok and a_ok == a_n and a_n > 0)
+
+
+def circuit_cluster_committee(card):
+    """"cluster committee" replay — the cluster account records the
+    nodes' aggregated BLS public key (the committee attesting every
+    SignedComputationOutputs callback) and size; byte-presence inside
+    the sha-bound account is the portable proof, no Arcium IDL needed.
+    Returns None when the card carries neither cluster.blsPubkey nor
+    cluster.sha256 (old-format cards skip)."""
+    cl = card.get("cluster") or {}
+    if not (cl.get("blsPubkey") or cl.get("sha256")):
+        return None
+    infra = arcium_infra()
+    cbytes = infra["byPk"].get(str(cl.get("pda") or "")) if infra else None
+    bls = str(cl.get("blsPubkey") or "")
+    auth_hex = ""
+    if cl.get("authority"):
+        try:
+            raw = b58decode(str(cl["authority"]))
+            auth_hex = raw.hex() if len(raw) == 32 else ""
+        except Exception:
+            auth_hex = ""
+    try:
+        nodes = float(cl.get("nodeCount"))
+    except (TypeError, ValueError):
+        nodes = float("nan")  # Number(garbage) → NaN → >= 1 is False
+    return bool(cbytes is not None
+                and re.fullmatch(r"[0-9a-f]{128}", bls)
+                and not re.fullmatch(r"0+", bls)
+                and bls in cbytes.hex()
+                and (not cl.get("authority")
+                     or (auth_hex != "" and auth_hex in cbytes.hex()))
+                and nodes >= 1)
 
 
 def main():
@@ -1777,6 +1911,20 @@ def main():
                     got = pda([b"ComputationDefinitionAccount", b58decode(spid),
                                struct.pack("<I", c["offset"])], ARCIUM)
                     okc &= c["offset"] == want and b58encode_check(got or b"", c["pda"])
+                # content-level binding (chain.ts 3b–3d): raw-circuit PDAs,
+                # recorded account bytes vs web/arcium-infra.json, and the
+                # cluster committee's aggregated BLS key inside the bound
+                # account. Old-format cards carry none of these fields —
+                # each check skips and the card verifies exactly as before.
+                raw_ok, raw_ran = circuit_raw_pdas(card, ARCIUM)
+                if raw_ran:
+                    okc &= raw_ok
+                ab = circuit_account_binding(card)
+                if ab is not None:
+                    okc &= ab
+                cc = circuit_cluster_committee(card)
+                if cc is not None:
+                    okc &= cc
                 okc &= b58encode_check(pda([b"MXEAccount", b58decode(spid)], ARCIUM) or b"",
                                        card["mxe"]["pda"])
                 okc &= b58encode_check(pda([b"Cluster", struct.pack("<I", card["cluster"]["offset"])],
@@ -1794,7 +1942,8 @@ def main():
             except Exception:
                 k_bad += 1
         ok &= check("sealed-circuit/v1 cards", k_bad == 0,
-                    f"{k_n - k_bad}/{k_n} circuit cards: 9 Arcium PDAs re-derived, "
+                    f"{k_n - k_bad}/{k_n} circuit cards: Arcium PDAs re-derived, "
+                    f"account bytes bound to arcium-infra.json, "
                     f"signPda bound to the snapshot's SignPdaAccount")
 
     # --- sealed-ledger/v1 — the nothing-up-my-sleeve census ---------------
@@ -3564,6 +3713,15 @@ def forged_card_checks(f):
                     cd_ok += 1
             if cd_ok != 6:
                 died.add("compdef PDAs")
+            # content-level binding — chain.ts verifyCircuitCard 3b–3d.
+            # Each check skips on old-format cards (no recorded fields).
+            raw_ok, raw_ran = circuit_raw_pdas(f, ARCIUM)
+            if raw_ran and not raw_ok:
+                died.add("raw-circuit PDAs")
+            if circuit_account_binding(f) is False:
+                died.add("account binding")
+            if circuit_cluster_committee(f) is False:
+                died.add("cluster committee")
             if not b58encode_check(pda([b"MXEAccount", b58decode(spid)], ARCIUM) or b"",
                                    f.get("mxe", {}).get("pda", "")):
                 died.add("MXE PDA")
@@ -4523,7 +4681,7 @@ def tamper_demo():
     sc["pda"] = next(c for c in forged["circuits"] if c["name"] == "seal_part")["pda"]
     caught = forged_card_rejected(forged)
     all_ok &= check("phantom referee (score_chunk → seal_part's pda)", caught,
-                    'forgery dies at "compdef PDAs"'
+                    'forgery dies at "compdef PDAs" (+"raw-circuit PDAs"/"account binding")'
                     if caught else "FORGERY PASSED")
 
     # 15. the cherry-pick — the census card claims one more Run than the dump

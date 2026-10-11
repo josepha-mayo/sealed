@@ -97,9 +97,9 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 >
 > Verify it in seconds, not trust: the explorer's **`?mega=1`** link runs
 > the entire audit in your browser (~8s) — every account's PDA re-derived,
-> all 203 artifactss replayed, 12 forgeries dying at named checks, the
+> all 206 artifacts replayed, 35 forgeries dying at named checks, the
 > sealed exam decrypted in-page. Or `curl …/verify.py | python3 - --remote`
-> — one stdlib file re-verifies all 351 served bytes, zero clone. The
+> — one stdlib file re-verifies all 487 served bytes, zero clone. The
 > forgery lab lets you run the attacks yourself.
 >
 > The depth is real: `market sharps` reports the 125-wallet anonymity set
@@ -136,15 +136,15 @@ Body (paste-ready; numbers verified against web/snapshot.json):
   share no bank — paired ranking != aggregate), `banks --depth`.
 - Verifier chain: `chain stats` replays 31 aggregates + 201 resolutions
   inline, `chain items` regenerates an MPC-minted exam from raw chunks,
-  `chain artifact docs/evidence --recursive` replays all 203 artifacts,
+  `chain artifact docs/evidence --recursive` replays all 206 artifacts,
   `chain fingerprint` folds everything to one BUNDLE ROOT. `chain prove`
   mints `sealed-claim/v1` cards (31 committed, `--verify claims/`
   replays 279 checks; `--min-pct N` re-grades against caller policy);
-  `chain gate --cert` mints `sealed-policy/v1` (two committed); trails,
+  `chain gate --cert` mints `sealed-policy/v1` (three committed); trails,
   reports, positions, bounties, grants, bank, digest, catalog cards all
   replay keyless. `chain tour` narrates the ledger; `watch` ticks it
   live; `chain search` resolves any pubkey to its dossier.
-- Explorer mirrors all of it in-page plus: the 24-stop tour, per-kind
+- Explorer mirrors all of it in-page plus: the 25-stop tour, per-kind
   card verifiers, policy sweep, escrow ledger, diff-any-bundle button,
   and the tamper exhibits.
 

@@ -1,0 +1,237 @@
+{
+  "kind": "sealed-tamper/v1",
+  "attack": "repoint the bytecode — move a raw circuit to a phantom pda",
+  "targetKind": "sealed-circuit/v1",
+  "targetCard": "arcium-devnet.json",
+  "expectFail": [
+    "raw-circuit PDAs",
+    "account binding"
+  ],
+  "forgedAt": "2026-10-11T06:27:02.046Z",
+  "forged": {
+    "kind": "sealed-circuit/v1",
+    "generatedAt": "2026-10-11T06:26:04.279Z",
+    "source": "chain circuit --prove",
+    "programs": {
+      "sealed": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+      "arcium": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
+    },
+    "cluster": {
+      "offset": 456,
+      "pda": "DzaQCyfybroycrNqE5Gk7LhSbWD2qfCics6qptBFbr95",
+      "sha256": "cb12138c56d22357422af4567436d29e3e0008a05a342abe47b7d727bb699220",
+      "blsPubkey": "163aae97711de46abce15bb434dc3a38ec7842933b95cadf403ef04a1f873433044862a2c740a36dcf4336cca1a6100add2e9e092c99877133140e701829d28c",
+      "nodeCount": 2,
+      "authority": "CkgyeACNCpPMzDt2b8n41jTit63VehY1ghPXNU9Lnz8L"
+    },
+    "mxe": {
+      "pda": "4Jcw5RrtuoYDM63g1vvKpy8QgPWdg3Jtzfmev71xk4fJ",
+      "sha256": "09529b4a586fe3ae360361f82012f2db53683dcc1d9912654c482d366aeac044"
+    },
+    "signPda": "DrnekooAocueVfERVgqkvz6uunEoUbP7AKoo6cV8NudF",
+    "circuits": [
+      {
+        "name": "seal_part",
+        "offset": 377626190,
+        "pda": "AXtxXwzRtmpZEpVu3PgJomSAj4sxfpjJMwgq2yQuq3tf",
+        "compdefSha256": "71273d0046de2cd75b0e5e86efbfa78cdb0bd435f66ce6a86f2676941121fdb8",
+        "rawCircuits": [
+          {
+            "index": 0,
+            "pda": "Gmnrbr6guqxHW7aHmn39y3cezKFjTpWQx7R37isAAbUZ",
+            "sha256": "a6329cde8c04962d360a1d17bf7cf28ee0e61154de282c9e90501aadd6ec23c5",
+            "dataLen": 217763
+          }
+        ]
+      },
+      {
+        "name": "score_chunk",
+        "offset": 22757050,
+        "pda": "9Ab3Bwr8gJNcdU98x7PHCbPPMYuqi1dcyzUrbBfLq5bo",
+        "compdefSha256": "ecbab2550990b5003287299ed83fb2f6b0cb13a49193ac9a66f825f4c672ce1a",
+        "rawCircuits": [
+          {
+            "index": 0,
+            "pda": "Gmnrbr6guqxHW7aHmn39y3cezKFjTpWQx7R37isAAbUZ",
+            "sha256": "ed7bb0e48ef926b71027f250c3aa37971dd0d7642d88edf02776e3ddc1fdefaa",
+            "dataLen": 671123
+          }
+        ]
+      },
+      {
+        "name": "gen_part",
+        "offset": 233748648,
+        "pda": "AC4vv1tMzEDUcEYDyq747cNWnJimk4cxtTSUPQdnEGRJ",
+        "compdefSha256": "53de65565898cd68ab76b1e5a6511244a89621c270ee15529ff9bfc3e088c4c1",
+        "rawCircuits": [
+          {
+            "index": 0,
+            "pda": "3vfRP44p2LXNNF3osLgWi8PeqYGcjvGNVXRYmTpMJhEY",
+            "sha256": "f891f3858cccdd79690c3cf133167979f5e446ee98e8261e6967f6d447fb5ff1",
+            "dataLen": 66290
+          }
+        ]
+      },
+      {
+        "name": "gen_part_private",
+        "offset": 3168202308,
+        "pda": "CQefc8LYMBFJw23tTv3KTVHEtidJaRhm5c8yQK5s7arN",
+        "compdefSha256": "d2f242593c68053aa1c975c089e82d5aa53d46fb7318e03120981c42fbaf2bf7",
+        "rawCircuits": [
+          {
+            "index": 0,
+            "pda": "HD9MZcMtkAPJG7L9NyYBzn85tsgLRXBjUdzoemcWn82L",
+            "sha256": "3a0f8ad46eeac293aef72f818c315e0bbff40bcaf7e6870cc7b129e2eb10f0ea",
+            "dataLen": 85574
+          }
+        ]
+      },
+      {
+        "name": "reveal_part",
+        "offset": 2697492279,
+        "pda": "zrHtqMWEbwpbbtQstSeAYfvYP5XKs8jLLLsAUMyZfmG",
+        "compdefSha256": "22aded2ee3ad0ef3caadd6b847062885e3411810679428aee2232a69f71265b8",
+        "rawCircuits": [
+          {
+            "index": 0,
+            "pda": "FcRwCmFSMta28GPt1Fs6GoGRvyjcqd7Ygas8cNLrTjmf",
+            "sha256": "1da25ba5beca6426c081e438db75a41b521da14d507e88f8e4dcd74acd9d287f",
+            "dataLen": 271587
+          }
+        ]
+      },
+      {
+        "name": "reshare_part",
+        "offset": 2733337506,
+        "pda": "GkPjW5pknrvYQDdTuSWEq7vPCUD6wKcpGH42xpec61kS",
+        "compdefSha256": "2dac528f7dcb0105e57b744fcd030c1dabee37f831d1dd761fee7d4ef108e491",
+        "rawCircuits": [
+          {
+            "index": 0,
+            "pda": "J9RhUNkT9i3j41mhcWEDdWxLhQb7RSU2q8qVTTcWbGnN",
+            "sha256": "86aec2f07e9421b177c96e8df2bb7542ee38ad24b158af205faa015c587969e7",
+            "dataLen": 44071
+          }
+        ]
+      }
+    ],
+    "infra": {
+      "file": "arcium-infra.json",
+      "sha256": "a00045ac8d8f3ba9b2fc2bb8ed3e23079c04fe4f9c2eca7f72dfa322b62e534f",
+      "accounts": 14
+    },
+    "snapshotSha256": "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079",
+    "signPdaSnapshot": "DrnekooAocueVfERVgqkvz6uunEoUbP7AKoo6cV8NudF",
+    "fetched": {
+      "rpc": "https://api.devnet.solana.com",
+      "at": "2026-10-11T06:26:07.068Z",
+      "accounts": {
+        "mxe": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 2270760,
+          "dataLen": 319,
+          "sha256": "09529b4a586fe3ae360361f82012f2db53683dcc1d9912654c482d366aeac044"
+        },
+        "cluster": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 4920720,
+          "dataLen": 579,
+          "sha256": "6545cf0e0cd9f39faa4daa4ff907e16473fd8c5d79a18825cf49e1726d48dd20"
+        },
+        "signPda": {
+          "exists": true,
+          "owner": "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ",
+          "lamports": 695960,
+          "dataLen": 9,
+          "sha256": "fe9589ea64b1dfb481b910a647c8324934e4123210869033c2ed505afe4e8be6"
+        },
+        "seal_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1249680,
+          "dataLen": 118,
+          "sha256": "71273d0046de2cd75b0e5e86efbfa78cdb0bd435f66ce6a86f2676941121fdb8"
+        },
+        "score_chunk": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1503680,
+          "dataLen": 168,
+          "sha256": "ecbab2550990b5003287299ed83fb2f6b0cb13a49193ac9a66f825f4c672ce1a"
+        },
+        "gen_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1412240,
+          "dataLen": 150,
+          "sha256": "53de65565898cd68ab76b1e5a6511244a89621c270ee15529ff9bfc3e088c4c1"
+        },
+        "gen_part_private": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1234440,
+          "dataLen": 115,
+          "sha256": "d2f242593c68053aa1c975c089e82d5aa53d46fb7318e03120981c42fbaf2bf7"
+        },
+        "reveal_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1239520,
+          "dataLen": 116,
+          "sha256": "22aded2ee3ad0ef3caadd6b847062885e3411810679428aee2232a69f71265b8"
+        },
+        "reshare_part": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1198880,
+          "dataLen": 108,
+          "sha256": "2dac528f7dcb0105e57b744fcd030c1dabee37f831d1dd761fee7d4ef108e491"
+        },
+        "seal_part/raw0": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1106886280,
+          "dataLen": 217763,
+          "sha256": "a6329cde8c04962d360a1d17bf7cf28ee0e61154de282c9e90501aadd6ec23c5"
+        },
+        "score_chunk/raw0": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 3409955080,
+          "dataLen": 671123,
+          "sha256": "ed7bb0e48ef926b71027f250c3aa37971dd0d7642d88edf02776e3ddc1fdefaa"
+        },
+        "gen_part/raw0": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 337403440,
+          "dataLen": 66290,
+          "sha256": "f891f3858cccdd79690c3cf133167979f5e446ee98e8261e6967f6d447fb5ff1"
+        },
+        "gen_part_private/raw0": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 435366160,
+          "dataLen": 85574,
+          "sha256": "3a0f8ad46eeac293aef72f818c315e0bbff40bcaf7e6870cc7b129e2eb10f0ea"
+        },
+        "reveal_part/raw0": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 1380312200,
+          "dataLen": 271587,
+          "sha256": "1da25ba5beca6426c081e438db75a41b521da14d507e88f8e4dcd74acd9d287f"
+        },
+        "reshare_part/raw0": {
+          "exists": true,
+          "owner": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ",
+          "lamports": 224530920,
+          "dataLen": 44071,
+          "sha256": "86aec2f07e9421b177c96e8df2bb7542ee38ad24b158af205faa015c587969e7"
+        }
+      }
+    }
+  }
+}

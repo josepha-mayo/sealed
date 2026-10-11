@@ -13,7 +13,7 @@ parimutuel markets resolved from `Run.correct`.
   `ARCIUM_CLUSTER_OFFSET=0 ANCHOR_PROVIDER_URL=http://127.0.0.1:8899
   ANCHOR_WALLET=~/.config/solana/id.json`. Suite salts bank ids per run
   (`SEALED_TEST_SALT=<n>` pins) so it is re-runnable on a dirty ledger.
-- `yarn harness:test` → 72/72 unit. `npx tsc -p packages/harness --noEmit` → typecheck
+- `yarn harness:test` → 75/75 unit. `npx tsc -p packages/harness --noEmit` → typecheck
   (exclude `build/` — arcis codegen emits invalid identifiers there).
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
@@ -60,7 +60,7 @@ parimutuel markets resolved from `Run.correct`.
   multiset binding), the catalog index, bank dossiers (items_root fold
   replayed in mint_order — gen banks fold specs, private fold
   ciphertexts+nonces), the whole-ledger digest (integrity rows + keeper
-  classification), and the 43 tamper exhibits which MUST be rejected.
+  classification), and the 46 tamper exhibits which MUST be rejected.
   No node, no pip, no RPC — proof the evidence is language-agnostic.
   `--tamper` forges each card family and asserts the catch at a named
   check. `--decrypt` ports the whole disclosure stack — RFC7748 x25519
@@ -157,31 +157,42 @@ parimutuel markets resolved from `Run.correct`.
   served in-page at "verify a ceiling card").
   `chain circuit --prove <f> --snapshot <f2> [--rpc <url>] [--cluster N]`
   mints `sealed-circuit/v1` — the MPC itself as evidence: every other
-  artifact binds what the MPC WROTE; this binds the MPC. The card
-  carries the six computation-definition accounts (offset =
+  artifact binds what the MPC WROTE; this binds the MPC, content-level.
+  The card carries the six computation-definition accounts (offset =
   u32le(sha256(name)[:4]), PDA = [ComputationDefinitionAccount,
-  sealedPid, u32le] @ the deployed Arcium program Arcj82pX…), the MXE
-  ([MXEAccount, sealedPid]), the Arcium cluster PDA ([Cluster,
-  u32le(456)]), and the callback SignPda ([ArciumSignerAccount] @
-  sealed). `--verify <f>` replays it keyless — program identity,
+  sealedPid, u32le] @ the deployed Arcium program Arcj82pX…), each
+  compdef's raw-circuit bytecode account ([ComputationDefinitionRaw,
+  compdefPda, u8(idx)] — the ~1.3MB the cluster actually executes), the
+  MXE ([MXEAccount, sealedPid]), the Arcium cluster PDA ([Cluster,
+  u32le(456)]) WITH its aggregate BLS public key + node count +
+  authority, and the callback SignPda ([ArciumSignerAccount] @ sealed).
+  Content binding: every account's sha256 is recorded and replayed
+  against the committed byte dump `web/arcium-infra.json`
+  (`scripts/arcium-infra.mjs` regenerates it; MANIFEST-pinned so it
+  rides the bundle root) — a re-uploaded circuit keeps its PDA but not
+  its hash. `--verify <f>` replays it keyless — program identity,
   circuit-set completeness (the canonical six, no dropped/phantom),
-  every PDA re-derived, and the chain-bound anchor: the snapshot's
-  SignPdaAccount must be the card's re-derived address. Rerouting
-  score_chunk, dropping reshare_part, re-keying the MXE, or forking
-  the cluster all die at named checks (committed example:
+  every PDA re-derived incl. the bytecode accounts, all recorded
+  sha256s matched against the infra bytes, the committee's BLS key
+  byte-presence-checked inside the sha-bound cluster account, and the
+  chain-bound anchor: the snapshot's SignPdaAccount must be the card's
+  re-derived address. Rerouting score_chunk, dropping reshare_part,
+  re-keying the MXE, forking the cluster, swapping a bytecode hash,
+  repointing a raw account, or inventing the committee all die at named
+  checks (committed example:
   docs/evidence/circuit/ + web/circuit/ — served in-page at "verify
   the circuit card"; `--rpc` on mint/verify records and re-checks
-  devnet account fields).
+  devnet account fields byte-exact).
   `chain artifact <file|dir>` is the universal verifier — detects any
   sealed-claim/ceiling/circuit/policy/match/trail/report/evidence-digest/
   board/bank/position/bounty/grant/catalog/tamper/v1 payload and routes
   to the right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 203 artifacts in one pass). `chain artifact <file>
+  replays all 206 artifacts in one pass). `chain artifact <file>
   --tamper` is the CLI forgery lab: kind-aware mutations re-run the
   verifier and MUST fail — a forged card that verifies exits 1 (all
-  15 artifact kinds carry canned attacks — the report kind mutates its
-  markdown via `mutateText`; the harness test pins all 15).
+  every artifact kind carries canned attacks (15 kinds — the report kind mutates its
+  markdown via `mutateText`; the harness test pins all fifteen).
   `chain catalog` prints the
   evidence table of contents (every artifact grouped by kind with a
   title); `--emit` writes `sealed-catalog/v1` (docs/evidence/artifacts.json
@@ -278,7 +289,7 @@ parimutuel markets resolved from `Run.correct`.
   bank / status / min-% / attested / post-reveal filters, score-first
   sort) and `#sec-grants` mirrors `chain grants` (the 145-grant
   disclosure trail — bank · chunk.part · viewer · shared-at).
-  `#sec-forge` is the forgery lab — twenty-one canned attacks (mutated
+  `#sec-forge` is the forgery lab — thirty-eight canned attacks (mutated
   score / swapped rank / un-vouched receipt / flipped verdict /
   phantom receipt / inflated pool / re-aged ledger counts / phantom
   run / catalog erase / stake inflation / bounty steal / grant
@@ -454,7 +465,7 @@ parimutuel markets resolved from `Run.correct`.
   `scripts/duel-private.sh <bench>` runs the blind private duel — two
   grant-delegates race different models on the same ciphertext-only
   bank: 3b 5/32 vs 1.5b 4/32, duel `EHiTUjmP…` resolved A-wins. Bank
-  `8HHm4HgA…` now carries 6 runs + 16 grants (4 to a delegate whose
+  `8HHm4HgA…` now carries six runs + sixteen grants (4 to a delegate whose
   keypair was overwritten mid-first-attempt — orphaned grants are
   permanent records, not sessions). WSL gotchas learned the hard way:
   llama.cpp needs `setsid` to survive the `wsl -d` wrapper teardown,
@@ -592,4 +603,4 @@ parimutuel markets resolved from `Run.correct`.
 - `gate --all --cert` emits `sealed-policy/v1` — the decision + verdicts
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
-  `yarn harness:test` → 72/72.
+  `yarn harness:test` → 75/75.

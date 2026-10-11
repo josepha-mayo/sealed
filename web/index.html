@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="A benchmark whose answer key was never written down, scored by nobody in particular — MPC-generated exams, on-chain score receipts, and prediction markets that settle without a referee. Replay the whole evidence base keyless.">
 <meta property="og:title" content="Sealed — the leaderboard you don't have to trust">
-<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 142 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base, notarized on devnet.">
+<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 206 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base, notarized on devnet.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://josepha-mayo.github.io/sealed/">
 <meta property="og:image" content="https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/flagship.gif">
@@ -14,7 +14,7 @@
 <meta name="twitter:image:alt" content="Terminal recording: four open-weights models race an MPC-minted exam; the evidence replays offline.">
 <meta name="twitter:title" content="Sealed — benchmark truth without a referee">
 <meta name="twitter:description" content="A benchmark whose answer key was never written down, scored by nobody in particular. Solana + Arcium MPC. Replay the evidence in-browser.">
-<title>Sealed — benchmark oracle &amp; markets</title>
+<title>Sealed — the exam nobody can leak</title>
 <script src="vendor/web3.iife.min.js"></script>
 <style>
   :root { --bg:#0a0e0f; --fg:#c8e6d5; --dim:#5f7a6b; --acc:#4ef0a8; --warn:#f0b84e; --err:#f06e5a; --card:#101715; --line:#1d2a24; }
@@ -59,6 +59,7 @@
   .heroarrow { align-self:center; color:var(--acc); font-size:22px; }
   .hero { border-color:var(--acc); }
   .verlink { cursor:pointer; color:var(--acc); text-decoration:underline; font-size:12px; }
+  .qlink { display:inline-block; border:1px solid var(--line); border-radius:14px; padding:3px 12px; margin:2px 6px 2px 0; font-size:12px; color:var(--acc); } .qlink:hover { border-color:var(--acc); text-decoration:none; }
   table { display:block; overflow-x:auto; }
   .cfg input { max-width:100%; }
   .nav { position:sticky; top:0; z-index:5; background:var(--bg); padding:8px 0; border-bottom:1px solid var(--line); margin-bottom:8px; }
@@ -84,15 +85,21 @@
   <div class="kv" style="margin-bottom:6px"><b>This page audits itself.</b> No wallet, no RPC, nothing trusted — every score below was written by the MPC cluster's callback, and you can recount any of them right here:</div>
   <div>
     <button onclick="megaAudit()" style="border-color:var(--acc)">▶ PROVE EVERYTHING — one click (~8s)</button>
-    <span class="kv">audit → all 182 artifacts replayed → 17 forgeries caught → the sealed exam decrypted in-page → copyable verdict. Or: <a href="#" onclick="startTour();return false">guided tour</a> (25 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
+    <span class="kv">audit → all 206 artifacts replayed → 38 forgery attacks caught → the sealed exam decrypted in-page → copyable verdict — then seal it on devnet. Or: <a href="#" onclick="startTour();return false">guided tour</a> (25 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
     <div id="megares" style="margin-top:8px"></div>
+  </div>
+  <div style="margin-top:8px">
+    <span class="kv">the good stuff is right below — jump straight to it:</span>
+    <a class="qlink" href="#sec-forge">try to break it — the forgery lab</a>
+    <a class="qlink" href="?quiz=1">sit the exam — guess answers against the MPC fingerprint</a>
+    <a class="qlink" href="#sec-tampercard">the lie exhibit — forgeries that verify by failing</a>
   </div>
   <div style="margin-top:6px">
     <span class="kv">piecemeal:</span>
     <button onclick="quickVerify()">verify the leaderboard card</button>
     <button onclick="quickForge()">watch a forgery die</button>
     <button onclick="quickDecrypt(this)">read the sealed exam</button>
-    <button onclick="quickReplay()">replay all 142 proofs</button>
+    <button onclick="quickReplay()">replay all 206 proofs</button>
   </div>
 </div>
 <div class="cfg">
@@ -103,44 +110,6 @@
   <button onclick="document.getElementById('diffPick').click()" title="drop a second bundle — added/removed/mutated accounts vs what's loaded">diff…</button>
   <input type="file" id="diffPick" accept=".json" style="display:none" onchange="this.files[0] && diffSnapshot(this.files[0])">
   <span id="net" class="kv"></span>
-</div>
-<div id="diffres"></div>
-<div id="err"></div>
-<div id="out"></div>
-
-<h2 id="sec-audit">cryptographic audit</h2>
-<div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 182 artifacts + its own verifiers as ONE offline file</div>
-  <div id="auditres"><span class="kv">waiting for data…</span></div>
-</div>
-
-<h2 id="sec-anomalies">the skeptic's checklist</h2>
-<div class="card">
-  <div class="kv" style="margin-bottom:8px">the audit above proves what <i>holds</i> — this panel proves what <i>doesn't</i>. Every soft spot in the bundle, enumerated by the same checks as <code>chain anomalies</code>: weak evidence stays evidence, flagged, never hidden.</div>
-  <div id="anomres"><span class="kv">waiting for data…</span></div>
-</div>
-
-<h2 id="sec-verify">verify an output</h2>
-<div class="card">
-  <div class="kv" style="margin-bottom:8px">proof that a model's output was committed <i>before</i> scoring — paste <code>sealed prove --run … --item …</code> output</div>
-  <input id="vrun" size="44" placeholder="run account pubkey"> <button onclick="verify()">verify</button>
-  <button onclick="loadExampleProof()" title="load a real committed proof">load example</button>
-  <div><textarea id="vproof" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"itemIndex":0,"chunkIndex":0,"outputHash":"…","chunkOutputs":["…×32"],"proof":["…"],"outputsRoot":"…"}'></textarea></div>
-  <div id="vres"></div>
-</div>
-
-<h2 id="sec-artifact">verify anything</h2>
-<div class="card">
-  <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/ceiling/policy/match/trail/report/evidence-digest/board/bank/catalog/position/bounty/grant/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
-  <textarea id="artifactjson" rows="6" oninput="window.__cardSrc=null" ondragover="event.preventDefault()" ondrop="dropArtifact(event)" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}  — or drop a card file here'></textarea>
-  <button onclick="verifyAnyArtifact()">verify artifact</button>
-  <button onclick="document.getElementById('artifactPick').click()" title="verify a card YOU downloaded — or one you just edited">load a file…</button>
-  <input type="file" id="artifactPick" accept=".json" style="display:none" onchange="this.files[0] && loadArtifactFile(this.files[0])">
-  <span id="artifactnote" class="kv"></span>
-  <div class="kv" style="margin-top:4px">verify <i>your</i> copy — download a card, edit a field, drop it back: the named check that catches it is the proof the verifier isn't decorative.</div>
-  <div class="kv" style="margin-top:10px">…or replay <b>every committed artifact</b> — the in-page mirror of <code>chain artifact docs/evidence --recursive</code>. Each file below runs through its own verifier above: every PDA re-derived, every verdict replayed, nothing trusted.</div>
-  <button onclick="replayBundle()">replay the whole bundle</button>
-  <div id="bundleres"></div>
 </div>
 
 <h2 id="sec-forge">the forgery lab — try to break it</h2>
@@ -173,6 +142,9 @@
     <button onclick="forge('dropcirc')">retire a privacy circuit</button>
     <button onclick="forge('rekeymxe')">re-key the MXE</button>
     <button onclick="forge('forkclus')">fork the cluster</button>
+    <button onclick="forge('swapraw')">swap the bytecode</button>
+    <button onclick="forge('repointraw')">repoint the bytecode</button>
+    <button onclick="forge('inventbls')">invent the committee</button>
     <button onclick="forge('padruns')">pad the census</button>
     <button onclick="forge('swapset')">swap the account set</button>
     <button onclick="forge('redatedump')">re-date the dump</button>
@@ -183,6 +155,18 @@
     <button onclick="forge('retitle')">retitle the report</button>
   </div>
   <div id="forgeres"></div>
+  <div class="kv" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">compose your own — any committed card × a generic attack primitive, straight into the real verifier:</div>
+  <div>
+    <select id="fcard" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick a committed card —</option></select>
+    <select id="fatk" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px">
+      <option value="bump">bump a score field (+1)</option>
+      <option value="drop">drop an array element</option>
+      <option value="rename">rename a string field</option>
+      <option value="reseat">re-seat a pubkey</option>
+    </select>
+    <button onclick="forgeChallenge()">run my forgery</button>
+    <span id="fcres" class="kv"></span>
+  </div>
 </div>
 
 <h2 id="sec-tampercard">the lie exhibit — committed forgeries that verify by failing</h2>
@@ -194,6 +178,45 @@
   <div><textarea id="tamperjson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-tamper/v1",…}'></textarea></div>
   <button onclick="verifyTamper()">verify exhibit — the inner card MUST be rejected</button>
   <div id="tamperres"></div>
+</div>
+
+<h2 id="sec-artifact">verify anything</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the universal verifier — paste ANY artifact this system emits (<code>sealed-claim/ceiling/policy/match/trail/report/evidence-digest/board/bank/catalog/position/bounty/grant/v1</code>) and the page detects its kind, routes it to the right replay below, and renders the full check list. Same as <code>chain artifact &lt;file&gt;</code> — one entry point for all portable evidence.</div>
+  <textarea id="artifactjson" rows="6" oninput="window.__cardSrc=null" ondragover="event.preventDefault()" ondrop="dropArtifact(event)" style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-…/v1", …}  — or drop a card file here'></textarea>
+  <button onclick="verifyAnyArtifact()">verify artifact</button>
+  <button onclick="document.getElementById('artifactPick').click()" title="verify a card YOU downloaded — or one you just edited">load a file…</button>
+  <input type="file" id="artifactPick" accept=".json" style="display:none" onchange="this.files[0] && loadArtifactFile(this.files[0])">
+  <span id="artifactnote" class="kv"></span>
+  <div class="kv" style="margin-top:4px">verify <i>your</i> copy — download a card, edit a field, drop it back: the named check that catches it is the proof the verifier isn't decorative.</div>
+  <div class="kv" style="margin-top:10px">…or replay <b>every committed artifact</b> — the in-page mirror of <code>chain artifact docs/evidence --recursive</code>. Each file below runs through its own verifier above: every PDA re-derived, every verdict replayed, nothing trusted.</div>
+  <button onclick="replayBundle()">replay the whole bundle</button>
+  <div id="bundleres"></div>
+</div>
+
+<div id="diffres"></div>
+<div id="err"></div>
+<div id="out"></div>
+
+<h2 id="sec-audit">cryptographic audit</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 206 artifacts + its own verifiers as ONE offline file</div>
+  <div id="auditres"><span class="kv">waiting for data…</span></div>
+</div>
+
+<h2 id="sec-anomalies">the skeptic's checklist</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">the audit above proves what <i>holds</i> — this panel proves what <i>doesn't</i>. Every soft spot in the bundle, enumerated by the same checks as <code>chain anomalies</code>: weak evidence stays evidence, flagged, never hidden.</div>
+  <div id="anomres"><span class="kv">waiting for data…</span></div>
+</div>
+
+<h2 id="sec-verify">verify an output</h2>
+<div class="card">
+  <div class="kv" style="margin-bottom:8px">proof that a model's output was committed <i>before</i> scoring — paste <code>sealed prove --run … --item …</code> output</div>
+  <input id="vrun" size="44" placeholder="run account pubkey"> <button onclick="verify()">verify</button>
+  <button onclick="loadExampleProof()" title="load a real committed proof">load example</button>
+  <div><textarea id="vproof" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"itemIndex":0,"chunkIndex":0,"outputHash":"…","chunkOutputs":["…×32"],"proof":["…"],"outputsRoot":"…"}'></textarea></div>
+  <div id="vres"></div>
 </div>
 
 <h2 id="sec-catalog">the evidence catalog</h2>
@@ -228,7 +251,7 @@
 </div>
 <h2 id="sec-circuitcard">verify the circuit card — the MPC itself as evidence</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">the referee is infrastructure, not a server — a <code>sealed-circuit/v1</code> card (<code>chain circuit --prove --snapshot --rpc</code> mints them) binds the six Arcium computation-definition accounts, the MXE, the Arcium cluster, and the callback SignPda to THIS deployment. Every other card binds what the MPC wrote; this one binds the MPC: each compdef address re-derives in-page as <code>[ComputationDefinitionAccount, sealedPid, u32le(sha256(name)[:4])]</code> under the deployed Arcium program <code>Arcj82pX…</code>, and the SignPda re-derives as a sealed-program PDA that must equal the account sitting in the snapshot. A renamed circuit lands on a different address; a fabricated one can't exist. Same checks as <code>chain circuit --verify</code>.</div>
+  <div class="kv" style="margin-bottom:8px">the referee is infrastructure, not a server — a <code>sealed-circuit/v1</code> card (<code>chain circuit --prove --snapshot --rpc</code> mints them) binds the six Arcium computation-definition accounts, the MXE, the Arcium cluster, and the callback SignPda to THIS deployment. Every other card binds what the MPC wrote; this one binds the MPC: each compdef address re-derives in-page as <code>[ComputationDefinitionAccount, sealedPid, u32le(sha256(name)[:4])]</code> under the deployed Arcium program <code>Arcj82pX…</code>, and the SignPda re-derives as a sealed-program PDA that must equal the account sitting in the snapshot. The card also pins sha256 of the actual account bytes — the six raw-circuit bytecode PDAs <code>[ComputationDefinitionRaw, compdef, u8]</code> re-derive, and every recorded hash must match the committed <code>arcium-infra.json</code> dump, including the cluster account's committee BLS key. A renamed circuit lands on a different address; a fabricated one can't exist; swapped bytecode fails its hash. Same checks as <code>chain circuit --verify</code>.</div>
   <button onclick="loadCircuit()">load the circuit card</button>
   <span class="kv">one committed card — sha256-pinned in this bundle&#8217;s MANIFEST</span>
   <div><textarea id="circjson" rows="9" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-circuit/v1", &#8230;}'></textarea></div>
@@ -878,8 +901,10 @@ async function load() {
       if (!window.__fallbackRendered) {
         const r = await fetch("snapshot.json");
         if (!r.ok) throw new Error("http " + r.status);
+        const txt = await r.text(); // hash the bytes actually audited
         window.__fallbackRendered = true;
-        applySnapshot(await r.json());
+        applySnapshot(JSON.parse(txt), hex(await sha(utf8(txt))));
+        window.__snapText = txt;
       }
       document.getElementById("err").textContent =
         "RPC unreachable — showing bundled snapshot. " + e.message;
@@ -890,6 +915,9 @@ async function load() {
   }
   window.__loadedOnce = true;
   try {
+    // live-rendered accounts aren't base64 snapshot entries — drop any stale
+    // bundle bytes so fingerprint/diff fall through to the decoded accounts.
+    window.__raw = new Map();
     renderAll(sealedAccs, marketAccs);
   } catch (e) {
     document.getElementById("err").textContent = "render error: " + e.message + " (old-layout accounts on this ledger?)";
@@ -905,7 +933,29 @@ const discName = (data) => {
   return TYPEOF[u8.length >= 8 ? hex(u8.slice(0, 8)) : ""] ?? "other";
 };
 
-function applySnapshot(snap) {
+// The snapshot-binding sha must cover the bytes the audit ACTUALLY ran
+// against: a judge-supplied bundle (?snapshot= / file drop) pins its own
+// text+sha+JSON at load time; otherwise one canonical fetch of the served
+// snapshot.json fills all three, so every snapshot-binding check — sha,
+// census, takenAt — covers the SAME bytes, not three different responses.
+async function snapshotText() {
+  if (!window.__snapText) {
+    const r = await fetch("snapshot.json");
+    if (!r.ok) throw new Error("snapshot.json not reachable");
+    window.__snapText = await r.text();
+  }
+  return window.__snapText;
+}
+async function snapshotSha() {
+  if (!window.__snapSha) window.__snapSha = hex(await sha(utf8(await snapshotText())));
+  return window.__snapSha;
+}
+async function snapshotJson() {
+  if (!window.__snapJson) window.__snapJson = JSON.parse(await snapshotText());
+  return window.__snapJson;
+}
+
+function applySnapshot(snap, loadedSha) {
   if (!snap || (!Array.isArray(snap.sealed) && !Array.isArray(snap.market)))
     throw new Error("not a sealed snapshot (expected {sealed:[],market:[]})");
   const dec = (rows) => (rows || []).map(({ pubkey, data }) => ({
@@ -917,7 +967,10 @@ function applySnapshot(snap) {
   for (const { pubkey, data } of [...(snap.sealed || []), ...(snap.market || [])])
     window.__raw.set(pubkey, { type: discName(data), data });
   const meta = snap.meta || {};
-  if (meta.rpc) {
+  // meta.rpc is bundle-supplied text — only a real http(s) endpoint may
+  // seed the RPC field; anything else (javascript:, file:, bare junk)
+  // must not flow into Connection or the explorer links it feeds.
+  if (meta.rpc && /^https?:\/\//i.test(meta.rpc)) {
     rpcIn.value = meta.rpc; // verify-proof lookups hit the snapshot's origin RPC
     clusterTag = clusterOf(meta.rpc);
   } else {
@@ -931,8 +984,10 @@ function applySnapshot(snap) {
   window.__nowRef = Number.isFinite(parsedTaken) ? parsedTaken : undefined;
   window.__mxeX25519 = meta.mxe_x25519 || null; // cluster pubkey for in-browser grant decryption
   // snapshot-bound caches must not survive a different bundle — a card
-  // verified against yesterday's sha would false-FAIL today.
-  window.__snapSha = undefined; window.__signPda = undefined; window.__reportBoundCard = undefined;
+  // verified against yesterday's sha would false-FAIL today. loadedSha is
+  // the sha256 of the bytes just ingested, so snapshot-binding checks pin
+  // THIS dump, not whatever snapshot.json happens to be served.
+  window.__snapSha = loadedSha ?? undefined; window.__snapText = undefined; window.__signPda = undefined; window.__reportBoundCard = undefined;
   window.__snapJson = snap; // the ledger census reads raw entries per section
   window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
@@ -960,7 +1015,9 @@ function applySnapshot(snap) {
 async function loadSnapshot(file) {
   try {
     window.__snapFrozen = true; // don't let the live poll clobber a manual dump
-    applySnapshot(JSON.parse(await file.text()));
+    const txt = await file.text(); // hash the bytes actually loaded
+    applySnapshot(JSON.parse(txt), hex(await sha(utf8(txt))));
+    window.__snapText = txt;
   }
   catch (e) { document.getElementById("err").textContent = "snapshot error: " + e.message; }
 }
@@ -1003,9 +1060,29 @@ async function diffSnapshot(file) {
 
 async function loadSnapshotUrl(u) {
   try {
-    const r = await fetch(u);
+    // ?snapshot= is provenance-sensitive (same template as ?card=):
+    // same-origin relative paths load clean; a cross-origin http(s) dump
+    // still loads but carries a persistent banner — a stranger's ledger
+    // must never masquerade as ours. Other schemes/encodings are refused.
+    let abs = null;
+    try { abs = new URL(u, location.href ?? undefined); } catch { abs = null; }
+    const rel = /^[a-zA-Z0-9._\/-]+$/.test(u) && !u.includes("..") && !u.startsWith("//");
+    if (!rel && !(abs && /^https?:$/.test(abs.protocol)))
+      throw new Error("snapshot URL refused — use a same-origin relative path or an http(s) URL");
+    const foreign = !rel && !!location.origin && abs.origin !== location.origin;
+    const r = await fetch(rel ? u : abs.href);
     if (!r.ok) throw new Error("http " + r.status);
-    applySnapshot(await r.json());
+    const txt = await r.text();
+    applySnapshot(JSON.parse(txt), hex(await sha(utf8(txt))));
+    window.__snapText = txt;
+    if (foreign) {
+      // persistent provenance warning — survives later renders because it
+      // lives on the persistent #net line, not inside a rewritten panel.
+      const warn = document.createElement("div");
+      warn.style.cssText = "border:1px solid var(--warn);border-radius:6px;padding:6px 10px;margin-top:6px;color:var(--warn)";
+      warn.textContent = `PROVENANCE WARNING — third-party snapshot loaded from ${abs.origin}. Its accounts may be fabricated; verdicts below bind to ITS sha256, not this site's pinned bundle.`;
+      document.getElementById("net").appendChild(warn);
+    }
   }
   catch (e) { document.getElementById("err").textContent = "snapshot fetch error: " + e.message + " (serve the repo root: python3 -m http.server -d . 8788 → http://localhost:8788/web/?snapshot=/docs/evidence/snapshot.json)"; }
 }
@@ -2308,7 +2385,7 @@ async function loadCalibrationSpecimen() {
       r.hashes.forEach((h, j) => revealHashes.set(r.chunk * 32 + r.part * 8 + j, BigInt("0x" + h)));
     const modelCols = cas.map((ca) => ({ ca, run: runOf(ca), name: esc(ca.model.length > 24 ? ca.model.slice(0, 24) : ca.model) }));
     renderCalQuiz(cb, modelCols);
-    let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${cb.benchmarkId}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). ${modelCols.map(m => `<b>${m.name}</b> → MPC wrote <b>${m.run ? m.run.correct : "?"}/${cb.items.length}</b>`).join(" · ")}. The fingerprint column is the on-chain value the enclave compared against.</div>`;
+    let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${esc(cb.benchmarkId)}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). ${modelCols.map(m => `<b>${m.name}</b> → MPC wrote <b>${m.run ? m.run.correct : "?"}/${cb.items.length}</b>`).join(" · ")}. The fingerprint column is the on-chain value the enclave compared against.</div>`;
     h += `<div style="overflow-x:auto"><table><tr><th>#</th><th>family</th><th>prompt</th><th>canonical</th>${modelCols.map(m => `<th>${m.name}</th>`).join("")}<th>fingerprint == on-chain</th></tr>`;
     const indep = cas.map(() => 0);
     const agree = { both: 0, neither: 0, only: new Array(cas.length).fill(0) };
@@ -2351,6 +2428,7 @@ async function loadExampleClaim(file) {
   const ta = document.getElementById("claimjson");
   try {
     const src = `claims/${file || "qwen2.5-3b-instruct.json"}`;
+    if (!artPath(src)) throw new Error("bad artifact name");
     const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text(); window.__cardSrc = src;
@@ -2373,8 +2451,8 @@ loadClaimIndex();
 async function verifyClaim() {
   const res = document.getElementById("claimres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     window.__claimRaw = document.getElementById("claimjson").value;
     const c = JSON.parse(window.__claimRaw);
@@ -2385,15 +2463,15 @@ async function verifyClaim() {
     // [1] identity: every PDA re-derives
     const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
     drv([utf8("modelrec"), hex2u8(c.record.seeds.modelHash)], spid) === c.record.pk
-      ? pass("record PDA", `${short(c.record.pk)} = [modelrec, sha256(${esc(c.model.id)})]`)
+      ? pass("record PDA", `${short(c.record.pk)} = [modelrec, sha256(${c.model.id})]`)
       : fail("record PDA", `declared ${short(c.record.pk)} — re-derived different address`);
     // the card's story is "these receipts belong to model X" — but the
     // record seed is card-say-so. Re-derive it from the NAME: a card
     // renamed to a weaker model while keeping the real record's receipts
     // survives every self-consistency check and dies here.
     hex(await sha(utf8(c.model.id))) === c.record.seeds.modelHash
-      ? pass("model identity", `sha256(${esc(c.model.id)}) == declared record seed`)
-      : fail("model identity", `sha256(${esc(c.model.id)}) ≠ declared seed ${String(c.record.seeds.modelHash).slice(0, 16)}… — a renamed card rides the real record's receipts`);
+      ? pass("model identity", `sha256(${c.model.id}) == declared record seed`)
+      : fail("model identity", `sha256(${c.model.id}) ≠ declared seed ${String(c.record.seeds.modelHash).slice(0, 16)}… — a renamed card rides the real record's receipts`);
     const runByPk = new Map(c.runs.map(r => [r.pk, r]));
     const runOk = c.runs.filter(r => drv([utf8("run"), pkB(r.benchmark), u64le(r.index)], spid) === r.pk).length;
     runOk === c.runs.length ? pass("run PDAs", `${runOk}/${c.runs.length} re-derived`) : fail("run PDAs", `${runOk}/${c.runs.length} re-derived`);
@@ -2464,7 +2542,7 @@ async function verifyClaim() {
       const idOk = rec && rec.modelId === c.model.id;
       (bBad === 0 && idOk)
         ? pass("snapshot binding", `${c.receipts.length} receipts == ScoreLog bytes, each bound to the named record · on-chain modelId matches`)
-        : fail("snapshot binding", bBad ? `${bBad} receipt(s) differ from decoded ScoreLog bytes or point at another record` : `record ${short(c.record.pk)} carries modelId ${esc(rec?.modelId ?? "?")}, not ${esc(c.model.id)}`);
+        : fail("snapshot binding", bBad ? `${bBad} receipt(s) differ from decoded ScoreLog bytes or point at another record` : `record ${short(c.record.pk)} carries modelId ${rec?.modelId ?? "?"}, not ${c.model.id}`);
       // completeness — the embedded receipt set must EQUAL the record's
       // full ScoreLog set in the audited snapshot, and declared totals must
       // equal the decoded ModelRecord. A dropped receipt still replays
@@ -2569,7 +2647,7 @@ async function verifyClaim() {
       fail("snapshot binding", "audit not run — a claim verified against nothing proves nothing (run the audit first)");
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"}</b> — ${esc(c.model.id)}: ${c.model.totalCorrect}/${c.model.totalItems} across ${c.model.runsScored} run(s)${c.verdicts?.postRevealRuns ? ` · ${c.verdicts.postRevealRuns} post-reveal run(s) flagged` : ""}</div>`);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CLAIM VERIFIED" : "CLAIM FAILED"}</b> — ${esc(c.model.id)}: ${Number(c.model.totalCorrect)}/${Number(c.model.totalItems)} across ${Number(c.model.runsScored)} run(s)${c.verdicts?.postRevealRuns ? ` · ${Number(c.verdicts.postRevealRuns)} post-reveal run(s) flagged` : ""}</div>`);
     // the distribution artifact — only rendered once the card VERIFIES:
     // the badge is a pointer to this receipt, not a claim on its own.
     if (nFail === 0 && window.__claimRaw) {
@@ -2604,8 +2682,12 @@ async function verifyClaim() {
     const pMinPct = numv("claimPct"), pMinRuns = numv("claimRuns"), pMinItems = numv("claimItems");
     if (pMinPct !== null || pMinRuns !== null || pMinItems !== null) {
       const receipts = c.receipts || [];
-      const runs = receipts.length, correct = receipts.reduce((s, l) => s + l.correct, 0),
-        items = receipts.reduce((s, l) => s + l.items, 0), pct = items ? 100 * correct / items : 0;
+      // receipt fields are card data — a string-typed correct/items would
+      // concatenate into the aggregate (and land raw in the render). Count
+      // only real numbers; a malformed receipt contributes 0, not markup.
+      const num = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+      const runs = receipts.length, correct = receipts.reduce((s, l) => s + num(l.correct), 0),
+        items = receipts.reduce((s, l) => s + num(l.items), 0), pct = items ? 100 * correct / items : 0;
       if (!runs) {
         rows.push(`<div class="proof"><span class="pill cancelled">NO EVIDENCE</span> policy verdict — no receipts in this card</div>`);
       } else {
@@ -2614,8 +2696,8 @@ async function verifyClaim() {
         if (pMinRuns !== null) pchecks.push({ name: "runs", ok: runs >= pMinRuns, act: `${runs} receipt(s)`, need: `≥ ${pMinRuns}` });
         if (pMinItems !== null) pchecks.push({ name: "items", ok: items >= pMinItems, act: `${items} scored items`, need: `≥ ${pMinItems}` });
         const pPass = pchecks.every(x => x.ok);
-        rows.push(`<div class="proof"><span class="pill ${pPass ? "resolved" : "cancelled"}">${pPass ? "PASS" : "FAIL"}</span> policy verdict — ${correct}/${items} = ${pct.toFixed(1)}% over ${runs} run(s)` +
-          pchecks.map(x => `<div class="kv">&nbsp;&nbsp;${x.ok ? "ok" : "MISS"} ${x.name}: ${x.act} (needed ${x.need})</div>`).join("") + `</div>`);
+        rows.push(`<div class="proof"><span class="pill ${pPass ? "resolved" : "cancelled"}">${pPass ? "PASS" : "FAIL"}</span> policy verdict — ${esc(correct)}/${esc(items)} = ${pct.toFixed(1)}% over ${esc(runs)} run(s)` +
+          pchecks.map(x => `<div class="kv">&nbsp;&nbsp;${x.ok ? "ok" : "MISS"} ${esc(x.name)}: ${esc(x.act)} (needed ${esc(x.need)})</div>`).join("") + `</div>`);
       }
     }
     res.innerHTML = rows.join("");
@@ -2628,6 +2710,7 @@ async function loadCeiling(file) {
   const ta = document.getElementById("ceiljson");
   try {
     const src = `ceilings/${file || "llama-3.2-1b-instruct.json"}`;
+    if (!artPath(src)) throw new Error("bad artifact name");
     const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text(); window.__cardSrc = src;
@@ -2654,8 +2737,8 @@ loadCeilingIndex();
 async function verifyCeiling() {
   const res = document.getElementById("ceilres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("ceiljson").value);
     if (c.kind !== "sealed-ceiling/v1") throw new Error(`not a sealed-ceiling/v1 card (kind=${c.kind})`);
@@ -2665,7 +2748,7 @@ async function verifyCeiling() {
     const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
     // [1] identities — record + every listed run PDA re-derive
     drv([utf8("modelrec"), hex2u8(c.record.seeds.modelHash)], spid) === c.record.pk
-      ? pass("record PDA", `${short(c.record.pk)} = [modelrec, sha256(${esc(c.model.id)})]`)
+      ? pass("record PDA", `${short(c.record.pk)} = [modelrec, sha256(${c.model.id})]`)
       : fail("record PDA", `declared ${short(c.record.pk)} — re-derived different address`);
     const runOk = c.runs.filter(r => drv([utf8("run"), pkB(r.benchmark), u64le(r.index)], spid) === r.pk).length;
     runOk === c.runs.length ? pass("run PDAs", `${runOk}/${c.runs.length} re-derived`) : fail("run PDAs", `${runOk}/${c.runs.length} re-derived`);
@@ -2698,7 +2781,7 @@ async function verifyCeiling() {
     const A = window.__audit;
     if (A) {
       const claimed = typeof c.snapshotSha256 === "string" ? c.snapshotSha256 : "";
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const gotSha = await snapshotSha();
       (claimed.length === 64 && gotSha === claimed)
         ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… — this card is pinned to THIS account dump`)
         : fail("snapshot binding", claimed
@@ -2706,8 +2789,8 @@ async function verifyCeiling() {
           : "card carries no snapshotSha256 — completeness has nothing to bind to");
       const rec = A.modelRecords.find(m => m.pk === c.record.pk);
       (rec && rec.modelId === c.model.id && c.model.recordPk === c.record.pk)
-        ? pass("record identity", `on-chain modelId == ${esc(c.model.id)}`)
-        : fail("record identity", `record ${short(c.record.pk)} carries modelId ${esc(rec?.modelId ?? "?")}, not ${esc(c.model.id)}`);
+        ? pass("record identity", `on-chain modelId == ${c.model.id}`)
+        : fail("record identity", `record ${short(c.record.pk)} carries modelId ${rec?.modelId ?? "?"}, not ${c.model.id}`);
       const subject = new Map(A.runs.filter(r => r.modelId === c.model.id).map(r => [r.pk, r]));
       const listed = new Set(c.runs.map(r => r.pk));
       const missing = [...subject.keys()].filter(k => !listed.has(k));
@@ -2730,7 +2813,7 @@ async function verifyCeiling() {
       fail("snapshot binding", "audit not run — a ceiling verified against nothing proves nothing (run the audit first)");
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CEILING VERIFIED" : "CEILING FAILED"}</b> — ${esc(c.model.id)} never scored above ${esc(c.ceiling.maxPct ?? "∅")} across ${c.scope?.finalizedRuns ?? "?"} finalized run(s)${c.scope?.postRevealRuns ? ` · ${c.scope.postRevealRuns} post-reveal` : ""}</div>`);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CEILING VERIFIED" : "CEILING FAILED"}</b> — ${esc(c.model.id)} never scored above ${esc(c.ceiling.maxPct ?? "∅")} across ${esc(c.scope?.finalizedRuns ?? "?")} finalized run(s)${c.scope?.postRevealRuns ? ` · ${esc(c.scope.postRevealRuns)} post-reveal` : ""}</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
@@ -2745,6 +2828,26 @@ async function verifyCeiling() {
    the account the snapshot carries — the one chain-bound anchor. ---- */
 const ARCIUM_PID_STR = "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ";
 const CIRCUIT_NAMES = ["seal_part", "score_chunk", "gen_part", "gen_part_private", "reveal_part", "reshare_part"];
+/* The committed Arcium-infrastructure dump — compdef headers, raw circuit
+   bytecode, MXE, cluster — the bytes the cluster executes. Fetched lazily
+   the first time a circuit card pins account-content fields, then cached
+   (failure included) for the session. Fail-closed: a card that pins hashes
+   against an absent file FAILS, never skips. The card's infra.sha256 pins
+   the FILE bytes, so the raw fetched text is hashed, never the re-parsed
+   object. */
+async function arciumInfra() {
+  if (window.__arciumInfra === undefined) {
+    try {
+      const r = await fetch("arcium-infra.json");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const text = await r.text();
+      const doc = JSON.parse(text);
+      const byPk = new Map((doc.accounts ?? []).map(a => [String(a.pubkey), Uint8Array.from(atob(String(a.data ?? "")), (ch) => ch.charCodeAt(0))]));
+      window.__arciumInfra = { doc, byPk, fileSha: hex(await sha(utf8(text))) };
+    } catch { window.__arciumInfra = null; }
+  }
+  return window.__arciumInfra;
+}
 async function loadCircuit() {
   const c = await (await fetch("circuit/arcium-devnet.json")).json();
   document.getElementById("circjson").value = JSON.stringify(c, null, 2);
@@ -2752,8 +2855,8 @@ async function loadCircuit() {
 async function verifyCircuit() {
   const res = document.getElementById("circres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("circjson").value);
     if (c.kind !== "sealed-circuit/v1") throw new Error(`not a sealed-circuit/v1 card (kind=${c.kind})`);
@@ -2764,7 +2867,7 @@ async function verifyCircuit() {
     const sdrv = (seeds) => { try { return pdaB(seeds, spid); } catch { return null; } };
     (c.programs?.arcium === ARCIUM_PID_STR && c.programs?.sealed === SEALED_PID.toString())
       ? pass("program identity", `arcium ${ARCIUM_PID_STR.slice(0, 12)}… · sealed ${SEALED_PID.toString().slice(0, 12)}…`)
-      : fail("program identity", `arcium ${esc(c.programs?.arcium ?? "?")} — the deployed Arcium program is ${ARCIUM_PID_STR}`);
+      : fail("program identity", `arcium ${c.programs?.arcium ?? "?"} — the deployed Arcium program is ${ARCIUM_PID_STR}`);
     const named = new Set((c.circuits ?? []).map(x => x.name));
     const missing = CIRCUIT_NAMES.filter(n => !named.has(n));
     const phantom = [...named].filter(n => !CIRCUIT_NAMES.includes(n));
@@ -2780,6 +2883,76 @@ async function verifyCircuit() {
     cdOk === CIRCUIT_NAMES.length
       ? pass("compdef PDAs", `${cdOk}/${CIRCUIT_NAMES.length} re-derived — offset=sha256(name)[:4]le, [CompDef, sealedPid, u32le] @ arcium`)
       : fail("compdef PDAs", `${cdOk}/${CIRCUIT_NAMES.length} re-derived — a renamed or phantom circuit lands on a different address`);
+    // raw-circuit PDAs — each compdef's bytecode lives in
+    // [ComputationDefinitionRaw, compdefPda, u8(index)] accounts under
+    // Arcium. Re-deriving them proves the recorded bytecode sits at the
+    // canonical addresses — a hash recorded under a made-up PDA binds
+    // nothing. Old-format cards carry no rawCircuits and skip this check.
+    let rawOk = 0, rawN = 0;
+    for (const x of c.circuits ?? []) {
+      for (const r of x.rawCircuits ?? []) {
+        rawN++;
+        const got = (() => { try { return adrv([utf8("ComputationDefinitionRaw"), pkB(x.pda), new Uint8Array([Number(r.index)])]); } catch { return null; } })();
+        if (got === r.pda && /^[0-9a-f]{64}$/.test(String(r.sha256))) rawOk++;
+      }
+    }
+    if (rawN > 0) {
+      rawOk === rawN
+        ? pass("raw-circuit PDAs", `${rawOk}/${rawN} bytecode accounts re-derived — [ComputationDefinitionRaw, compdef, u8] @ arcium`)
+        : fail("raw-circuit PDAs", `${rawOk}/${rawN} bytecode accounts re-derived — a hash under a made-up PDA binds nothing`);
+    }
+    // account binding — the card pins sha256 of the actual account bytes
+    // (compdef headers, raw bytecode, MXE, cluster). The committed
+    // arcium-infra.json supplies those bytes offline; a card pinning
+    // content hashes against an absent file cannot prove which bytes the
+    // cluster executes, so this FAILS — never skips.
+    const infraNeeded = (c.circuits ?? []).some(x => (x.rawCircuits ?? []).length || x.compdefSha256)
+      || !!c.cluster?.sha256 || !!c.mxe?.sha256;
+    let infra = null;
+    if (infraNeeded) {
+      infra = await arciumInfra();
+      if (!infra) {
+        fail("account binding", "card pins account-content hashes but arcium-infra.json is absent — cannot prove which bytes the cluster executes");
+      } else {
+        const fileOk = !c.infra?.sha256 || c.infra.sha256 === infra.fileSha;
+        let aOk = 0, aN = 0;
+        const expectSha = async (addr, wantSha) => {
+          if (!wantSha || !addr) return;
+          aN++;
+          const b = infra.byPk.get(String(addr));
+          if (b && hex(await sha(b)) === String(wantSha)) aOk++;
+        };
+        for (const x of c.circuits ?? []) {
+          await expectSha(x.pda, x.compdefSha256);
+          for (const r of x.rawCircuits ?? []) await expectSha(r.pda, r.sha256);
+        }
+        await expectSha(c.cluster?.pda, c.cluster?.sha256);
+        await expectSha(c.mxe?.pda, c.mxe?.sha256);
+        (fileOk && aOk === aN && aN > 0)
+          ? pass("account binding", `${aOk}/${aN} recorded sha256s match committed account bytes`)
+          : fail("account binding", `${aOk}/${aN} recorded sha256s match committed account bytes${fileOk ? "" : " · infra file sha differs from the card's pin"}`);
+      }
+    }
+    // cluster committee — the account records the nodes' aggregated BLS
+    // public key (the committee attesting every SignedComputationOutputs
+    // callback) and size. Byte-presence inside the sha-bound account is the
+    // portable proof — no Arcium IDL needed to check it.
+    if (c.cluster?.blsPubkey || c.cluster?.sha256) {
+      const cBytes = (infra ?? (await arciumInfra()))?.byPk.get(String(c.cluster?.pda ?? ""));
+      const blsHex = String(c.cluster?.blsPubkey ?? "");
+      const authHex = (() => { try { return hex(pkB(c.cluster.authority)); } catch { return ""; } })();
+      const cHex = cBytes ? hex(cBytes) : "";
+      const ok = !!cBytes
+        && /^[0-9a-f]{128}$/.test(blsHex) && !/^0+$/.test(blsHex)
+        && cHex.includes(blsHex)
+        && (!c.cluster?.authority || (authHex !== "" && cHex.includes(authHex)))
+        && Number(c.cluster?.nodeCount) >= 1;
+      ok
+        ? pass("cluster committee", `BLS G2 pubkey ${blsHex.slice(0, 16)}… present in the bound account · ${Number(c.cluster?.nodeCount)} node(s) · authority ${String(c.cluster?.authority ?? "?").slice(0, 12)}…`)
+        : fail("cluster committee", cBytes
+            ? "the recorded committee does not bind — BLS key, authority bytes, or nodeCount absent from the pinned account"
+            : "cluster account bytes unavailable — cannot bind the committee's BLS key");
+    }
     adrv([utf8("MXEAccount"), spid.toBytes()]) === c.mxe?.pda
       ? pass("MXE PDA", "[MXEAccount, sealedPid] @ arcium")
       : fail("MXE PDA", `declared ${short(c.mxe?.pda ?? "?")} re-derives differently`);
@@ -2799,7 +2972,7 @@ async function verifyCircuit() {
     if (!window.__audit) { if (typeof runAudit === "function") runAudit(); fail("snapshot binding", "audit not run — a circuit card verified against nothing proves nothing (run the audit first)"); }
     else {
       const claimed = typeof c.snapshotSha256 === "string" ? c.snapshotSha256 : "";
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const gotSha = await snapshotSha();
       (claimed.length === 64 && gotSha === claimed)
         ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… — this card is pinned to THIS account dump`)
         : fail("snapshot binding", claimed
@@ -2810,7 +2983,7 @@ async function verifyCircuit() {
         : fail("signPda binding", `snapshot carries ${short(window.__signPda ?? "none")}, card claims ${short(c.signPda ?? "?")}`);
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CIRCUIT VERIFIED" : "CIRCUIT FAILED"}</b> — ${(c.circuits ?? []).length} Arcium circuit(s), MXE ${short(c.mxe?.pda ?? "?")}, cluster ${c.cluster?.offset ?? "?"}</div>`);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "CIRCUIT VERIFIED" : "CIRCUIT FAILED"}</b> — ${(c.circuits ?? []).length} Arcium circuit(s), MXE ${esc(short(c.mxe?.pda ?? "?"))}, cluster ${esc(c.cluster?.offset ?? "?")}</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
@@ -2847,8 +3020,8 @@ async function censusJs(entries, kindMap) {
 async function verifyLedger() {
   const res = document.getElementById("ledgerres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("ledgerjson").value);
     if (c.kind !== "sealed-ledger/v1") throw new Error(`not a sealed-ledger/v1 card (kind=${c.kind})`);
@@ -2858,14 +3031,14 @@ async function verifyLedger() {
     if (!window.__audit) { if (typeof runAudit === "function") runAudit(); fail("snapshot binding", "audit not run — a census verified against nothing proves nothing (run the audit first)"); }
     else {
       const claimed = typeof c.snapshotSha256 === "string" ? c.snapshotSha256 : "";
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const gotSha = await snapshotSha();
       const shaOk = claimed.length === 64 && gotSha === claimed;
       shaOk
         ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… — this census covers THIS dump`)
         : fail("snapshot binding", claimed
           ? `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${claimed.slice(0, 16)}… — this census covers a different dump`
           : "card carries no snapshotSha256 — the census has nothing to bind to");
-      const snap = window.__snapJson;
+      const snap = await snapshotJson();
       const metaTaken = snap?.meta?.takenAt ?? null;
       (c.takenAt === metaTaken)
         ? pass("dump timestamp", `takenAt ${c.takenAt ?? "∅"}`)
@@ -2882,7 +3055,7 @@ async function verifyLedger() {
       }
     }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    const total = (c.census?.sealed?.accounts ?? 0) + (c.census?.market?.accounts ?? 0);
+    const total = Number(c.census?.sealed?.accounts ?? 0) + Number(c.census?.market?.accounts ?? 0);
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "LEDGER VERIFIED" : "LEDGER FAILED"}</b> — ${total} accounts censused across both programs</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
@@ -2894,6 +3067,7 @@ async function loadCert(file) {
   const ta = document.getElementById("certjson");
   try {
     const src = `policies/${file || "min60-3runs.json"}`;
+    if (!artPath(src)) throw new Error("bad artifact name");
     const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text(); window.__cardSrc = src;
@@ -2919,8 +3093,8 @@ loadCertIndex();
 async function verifyCert() {
   const res = document.getElementById("certres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("certjson").value);
     if (c.kind !== "sealed-policy/v1") throw new Error(`not a sealed-policy/v1 cert (kind=${c.kind})`);
@@ -2956,7 +3130,7 @@ async function verifyCert() {
       const w = m.verdict;
       if (v.pass === w.pass && v.reason === w.reason && Math.abs(v.pct - w.pct) <= 0.01 &&
           v.runs === w.runs && v.items === w.items && v.correct === w.correct && v.postRevealRuns === w.postRevealRuns) vOk++;
-      else rows.push(`<div class="kv" style="color:var(--err)">&nbsp;&nbsp;&#8627; ${esc(m.modelId)}: recomputed ${v.reason} ${v.pct.toFixed(2)}% (${v.correct}/${v.items}, ${v.runs} runs) vs stored ${w.reason} ${w.pct}% (${w.correct}/${w.items}, ${w.runs} runs)</div>`);
+      else rows.push(`<div class="kv" style="color:var(--err)">&nbsp;&nbsp;&#8627; ${esc(m.modelId)}: recomputed ${esc(v.reason)} ${v.pct.toFixed(2)}% (${esc(v.correct)}/${esc(v.items)}, ${esc(v.runs)} runs) vs stored ${esc(w?.reason)} ${esc(w?.pct)}% (${esc(w?.correct)}/${esc(w?.items)}, ${esc(w?.runs)} runs)</div>`);
     }
     pdaOk === c.models.length ? pass("record PDAs", `${pdaOk}/${c.models.length} re-derived from [modelrec, sha256(model_id)]`)
       : fail("record PDAs", `${pdaOk}/${c.models.length} re-derived`);
@@ -3032,6 +3206,7 @@ async function loadMatch(file) {
   const ta = document.getElementById("matchjson");
   try {
     const src = `matches/${file || "qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json"}`;
+    if (!artPath(src)) throw new Error("bad artifact name");
     const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text(); window.__cardSrc = src;
@@ -3057,8 +3232,8 @@ loadMatchIndex();
 async function verifyMatch() {
   const res = document.getElementById("matchres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("matchjson").value);
     if (c.kind !== "sealed-match/v1") throw new Error(`not a sealed-match/v1 card (kind=${c.kind})`);
@@ -3066,11 +3241,11 @@ async function verifyMatch() {
     const spid = new PK(c.programs.sealed);
     const hex2u8 = (h) => Uint8Array.from((h.match(/../g) || []).map(x => parseInt(x, 16)));
     pdaB([utf8("modelrec"), hex2u8(c.a.seeds.modelHash)], spid) === c.a.recordPk
-      ? pass("record PDA a", `${c.a.recordPk.slice(0, 12)}… = [modelrec, sha256(${esc(c.a.id)})]`)
-      : fail("record PDA a", `${c.a.recordPk.slice(0, 12)}… ≠ [modelrec, sha256(${esc(c.a.id)})]`);
+      ? pass("record PDA a", `${c.a.recordPk.slice(0, 12)}… = [modelrec, sha256(${c.a.id})]`)
+      : fail("record PDA a", `${c.a.recordPk.slice(0, 12)}… ≠ [modelrec, sha256(${c.a.id})]`);
     pdaB([utf8("modelrec"), hex2u8(c.b.seeds.modelHash)], spid) === c.b.recordPk
-      ? pass("record PDA b", `${c.b.recordPk.slice(0, 12)}… = [modelrec, sha256(${esc(c.b.id)})]`)
-      : fail("record PDA b", `${c.b.recordPk.slice(0, 12)}… ≠ [modelrec, sha256(${esc(c.b.id)})]`);
+      ? pass("record PDA b", `${c.b.recordPk.slice(0, 12)}… = [modelrec, sha256(${c.b.id})]`)
+      : fail("record PDA b", `${c.b.recordPk.slice(0, 12)}… ≠ [modelrec, sha256(${c.b.id})]`);
     // the seeds are self-declared too — a card can carry a consistent
     // (modelHash, recordPk) pair while renaming the model. The declared
     // name must hash to the declared seed, free and offline, or the PDAs
@@ -3130,7 +3305,7 @@ async function verifyMatch() {
     const pctA = pA.i ? (100 * pA.c) / pA.i : 0, pctB = pB.i ? (100 * pB.c) / pB.i : 0;
     const winner = pctA === pctB ? "tie" : pctA > pctB ? "a" : "b";
     (winner === c.verdict.winner && Math.abs(pctA - c.verdict.pctA) < 0.01 && Math.abs(pctB - c.verdict.pctB) < 0.01)
-      ? pass("verdict replay", `${esc(c.a.id)} ${pctA.toFixed(1)}% vs ${esc(c.b.id)} ${pctB.toFixed(1)}% → ${winner}`)
+      ? pass("verdict replay", `${c.a.id} ${pctA.toFixed(1)}% vs ${c.b.id} ${pctB.toFixed(1)}% → ${winner}`)
       : fail("verdict replay", `recomputed ${winner} ${pctA.toFixed(2)}/${pctB.toFixed(2)} ≠ stored ${c.verdict.winner} ${c.verdict.pctA}/${c.verdict.pctB}`);
     // snapshot binding — every receipt equals its decoded ScoreLog AND
     // belongs to the side it claims (receipts.a → a.recordPk). A card
@@ -3189,6 +3364,7 @@ async function loadTrail(file) {
   const ta = document.getElementById("trailjson");
   try {
     const src = `trails/${file || "qwen3b-ladder-deadheat.json"}`;
+    if (!artPath(src)) throw new Error("bad artifact name");
     const r = await fetch(src);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text(); window.__cardSrc = src;
@@ -3264,7 +3440,7 @@ async function renderCatalog() {
       const pinned = new Set(sums.trim().split("\n").map(l => l.slice(l.indexOf("  ") + 2).replace(/^\.\//, "")));
       bound = doc.artifacts.filter(a => pinned.has(a.path)).length;
     } catch {}
-    out.unshift(`<div class="kv"><b>${doc.count} artifacts</b> across ${groups.size} kinds — index: <a href="?card=artifacts.json">artifacts.json</a> (sealed-catalog/v1, ${bound}/${doc.count} paths hash-pinned) — every link re-verifies its card on open</div>`);
+    out.unshift(`<div class="kv"><b>${esc(doc.count)} artifacts</b> across ${groups.size} kinds — index: <a href="?card=artifacts.json">artifacts.json</a> (sealed-catalog/v1, ${esc(bound)}/${esc(doc.count)} paths hash-pinned) — every link re-verifies its card on open</div>`);
   } catch { out.push(`<div class="kv">artifacts.json unreachable — run \`chain catalog --emit\`</div>`); }
   el.innerHTML = out.join("");
 }
@@ -3282,10 +3458,22 @@ async function verifyCatalog() {
   ck("kind", doc.kind === "sealed-catalog/v1");
   const listed = new Set((doc.artifacts ?? []).map(a => a.path));
   const expected = new Set();
-  for (const dir of ["claims", "ceilings", "circuit", "ledger", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants", "tamper"]) {
-    try { for (const f of await (await fetch(`${dir}/index.json`)).json()) expected.add(`${dir}/${f}`); } catch {}
+  // every reference index must load — an unreachable one would silently
+  // shrink the expected set and let an incomplete catalog pass. Fail loud.
+  const badIdx = [];
+  const idxDirs = ["claims", "ceilings", "circuit", "ledger", "policies", "matches", "trails", "reports", "banks", "positions", "bounties", "grants", "tamper"];
+  for (const dir of idxDirs) {
+    try {
+      const ir = await fetch(`${dir}/index.json`);
+      if (!ir.ok) throw new Error(`HTTP ${ir.status}`);
+      const fs = await ir.json();
+      if (!Array.isArray(fs)) throw new Error("index is not an array");
+      for (const f of fs) expected.add(`${dir}/${f}`);
+    } catch (e) { badIdx.push(`${dir}/index.json`); }
   }
-  for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); } catch {} }
+  ck("reference indexes", badIdx.length === 0, badIdx.length ? `${badIdx.length} index(es) unreachable: ${badIdx.slice(0, 3).join(", ")}` : `all ${idxDirs.length} artifact indexes fetched`);
+  for (const f of ["digest.json", "board.json"]) { try { if ((await fetch(f, { method: "HEAD" })).ok) expected.add(f); else badIdx.push(f); } catch { badIdx.push(f); } }
+  ck("reference singletons", badIdx.length === 0, badIdx.length ? "see reference indexes above" : "digest.json + board.json served");
   const missing = [...expected].filter(p => !listed.has(p));
   const extra = [...listed].filter(p => !expected.has(p));
   ck("completeness", missing.length === 0 && extra.length === 0,
@@ -3337,7 +3525,7 @@ function quickReplay() {
   document.getElementById("sec-artifact")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 // ④ PROVE EVERYTHING — one click runs the whole skeptic's suite end to
-// end and keeps score: the account-level audit, all 142 committed
+// end and keeps score: the account-level audit, all committed
 // artifacts through their kind verifiers, then every forgery attack in
 // the lab. Nothing trusted — the cascade IS the demo.
 async function megaAudit() {
@@ -3407,7 +3595,71 @@ async function megaAudit() {
   ].join("\n");
   rows.push(`<pre id="verdicttxt" style="white-space:pre-wrap;margin-top:6px;font-size:12px;color:var(--dim);font-family:inherit">${esc(verdict)}</pre>` +
     `<div class="kv"><a href="#" onclick="const t=document.getElementById('verdicttxt').innerText;if(navigator.clipboard){navigator.clipboard.writeText(t).then(()=>this.textContent='copied ✓').catch(()=>this.textContent='copy blocked — select the block')}else{const r=document.createRange();r.selectNodeContents(document.getElementById('verdicttxt'));const s=getSelection();s.removeAllRanges();s.addRange(r);this.textContent='selected — press ctrl+c'}return false">copy this verdict</a> — paste it straight into a review note</div>`);
+  // seal your verdict — enabled only on a fully green audit. The memo is a
+  // hash of THIS verdict text + judge name + timestamp, so the devnet tx is
+  // a receipt for the exact block above (see sealVerdict for the fallback).
+  rows.push(`<div class="kv" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">seal your verdict — ` +
+    `judge <input id="judgename" size="10" value="judge" spellcheck="false" autocomplete="off" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:2px 6px"> ` +
+    `<button id="sealbtn" onclick="sealVerdict()" ${allOk ? "" : "disabled"}>anchor this verdict on devnet</button>` +
+    (allOk ? ` <span class="kv" style="opacity:.75">a memo tx from the committed throwaway key — the audit receipt becomes chain-permanent; if devnet won't take it you still get a signed local witness card</span>` : ` <span class="kv" style="opacity:.75">disabled — the audit did not run fully green</span>`) +
+    `<div id="sealres"></div></div>`);
   draw();
+}
+
+// "seal your verdict" — a judge pins the recomputed verdict block to Solana
+// devnet as a Memo-program transaction sent from the committed throwaway
+// demo key (web/demo-anchor.json — deliberately public; its only purpose is
+// carrying receipts). The memo is
+//   sealed-verdict/v1 <sha256-hex of (verdictText | judgeName | timestamp)>
+// — 82 bytes, well under the 566-byte memo limit — so the chain entry is a
+// timestamped receipt for the EXACT block the judge just recomputed. If the
+// send can't happen (offline judge box, drained demo key, rate limit,
+// missing web3), the same memo is ed25519-signed locally by the same key
+// and rendered as a witness card — verifiable forever, just not
+// chain-permanent until someone pins it. The audit never depends on it.
+const DEMO_ANCHOR_PUB = "BiHGhCFbVg53JnAKWKQo5SgvXbWtbu6BNwGWLhZWzZoR";
+const DEMO_ANCHOR_SK = [103,170,208,191,244,113,213,166,99,153,42,90,223,224,117,18,169,61,187,135,147,197,23,209,233,75,90,177,39,50,20,192,159,40,20,98,104,79,246,70,226,192,247,52,53,169,17,54,146,128,188,194,22,187,193,7,47,205,63,216,39,188,85,60];
+const MEMO_PID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+async function sealVerdict() {
+  const out = document.getElementById("sealres"), btn = document.getElementById("sealbtn");
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = "anchoring…"; }
+    const vEl = document.getElementById("verdicttxt");
+    const verdictText = vEl ? (vEl.innerText ?? vEl.textContent ?? "") : "";
+    const name = (((document.getElementById("judgename")?.value || "judge").trim()) || "judge").slice(0, 40);
+    const ts = new Date().toISOString();
+    const memo = `sealed-verdict/v1 ${hex(await sha(utf8(`${verdictText}|${name}|${ts}`)))}`;
+    try {
+      if (!window.solanaWeb3) throw new Error("vendored web3.js not loaded");
+      const kp = solanaWeb3.Keypair.fromSecretKey(Uint8Array.from(DEMO_ANCHOR_SK));
+      const conn = new solanaWeb3.Connection("https://api.devnet.solana.com", "confirmed");
+      // web3 v1 ships no MemoProgram helper — the memo instruction is just
+      // the memo text as data, signed by the throwaway key (which pays).
+      const tx = new solanaWeb3.Transaction().add(new solanaWeb3.TransactionInstruction({
+        programId: new solanaWeb3.PublicKey(MEMO_PID),
+        keys: [{ pubkey: kp.publicKey, isSigner: true, isWritable: true }],
+        data: utf8(memo),
+      }));
+      const sig = await solanaWeb3.sendAndConfirmTransaction(conn, tx, [kp]);
+      out.innerHTML = `<span class="pill resolved">ANCHORED ✓</span> — sig <a href="https://explorer.solana.com/tx/${esc(sig)}?cluster=devnet" target="_blank" rel="noopener">${esc(short(sig))}</a> — your audit receipt is now permanent on devnet — check it next week.`;
+      return;
+    } catch (e) {
+      // devnet said no — still seal the verdict, just locally: an ed25519
+      // signature over the same memo bytes from the same demo key, rendered
+      // as a witness card the judge keeps (or pins later from any wallet).
+      const { ed25519 } = await import("./vendor/noble-ed25519.mjs");
+      const signature = hex(ed25519.sign(utf8(memo), Uint8Array.from(DEMO_ANCHOR_SK.slice(0, 32))));
+      const card = { kind: "sealed-verdict-witness/v1", memo, signer: DEMO_ANCHOR_PUB, signature, judge: name, ts,
+        note: `devnet send failed (${String(e?.message ?? e).slice(0, 100)}) — LOCAL signature over the memo bytes: a valid receipt, not chain-permanent. Fund ${DEMO_ANCHOR_PUB} and re-anchor, or post the memo from any wallet.` };
+      out.innerHTML = `<span class="pill open">LOCAL WITNESS</span> — devnet took no tx, so the same memo was signed locally instead:` +
+        `<pre class="mono" style="white-space:pre-wrap;font-size:11px;margin:6px 0;padding:6px;border:1px solid var(--line);border-radius:6px;max-height:220px;overflow:auto">${esc(JSON.stringify(card, null, 2))}</pre>` +
+        `<span class="kv">verify anywhere: <code>ed25519.verify(signature, utf8(memo), ${esc(DEMO_ANCHOR_PUB)})</code> — retry the devnet anchor when online.</span>`;
+    }
+  } catch (e2) {
+    if (out) out.innerHTML = `<span style="color:var(--err)">seal failed: ${esc(e2.message ?? String(e2))}</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "anchor this verdict on devnet"; }
+  }
 }
 // "verify YOUR copy" — a file the judge downloaded (or just edited)
 // goes through the same router; __cardSrc is nulled so the note can't
@@ -3426,6 +3678,10 @@ function dropArtifact(ev) {
   if (f) loadArtifactFile(f);
 }
 
+// Artifact file paths share one charset rule (same as ?card=): relative,
+// dot-free-traversal, artifact extensions only — a hostile index entry or
+// deep-link can never turn a loader into a path traversal.
+const artPath = (p) => typeof p === "string" && /^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(p) && !p.includes("..") && !p.startsWith("/") ? p : null;
 // universal artifact router — mirrors `chain artifact <file>`: detect the
 // sealed-*/v1 kind, hand the payload to that kind's verifier + section.
 function verifyAnyArtifact() {
@@ -3487,6 +3743,10 @@ async function forgeThis(k) {
   }
 }
 
+// A replay counts as verified only when the verifier's own verdict mark
+// rendered — a hostile card must not smuggle the word "VERIFIED" into a
+// rendered error/kind string and get counted as replayed.
+const verifiedMark = (h) => /<b>[A-Z ]*VERIFIED<\/b>/.test(h) || /pill ok">CATALOG VERIFIED</.test(h);
 // The in-page mirror of `chain artifact <tree> --recursive`: fetch every
 // committed artifact index and drive each file through the SAME verifier a
 // judge would click — pills in each section's own result render are counted,
@@ -3522,12 +3782,23 @@ async function replayBundle() {
   try {
     for (const [dir, taId, resId, fn, kind] of KINDS) {
       let files;
-      try { files = await (await fetch(`${dir}/index.json`)).json(); }
-      catch { rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/index.json — artifact index unreachable</div>`); continue; }
+      try {
+        const ir = await fetch(`${dir}/index.json`);
+        if (!ir.ok) throw new Error(`HTTP ${ir.status}`);
+        files = await ir.json();
+        if (!Array.isArray(files)) throw new Error("index is not an array");
+      }
+      catch (e) { rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/index.json — artifact index unreachable or malformed (${esc(e.message ?? String(e))})</div>`); continue; }
       const ta = document.getElementById(taId), sub = document.getElementById(resId);
       let ok = 0;
       for (const f of files) {
         total++;
+        // a hostile index could name ../traversal or non-file strings —
+        // refuse anything outside the artifact filename charset.
+        if (typeof f !== "string" || !/^[a-zA-Z0-9._-]+$/.test(f) || f.includes("..")) {
+          rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/${esc(String(f))} — index entry is not an artifact filename</div>`);
+          continue;
+        }
         try {
           const fr = await fetch(`${dir}/${f}`);
           if (!fr.ok) throw new Error(`HTTP ${fr.status}`);
@@ -3536,10 +3807,10 @@ async function replayBundle() {
           const html = sub.innerHTML;
           const fails = (html.match(/pill cancelled/g) || []).length;
           checks += fails + (html.match(/pill resolved/g) || []).length;
-          if (fails === 0 && html.includes("VERIFIED")) ok++;
-          else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/${f} — ${fails || "verdict"} failed check(s)</div>`);
+          if (fails === 0 && verifiedMark(html)) ok++;
+          else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/${esc(f)} — ${fails || "verdict"} failed check(s)</div>`);
         } catch (e) {
-          rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/${f} — ${esc(e.message ?? String(e))}</div>`);
+          rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${dir}/${esc(f)} — ${esc(e.message ?? String(e))}</div>`);
         }
       }
       passed += ok;
@@ -3559,7 +3830,7 @@ async function replayBundle() {
       const html = sub.innerHTML;
       const fails = (html.match(/pill cancelled/g) || []).length;
       checks += fails + (html.match(/pill resolved/g) || []).length;
-      if (fails === 0 && html.includes("VERIFIED")) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-evidence-digest/v1 — 1/1 artifact(s) replayed</div>`); }
+      if (fails === 0 && verifiedMark(html)) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-evidence-digest/v1 — verified</div>`); }
       else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> digest.json — ${fails || "verdict"} failed check(s)</div>`);
     } catch (e) {
       rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> digest.json — ${esc(e.message ?? String(e))}</div>`);
@@ -3575,7 +3846,7 @@ async function replayBundle() {
       const html = sub.innerHTML;
       const fails = (html.match(/pill cancelled/g) || []).length;
       checks += fails + (html.match(/pill resolved/g) || []).length;
-      if (fails === 0 && html.includes("VERIFIED")) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-board/v1 — 1/1 artifact(s) replayed</div>`); }
+      if (fails === 0 && verifiedMark(html)) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-board/v1 — verified</div>`); }
       else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> board.json — ${fails || "verdict"} failed check(s)</div>`);
     } catch (e) {
       rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> board.json — ${esc(e.message ?? String(e))}</div>`);
@@ -3593,7 +3864,7 @@ async function replayBundle() {
       const html = sub.innerHTML;
       const fails = (html.match(/pill cancelled/g) || []).length;
       checks += fails + (html.match(/pill resolved/g) || []).length + (html.match(/pill ok/g) || []).length;
-      if (fails === 0 && html.includes("VERIFIED")) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-catalog/v1 — 1/1 artifact(s) replayed</div>`); }
+      if (fails === 0 && verifiedMark(html)) { passed++; rows.push(`<div class="proof"><span class="pill resolved">PASS</span> sealed-catalog/v1 — verified</div>`); }
       else rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> artifacts.json — ${fails || "verdict"} failed check(s)</div>`);
     } catch (e) {
       rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> artifacts.json — ${esc(e.message ?? String(e))}</div>`);
@@ -3618,30 +3889,32 @@ async function replayBundle() {
 async function verifyTrail() {
   const res = document.getElementById("trailres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("trailjson").value);
     if (c.kind !== "sealed-trail/v1") throw new Error(`not a sealed-trail/v1 card (kind=${c.kind})`);
     if (c.snapshotSha256) {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const gotSha = await snapshotSha();
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… matches the card — bound to THESE account bytes`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}… — this card describes a different ledger`);
     }
     if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI verifier works without it)</div>`; return; }
     const spid = new PK(c.programs.sealed), mpid = new PK(c.programs.market);
+    // card fields below are hostile-shaped by definition — String() before
+    // .slice (a non-string crashes the verifier) and Number() for display.
     pdaB([utf8("run"), pkB(c.run.benchmark), u64le(c.run.index)], spid) === c.run.pk
-      ? pass("run PDA", `${c.run.pk.slice(0, 12)}… = [run, bank, u64le(${c.run.index})]`)
-      : fail("run PDA", `${c.run.pk.slice(0, 12)}… ≠ [run, bank, u64le(${c.run.index})]`);
+      ? pass("run PDA", `${String(c.run.pk).slice(0, 12)}… = [run, bank, u64le(${Number(c.run.index)})]`)
+      : fail("run PDA", `${String(c.run.pk).slice(0, 12)}… ≠ [run, bank, u64le(${Number(c.run.index)})]`);
     if (c.bank)
       pdaB([utf8("benchmark"), pkB(c.bank.authority), u32le(c.bank.id)], spid) === c.bank.pk
-        ? pass("bank PDA", `${c.bank.pk.slice(0, 12)}… = [benchmark, authority, u32le(${c.bank.id})]`)
-        : fail("bank PDA", `${c.bank.pk.slice(0, 12)}… ≠ [benchmark, authority, u32le(${c.bank.id})]`);
+        ? pass("bank PDA", `${String(c.bank.pk).slice(0, 12)}… = [benchmark, authority, u32le(${Number(c.bank.id)})]`)
+        : fail("bank PDA", `${String(c.bank.pk).slice(0, 12)}… ≠ [benchmark, authority, u32le(${Number(c.bank.id)})]`);
     if (c.receipt)
       pdaB([utf8("scorelog"), pkB(c.run.pk)], spid) === c.receipt.pk
-        ? pass("receipt PDA", `${c.receipt.pk.slice(0, 12)}… = [scorelog, run]`)
-        : fail("receipt PDA", `${c.receipt.pk.slice(0, 12)}… ≠ [scorelog, run]`);
+        ? pass("receipt PDA", `${String(c.receipt.pk).slice(0, 12)}… = [scorelog, run]`)
+        : fail("receipt PDA", `${String(c.receipt.pk).slice(0, 12)}… ≠ [scorelog, run]`);
     const vOk = c.venues.filter(v => {
       const seeds = v.kind === "band" ? [utf8("market"), pkB(v.seeds.run), u64le(v.seeds.salt)]
         : v.kind === "duel" ? [utf8("duel"), pkB(v.seeds.runA), pkB(v.seeds.runB), u64le(v.seeds.salt)]
@@ -3667,7 +3940,7 @@ async function verifyTrail() {
       const vtype = { band: "markets", duel: "markets", dark: "darkMarkets", ladder: "ladders", bounty: "bounties" };
       for (const v of c.venues) {
         const a = (A?.[vtype[v.kind]] ?? []).find(x => x.pk === v.pk);
-        if (!a) { fail(`venue ${v.pk.slice(0, 8)}`, `${v.kind} account not in snapshot`); continue; }
+        if (!a) { fail(`venue ${String(v.pk).slice(0, 8)}`, `${v.kind} account not in snapshot`); continue; }
         const eqs = (x, y) => String(x) === String(y);
         const seedOk = v.kind === "band" ? a.run === v.seeds.run && eqs(a.salt, v.seeds.salt)
           : v.kind === "duel" ? a.run === v.seeds.runA && a.runB === v.seeds.runB && eqs(a.salt, v.seeds.salt)
@@ -3690,7 +3963,7 @@ async function verifyTrail() {
               (a.status === 1 ? eqs(v.resultMask, a.resultMask) : true)
             : eqs(v.status, a.status) && (a.status === 1 ? eqs(v.resolvedScore, a.resolvedScore) : true) &&
               (v.outcome == null || a.status !== 1 || eqs(v.outcome, a.outcome));
-        seedOk && moneyOk && scoreOk ? bOk++ : fail(`venue ${v.pk.slice(0, 8)}`, `${v.kind} field(s) differ from account bytes`);
+        seedOk && moneyOk && scoreOk ? bOk++ : fail(`venue ${String(v.pk).slice(0, 8)}`, `${v.kind} field(s) differ from account bytes`);
       }
       A && (bOk === c.venues.length ? pass("venue binding", `${bOk}/${c.venues.length} venue accounts field-bound`)
         : fail("venue binding", `${bOk}/${c.venues.length} field-bound`));
@@ -3728,7 +4001,7 @@ async function verifyTrail() {
       ? pass("verdict summary", `${vd.venuesTotal} venues · ${vd.resolvedVenues} resolved · ${vd.scoreMismatches} mismatch stored = recomputed`)
       : fail("verdict summary", "stored counts ≠ recomputed");
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "TRAIL VERIFIED" : "TRAIL FAILED"}</b> — ${esc(c.run.modelId)} ${c.run.correct}/${c.run.chunkCount * 32} · ${c.venues.length} venue(s) priced this score</div>`);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "TRAIL VERIFIED" : "TRAIL FAILED"}</b> — ${esc(c.run.modelId)} ${esc(c.run.correct)}/${Number(c.run.chunkCount) * 32} · ${c.venues.length} venue(s) priced this score</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
@@ -3765,8 +4038,8 @@ loadReportIndex();
 async function verifyReport() {
   const res = document.getElementById("reportres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const md = document.getElementById("reportjson").value;
     if (!md.includes("sealed-report/v1")) throw new Error("not a sealed-report/v1 document");
@@ -3780,7 +4053,7 @@ async function verifyReport() {
     const cr = await fetch(`claims/${slug}.json`);
     if (!cr.ok) { fail("bound card fetch", `claims/${slug}.json → HTTP ${cr.status} — the report names a card not served with this bundle`); res.innerHTML = rows.join(""); return; }
     const card = JSON.parse(await cr.text());
-    if (card.kind !== "sealed-claim/v1" || card.model?.id !== model) { fail("bound card fetch", `claims/${slug}.json is not a sealed-claim/v1 card for ${esc(model)}`); res.innerHTML = rows.join(""); return; }
+    if (card.kind !== "sealed-claim/v1" || card.model?.id !== model) { fail("bound card fetch", `claims/${slug}.json is not a sealed-claim/v1 card for ${model}`); res.innerHTML = rows.join(""); return; }
     const canon = (v) => JSON.stringify(v, (_k, x) => {
       if (x && typeof x === "object" && !Array.isArray(x))
         return Object.keys(x).sort().reduce((o, k) => (o[k] = x[k], o), {});
@@ -3791,13 +4064,13 @@ async function verifyReport() {
     const modelHash = hex(await sha(utf8(model)));
     const recPda = pdaB([utf8("modelrec"), unhex(modelHash)], new PK(card.programs.sealed));
     (recPda === recordPk && recPda === card.model.recordPk)
-      ? pass("record PDA", `${recordPk.slice(0, 12)}… = [modelrec, sha256(${esc(model)})] = card's bound record`)
+      ? pass("record PDA", `${recordPk.slice(0, 12)}… = [modelrec, sha256(${model})] = card's bound record`)
       : fail("record PDA", `${recPda.slice(0, 12)}… derived ≠ printed ${recordPk.slice(0, 12)}… / card ${card.model.recordPk.slice(0, 12)}…`);
     (gotHash === wantHash)
       ? pass("card digest binding", `sha256(canonical card) ${gotHash.slice(0, 16)}… = printed`)
       : fail("card digest binding", `recomputed ${gotHash.slice(0, 16)}… ≠ printed ${wantHash.slice(0, 16)}…`);
     window.__reportBoundCard = card;
-    pass("bound card available", `claims/${slug}.json loaded — <a href="#sec-claim" onclick="document.getElementById('claimjson').value=JSON.stringify(window.__reportBoundCard);verifyClaim()">replay it in the claim verifier →</a>`);
+    rows.push(`<div class="proof"><span class="pill resolved">PASS</span> bound card available — <span class="kv">${esc(`claims/${slug}.json loaded`)} — <a href="#sec-claim" onclick="document.getElementById('claimjson').value=JSON.stringify(window.__reportBoundCard);verifyClaim()">replay it in the claim verifier →</a></span></div>`);
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "REPORT VERIFIED" : "REPORT FAILED"}</b> — ${esc(model)} · digest + identity bound to a committed card</div>`);
     res.innerHTML = rows.join("");
@@ -3824,23 +4097,22 @@ async function loadDigest() {
 async function verifyDigest() {
   const res = document.getElementById("digestres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const d = JSON.parse(document.getElementById("digestjson").value);
     if (d.kind !== "sealed-evidence-digest/v1") throw new Error(`not a sealed-evidence-digest/v1 document (kind=${d.kind ?? "?"})`);
     const A = window.__audit;
     if (!A) { res.innerHTML = `<div class="proof"><span class="pill cancelled">FAIL</span> audit not run — a card verified against nothing proves nothing (run the audit first)</div>`; runAudit(); return; }
     // [1] snapshot binding — hash the bytes actually being audited.
-    const snapText = await fetch("snapshot.json").then(r => { if (!r.ok) throw new Error("snapshot.json not reachable"); return r.text(); });
-    const gotSha = hex(await sha(utf8(snapText)));
+    const gotSha = await snapshotSha();
     gotSha === d.snapshotSha256
       ? pass("snapshot binding", `sha256 ${gotSha.slice(0, 16)}… matches the digest — bound to THESE bytes`)
       : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(d.snapshotSha256).slice(0, 16)}… — this digest describes a different ledger`);
     // [2] program ids — the digest must name this deployment.
     (d.programs?.sealed === SEALED_PID.toString() && d.programs?.market === MARKET_PID.toString())
       ? pass("program ids", `sealed ${short(d.programs.sealed)} · market ${short(d.programs.market)}`)
-      : fail("program ids", `declared ${esc(JSON.stringify(d.programs ?? {}))} ≠ this build`);
+      : fail("program ids", `declared ${JSON.stringify(d.programs ?? {})} ≠ this build`);
     // [3] counts — every account class tallied against what was decoded.
     const c = d.counts ?? {};
     const want = { banks: A.benches.length, runs: A.runs.length, receipts: A.scoreLogs.length, records: A.modelRecords.length, reveals: A.reveals.length, grants: A.grants.length, itemChunks: A.itemChunks.length, privChunks: A.privChunks.length, markets: A.markets.length, darkMarkets: A.darkMarkets.length, ladders: A.ladders.length, bounties: A.bounties.length, positions: A.positions.length + A.darkPositions.length };
@@ -3916,8 +4188,8 @@ async function loadBoard() {
 async function verifyBoard() {
   const res = document.getElementById("boardres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("boardjson").value);
     if (c.kind !== "sealed-board/v1") throw new Error(`not a sealed-board/v1 card (kind=${c.kind ?? "?"})`);
@@ -4047,7 +4319,7 @@ async function verifyBoard() {
     totBad === 0 ? pass("record totals", "every declared record total equals the decoded ModelRecord account")
       : fail("record totals", `${totBad} record(s) declare totals that differ from the account bytes`);
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOARD VERIFIED" : "BOARD FAILED"}</b> — ${c.totals?.models ?? c.models.length} models · ${c.totals?.receipts ?? rpN} receipts · ${c.totals?.pairs ?? rebuilt.length} ranked pairs; #1 ${esc(c.ranking?.[0]?.modelId ?? "?")}</div>`);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOARD VERIFIED" : "BOARD FAILED"}</b> — ${esc(c.totals?.models ?? c.models.length)} models · ${esc(c.totals?.receipts ?? rpN)} receipts · ${esc(c.totals?.pairs ?? rebuilt.length)} ranked pairs; #1 ${esc(c.ranking?.[0]?.modelId ?? "?")}</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
@@ -4074,8 +4346,8 @@ async function loadBank(name) {
 async function verifyBank() {
   const res = document.getElementById("bankres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("bankjson").value);
     if (c.kind !== "sealed-bank/v1") throw new Error(`not a sealed-bank/v1 card (kind=${c.kind ?? "?"})`);
@@ -4238,7 +4510,7 @@ async function verifyBank() {
 
     // [8] snapshot binding — the card must name THIS bundle's bytes.
     {
-      const snapSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await fetch("snapshot.json").then(r => { if (!r.ok) throw new Error("snapshot.json not reachable"); return r.arrayBuffer(); })))));
+      const snapSha = await snapshotSha();
       snapSha === c.snapshot
         ? pass("snapshot binding", `sha256 ${snapSha.slice(0, 16)}… matches the card — bound to THESE bytes`)
         : fail("snapshot binding", `bundle sha256 ${snapSha.slice(0, 16)}… ≠ declared ${String(c.snapshot).slice(0, 16)}… — this card describes a different ledger`);
@@ -4269,8 +4541,8 @@ async function loadPos(name) {
 async function verifyPosition() {
   const res = document.getElementById("posres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("posjson").value);
     if (c.kind !== "sealed-position/v1") throw new Error(`not a sealed-position/v1 card (kind=${c.kind ?? "?"})`);
@@ -4360,7 +4632,7 @@ async function verifyPosition() {
     } else fail("verdict replay", "missing account binding — cannot replay");
     // [6] snapshot binding.
     try {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const gotSha = await snapshotSha();
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
@@ -4390,8 +4662,8 @@ async function loadBounty(name) {
 async function verifyBounty() {
   const res = document.getElementById("bountyres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("bountyjson").value);
     if (c.kind !== "sealed-bounty/v1") throw new Error(`not a sealed-bounty/v1 card (kind=${c.kind ?? "?"})`);
@@ -4450,18 +4722,18 @@ async function verifyBounty() {
       const realBank = A.benches.find(b => b.pk === c.bank.pk);
       const cap = realBank ? realBank.chunkCount * 32 : c.bank.capacity;
       c.bounty.threshold <= cap && c.bank.capacity === cap
-        ? pass("threshold ≤ capacity", `${c.bounty.threshold} ≤ ${cap} (${esc(c.bank.name)})`)
+        ? pass("threshold ≤ capacity", `${c.bounty.threshold} ≤ ${cap} (${c.bank.name})`)
         : fail("threshold ≤ capacity", `declared cap ${c.bank.capacity} / on-chain ${cap}`);
     }
     // [5] snapshot binding.
     try {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const gotSha = await snapshotSha();
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
     } catch { fail("snapshot binding", "snapshot.json unreachable"); }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOUNTY VERIFIED" : "BOUNTY FAILED"}</b> — ${esc(c.verdict.state)} · ${c.bounty.status === 1 ? `pot paid to runner · winner ${c.bounty.winningScore}/${c.bank?.capacity ?? "?"} beat threshold ${c.bounty.threshold}` : `${(Number(c.bounty.amount) / 1e9).toFixed(4)} SOL escrowed · threshold ${c.bounty.threshold}`}</div>`);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOUNTY VERIFIED" : "BOUNTY FAILED"}</b> — ${esc(c.verdict.state)} · ${c.bounty.status === 1 ? `pot paid to runner · winner ${esc(c.bounty.winningScore)}/${esc(c.bank?.capacity ?? "?")} beat threshold ${esc(c.bounty.threshold)}` : `${(Number(c.bounty.amount) / 1e9).toFixed(4)} SOL escrowed · threshold ${esc(c.bounty.threshold)}`}</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
@@ -4486,8 +4758,8 @@ async function loadGrant(name) {
 async function verifyGrant() {
   const res = document.getElementById("grantres");
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("grantjson").value);
     if (c.kind !== "sealed-grant/v1") throw new Error(`not a sealed-grant/v1 card (kind=${c.kind ?? "?"})`);
@@ -4525,7 +4797,7 @@ async function verifyGrant() {
     else {
       const realBank = A.benches.find(b => b.pk === c.bank.pk);
       const ok = c.grant.benchmark === c.bank.pk && c.grant.seeds.bank === c.bank.pk && Number(c.bank.kind) === 2;
-      ok ? pass("bank semantics", `${esc(realBank?.name ?? c.bank.name)} kind=2 — ciphertext-only exam; the questions moved without publishing`)
+      ok ? pass("bank semantics", `${realBank?.name ?? c.bank.name} kind=2 — ciphertext-only exam; the questions moved without publishing`)
         : fail("bank semantics", "grant/bank mismatch, or the bank isn't a private ciphertext exam");
     }
     // [4b] the bank block is card-say-so until it's bound — a forged card
@@ -4548,13 +4820,13 @@ async function verifyGrant() {
     }
     // [6] snapshot binding.
     try {
-      const gotSha = window.__snapSha ?? (window.__snapSha = hex(await sha(new Uint8Array(await (await fetch("snapshot.json")).arrayBuffer()))));
+      const gotSha = await snapshotSha();
       gotSha === c.snapshotSha256
         ? pass("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}…`)
         : fail("snapshot binding", `bundle sha256 ${gotSha.slice(0, 16)}… ≠ declared ${String(c.snapshotSha256).slice(0, 16)}…`);
     } catch { fail("snapshot binding", "snapshot.json unreachable"); }
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
-    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "GRANT VERIFIED" : "GRANT FAILED"}</b> — ${esc(c.bank?.name ?? "?")} part ${c.grant.part} → viewer ${esc(c.grant.viewer.slice(0, 12))}… · ${c.panel.viewersOnBank} viewer(s) saw this exam · the answers never moved</div>`);
+    rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "GRANT VERIFIED" : "GRANT FAILED"}</b> — ${esc(c.bank?.name ?? "?")} part ${esc(c.grant.part)} → viewer ${esc(String(c.grant.viewer ?? "?").slice(0, 12))}… · ${esc(c.panel.viewersOnBank)} viewer(s) saw this exam · the answers never moved</div>`);
     res.innerHTML = rows.join("");
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
@@ -4567,6 +4839,9 @@ async function verifyGrant() {
 async function loadTamper(name) {
   const ta = document.getElementById("tamperjson");
   try {
+    // same filename charset the ?tamper= deep link enforces — a crafted
+    // exhibit name must not become a path traversal.
+    if (!/^[a-zA-Z0-9._-]+\.json$/.test(name ?? "")) throw new Error("bad exhibit name");
     const r = await fetch(`tamper/${name}`);
     if (!r.ok) throw new Error(String(r.status));
     ta.value = await r.text(); window.__cardSrc = `tamper/${name}`;
@@ -4578,8 +4853,8 @@ async function verifyTamper() {
   const res = document.getElementById("tamperres");
   if (!window.__audit) { res.innerHTML = `<div class="kv">ledger still loading — replay the exhibit once the audit bar appears</div>`; return; }
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   try {
     const c = JSON.parse(document.getElementById("tamperjson").value);
     if (c.kind !== "sealed-tamper/v1") throw new Error(`not a sealed-tamper/v1 exhibit (kind=${c.kind ?? "?"})`);
@@ -4616,17 +4891,20 @@ async function verifyTamper() {
     finally { ta.value = savedTa; inner.innerHTML = savedHtml; }
     const diedAt = [...verdictHtml.matchAll(/pill cancelled[^<]*<\/span>\s*([^—<]+)/g)].map(m => m[1].trim());
     const rejected = /pill cancelled|FAILED/.test(verdictHtml) || !!threw;
-    const exp = c.expectFail ?? [];
+    // exhibit fields are card data too — expectFail must be an array (a
+    // string has no .every) and expectThrow a string before .slice.
+    const exp = Array.isArray(c.expectFail) ? c.expectFail.map(String) : [];
+    const expThrow = typeof c.expectThrow === "string" ? c.expectThrow : "";
     // strict: EVERY recorded check must fire; a thrown rejection matches its
     // recorded expectThrow signature.
     const named = exp.length ? exp.every(x => diedAt.includes(x))
-      : (c.expectThrow ? threw.includes(c.expectThrow.slice(0, 60)) : true);
+      : (expThrow ? threw.includes(expThrow.slice(0, 60)) : true);
     rejected
       ? pass("inner forgery rejected", `the ${f.kind} verifier refused it — died at ${diedAt.slice(0, 3).join(", ") || (threw ? `threw ${threw.slice(0, 60)}` : "a thrown check")}`)
       : fail("inner forgery rejected", "THE VERIFIER TOOK THE LIE — the inner card VERIFIED");
     named
-      ? pass("named check", `expected ${exp.join(", ") || c.expectThrow || "any rejection"}`)
-      : fail("named check", `expected ${exp.join(", ") || c.expectThrow} — died at ${diedAt.join(", ") || threw || "nothing"}`);
+      ? pass("named check", `expected ${exp.join(", ") || expThrow || "any rejection"}`)
+      : fail("named check", `expected ${exp.join(", ") || expThrow} — died at ${diedAt.join(", ") || threw || "nothing"}`);
     res.innerHTML = rows.join("") +
       `<div class="kv" style="margin-top:8px"><b>${rejected && named ? "EXHIBIT VERIFIED" : "EXHIBIT FAILED"}</b> — "${esc(c.attack)}" on ${esc(c.targetCard)} · this forgery is evidence now</div>`;
   } catch (e) {
@@ -4775,6 +5053,12 @@ const FORGE_DEFS = {
     mutate: (c) => { c.mxe.pda = c.signPda; return c; } },
   forkclus:{ label: "fork the cluster — re-home the circuits to offset 0", file: "circuit/arcium-devnet.json", ta: "circjson", res: "circres", sec: "sec-circuitcard", verify: verifyCircuit,
     mutate: (c) => { c.cluster.offset = 0; return c; } },
+  swapraw: { label: "swap the bytecode — record a phantom raw-circuit hash", file: "circuit/arcium-devnet.json", ta: "circjson", res: "circres", sec: "sec-circuitcard", verify: verifyCircuit,
+    mutate: (c) => { const r = (c.circuits.find(x => x.name === "score_chunk")?.rawCircuits ?? [])[0]; if (r) r.sha256 = "ab".repeat(32); return c; } },
+  repointraw:{ label: "repoint the bytecode — move a raw circuit to a phantom pda", file: "circuit/arcium-devnet.json", ta: "circjson", res: "circres", sec: "sec-circuitcard", verify: verifyCircuit,
+    mutate: (c) => { const cs = c.circuits.filter(x => (x.rawCircuits ?? []).length); if (cs.length >= 2) cs[0].rawCircuits[0].pda = cs[1].rawCircuits[0].pda; return c; } },
+  inventbls:{ label: "invent the committee — fabricate the cluster's BLS key", file: "circuit/arcium-devnet.json", ta: "circjson", res: "circres", sec: "sec-circuitcard", verify: verifyCircuit,
+    mutate: (c) => { c.cluster.blsPubkey = "cd".repeat(64); return c; } },
   shavecensus:{ label: "hide a bank — shave the Benchmark census", file: "ledger/ledger.json", ta: "ledgerjson", res: "ledgerres", sec: "sec-ledgercard", verify: verifyLedger,
     mutate: (c) => { c.census.sealed.kinds.Benchmark -= 1; return c; } },
   padruns:{ label: "phantom run — pad the Run count", file: "ledger/ledger.json", ta: "ledgerjson", res: "ledgerres", sec: "sec-ledgercard", verify: verifyLedger,
@@ -4822,6 +5106,72 @@ function renderForge() {
   }).join("");
 }
 
+// compose-your-own forgery — the canned attacks prove the SPECIFIC lies we
+// shipped; this picker lets a judge aim a generic primitive (bump a score,
+// drop an array element, rename a string, re-seat a pubkey) at ANY committed
+// card. The mutated bytes go through the same universal router and must die
+// at a named check — a live verdict is the failure mode.
+const FORGEABLE_RES = {
+  "sealed-claim/v1": "claimres", "sealed-ceiling/v1": "ceilres", "sealed-circuit/v1": "circres",
+  "sealed-ledger/v1": "ledgerres", "sealed-policy/v1": "certres", "sealed-match/v1": "matchres",
+  "sealed-trail/v1": "trailres", "sealed-report/v1": "reportres", "sealed-evidence-digest/v1": "digestres",
+  "sealed-board/v1": "boardres", "sealed-bank/v1": "bankres", "sealed-catalog/v1": "catres",
+  "sealed-position/v1": "posres", "sealed-bounty/v1": "bountyres", "sealed-grant/v1": "grantres",
+  "sealed-tamper/v1": "tamperres",
+};
+async function loadForgePick() {
+  try {
+    const sel = document.getElementById("fcard");
+    if (!sel || !sel.options || sel.options.length > 1) return;
+    const doc = await (await fetch("artifacts.json")).json();
+    for (const a of doc.artifacts ?? []) {
+      const o = document.createElement("option");
+      o.value = a.path; o.textContent = a.path;
+      sel.appendChild(o);
+    }
+  } catch {}
+}
+async function forgeChallenge() {
+  const out = document.getElementById("fcres");
+  const file = document.getElementById("fcard")?.value, atk = document.getElementById("fatk")?.value;
+  if (!file) { out.innerHTML = " — pick a committed card first"; return; }
+  try {
+    const raw = await (await fetch(file)).text();
+    let c; try { c = JSON.parse(raw); }
+    catch { out.innerHTML = " — that card is markdown, not JSON (its canned attacks are above)"; return; }
+    // generic primitives — walk the card and mutate the first matching field.
+    const walk = (o, f) => {
+      if (!o || typeof o !== "object") return false;
+      for (const k of Object.keys(o)) { if (f(k, o[k], o)) return true; if (walk(o[k], f)) return true; }
+      return false;
+    };
+    const hit = {
+      bump:   () => walk(c, (k, v, o) => typeof v === "number" && /correct|score|amount|items|count|salt|index/i.test(k) ? (o[k] = v + 1, true) : false),
+      drop:   () => walk(c, (k, v, o) => Array.isArray(v) && v.length ? (v.splice(0, 1), true) : false),
+      rename: () => walk(c, (k, v, o) => typeof v === "string" && /^(id|name|kind|modelId|model|winner|state|title)$/i.test(k) ? (o[k] = v + "-forged", true) : false),
+      reseat: () => walk(c, (k, v, o) => typeof v === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v) ? (o[k] = v.slice(0, -1) + (v.endsWith("x") ? "y" : "x"), true) : false),
+    }[atk];
+    if (!hit || !hit()) { out.innerHTML = " — that primitive finds nothing to mutate in this card"; return; }
+    const resId = FORGEABLE_RES[c.kind];
+    if (!resId) { out.innerHTML = ` — kind <code>${esc(c.kind ?? "?")}</code> has no verifier to challenge`; return; }
+    document.getElementById("artifactjson").value = JSON.stringify(c, null, 2);
+    window.__cardSrc = null;
+    verifyAnyArtifact();
+    // the routed verifier is async — poll its verdict element for the
+    // named FAIL check (same regex the lab's own sweep uses).
+    let m = null;
+    for (let i = 0; i < 80 && !m; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      const html = document.getElementById(resId)?.innerHTML ?? "";
+      m = html.match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
+      if (!m && (verifiedMark(html) || /FAILED<\/b>/.test(html))) break;
+    }
+    out.innerHTML = m
+      ? ` — <span class="pill cancelled">FORGERY CAUGHT</span> by the <b>${esc(m[1].trim())}</b> check <a href="#sec-artifact">(routed ↓)</a>`
+      : ` — <span class="pill" style="color:var(--err);border-color:var(--err)">NOT CAUGHT</span> the mutation survived the verifier — that would mean the scheme is broken`;
+  } catch (e) { out.innerHTML = ` — <span style="color:var(--err)">${esc(e.message ?? String(e))}</span>`; }
+}
+
 async function verify() {
   const res = document.getElementById("vres");
   try {
@@ -4848,7 +5198,7 @@ async function verify() {
       try { runKey = new PK(runPk); }
       catch { throw new Error(`"${runPk}" is not a valid Solana pubkey`); }
     }
-    let onchain = null, onchainNote = "";
+    let onchain = null, onchainNote = "", notFound = false;
     if (runKey) {
       // Snapshot data first — verification works fully offline when the run
       // is in the loaded dump; then live RPC. A *found* account that fails the
@@ -4874,8 +5224,10 @@ async function verify() {
         if (rpcOk && !info) {
           // A live RPC says the account is absent — this is a definite
           // "not found", not a transport issue. Self-consistent would be
-          // misleading (it implies "we couldn't check"); report it plainly.
-          onchainNote = "ACCOUNT NOT FOUND — this run does not exist at " + rpcIn.value.trim() + " (wiped ledger? wrong PDA? try the bundled snapshot)";
+          // misleading (it implies "we couldn't check"); it lands a red
+          // NOT FOUND verdict, never the amber pill.
+          notFound = true;
+          onchainNote = "ACCOUNT NOT FOUND — this run does not exist at " + esc(rpcIn.value.trim()) + " (wiped ledger? wrong PDA? try the bundled snapshot)";
         } else if (info) {
           // Only a real sealed Run account may supply the on-chain root —
           // without this check any ≥184-byte account with crafted bytes at
@@ -4890,15 +5242,16 @@ async function verify() {
       }
     }
     const want = onchain || p.outputsRoot;
-    const ok = root === want;
+    const selfOk = root === want; // internal consistency — a self-made file can reach this
+    const ok = !notFound && selfOk; // an absent PDA can never be VERIFIED
     const anchored = !!onchain;
     res.innerHTML = `<div class="proof" style="margin-top:8px">
-      <span class="pill ${ok ? (anchored ? "resolved" : "") : "open"}" ${ok && !anchored ? 'style="font-size:13px;border-color:#c9a227;color:#c9a227"' : 'style="font-size:13px"'}>${ok ? (anchored ? "VERIFIED" : "SELF-CONSISTENT") : "MISMATCH"}</span>
+      <span class="pill ${notFound ? "cancelled" : ok ? (anchored ? "resolved" : "") : "open"}" style="font-size:13px${notFound ? ";color:var(--err);border-color:var(--err)" : ok && !anchored ? ";border-color:#c9a227;color:#c9a227" : ""}">${notFound ? "NOT FOUND" : ok ? (anchored ? "VERIFIED" : "SELF-CONSISTENT") : "MISMATCH"}</span>
       model <b>${esc(p.model || "?")}</b> · item ${p.itemIndex} (chunk ${p.chunkIndex}) · output hash <span class="mono">${esc(p.outputHash)}</span>
       ${p.canonical ? `<br>committed answer <b>${esc(JSON.stringify(p.canonical))}</b> — bound into the root before scoring` : ""}
       <br>recomputed root <span class="mono">${root.slice(0, 16)}…</span> ${onchainNote || "vs supplied"} <span class="mono">${esc(String(want)).slice(0, 16)}…</span>
       ${ok && !anchored ? `<br><span style="color:#c9a227">proof is internally consistent but NOT anchored to any chain/snapshot root — a self-made file can pass this check. Paste the run PDA with a live RPC or a snapshot containing it for full verification.</span>` : ""}
-      ${ok ? "" : `<br><span style="color:var(--err)">the proof does not reach the committed root — output was not part of this run</span>`}
+      ${selfOk ? "" : `<br><span style="color:var(--err)">the proof does not reach the committed root — output was not part of this run</span>`}
     </div>`;
   } catch (e) { res.innerHTML = `<div class="proof" style="color:var(--err)">${esc(e.message)}</div>`; }
 }
@@ -4919,7 +5272,24 @@ let __deepLinksDone = false;
 async function maybeAudit() {
   const A = window.__audit;
   if (!A) return;
-  const key = A.benches.length + ":" + A.runs.length + ":" + A.markets.length + ":" + A.ladders.length + ":" + A.darkMarkets.length + ":" + A.bounties.length + ":" + A.skipped;
+  // Counts alone miss byte-level mutations at unchanged counts — fold a
+  // cheap digest of the loaded account bytes into the key so a same-count
+  // rewrite (swapped chunk, moved counter, edited score) re-runs the audit.
+  // Sampled-char XOR is a change detector, not a MAC — the audit itself is.
+  let fp = 0;
+  // s may be a string (pubkey, b64 account bytes, JSON) or a Uint8Array —
+  // account data has no charCodeAt, so pick the indexer per type.
+  const mix = (s) => { const n = s.length;
+    const at = typeof s === "string" ? (i) => s.charCodeAt(i) : (i) => s[i] & 0xff;
+    for (let i = 0; i < n; i += Math.max(1, n >> 4)) fp = (((fp << 5) - fp) ^ at(i)) >>> 0; };
+  const bigintSafe = (k, v) => typeof v === "bigint" ? String(v) : v;
+  if (window.__raw && window.__raw.size) {
+    for (const [pk, v] of window.__raw) { mix(pk); mix(v.data); }
+  } else {
+    for (const arr of [A.benches, A.runs, A.markets, A.ladders, A.darkMarkets, A.darkPositions, A.bounties, A.positions, A.modelRecords, A.scoreLogs, A.reveals, A.grants, A.itemChunks, A.privChunks, A.chunks])
+      for (const e of arr) mix((e.pk ?? "") + ":" + JSON.stringify(e, bigintSafe));
+  }
+  const key = A.benches.length + ":" + A.runs.length + ":" + A.markets.length + ":" + A.ladders.length + ":" + A.darkMarkets.length + ":" + A.bounties.length + ":" + A.skipped + ":" + fp.toString(36) + ":" + (window.__snapSha ?? "");
   if (key !== __auditKey) {
     __auditKey = key;
     runAudit();
@@ -4964,7 +5334,7 @@ async function maybeAudit() {
   // ?decrypt=1 — the most visceral beat as a URL: the sealed exam
   // materializes in-page, decrypted from the committed demo delegate key.
   if (new URLSearchParams(location.search).get("decrypt")) await quickDecrypt({ disabled: false, textContent: "" });
-  // ?mega=1 — the whole demo as a URL: audit + all 182 artifacts + every
+  // ?mega=1 — the whole demo as a URL: audit + all committed artifacts + every
   // forgery attack, cascading to EVERYTHING VERIFIED while you watch.
   if (new URLSearchParams(location.search).get("mega")) await megaAudit();
 }
@@ -4985,7 +5355,7 @@ const TOUR_STOPS = [
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
-  ["sec-artifact", "verify anything — then 'replay the whole bundle': 142 committed artifacts"],
+  ["sec-artifact", "verify anything — then 'replay the whole bundle': 206 committed artifacts"],
   ["sec-catalog", "the evidence catalog — every artifact is a link you can forward; each re-verifies on open"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-policy", "the referee — admission gates replay as portable certificates; every verdict re-derives from the receipts embedded in it"],
@@ -5137,9 +5507,9 @@ async function runAudit(force) {
   if (!A) { out.innerHTML = `<span class="kv">no data loaded yet — waiting for RPC/snapshot…</span>`; return; }
   if (force) __auditKey = null;
   const rows = [];
-  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${n} — <span class="kv">${d}</span></div>`);
-  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${n} — <span class="kv" style="color:var(--err)">${d}</span></div>`);
-  const skip = (n, d) => rows.push(`<div class="proof"><span class="pill">note</span> ${n} — <span class="kv">${d}</span></div>`);
+  const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
+  const skip = (n, d) => rows.push(`<div class="proof"><span class="pill">note</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
   out.innerHTML = `<span class="kv">auditing…</span>`;
   try {
     // [1] decode: renderAll already classified — unknowns land in `skipped`.
@@ -5406,8 +5776,12 @@ async function runAudit(force) {
     // reachable the manifest itself is cross-checked too.
     try {
       const mf = await fetch("MANIFEST").then(r => { if (!r.ok) throw 0; return r.text(); });
-      const lines = mf.trim().split("\n").map(l => l.trim().split(/\s+/)).filter(l => l.length === 2);
-      let okN = 0; const badList = [];
+      const rawLines = mf.split("\n").map(l => l.trim()).filter(Boolean);
+      const lines = rawLines.map(l => l.split(/\s+/)).filter(l => l.length === 2 && /^[0-9a-f]{64}$/i.test(l[0]));
+      // fail closed: an empty or unparseable manifest can never prove the
+      // bundle — "all 0 served files match" is not a verdict, it's a bug.
+      if (lines.length === 0) fail("bundle integrity", `MANIFEST parsed to zero \`sha  path\` lines (${rawLines.length} raw line(s)) — an empty manifest proves nothing`);
+      let okN = 0; const badList = rawLines.length - lines.length ? [`${rawLines.length - lines.length} malformed line(s)`] : [];
       for (const [want, file] of lines) {
         const f = file.replace(/^\.\//, "");
         try {
@@ -5420,9 +5794,10 @@ async function runAudit(force) {
         const canonical = await fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/web/MANIFEST").then(r => r.ok ? r.text() : null);
         canon = canonical === null ? "" : canonical === mf ? " · served manifest == repo manifest" : " · MANIFEST differs from repo main";
       } catch { canon = " · repo manifest unreachable (offline?)"; }
-      badList.length === 0
-        ? pass("bundle integrity", `all ${okN} served files sha256-match web/MANIFEST — this page's bytes are the repo's bytes${canon}`)
-        : fail("bundle integrity", `${badList.length}/${lines.length} file(s) differ from MANIFEST: ${badList.slice(0, 3).join(", ")}${canon}`);
+      if (lines.length > 0)
+        badList.length === 0
+          ? pass("bundle integrity", `all ${okN} served files sha256-match web/MANIFEST — this page's bytes are the repo's bytes${canon}`)
+          : fail("bundle integrity", `${badList.length} of ${lines.length + badList.length} checked item(s) differ from MANIFEST: ${badList.slice(0, 3).join(", ")}${canon}`);
       // bundle root — the same recipe `chain fingerprint` prints: sha256
       // over the evidence manifest (served pinned as SHA256SUMS) + MANIFEST.
       try {
@@ -5602,7 +5977,7 @@ function runGate() {
     out.innerHTML = `a gate needs a criterion — set at least one of accuracy/runs/items/wilson`;
     return;
   }
-  const name = rec ? esc(rec.modelId) : pk;
+  const name = rec ? esc(rec.modelId) : esc(pk);
   if (!all.length || !sel.length) {
     out.innerHTML = `<span class="pill cancelled">NO EVIDENCE</span> ${name} — ` +
       (all.length && !sel.length ? `no receipts survive the filter (attested/post-reveal)` : `no receipts enrolled — run record_score first`);
@@ -5749,68 +6124,7 @@ function runCompare() {
 // or the connect button still goes live explicitly.
 const snapUrl = params.get("snapshot");
 const hosted = !["localhost", "127.0.0.1", ""].includes(location.hostname) && !params.get("rpc");
-if (snapUrl) loadSnapshotUrl(snapUrl);
-else if (hosted) loadSnapshotUrl("snapshot.json");
-else { load(); setInterval(load, 15000); }
-</script>
-</body>
-</html>
-// Receipt-scoped head-to-head — mirrors `chain compare` in chain.ts exactly:
-// ScoreLogs joined by benchmark, per-bank paired deltas, pooled shared-item
-// verdict. Disjoint coverage reports "unrankable", never an aggregate lie.
-function runCompare() {
-  const out = document.getElementById("cmpOut");
-  const a = window.__audit || {};
-  const pkA = document.getElementById("cmpA").value, pkB = document.getElementById("cmpB").value;
-  if (pkA === pkB) { out.innerHTML = "pick two different records"; return; }
-  const recA = (a.modelRecords || []).find(m => m.pk === pkA), recB = (a.modelRecords || []).find(m => m.pk === pkB);
-  const name = r => r ? esc(r.modelId) : "?";
-  const byBank = pk => {
-    const m = new Map();
-    for (const l of a.scoreLogs || []) {
-      if (l.modelRecord !== pk) continue;
-      const e = m.get(l.benchmark) || { correct: 0, items: 0, runs: 0 };
-      e.correct += l.correct; e.items += l.items; e.runs++;
-      m.set(l.benchmark, e);
-    }
-    return m;
-  };
-  const mA = byBank(pkA), mB = byBank(pkB);
-  const shared = [...mA.keys()].filter(k => mB.has(k));
-  if (!shared.length) {
-    out.innerHTML = `<span class="pill cancelled">UNRANKABLE</span> no shared benchmark — ` +
-      `${name(recA)} covered ${mA.size} bank(s), ${name(recB)} ${mB.size}, disjoint. ` +
-      `aggregate leaderboards would still rank them — shared evidence won't.`;
-    return;
-  }
-  const rows = shared.map(k => {
-    const ea = mA.get(k), eb = mB.get(k);
-    const bench = (a.benches || []).find(b => b.pk === k);
-    const pa = ea.items ? 100 * ea.correct / ea.items : 0, pb = eb.items ? 100 * eb.correct / eb.items : 0;
-    return { k, name: bench ? bench.name : k.slice(0, 8), ea, eb, pa, pb, d: pa - pb };
-  }).sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
-  const sA = rows.reduce((s, r) => s + r.ea.correct, 0), sAi = rows.reduce((s, r) => s + r.ea.items, 0);
-  const sB = rows.reduce((s, r) => s + r.eb.correct, 0), sBi = rows.reduce((s, r) => s + r.eb.items, 0);
-  const pA = sAi ? 100 * sA / sAi : 0, pB = sBi ? 100 * sB / sBi : 0;
-  const wA = rows.filter(r => r.d > 0).length, wB = rows.filter(r => r.d < 0).length, ties = rows.length - wA - wB;
-  const verdict = pA === pB ? null : pA > pB ? name(recA) : name(recB);
-  out.innerHTML = `<span class="pill ${verdict ? "resolved" : ""}">${verdict ? `${verdict} +${Math.abs(pA - pB).toFixed(1)}pp` : "TIE"}</span> ` +
-    `${shared.length} shared bank(s) — pooled ${sA}/${sAi} (${pA.toFixed(1)}%) vs ${sB}/${sBi} (${pB.toFixed(1)}%); ` +
-    `bank wins ${wA}–${wB}–${ties}` +
-    `<table style="margin-top:6px"><tr><th>bank</th><th>${name(recA)}</th><th>${name(recB)}</th><th>Δ</th></tr>` +
-    rows.map(r => `<tr><td class="mono">${link(r.k)} ${esc(r.name)}</td>` +
-      `<td class="score">${r.pa.toFixed(1)}% <span class="kv">${r.ea.correct}/${r.ea.items}·${r.ea.runs}r</span></td>` +
-      `<td class="score">${r.pb.toFixed(1)}% <span class="kv">${r.eb.correct}/${r.eb.items}·${r.eb.runs}r</span></td>` +
-      `<td class="score">${r.d >= 0 ? "+" : ""}${r.d.toFixed(1)}</td></tr>`).join("") +
-    `</table><div class="kv">same verdict on the CLI: <span class="mono">sealed chain compare ${name(recA)} ${name(recB)}</span></div>`;
-}
-
-// `?snapshot=<url>` renders a frozen account dump — no RPC polling needed.
-// On a hosted origin (github.io) the pinned bundle IS the ledger — skip the
-// localnet attempt entirely so first paint isn't an error banner; `?rpc=`
-// or the connect button still goes live explicitly.
-const snapUrl = params.get("snapshot");
-const hosted = !["localhost", "127.0.0.1", ""].includes(location.hostname) && !params.get("rpc");
+loadForgePick(); // populate the compose-your-own card picker from the catalog
 if (snapUrl) loadSnapshotUrl(snapUrl);
 else if (hosted) loadSnapshotUrl("snapshot.json");
 else { load(); setInterval(load, 15000); }

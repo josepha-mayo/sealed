@@ -205,10 +205,21 @@ export function classifyBoard(
   // Ladders resolve on `!still_moving` per leg — resolve_by is the
   // advertised end for bettors, not the resolution gate (it can land
   // early; never-queued legs forfeit at 0). There is no expire path.
+  // On-chain ladder_resolvable has a second gate the mirror must keep:
+  // when EVERY leg is fresh (never queued, never scored) the ladder only
+  // resolves past resolve_by — otherwise argmax over all-zero forfeits
+  // wash-cancels a race nobody started, a repeatable venue DoS.
   for (const l of rows.ladders) {
     if (l.status !== OPEN) { board.settled++; continue; }
     const legs = l.legs.map((pk) => runsByPk.get(pk));
-    if (legs.some((r) => !r || stillMoving(r, now))) board.filling++;
+    const allFresh = legs.every(
+      (r) => r && r.firstPendingAt === 0 && r.allQueuedAt === 0 && !hasLanded(r),
+    );
+    if (
+      legs.some((r) => !r || stillMoving(r, now)) ||
+      (allFresh && now <= l.resolveBy)
+    )
+      board.filling++;
     else board.resolvableLadders.push(l);
   }
   return board;

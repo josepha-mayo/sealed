@@ -332,7 +332,11 @@ test("venue board: keeper classification over bounties, markets, ladders", async
   const run = (pk: string, over: Partial<any> = {}) => ({
     pubkey: pk, benchmark: "bank1", runner: "runnerA", status: 1,
     correct: 40, createdAt: now - 1000, firstPendingAt: 0, allQueuedAt: 0,
-    scoredMask: "0", postReveal: 0, ...over,
+    // A finalized run always has landed chunks — scored_mask == 0 on a
+    // status=1 account is the never-started shape the all-fresh ladder
+    // gate keys on.
+    scoredMask: (over.status ?? 1) === 0 ? "0" : "1",
+    postReveal: 0, ...over,
   });
   const rows = {
     runs: [
@@ -1037,12 +1041,13 @@ test("sealed-circuit/v1 — the MPC itself as evidence: every Arcium PDA re-deri
       new URL("../../../docs/evidence/circuit/arcium-devnet.json", import.meta.url).pathname, "utf8"));
     assert.deepEqual(card.circuits.map((c: any) => c.pda), committed.circuits.map((c: any) => c.pda));
     assert.equal(card.signPda, committed.signPda);
-    // all checks green on the honest card — snapshot-bound (no fetched
-    // block without --rpc, so 8 checks; the committed card carries
-    // fetched fields and passes 9)
+    // all checks green on the honest card — snapshot- and infra-bound (no
+    // fetched block without --rpc, so 11 checks incl. raw-circuit PDAs /
+    // account binding / cluster committee; the committed card carries
+    // fetched fields and passes 12)
     const r = verifyCircuitCard(card, undefined, snapPath);
     assert.equal(r.fail, 0);
-    assert.equal(r.pass, 8);
+    assert.equal(r.pass, 11);
     // 1. reroute the scoring circuit — the compdef re-derivation kills it
     const rerouted = JSON.parse(JSON.stringify(card));
     rerouted.circuits.find((x: any) => x.name === "score_chunk").pda =
@@ -1062,11 +1067,11 @@ test("sealed-circuit/v1 — the MPC itself as evidence: every Arcium PDA re-deri
     const forked = JSON.parse(JSON.stringify(card));
     forked.cluster.offset = 0;
     assert.ok(verifyCircuitCard(forked, undefined, snapPath).fails.includes("cluster PDA"));
-    // the committed card verifies through the same path — 9 checks incl.
+    // the committed card verifies through the same path — 12 checks incl.
     // the devnet-fetched account fields
     const rc = verifyCircuitCard(committed, undefined, snapPath);
     assert.equal(rc.fail, 0, rc.fails.join(", "));
-    assert.equal(rc.pass, 9);
+    assert.equal(rc.pass, 12);
     // the CLI forgery lab carries the canned attacks
     const tmp = mkdtempSync(join(tmpdir(), "sealed-circ-"));
     const fp = join(tmp, "c.json");
@@ -1074,7 +1079,7 @@ test("sealed-circuit/v1 — the MPC itself as evidence: every Arcium PDA re-deri
     process.exitCode = 0;
     const tr = (await artifactTamper(fp, snapPath)) as any;
     assert.equal(tr.ok, true);
-    assert.equal(tr.attacks, 4);
+    assert.equal(tr.attacks, 7);
     process.exitCode = 0;
   } finally { console.log = origLog; process.exitCode = 0; }
 });
@@ -1876,7 +1881,7 @@ test("artifact --tamper — the CLI forgery lab: every canned attack dies at a n
       "docs/evidence/grants/sealed-priv-first.json": 2,
       "docs/evidence/policies/min60-3runs.json": 4,
       "docs/evidence/ceilings/dark_model-a.json": 4,
-      "docs/evidence/circuit/arcium-devnet.json": 4,
+      "docs/evidence/circuit/arcium-devnet.json": 7,
       "docs/evidence/ledger/ledger.json": 4,
       "docs/evidence/reports/qwen2.5-3b-instruct.md": 2,
     };

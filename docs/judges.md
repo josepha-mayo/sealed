@@ -7,7 +7,7 @@ Every claim below is verifiable. Nothing here requires trusting us.
 > runs itself in ~8s). If you doubt the page: run the forgery — press
 > **"forge a +1 score"** in the lab and watch the verifier kill it. If you
 > doubt the *implementation*: `curl -sL …/verify.py | python3 - --remote`
-> re-verifies all 487 pinned bytes in a second language, no clone.
+> re-verifies all 495 pinned bytes in a second language, no clone.
 
 ## The one-line pitch
 
@@ -21,13 +21,13 @@ the cluster; only the count leaves it — and markets settle on that count direc
 
 **Genuinely three steps, no repo needed:**
 
-1. Open [the hosted explorer's `?mega=1`](https://josepha-mayo.github.io/sealed/?mega=1) — the whole audit runs itself in ~8s, ending on a copyable verdict.
-2. Try to break it — [`?forge=1`](https://josepha-mayo.github.io/sealed/?forge=score) runs the attack in-page; then sit the sealed exam yourself at [`?quiz=1`](https://josepha-mayo.github.io/sealed/?quiz=1) — your score is graded by the same fingerprint the MPC used.
-3. `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — a second implementation re-verifies all 487 pinned bytes off the hosted site. Want full depth? The localnet rebuild is below.
+1. Open [the hosted explorer's `?mega=1`](https://josepha-mayo.github.io/sealed/?mega=1) — the whole audit runs itself in ~8s, ending on a copyable verdict. Then press **anchor this verdict on devnet** — your audit receipt becomes a permanent memo tx (`sealed-verdict/v1 <sha256>` over the exact block you just recomputed); come back next week and it's still there.
+2. Try to break it — [`?forge=score`](https://josepha-mayo.github.io/sealed/?forge=score) runs the attack in-page; then sit the sealed exam yourself at [`?quiz=1`](https://josepha-mayo.github.io/sealed/?quiz=1) — your score is graded by the same fingerprint the MPC used.
+3. `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — a second implementation re-verifies all 495 pinned bytes off the hosted site. Want full depth? The localnet rebuild is below.
 
 **Cloned the repo instead?** The two load-bearing commands are
 `yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive --snapshot ../../web/snapshot.json`
-(all 203 artifactss replayed keyless — step 3p) and
+(all 206 artifacts replayed keyless — step 3p) and
 `python3 scripts/verify.py --all`
 (every third-language proof in one shot — step 3u).
 The expected-output transcript is committed at `docs/evidence/replay.txt`, and
@@ -97,7 +97,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   HOSTED (zero setup): https://josepha-mayo.github.io/sealed/
 #   ONE LINK, EVERY PROOF: https://josepha-mayo.github.io/sealed/?mega=1 —
 #   opens the page and runs the whole skeptic's suite while you watch:
-#   account audit → all 203 artifactss through their verifiers → every
+#   account audit → all 206 artifacts through their verifiers → every
 #   forgery attack in the lab → the sealed exam decrypting in-browser,
 #   landing "EVERYTHING VERIFIED" in ~8s — with a copyable verdict block
 #   (counts, bundle root, anchor state) you can paste straight into
@@ -106,7 +106,7 @@ scripts/unbrick-demo.sh         # grief dust → permissionless reclaim → init
 #   demos itself: an auto-walk through all twenty-five stops with one-line
 #   captions (the in-page mirror of `chain tour`; "▶ tour" in the nav too).
 #   TERMINAL: bash scripts/judge-demo.sh — the 90-second keyless audit
-#   (verify.py → all 203 artifacts → forgery lab → tamper exhibits →
+#   (verify.py → all 206 artifacts → forgery lab → tamper exhibits →
 #   fingerprint). docs/audit.gif is a real recording of it.
 #   On the hosted page, in order — the audit panel auto-runs (expect
 #   "13 pass · 0 fail" — the page adds a calibration rescore as its
@@ -269,21 +269,25 @@ yarn --cwd packages/harness cli chain ceiling --verify \
 # 3g-3. THE REFEREE ITSELF — the circuit card. Every other artifact binds
 #     what the MPC wrote; sealed-circuit/v1 binds the MPC: the six
 #     compdef accounts, MXE, cluster, and callback SignPda are all PDAs
-#     of the DEPLOYED Arcium program, re-derived from seeds in-page and
-#     in the CLI — the scoring infrastructure is verified, not asserted.
-#     Rerouting score_chunk, dropping reshare_part, or re-keying the MXE
-#     all die at named derivation checks.
+#     of the DEPLOYED Arcium program — and since this round, the card
+#     binds CONTENT, not just identity: sha256 of each compdef header,
+#     each raw-circuit bytecode account (~1.3 MB the cluster executes,
+#     pinned in web/arcium-infra.json), the MXE, and the cluster account
+#     — plus the committee's aggregate BLS public key and node count,
+#     byte-presence-checked inside the sha-bound cluster account. A
+#     re-uploaded circuit keeps its PDA but not its hash.
 yarn --cwd packages/harness cli chain circuit --verify \
   ../../docs/evidence/circuit/arcium-devnet.json --snapshot ../../web/snapshot.json
 #         → CIRCUIT VERIFIED — program identity + canonical six-circuit
-#           set + 9 Arcium PDAs re-derived + SignPda bound to the
-#           snapshot's SignPdaAccount + devnet account fields replayed
+#           set + 15 Arcium PDAs re-derived (incl. the 6 bytecode
+#           accounts) + 14/14 account sha256s matched + BLS committee key
+#           present in the bound bytes + SignPda bound to the snapshot
 #         → add --rpc https://api.devnet.solana.com to re-fetch every
-#           account live and compare owner + size byte-exact
+#           account live and compare owner + size + sha256 byte-exact
 #         → same replay in the explorer at "verify the circuit card";
 #           the forgery lab's "reroute the scoring circuit" attack dies
-#           at "compdef PDAs" — the phantom referee lands on an address
-#           no Arcium circuit occupies
+#           at "compdef PDAs", "swap the bytecode" at "account binding",
+#           and "invent the committee" at "cluster committee"
 
 # 3g-4. THE CENSUS — the last trust gap. Every other card binds a slice of
 #       the ledger; a sealed-ledger/v1 card binds the LEDGER: all 1,796
@@ -411,21 +415,21 @@ yarn --cwd packages/harness cli chain grant --verify \
 #     which artifact.
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
   --snapshot ../../web/snapshot.json
-#         → ALL ARTIFACTS VERIFIED — 203 artifact(s) replayed, 28 skipped ·
+#         → ALL ARTIFACTS VERIFIED — 206 artifact(s) replayed, 28 skipped ·
 #           31× claim, 31× ceiling, 1× circuit, 73× match, 3× policy,
 #           4× report, 4× trail, 3× bank, 2× position, 2× bounty,
 #           2× grant, 1× evidence-digest, 1× board, 1× catalog,
-#           43× sealed-tamper/v1 — the lie exhibit
+#           46× sealed-tamper/v1 — the lie exhibit
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b-ladder-deadheat.json
 #         → detected sealed-trail/v1 — routed, all checks pass
 #         → the explorer's "verify anything" panel does the same
 #           routing in-page for pasted artifacts — and its
 #           "replay the whole bundle" button is the recursive
-#           verifier in-browser: all 203 committed artifacts
+#           verifier in-browser: all 206 committed artifacts
 #           through their own check lists, live progress
 
 # 3q. THE FORGERY LAB — don't trust the checks, run the attack. The
-#     explorer's "forgery lab" section hands you twenty-one canned attacks:
+#     explorer's "forgery lab" section hands you thirty-five canned attacks:
 #     forge a +1 score, swap the #1 rank, un-vouch an attested receipt,
 #     flip a head-to-head verdict, mint a phantom receipt, inflate a
 #     settled pool, re-age the ledger, mint a phantom run, erase an
@@ -438,11 +442,11 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     replay · receipt PDAs · pool accounting · counts · run surface ·
 #     completeness · stake binding · account binding · record identity ·
 #     ceiling exactness · grant PDA). The
-#     headless audit pins all fifteen — the attack list is read off the
+#     headless audit exercises all 35 attacks — the list is read off the
 #     page's own FORGE_DEFS, so a shipped attack can't go unexercised.
 
 # 3r. THE LIE EXHIBIT — we committed the forgeries themselves.
-#     docs/evidence/tamper/ holds twenty-eight sealed-tamper/v1 cards —
+#     docs/evidence/tamper/ holds forty-three sealed-tamper/v1 cards —
 #     each
 #     IS a forged artifact (oracle substitution, settled-money rewrite,
 #     rank swap, bounty theft, viewer redirect, phantom receipts, stake
@@ -452,14 +456,14 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/trails/qwen3b
 #     the REAL verifier and asserts it still dies at the same named
 #     check — the evidence base ships proof of its own skepticism:
 yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snapshot ../../web/snapshot.json
-#         → ALL 43 EXHIBITS VERIFIED — every committed forgery still
+#         → ALL 46 EXHIBITS VERIFIED — every committed forgery still
 #           rejected; the CLI mints them too:
 #           chain artifact <card> --tamper --exhibit <dir> --snapshot <f>
 #         → the explorer's "lie exhibit" section replays them in-page
 #           (verifyTamper routes the inner card through the real
 #           verifier and requires the rejection)
 #         → python3 scripts/verify.py --tamper covers the same ground
-#           in stdlib-only Python — six attacks, all caught
+#           in stdlib-only Python — 15 attacks, all caught
 
 # 3s. THE ONE HASH — `chain fingerprint` re-hashes every manifest-
 #     pinned file and prints BUNDLE ROOT: a single sha256 covering
@@ -486,10 +490,10 @@ yarn --cwd packages/harness cli chain artifact ../../docs/evidence/tamper --snap
 #     materializes in-page, decrypted by the committed throwaway
 #     delegate key (questions only — answers never move). CLI parity:
 yarn --cwd packages/harness cli chain catalog --dir ../../docs/evidence --check
-#         → CATALOG COMPLETE — 186 artifact(s), every sealed-*/v1 file listed
-#           (the catalog doesn't list itself — 186 entries + the index = 187)
+#         → CATALOG COMPLETE — 205 artifact(s), every sealed-*/v1 file listed
+#           (the catalog doesn't list itself — 202 entries + the index = 203)
 yarn --cwd packages/harness cli chain fingerprint
-#         → re-hash check PASS — 453/453 · BUNDLE ROOT <64-hex sha256>
+#         → re-hash check PASS — 487/487 · BUNDLE ROOT <64-hex sha256>
 #           (the root moves whenever evidence moves — that's the point;
 #           verify-all prints the current one at the end of the audit)
 
@@ -532,7 +536,7 @@ yarn --cwd packages/harness cli chain fingerprint \
 #     classification and all).
 python3 scripts/verify.py
 #         → BUNDLE ROOT cfeb7eea… (same as the TypeScript — or the
-#           bundle is dirty) · all 203 artifactss replayed in Python ·
+#           bundle is dirty) · all 206 artifacts replayed in Python ·
 #           anchor carries root PASS
 #
 #     …and watch the verifier catch its own lie — --tamper forges each
@@ -592,11 +596,11 @@ python3 scripts/verify.py --card docs/evidence/board.json
 #     modes above, e.g. `--remote --decrypt` reads the sealed exam off
 #     the served bundle. The truly-zero-install form:
 curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote
-#         → one downloaded stdlib file verifies all 487 pinned bytes
+#         → one downloaded stdlib file verifies all 495 pinned bytes
 #           itself — no git, no pip, nothing but python3
 
 # 3v. THE CAPSULE — web/standalone.html is the entire submission as ONE
-#     6.6MB file: the page, the snapshot, all 203 artifacts, both
+#     6.6MB file: the page, the snapshot, all 206 artifacts, both
 #     manifests, the vendored crypto deps, and the devnet anchor doc,
 #     plus a fetch() shim so every in-page verifier runs OFFLINE.
 #     Download it, disconnect, open it in any browser — the audit, the
@@ -618,9 +622,9 @@ node scripts/verify-proof.mjs docs/evidence/prove-cal3b-item0.json \
 
 | Claim | TypeScript CLI | Explorer (in-browser JS) | stdlib Python |
 |---|---|---|---|
-| Bundle integrity — 487 pinned files → one BUNDLE ROOT | `chain fingerprint` | auto-audit §bundle | `verify.py` §1–3 |
+| Bundle integrity — 495 pinned files → one BUNDLE ROOT | `chain fingerprint` | auto-audit §bundle | `verify.py` §1–3 |
 | PDA custody — every account re-derives, vaults provably keyless | `artifact --verify` | audit §PDA | `verify.py` §5–8 |
-| All 203 artifact cards replay | `artifact --recursive` | `?mega=1` cascade | `verify.py` §9–18 |
+| All 206 artifact cards replay | `artifact --recursive` | `?mega=1` cascade | `verify.py` §9–18 |
 | MPC score arithmetic (fingerprints → Reveals → outputs_root → recount) | `rescore.mjs` | audit §calibration | `verify.py --rescore` |
 | Selective disclosure — grants decrypt, ciphertext round-trips | `decrypt-grants-test` | ⑤ read the sealed exam | `verify.py --decrypt` |
 | Forgeries die at named checks | `artifact --tamper` | forgery lab + forge-your-card | `verify.py --tamper` |

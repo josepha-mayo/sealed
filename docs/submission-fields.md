@@ -86,7 +86,7 @@ bit-exact in-browser; the calibration specimen replays the same MPC
 arithmetic per-item (3b 7/32 vs 1.5b 2/32).
 Outputs are portable proof — 203 artifacts / 15 kinds replay
 keyless; `chain fingerprint` = one sha256 notarized on devnet;
-35 canned forgeries die at named checks; tamper/ pins 28 forged
+38 canned forgeries die at named checks; tamper/ pins 28 forged
 artifacts that verify by being REJECTED — `verify.py` redoes it
 in Python.
 
@@ -186,7 +186,7 @@ outlives the pitch.
   `agg docs/demo.cast docs/demo.gif` or convert to mp4; embed in README.
 - Public URL: **https://josepha-mayo.github.io/sealed/?mega=1** — paste the
   deep link, not the bare domain: it runs the whole proof cascade unaided
-  on open (audit → 187 replays → forgery sweep →
+  on open (audit → 203 replays → forgery sweep →
   sealed-exam decrypt → copyable verdict), `?decrypt=1` deep-links the
   payoff. Served by `.github/workflows/pages.yml` on every push. Local
   fallback:

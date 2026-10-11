@@ -53,7 +53,7 @@ import { type RunArtifact, runChunkOutputs } from "./run.js";
 import { chunkOutLeaves, merkleProof, itemLeaf, merkleRoot, hex, genItemsFold, privItemsFold, specCommitment } from "./hash.js";
 import { evalGate, wilsonLowerBoundPct, type GatePolicy, type GateVerdict, type GateCheck, type ScoreReceipt } from "./gate.js";
 import { classifyBoard, proven, type BoardRun } from "./board.js";
-import { decodeSnapshotSection, loadIdl, loadSnapshotJson, snapOf, type SnapAccount, type SnapMap } from "./snapshot.js";
+import { decodeAccountTolerant, decodeSnapshotSection, loadIdl, loadSnapshotJson, snapOf, type SnapAccount, type SnapMap } from "./snapshot.js";
 import { ed25519 } from "@noble/curves/ed25519";
 
 const require = createRequire(import.meta.url);
@@ -103,20 +103,7 @@ function setup(): Ctx {
  *  the exact tolerance snapshot.ts already applies offline. */
 async function tolerantAll(program: any, name: string): Promise<{ publicKey: PublicKey; account: any }[]> {
   try { return await (program.account as any)[name].all(); } catch { /* fall through */ }
-  const disc = (program.coder.accounts as any).accountDiscriminator(name);
-  const raw = await (program.provider.connection as Connection).getProgramAccounts(program.programId, {
-    filters: [{ memcmp: { offset: 0, bytes: anchor.utils.bytes.bs58.encode(disc) } }],
-  });
-  const out: { publicKey: PublicKey; account: any }[] = [];
-  for (const { pubkey, account: acct } of raw) {
-    try {
-      const dec = (program.coder.accounts as any).decode(name, acct.data);
-      const account: any = {};
-      for (const [k, v] of Object.entries(dec)) account[k.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())] = v;
-      out.push({ publicKey: pubkey, account });
-    } catch { /* layout predates this IDL — skip */ }
-  }
-  return out;
+  return allTolerant({ program }, name);
 }
 
 function sealedProgramId(): PublicKey {
@@ -184,6 +171,33 @@ async function fetchOrNull<T>(p: Promise<T>): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+/** Live `fetch` that survives accounts minted under an older layout —
+ *  Anchor's typed `.fetch` EOF-bricks on pre-upgrade accounts (e.g. the
+ *  196-byte ShareGrant, 404-byte PrivItemChunk on devnet); the zero-pad
+ *  retry decodes appended tail fields as absent. Returns null when the
+ *  account is missing or discriminator-foreign. */
+async function fetchTolerant(ctx: any, name: string, pk: PublicKey): Promise<any | null> {
+  const info = await (ctx.provider ?? ctx.program.provider).connection.getAccountInfo(pk);
+  if (!info?.data?.length) return null;
+  return decodeAccountTolerant(ctx.program.coder.accounts, name, Buffer.from(info.data));
+}
+
+/** Live `.all()` equivalent with the same layout tolerance — a typed
+ *  `.all()` rejects the whole listing on one legacy account. */
+async function allTolerant(ctx: any, name: string, filters: any[] = []): Promise<Array<{ publicKey: PublicKey; account: any }>> {
+  const coder = ctx.program.coder.accounts as any;
+  const disc = Buffer.from(coder.accountDiscriminator(name));
+  const raws = await (ctx.provider ?? ctx.program.provider).connection.getProgramAccounts(ctx.program.programId, {
+    filters: [{ memcmp: { offset: 0, bytes: anchor.utils.bytes.bs58.encode(disc) } }, ...filters],
+  });
+  const out: Array<{ publicKey: PublicKey; account: any }> = [];
+  for (const r of raws) {
+    const account = decodeAccountTolerant(coder, name, Buffer.from(r.account.data));
+    if (account) out.push({ publicKey: r.pubkey, account });
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------ init
@@ -277,7 +291,7 @@ export async function seal(bank: Bank, feeLamports: bigint, ctx = setup()) {
   const ALL = (1 << PARTS) - 1;
   for (let i = 0; i < bank.chunkCount; i++) {
     const c = chunk(i);
-    let state: any = await fetchOrNull(acct.answerChunk.fetch(c));
+    let state: any = await fetchTolerant(ctx, "AnswerChunk", c);
     if (state?.partsSealed === ALL) {
       console.log(`chunk ${i}: already sealed`);
       continue;
@@ -353,7 +367,7 @@ export async function gen(benchmarkId: number, chunkCount: number, feeLamports: 
   for (let i = 0; i < b.chunkCount; i++) {
     const c = chunk(i);
     const it = items(i);
-    let state: any = await fetchOrNull(acct.answerChunk.fetch(c));
+    let state: any = await fetchTolerant(ctx, "AnswerChunk", c);
     if (state?.partsSealed === ALL) {
       console.log(`chunk ${i}: already minted`);
       continue;
@@ -456,7 +470,7 @@ export async function genPrivate(benchmarkId: number, chunkCount: number, feeLam
   for (let i = 0; i < b.chunkCount; i++) {
     const c = chunk(i);
     const it = pitems(i);
-    let state: any = await fetchOrNull(acct.answerChunk.fetch(c));
+    let state: any = await fetchTolerant(ctx, "AnswerChunk", c);
     if (state?.partsSealed === ALL) {
       console.log(`chunk ${i}: already minted`);
       continue;
@@ -465,7 +479,7 @@ export async function genPrivate(benchmarkId: number, chunkCount: number, feeLam
       await program.methods.initChunk(i).accounts({ authority: wallet.publicKey, benchmark }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
       state = await acct.answerChunk.fetch(c);
     }
-    if (!(await fetchOrNull(acct.privItemChunk.fetch(it)))) {
+    if (!(await fetchTolerant(ctx, "PrivItemChunk", it))) {
       await program.methods.initItemsPrivate(i).accounts({ authority: wallet.publicKey, benchmark, items: it }).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     }
     for (let p = 0; p < PARTS; p++) {
@@ -510,7 +524,7 @@ export async function fetchPrivBank(benchmark: PublicKey, chunkCount: number, ct
   }
   const root = privItemsRoot(chunks);
   const onchain = Buffer.from(b.itemsRoot).toString("hex");
-  if (b.status === 1 && root !== onchain) {
+  if (root !== onchain) {
     throw new Error(`items_root mismatch: ciphertext fold ${root} != on-chain ${onchain}`);
   }
 
@@ -577,13 +591,20 @@ export async function resharePart(
 /** Fetch + decrypt a ShareGrant for the local wallet (the delegate's). */
 export async function fetchGrant(benchmarkPk: PublicKey, chunkIndex: number, part: number, ctx = setup()) {
   const { program, provider } = ctx;
-  const acct = program.account as any;
-  const b: any = await acct.benchmark.fetch(benchmarkPk);
+  const b: any = await (program.account as any).benchmark.fetch(benchmarkPk);
   const viewer = viewerKeys(ctx);
   const pd = pdas(ctx, b.authority, b.id);
   const g = pd.grant(chunkIndex, part, viewer.pub);
-  const grant: any = await fetchOrNull(acct.shareGrant.fetch(g));
+  // Tolerant fetch — the typed .fetch EOF-bricks on pre-upgrade grants.
+  const grant: any = await fetchTolerant(ctx, "ShareGrant", g);
   if (!grant) throw new Error(`no ShareGrant for this wallet at ${g.toBase58()}`);
+  if (BigInt(grant.sharedAt?.toString() ?? "0") === 0n)
+    throw new Error(`ShareGrant ${g.toBase58()} is queued but not landed yet — retry after the reshare callback`);
+  // The stored fields must be the coordinates we asked for — a mismatched
+  // blob served under this PDA is a lie even before decryption.
+  if (!grant.benchmark.equals(benchmarkPk) || Number(grant.chunkIndex) !== chunkIndex ||
+      Number(grant.part) !== part || !Buffer.from(grant.viewer).equals(viewer.pub))
+    throw new Error(`ShareGrant ${g.toBase58()} fields do not match the requested coordinates`);
 
   const mxePublicKey = await getMXEPublicKey(provider, program.programId);
   if (!mxePublicKey) throw new Error("MXE public key unavailable");
@@ -592,6 +613,17 @@ export async function fetchGrant(benchmarkPk: PublicKey, chunkIndex: number, par
   let n = BigInt(grant.nonce.toString());
   for (let k = 0; k < 16; k++) { nb[k] = Number(n & 0xffn); n >>= 8n; }
   const specs = unpackSpecs(cipher.decrypt(grant.ciphertexts.map((x: number[]) => Array.from(x)), nb));
+  // Same delegate integrity anchor as delegateBank: re-hash the decrypted
+  // specs and compare to the MPC-minted commitment on the grant and on
+  // the bank's PrivItemChunk. Zero/absent = pre-upgrade account → skipped.
+  const commit = Buffer.from(specCommitment(specs));
+  const gc = grant.specCommitment ? Buffer.from(grant.specCommitment) : null;
+  if (gc && !gc.every((x) => x === 0) && !gc.equals(commit))
+    throw new Error("spec commitment mismatch — the grant's plaintext is not the MPC-minted exam");
+  const pi = await provider.connection.getAccountInfo(pd.pitems(chunkIndex));
+  const ic = pi ? decodePrivItemChunk(Buffer.from(pi.data)).specCommitments?.[part] : undefined;
+  if (ic && !ic.every((x: number) => x === 0) && !Buffer.from(ic).equals(commit))
+    throw new Error("spec commitment mismatch — the grant does not carry the bank's committed specs");
   return { grant: g, specs, sharedAt: grant.sharedAt };
 }
 
@@ -623,7 +655,7 @@ export async function delegateBank(benchmarkPk: PublicKey, ctx = setup()): Promi
   });
   const root = privItemsRoot(decoded);
   const onchain = Buffer.from(b.itemsRoot).toString("hex");
-  if (b.status === 1 && root !== onchain) {
+  if (root !== onchain) {
     throw new Error(`items_root mismatch: ciphertext fold ${root} != on-chain ${onchain}`);
   }
 
@@ -661,9 +693,10 @@ export async function delegateBank(benchmarkPk: PublicKey, ctx = setup()): Promi
 
 /** List every ShareGrant for a private benchmark (explorer: who can see what). */
 export async function listGrants(benchmarkPk: PublicKey, ctx = setup()) {
-  const { program } = ctx;
-  const acct = program.account as any;
-  const all: any[] = await acct.shareGrant.all([
+  // Tolerant listing — a typed .all() rejects the whole result set if any
+  // one grant predates the current layout (the legacy 196-byte tail-less
+  // accounts still on devnet).
+  const all = await allTolerant(ctx, "ShareGrant", [
     { memcmp: { offset: 8, bytes: benchmarkPk.toBase58() } },
   ]);
   return all.map((a) => ({
@@ -726,7 +759,7 @@ export async function score(
 
   const runIndex = runIndexOverride ?? BigInt(b.runCount.toString());
   const r = runPda(runIndex);
-  let state: any = await fetchOrNull(acct.run.fetch(r));
+  let state: any = await fetchTolerant(ctx, "Run", r);
   if (!state) {
     if (runIndexOverride !== undefined) throw new Error(`run #${runIndex} does not exist`);
     console.log(`create_run #${runIndex} model=${run.model} fee=${Number(b.feeLamports) / LAMPORTS_PER_SOL} SOL`);
@@ -763,7 +796,7 @@ export async function score(
   // further stall is the cluster's fault — markets can then settle the honest
   // partial on expiry instead of refunding a runner-chosen truncation point.
   {
-    const snap: any = await acct.run.fetch(r);
+    const snap: any = await fetchTolerant(ctx, "Run", r);
     const masks = BigInt(snap.scoredMask.toString()) | BigInt(snap.pendingMask.toString());
     for (let i = 0; i < bank.chunkCount; i++) {
       if (masks & (1n << BigInt(i))) continue;
@@ -779,7 +812,7 @@ export async function score(
   }
   for (let i = 0; i < bank.chunkCount; i++) {
     const bit = 1n << BigInt(i);
-    state = await acct.run.fetch(r);
+    state = await fetchTolerant(ctx, "Run", r);
     if (BigInt(state.scoredMask.toString()) & bit) {
       console.log(`chunk ${i}: scored (total ${state.correct})`);
       continue;
@@ -788,7 +821,7 @@ export async function score(
     state = await waitFor(acct.run, r, (s) => (BigInt(s.scoredMask.toString()) & bit) !== 0n);
     console.log(` scored (total ${state.correct})`);
   }
-  const final = await acct.run.fetch(r);
+  const final = await fetchTolerant(ctx, "Run", r);
   const items = bank.chunkCount * CHUNK;
   console.log(
     `run ${r.toBase58()} ${final.status === 1 ? "FINALIZED" : "pending"}: ${final.correct}/${items} = ${((100 * Number(final.correct)) / items).toFixed(1)}%` +
@@ -893,7 +926,7 @@ export async function resetSealing(benchmarkId: number, chunkIndex: number, ctx 
   const { program, wallet } = ctx;
   const { benchmark, chunk } = pdas(ctx, wallet.publicKey, benchmarkId);
   const acct = program.account as any;
-  const state: any = await acct.answerChunk.fetch(chunk(chunkIndex));
+  const state: any = await fetchTolerant(ctx, "AnswerChunk", chunk(chunkIndex));
   console.log(`chunk ${chunkIndex}: sealingPart=${state.sealingPart} -> clearing`);
   const sig = await program.methods
     .resetSealing(chunkIndex)
@@ -909,7 +942,7 @@ export async function resetSealing(benchmarkId: number, chunkIndex: number, ctx 
 export async function resetPending(runPk: PublicKey, chunkIndex: number, ctx = setup()) {
   const { program, wallet } = ctx;
   const acct = program.account as any;
-  const r: any = await acct.run.fetch(runPk);
+  const r: any = await fetchTolerant(ctx, "Run", runPk);
   const stale = r.pendingSince.toNumber() !== 0 && Date.now() / 1000 > r.pendingSince.toNumber() + 900;
   console.log(
     `run #${Number(r.index)} chunk ${chunkIndex}: pendingMask bit=${r.pendingMask.testn(chunkIndex) ? 1 : 0}, ` +
@@ -935,7 +968,7 @@ export async function status(benchmark: PublicKey, ctx?: Ctx, snapPath?: string,
     ctx ??= setup();
     const acct = ctx.program.account as any;
     b = await acct.benchmark.fetch(benchmark);
-    runs = await acct.run.all([{ memcmp: { offset: 8, bytes: benchmark.toBase58() } }]);
+    runs = await allTolerant(ctx, "Run", [{ memcmp: { offset: 8, bytes: benchmark.toBase58() } }]);
   }
   const items = b.chunkCount * CHUNK;
   const rows = runs
@@ -1573,8 +1606,7 @@ async function unbrickPda(cmd: string[]) {
  */
 export async function attestRun(runPk: PublicKey) {
   const ctx = setup();
-  const acct = ctx.program.account as any;
-  const r: any = await acct.run.fetch(runPk);
+  const r: any = await fetchTolerant(ctx, "Run", runPk);
   await ctx.program.methods
     .attestRun(new anchor.BN(r.index.toString()))
     .accounts({ authority: ctx.wallet.publicKey, benchmark: r.benchmark, run: runPk })
@@ -1589,7 +1621,7 @@ export async function attestRun(runPk: PublicKey) {
 export async function recordScore(runPk: PublicKey) {
   const { program, kp } = sealedProgram();
   const acct = program.account as any;
-  const r: any = await acct.run.fetch(runPk);
+  const r: any = await fetchTolerant({ program }, "Run", runPk);
   if (r.status !== 1) throw new Error(`run not finalized (status=${r.status})`);
   const modelHash = createHash("sha256").update(Buffer.from(r.modelId, "utf8")).digest();
   const [modelRecord] = PublicKey.findProgramAddressSync(
@@ -1614,7 +1646,7 @@ export async function recordScore(runPk: PublicKey) {
 export async function recordAllScores() {
   const { program, kp } = sealedProgram();
   const acct = program.account as any;
-  const [runs, logs] = await Promise.all([acct.run.all(), acct.scoreLog.all()]);
+  const [runs, logs] = await Promise.all([tolerantAll(program, "Run"), tolerantAll(program, "ScoreLog")]);
   const enrolled = new Set(logs.map((l: any) => (l.account.run as PublicKey).toBase58()));
   let done = 0, failed = 0, pending = 0;
   for (const { publicKey: runPk, account: r } of runs) {
@@ -4745,6 +4777,15 @@ const TAMPER_DEFS: Record<string, { label: string; mutate?: (c: any) => void; mu
     } },
     { label: "re-key the MXE — substitute the signPda address", mutate: (c) => { c.mxe.pda = c.signPda; } },
     { label: "fork the cluster — re-home the circuits to offset 0", mutate: (c) => { c.cluster.offset = 0; } },
+    { label: "swap the bytecode — record a phantom raw-circuit hash", mutate: (c) => {
+      const r = (c.circuits.find((x: any) => x.name === "score_chunk")?.rawCircuits ?? [])[0];
+      if (r) r.sha256 = "ab".repeat(32);
+    } },
+    { label: "repoint the bytecode — move a raw circuit to a phantom pda", mutate: (c) => {
+      const cs = c.circuits.filter((x: any) => (x.rawCircuits ?? []).length);
+      if (cs.length >= 2) cs[0].rawCircuits[0].pda = cs[1].rawCircuits[0].pda;
+    } },
+    { label: "invent the committee — fabricate the cluster's BLS key", mutate: (c) => { c.cluster.blsPubkey = "cd".repeat(64); } },
   ],
   "sealed-ledger/v1": [
     { label: "hide a bank — shave the Benchmark census", mutate: (c) => { c.census.sealed.kinds.Benchmark = (c.census.sealed.kinds.Benchmark ?? 0) - 1; } },
@@ -5487,8 +5528,8 @@ export async function marketQuote(pkStr: string, outcome: number, lamports: bigi
     // commit is sealed: the quote is a range over reveal scenarios.
     const pool = BigInt(a.poolTotal.toString()) + lamports;
     const win = BigInt(a.winTotal.toString());
-    const best = lamports * fee(pool) / (win + lamports);       // you alone on the winning side
-    const worst = win > 0n ? lamports * fee(pool) / (win + lamports) : best;
+    const best = fee(pool);                                    // only you land on the winning side — whole net pot
+    const worst = win > 0n ? lamports * fee(pool) / (win + lamports) : best; // split it with the revealed winners
     out = { venue: pkStr, kind: "dark", stake: lamports.toString(), outcome: "(sealed — commitment binds to the encrypted side)",
       scenarios: { if_only_you_win: sol(best) + " ◎", if_winTotal_stays: sol(worst) + " ◎", if_no_reveal: "gross refund" },
       note: `pool would be ${sol(pool)} ◎; winners split post-fee pro-rata — sealed losers forfeit into it` };
@@ -7261,16 +7302,67 @@ const SIGN_PDA_DISC = "d69d7a72752cd64a";
 const compDefOffset = (name: string) =>
   createHash("sha256").update(Buffer.from(name, "utf8")).digest().readUInt32LE(0);
 
+const RAW_CIRCUIT_SEED = "ComputationDefinitionRaw";
+
+/** Unwrap Arcium's nested Option/set decodings to the innermost value. */
+const arciumDig = (o: any): any => {
+  while (o && typeof o === "object" && !Array.isArray(o) && !(o instanceof Uint8Array)) {
+    const k = Object.keys(o);
+    if (k.length !== 1) break;
+    o = o[k[0]];
+  }
+  return o;
+};
+
+/** Load the committed Arcium-infrastructure dump (compdef headers, raw
+ *  bytecode accounts, MXE, cluster) — the bytes the cluster executes. */
+function loadArciumInfra(path?: string): { doc: any; byPk: Map<string, Buffer>; fileSha: string; path: string } | null {
+  const p = path ?? join(ROOT, "web", "arcium-infra.json");
+  try {
+    const raw = readFileSync(p);
+    const doc = JSON.parse(raw.toString("utf8"));
+    const byPk = new Map<string, Buffer>((doc.accounts ?? []).map((a: any) => [a.pubkey, Buffer.from(a.data, "base64")]));
+    return { doc, byPk, fileSha: createHash("sha256").update(raw).digest("hex"), path: p };
+  } catch { return null; }
+}
+
 export async function chainCircuitProve(out: string | undefined, snapPath?: string, rpc?: string, clusterOffset = 456) {
   const sealedId = sealedProgramId();
   const arc = new PublicKey(ARCIUM_PID_STR);
   const pda = (seeds: Buffer[], pid: PublicKey) => PublicKey.findProgramAddressSync(seeds, pid)[0].toBase58();
   const u32 = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const acctSha = (b: Buffer | undefined) => b ? createHash("sha256").update(b).digest("hex") : undefined;
 
-  const circuits = CIRCUIT_NAMES.map((name) => {
+  // Bytecode source: the committed infra dump first (reproducible),
+  // --rpc as a live fallback when the dump is absent.
+  const infra = loadArciumInfra();
+  const conn = rpc ? new Connection(rpc, "confirmed") : null;
+  const bytesFor = async (addr: string): Promise<Buffer | undefined> => {
+    const hit = infra?.byPk.get(addr);
+    if (hit) return hit;
+    if (conn) { const a = await conn.getAccountInfo(new PublicKey(addr)); return a ? Buffer.from(a.data) : undefined; }
+    return undefined;
+  };
+
+  const circuits = [] as any[];
+  for (const name of CIRCUIT_NAMES) {
     const offset = compDefOffset(name);
-    return { name, offset, pda: pda([Buffer.from("ComputationDefinitionAccount"), sealedId.toBuffer(), u32(offset)], arc) };
-  });
+    const cd = pda([Buffer.from("ComputationDefinitionAccount"), sealedId.toBuffer(), u32(offset)], arc);
+    const entry: any = { name, offset, pda: cd };
+    const cdBytes = await bytesFor(cd);
+    if (cdBytes) entry.compdefSha256 = acctSha(cdBytes);
+    // Raw circuit PDAs hold the actual bytecode — probe index 0..15 until
+    // the first absent account ends the list (per-Arcium conventions).
+    entry.rawCircuits = [];
+    for (let i = 0; i < 16; i++) {
+      const rp = pda([Buffer.from(RAW_CIRCUIT_SEED), new PublicKey(cd).toBuffer(), Buffer.from([i])], arc);
+      const rb = await bytesFor(rp);
+      if (!rb) break;
+      entry.rawCircuits.push({ index: i, pda: rp, sha256: acctSha(rb), dataLen: rb.length });
+    }
+    if (entry.rawCircuits.length === 0) delete entry.rawCircuits;
+    circuits.push(entry);
+  }
   const card: any = {
     kind: "sealed-circuit/v1",
     generatedAt: new Date().toISOString(),
@@ -7281,6 +7373,27 @@ export async function chainCircuitProve(out: string | undefined, snapPath?: stri
     signPda: pda([Buffer.from("ArciumSignerAccount")], sealedId),
     circuits,
   };
+  // Cluster committee metadata + account-content binding. The cluster
+  // account carries the nodes' aggregated BLS public key — the committee
+  // that attests every SignedComputationOutputs callback.
+  {
+    const cBytes = await bytesFor(card.cluster.pda);
+    if (cBytes) {
+      card.cluster.sha256 = acctSha(cBytes);
+      try {
+        const provider = new anchor.AnchorProvider(new Connection(rpc ?? "http://localhost:8899"), new anchor.Wallet(Keypair.generate()), {});
+        const arcProg = getArciumProgram(provider);
+        const cl: any = arcProg.coder.accounts.decode("cluster", cBytes);
+        const bls = arciumDig(cl.blsPublicKey);
+        if (Array.isArray(bls) && bls.length === 64) card.cluster.blsPubkey = Buffer.from(bls).toString("hex");
+        card.cluster.nodeCount = Number(cl.clusterSize ?? (cl.nodes ?? []).length ?? 0);
+        if (cl.authority) card.cluster.authority = new PublicKey(cl.authority).toBase58();
+      } catch { /* decode is best-effort — sha256 binding still applies */ }
+    }
+    const mxeBytes = await bytesFor(card.mxe.pda);
+    if (mxeBytes) card.mxe.sha256 = acctSha(mxeBytes);
+  }
+  if (infra) card.infra = { file: "arcium-infra.json", sha256: infra.fileSha, accounts: infra.byPk.size };
   // the one chain-bound anchor in the whole card: the SignPda account in
   // the pinned snapshot must equal the re-derived address — proof this
   // circuit set belongs to the same deployment the evidence dump covers.
@@ -7293,10 +7406,13 @@ export async function chainCircuitProve(out: string | undefined, snapPath?: stri
   if (rpc) {
     const conn = new Connection(rpc, "confirmed");
     const metas: any = {};
-    for (const [k, addr] of [["mxe", card.mxe.pda], ["cluster", card.cluster.pda],
-        ["signPda", card.signPda], ...circuits.map((c) => [c.name, c.pda])] as [string, string][]) {
+    const liveAddrs: [string, string][] = [["mxe", card.mxe.pda], ["cluster", card.cluster.pda],
+        ["signPda", card.signPda], ...circuits.map((c) => [c.name, c.pda] as [string, string])];
+    for (const c of circuits) for (const r of c.rawCircuits ?? []) liveAddrs.push([`${c.name}/raw${r.index}`, r.pda]);
+    for (const [k, addr] of liveAddrs) {
       const a = await conn.getAccountInfo(new PublicKey(addr));
-      metas[k] = a ? { exists: true, owner: a.owner.toBase58(), lamports: a.lamports, dataLen: a.data.length }
+      metas[k] = a ? { exists: true, owner: a.owner.toBase58(), lamports: a.lamports, dataLen: a.data.length,
+                       sha256: createHash("sha256").update(a.data).digest("hex") }
                    : { exists: false };
     }
     card.fetched = { rpc, at: new Date().toISOString(), accounts: metas };
@@ -7323,13 +7439,19 @@ export async function circuitVerify(file: string, json = false, snapPath?: strin
     const conn = new Connection(rpc, "confirmed");
     let liveBad = 0;
     for (const [k, want] of Object.entries(card.fetched.accounts) as [string, any][]) {
-      const addr = (card.circuits ?? []).find((c: any) => c.name === k)?.pda
-        ?? ({ mxe: card.mxe?.pda, cluster: card.cluster?.pda, signPda: card.signPda } as any)[k];
+      const rawm = /^(.+)\/raw(\d+)$/.exec(k);
+      const addr = rawm
+        ? (card.circuits ?? []).find((c: any) => c.name === rawm[1])?.rawCircuits?.find((r: any) => Number(r.index) === Number(rawm[2]))?.pda
+        : ((card.circuits ?? []).find((c: any) => c.name === k)?.pda
+          ?? ({ mxe: card.mxe?.pda, cluster: card.cluster?.pda, signPda: card.signPda } as any)[k]);
       if (!addr) { liveBad++; continue; }
       const a = await conn.getAccountInfo(new PublicKey(addr));
-      if (!a || !want.exists || a.owner.toBase58() !== want.owner || a.data.length !== want.dataLen) liveBad++;
+      if (!a || !want.exists || a.owner.toBase58() !== want.owner || a.data.length !== want.dataLen) { liveBad++; continue; }
+      // Where the card pinned a content hash, compare it — a redeployed
+      // account keeps its PDA and size more often than its bytes.
+      if (want.sha256 && createHash("sha256").update(a.data).digest("hex") !== want.sha256) liveBad++;
     }
-    emit("live binding", liveBad === 0, liveBad ? `${liveBad} account(s) differ from the recorded devnet bytes` : "every recorded account re-fetched byte-exact — owner + size match");
+    emit("live binding", liveBad === 0, liveBad ? `${liveBad} account(s) differ from the recorded devnet bytes` : "every recorded account re-fetched byte-exact — owner + size + sha256 match");
   }
   void r;
   console.log(`${fail === 0 ? "CIRCUIT VERIFIED" : "CIRCUIT FAILED"} — ${pass} checks pass, ${fail} fail`);
@@ -7376,6 +7498,73 @@ export function verifyCircuitCard(card: any, emit?: (what: string, ok: boolean, 
   }
   check("compdef PDAs", cdOk === CIRCUIT_NAMES.length,
     `${cdOk}/${CIRCUIT_NAMES.length} re-derived — offset=sha256(name)[:4]le, [CompDef, sealedPid, u32le] @ arcium`);
+
+  // 3b. raw-circuit PDAs — each compdef's bytecode lives in
+  //    [ComputationDefinitionRaw, compdef, u8(index)] accounts under
+  //    Arcium. Re-deriving them proves the recorded bytecode sits at the
+  //    canonical addresses — a hash recorded under a made-up PDA binds
+  //    nothing.
+  let rawOk = 0, rawN = 0;
+  for (const c of card.circuits ?? []) {
+    for (const r of c.rawCircuits ?? []) {
+      rawN++;
+      const got = pda([Buffer.from(RAW_CIRCUIT_SEED), new PublicKey(c.pda).toBuffer(), Buffer.from([Number(r.index)])], arc);
+      if (got === r.pda && /^[0-9a-f]{64}$/.test(String(r.sha256))) rawOk++;
+    }
+  }
+  if (rawN > 0) check("raw-circuit PDAs", rawOk === rawN,
+    `${rawOk}/${rawN} bytecode accounts re-derived — [ComputationDefinitionRaw, compdef, u8] @ arcium`);
+
+  // 3c. account-content binding — the card records sha256 of the actual
+  //    account bytes (compdef headers, raw bytecode, MXE, cluster). The
+  //    committed arcium-infra.json supplies those bytes offline; --rpc is
+  //    the live path. A re-uploaded circuit keeps its PDA but changes the
+  //    hash — identity binding alone would miss it.
+  const infraNeeded = (card.circuits ?? []).some((c: any) => (c.rawCircuits ?? []).length || c.compdefSha256)
+    || card.cluster?.sha256 || card.mxe?.sha256;
+  if (infraNeeded) {
+    const infra = loadArciumInfra();
+    if (!infra) {
+      check("account binding", false, "card pins account-content hashes but web/arcium-infra.json is absent — cannot prove which bytes the cluster executes");
+    } else {
+      const fileOk = !card.infra?.sha256 || card.infra.sha256 === infra.fileSha;
+      let aOk = 0, aN = 0;
+      const expect = (addr: string | undefined, wantSha: any) => {
+        if (!wantSha || !addr) return;
+        aN++;
+        const b = infra.byPk.get(addr);
+        if (b && createHash("sha256").update(b).digest("hex") === wantSha) aOk++;
+      };
+      for (const c of card.circuits ?? []) {
+        expect(c.pda, c.compdefSha256);
+        for (const r of c.rawCircuits ?? []) expect(r.pda, r.sha256);
+      }
+      expect(card.cluster?.pda, card.cluster?.sha256);
+      expect(card.mxe?.pda, card.mxe?.sha256);
+      check("account binding", fileOk && aOk === aN && aN > 0,
+        `${aOk}/${aN} recorded sha256s match committed account bytes` + (fileOk ? "" : " · infra file sha differs from the card's pin"));
+    }
+  }
+
+  // 3d. cluster committee — the account records the nodes' aggregated BLS
+  //    public key (the committee attesting every SignedComputationOutputs
+  //    callback) and size. Byte-presence inside the sha-bound account is
+  //    the portable proof — no Arcium IDL needed to check it.
+  if (card.cluster?.blsPubkey || card.cluster?.sha256) {
+    const infra = loadArciumInfra();
+    const cBytes = infra?.byPk.get(String(card.cluster?.pda ?? ""));
+    const blsHex = String(card.cluster?.blsPubkey ?? "");
+    const authHex = (() => { try { return Buffer.from(new PublicKey(card.cluster.authority).toBytes()).toString("hex"); } catch { return ""; } })();
+    const ok = !!cBytes
+      && /^[0-9a-f]{128}$/.test(blsHex) && !/^0+$/.test(blsHex)
+      && cBytes.toString("hex").includes(blsHex)
+      && (!card.cluster?.authority || (authHex !== "" && cBytes.toString("hex").includes(authHex)))
+      && Number(card.cluster?.nodeCount) >= 1;
+    check("cluster committee", ok,
+      cBytes
+        ? `BLS G2 pubkey ${blsHex.slice(0, 16)}… present in the bound account · ${card.cluster?.nodeCount} node(s) · authority ${String(card.cluster?.authority ?? "?").slice(0, 12)}…`
+        : "cluster account bytes unavailable — cannot bind the committee's BLS key");
+  }
 
   // 4. the MXE + cluster + signPda addresses — same derivation, different seeds.
   check("MXE PDA", pda([Buffer.from("MXEAccount"), sealedId.toBuffer()], arc) === card.mxe?.pda,
@@ -7501,7 +7690,7 @@ export function verifyLedgerCard(card: any, emit?: (what: string, ok: boolean, d
     if (ok) pass++; else { fail++; fails.push(what); }
   };
   check("program identity", card.programs?.sealed === sealedProgramId().toBase58()
-      && typeof card.programs?.market === "string" && card.programs.market.length > 30,
+      && card.programs?.market === MARKET_PROGRAM_ID.toBase58(),
     `sealed ${String(card.programs?.sealed).slice(0, 12)}… · market ${String(card.programs?.market).slice(0, 12)}…`);
   if (!snapPath) {
     check("snapshot binding", false, "a census with no pinned ledger proves nothing — pass --snapshot");
@@ -8592,9 +8781,13 @@ export async function chainAnomalies(json = false, snapPath?: string) {
       : "every bank name is unique",
     drill: "chain banks --name <name>" });
 
-  // 8. markets on post-reveal runs — must be ZERO (program enforces)
+  // 8. markets on post-reveal runs — must be ZERO (program enforces).
+  // open_duel rejects post-reveal on BOTH legs — check runB too, or a
+  // duel priced on a post-reveal B-leg reads clean.
   const postSet = new Set(postRuns.map((r) => r.publicKey.toBase58()));
-  const badVenues = [...markets, ...darks].filter((m) => postSet.has(m.account.run.toBase58())).length
+  const badVenues = [...markets, ...darks].filter((m) =>
+      postSet.has(m.account.run.toBase58()) ||
+      (m.account.runB && postSet.has(m.account.runB.toBase58()))).length
     + ladders.filter((l) => (l.account.legs as PublicKey[]).slice(0, Number(l.account.legCount)).some((p) => postSet.has(p.toBase58()))).length;
   f.push({ sev: badVenues ? "warn" : "ok", what: "venues on post-reveal runs",
     count: badVenues,
@@ -8608,7 +8801,7 @@ export async function chainAnomalies(json = false, snapPath?: string) {
     (byBank.get(k) ?? byBank.set(k, new Set()).get(k)!).add(r.account.runner.toBase58());
   }
   const bankByPk = new Map(banks.map((b) => [b.publicKey.toBase58(), b.account]));
-  const solo = [...byBank.entries()].filter(([pk, s]) => s.size === 1 && num((bankByPk.get(pk) as any)?.runs) >= 3);
+  const solo = [...byBank.entries()].filter(([pk, s]) => s.size === 1 && num((bankByPk.get(pk) as any)?.runCount) >= 3);
   f.push({ sev: "info", what: "single-runner banks (≥3 runs, one key)",
     count: solo.length,
     detail: solo.length
@@ -9147,6 +9340,7 @@ export async function chainMain(cmd: string[], args: Args) {
   }
   if (sub === "artifact") {
     const target = cmd[1] ?? args.file;
+    if (cmd[2] !== undefined && args.file === undefined) throw new Error("one artifact path at a time — extra positional args are ignored, not verified");
     if (!target) throw new Error("usage: chain artifact <file|dir> [--recursive] [--tamper] [--snapshot <f>] [--json] — auto-detects any sealed-*/v1 artifact and replays it keyless; --tamper forges it and proves the verifier catches the lie");
     if (args.tamper) {
       await artifactTamper(String(target), args.snapshot ? String(args.snapshot) : undefined,

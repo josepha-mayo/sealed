@@ -60,17 +60,21 @@ truth.pinned = readFileSync("docs/evidence/SHA256SUMS", "utf8").trim().split("\n
   + readFileSync("web/MANIFEST", "utf8").trim().split("\n").length;
 truth.catalog = JSON.parse(readFileSync("docs/evidence/artifacts.json", "utf8")).count;
 truth.artifacts = truth.catalog + 1; // replayed total = listed artifacts + the catalog itself
-if (!truth.tourStops || !truth.forgeAttacks || !truth.exhibits || !truth.pinned || !truth.catalog)
+// verify.py --tamper's demo-attack count — one 'forgery dies at' per case
+truth.pyAttacks = (readFileSync("scripts/verify.py", "utf8").match(/forgery dies at/g) || []).length;
+if (!truth.tourStops || !truth.forgeAttacks || !truth.exhibits || !truth.pinned || !truth.catalog || !truth.pyAttacks)
   throw new Error("freshness: a derived constant came back empty — page structure drifted");
 
 // Anchored claims. Each: [regex, expected]. Only numbers written in these
 // exact phrasings are checked — everything else is ignored on purpose.
 const claims = [
   [/(\d+)\s+banks/g, truth.banks],
-  [/(\d+)\s+runs\b/g, truth.runs],
+  // the lookbehind bars thresholds ("≥3 runs") and "?mega=1\n runs"-style
+  // prose where the digit belongs to a URL/list marker, not a count claim
+  [/(?<![≥<>≤])(\d+)\s+runs\b/g, truth.runs],
   [/(\d+)\s+(?:venues|markets)\s+(?:across|posted|over)/g, truth.venues],
   [/(\d+)\s+band\/duel/g, truth.bandDuel],
-  [/(\d+)\s+ladders?\b/g, truth.ladders],
+  [/(?<![a-z0-9])(\d+)\s+ladders?\b/g, truth.ladders],
   [/(\d+)\s+dark\b/g, truth.darks],
   [/(\d+)\s+bount(?:y|ies)\b/g, truth.bounties],
   [/(\d+)\s+(?:persistent\s+)?model(?:\s|-)capability\s+records|(\d+)\s+model\s+records|(\d+)\s+records\b/g, truth.records],
@@ -82,18 +86,24 @@ const claims = [
   // "all 142 artifacts", "All 142 artifact cards", "142 replayed",
   // "142 committed artifacts" — matched case-insensitively.
   // the (?<![a-z0-9]) lookbehind keeps "sha256 replayed" from counting its 256
-  [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifacts?\s+replayed\b|(?<![a-z0-9])(\d+)\s+replayed\b/gi, truth.artifacts],
-  // the catalog's own line: "141 artifact(s)" — excludes itself
-  [/(\d+)\s+artifact\(s\)\b/g, truth.catalog],
-  // tamper exhibits: "15 tamper exhibits", "15× sealed-tamper/v1" — the
-  // (?<![a-z0-9]) lookbehind keeps "v1 exhibits" from counting its 1
-  [/(?<![a-z0-9])(\d+)\s+(?:committed\s+)?(?:tamper\s+)?exhibits?\b|(\d+)×\s+sealed-tamper/gi, truth.exhibits],
+  [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifact\(s\)\s+replayed\b|(\d+)\s+artifacts?\s+replayed\b|(?<![a-z0-9])(\d+)\s+replayed\b|(\d+)\s+portable\s+artifacts?\b|replay\s+all\s+(\d+)\s+proofs?\b/gi, truth.artifacts],
+  // the catalog's own line: "141 artifact(s)" — excludes itself.
+  // NOTE: no trailing \b (")" is non-word — "\b" after it can never match);
+  // the negative lookahead keeps "203 artifact(s) replayed" on the line above.
+  [/(\d+)\s+artifact\(s\)(?!\s+replayed)/g, truth.catalog],
+  // tamper exhibits: "15 tamper exhibits", "15× sealed-tamper/v1",
+  // "twenty-eight sealed-tamper/v1 cards" — the (?<![a-z0-9]) lookbehind
+  // keeps "v1 exhibits" from counting its 1; the leading char-class bars
+  // digits so "sealed-tamper/v1" itself can't self-match.
+  [/(?<![a-z0-9])(\d+|[a-z]+(?:-[a-z]+)?)\s+(?:committed\s+)?(?:tamper\s+)?exhibits?\b|(\d+)×\s+sealed-tamper|(?<![a-z0-9])(\d+|[a-z]+(?:-[a-z]+)?)\s+sealed-tamper\/v1\s+cards?/gi, truth.exhibits],
   // pinned bytes: "359 manifest-pinned files", "all 359 pinned bytes",
   // "359/359 file(s)"
   [/(\d+)\s+(?:manifest-)?pinned\s+(?:files?|bytes)\b|all\s+(\d+)\s+pinned\s+bytes\b|(\d+)\/\3\s+file/gi, truth.pinned],
   // forgery lab: "13 canned forgeries", "13/13 attacks died",
-  // "all thirteen attacks", "12 forgery attacks"
-  [/(\d+)\s+canned\s+forgeries|forgeries\s+(\d+)\/\4|(\d+)\s+forgery\s+attacks?\b|(\d+)\/(\d+)\s+attacks?\b/gi, truth.forgeAttacks],
+  // "twenty-one canned attacks", "12 forgery attacks", "forgeries 13/13"
+  [/(\d+|[a-z]+(?:-[a-z]+)?)\s+canned\s+(?:forgeries|attacks?)\b|forgeries\s+(\d+)\/(\d+)|(\d+|[a-z]+(?:-[a-z]+)?)\s+forgery\s+attacks?\b|(\d+)\/(\d+)\s+attacks?\b/gi, truth.forgeAttacks],
+  // the python forgery demo's own count: "15 attacks, all caught"
+  [/(\d+|[a-z]+(?:-[a-z]+)?)\s+attacks?,\s*all\s+caught/gi, truth.pyAttacks],
   // spelled-out or numeric guided-tour stop count ("twenty-five captioned
   // stops" in the hero; "all twenty-five stops" in judges.md)
   [/(twenty-\w+|thirty-\w+|eleven|twelve|thirteen|fourteen|fifteen|\d+)\s+(?:captioned\s+)?stops\b/gi, truth.tourStops],
@@ -110,7 +120,7 @@ const WORDS = {
   "twenty-five": 25, "twenty-six": 26, "twenty-seven": 27, "twenty-eight": 28,
   "twenty-nine": 29, thirty: 30, "thirty-one": 31, "thirty-two": 32,
 };
-const files = ["README.md", ...readdirSync("docs").filter((f) => f.endsWith(".md")).map((f) => `docs/${f}`)];
+const files = ["README.md", "JUDGING.md", "AGENTS.md", "web/index.html", "scripts/verify-all.sh", ...readdirSync("docs").filter((f) => f.endsWith(".md")).map((f) => `docs/${f}`)];
 let bad = 0;
 for (const f of files) {
   let text;

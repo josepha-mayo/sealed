@@ -1,8 +1,11 @@
 [
   "arcium-devnet.fork-the-cluster-re-home-the-circuits-to-offset-0.json",
+  "arcium-devnet.invent-the-committee-fabricate-the-cluster-s-bls-key.json",
   "arcium-devnet.re-key-the-mxe-substitute-the-signpda-address.json",
+  "arcium-devnet.repoint-the-bytecode-move-a-raw-circuit-to-a-phantom-pda.json",
   "arcium-devnet.reroute-score-chunk-point-the-scoring-circuit-at-a-phantom-pda.json",
   "arcium-devnet.retire-the-privacy-circuit-drop-reshare-part.json",
+  "arcium-devnet.swap-the-bytecode-record-a-phantom-raw-circuit-hash.json",
   "board.erase-the-1-model-re-rank-a-cropped-leaderboard.json",
   "board.inflate-a-receipt-s-score.json",
   "board.swap-the-1-rank.json",

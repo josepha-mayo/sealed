@@ -91,7 +91,7 @@ deadline.
 ## Update 5 — "the evidence is portable" (post this week)
 
 - 15s: `chain artifact docs/evidence --recursive` — ONE command replays
-  all 203 committed artifacts: 31 claim cards, 73 match cards, 3 policy
+  all 206 committed artifacts: 31 claim cards, 73 match cards, 3 policy
   certificates, 4 custody trails, 4 capability reports, the ledger
   digest, the leaderboard card, 3 exam cards (one per commitment
   regime — authored, generated, private), 2 bettor-position cards
@@ -123,13 +123,13 @@ deadline.
   x25519 viewer key, `encryption_key == viewer` echo, and the panel
   tally re-derived: the questions moved, the answers never did).
 - 15s: `chain fingerprint` — the entire evidence base as ONE sha256:
-  487 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
-  explorer's "replay the whole bundle" button drives all 203 artifacts
+  495 manifest-pinned files re-hashed, then `BUNDLE ROOT`. The
+  explorer's "replay the whole bundle" button drives all 206 artifacts
   through the in-page verifiers and ends on the SAME root — terminal
   and browser agree, or the bundle is dirty.
 - 15s: `?tour=1` — the hosted explorer demos itself: a captioned
   auto-walk through twenty-five sections, ending on the forgery lab —
-  "try to break it": sixteen canned attacks (forge a score, swap a rank,
+  "try to break it": a sixteen-attack forge lab (forge a score, swap a rank,
   un-vouch a receipt, flip a verdict, mint a phantom receipt, inflate
   a pool, re-age the ledger, plant a phantom run on an exam, erase an
   artifact from the index itself, inflate a winning bettor's stake,
@@ -152,7 +152,7 @@ deadline.
   `chain artifact <card> --tamper` (kind-aware mutations on the
   TypeScript side, every lie asserted to die at a named check).
 - 10s: one link runs the whole demo — `?mega=1` cascades the account
-  audit, all 203 artifact replays, the full forgery sweep, AND the
+  audit, all 206 artifact replays, the full forgery sweep, AND the
   sealed-exam decrypt to EVERYTHING VERIFIED in ~8s, live in the
   judge's browser.
 - Close: "Other submissions ask you to trust a folder of screenshots.
@@ -250,10 +250,41 @@ deadline.
   classified, pubkey-set sha256s replayed per section. A snapshot that
   silently dropped one bank breaks the census — cherry-picking the
   evidence base is now provably impossible.
-- 15s: numbers — 203 artifacts replay in one recursive pass, 43 committed
+- 15s: numbers — 206 artifacts replay in one recursive pass, 46 committed
   forgery exhibits all die at named checks in TypeScript, Python AND the
   browser (a rename attack, a subset lie, a phantom disclosure, a forged
-  venue leg — the lab is the spec), 75/75 unit tests, 487 pinned bytes,
+  venue leg — the lab is the spec), 75/75 unit tests, 495 pinned bytes,
   and the whole thing anchors to one devnet memo.
 - Close: "We didn't just say the verifier is honest — we shipped the
   attacks that would have fooled it, and it isn't."
+
+## Update 11 — "bind the bytes, not just the address" (second audit round)
+
+- 20s: the circuit card leveled up from identity to CONTENT. It used to
+  prove the six computation PDAs live under the deployed Arcium program;
+  it now also pins sha256 of the actual executed bytes — six compdef
+  headers + six raw-circuit bytecode accounts (~1.3 MB) + MXE + cluster,
+  all committed in web/arcium-infra.json. A redeployed circuit keeps its
+  PDA but not its hash. The cluster card carries the committee's
+  aggregate BLS key + node count, byte-presence-checked inside the
+  sha-bound account bytes — the committee that signs every
+  SignedComputationOutputs callback is now a verifiable object.
+- 15s: the page went from verifier to adversary's bench — card-controlled
+  fields all escaped (a pasted card can no longer inject HTML into the
+  verdict UI), the live-audit cache keys on account bytes not just
+  counts, a missing account renders NOT FOUND instead of amber
+  "self-consistent", and the offline capsule's fetch shim no longer
+  falls back to the network for unlisted URLs.
+- 10s: "seal your verdict" — after a clean mega-audit, the page anchors
+  the judge's own verdict hash on devnet with a committed demo key. The
+  audit receipt is permanent; check it next week.
+- 10s: the ops layer got layout-tolerant — typed Anchor fetches
+  EOF-brick on pre-upgrade accounts (the snapshot's 145 legacy grants
+  prove the shape exists); every live read now decodes tail-tolerant.
+  And the keeper board mirrors the on-chain all-fresh ladder gate —
+  a race nobody started no longer advertises as resolvable.
+- 5s: numbers — 206 artifacts, 46 committed exhibits (the circuit card
+  alone grew bytecode-swap, raw-repoint, and BLS-invention attacks),
+  38 in-page forgery attacks, 75/75 unit, 495 pinned files.
+- Close: "The evidence bundle now proves WHICH code scored it — the
+  1.3MB of circuit bytes are pinned next to the results they produced."

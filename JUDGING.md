@@ -9,14 +9,14 @@ oracle operator.
 
 Three paths, fastest first:
 
-1. **One link, zero setup** — https://josepha-mayo.github.io/sealed/?mega=1
-   runs the whole skeptic's suite in your browser (~8s): every account
-   address re-derived from its seeds, all 187 committed proof files
+1. **One link, zero setup** — https://josepha-mayo.github.io/sealed/?mega=1 —
+   the whole skeptic's suite runs in your browser (~8s): every account
+   address re-derived from its seeds, all 203 committed proof files
    replayed, every forgery attack caught at the check that kills it,
    the sealed exam decrypted in-page — ending on EVERYTHING VERIFIED
    with a copyable verdict for your notes.
 2. **One line, zero clone** — `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote`
-   downloads a single stdlib Python file that fetches all 453 pinned
+   downloads a single stdlib Python file that fetches all 495 pinned
    bytes itself and re-verifies the entire evidence base independently —
    none of the code that produced it.
 3. **The full path** — `docs/judges.md` is the rubric-mapped deep-dive
@@ -33,5 +33,5 @@ on it — or the evidence is dirty.
 back — `python3 scripts/verify.py --card <yours>` or drop it on the
 explorer's verifier (hit "⚔ forge this card" for the canned attack).
 A forged card that verifies earns a named entry in
-`docs/engineering-log.md`; the 15 committed exhibits in
+`docs/engineering-log.md`; the 46 committed exhibits in
 `docs/evidence/tamper/` are the ones we already killed.
