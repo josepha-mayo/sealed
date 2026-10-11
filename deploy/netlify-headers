@@ -1,0 +1,8 @@
+/*
+  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/index.html
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate, no-transform
+/
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate, no-transform
+/standalone.html
+  Cache-Control: no-cache, no-store, max-age=0, must-revalidate, no-transform

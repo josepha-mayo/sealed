@@ -6851,7 +6851,7 @@ async function runRoomChallenge(button){
 function refreshRoomIntegrity(){
   if(typeof document.querySelectorAll!=='function')return;
   const out=document.getElementById('auditres'),text=out?.textContent||'',badge=document.getElementById('room-integrity');
-  if(/\bFAIL\b|audit halted/i.test(text))badge.textContent='Integrity check needs attention';
+  if(out?.querySelector('.pill.cancelled')||/audit halted/i.test(text))badge.textContent='Integrity check needs attention';
   else if(/\d+ pass · 0 fail/.test(text))badge.textContent='Account & byte checks passed';
   else badge.textContent=window.__audit?'Checking account integrity…':'Loading evidence…';
   const active=vaultPages.get(vaultActive);if(active&&!active.hidden)active.querySelectorAll('table').forEach(t=>paginateTable(t));

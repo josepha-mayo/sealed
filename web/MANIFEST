@@ -85,7 +85,7 @@ e21d99658af514408b22a2140f1e2b571a54084f2e917fe45a403871dba1c9f7  ./claims/test_
 682646dcc42063eecbeabf36fdb8874118fd35b258fb8abf52612449ade58437  ./grants/index.json
 893b0e4e24d62253d70fb6d7185fb23960536dea3e8f31f631cf4ae44099e793  ./grants/sealed-priv-first.json
 2e7356673256fcb137fe666f1f38fa6df1cb9811debd0e7552ee7b32ff569cbc  ./grants/sealed-priv-panel.json
-3ebb7bd2f86e5c15efb6caa8716b8ebde51b10f14b84dad6d4d35ac39732163a  ./index.html
+9a151e4fcbdd5d6534c09f2bf819cc3934ca10835de48d03a9a81af9dcb29c63  ./index.html
 00b38aa1327621cdbc9c9da6cf691ec45907bffa10c2a183ae551f1bf03e81b6  ./ledger/index.json
 f5d4744d28a7e60199c75fc2e9b9137c7078977c0ad0a3002330291137b76f8a  ./ledger/ledger.json
 718332c9ff3c797859d42e6c7162ea9d858d6a5bdc632cfc23288341f62d6ac4  ./matches/dark_model-a-vs-duel_model-a.json
