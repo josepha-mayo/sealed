@@ -635,6 +635,25 @@ await vm.runInContext("runCaseAttack(__attackButton)", ctx);
 const caseAttackOk = /FORGERY REJECTED/.test(els.get("caseattack")?.innerHTML ?? "") && !attackButton.disabled;
 console.log(`case file — decoded score + receipt-cloning rejection ${caseOk && caseAttackOk ? "PASS" : "FAIL"}`);
 if (!caseOk || !caseAttackOk) fails++;
+const sponsorTarget = mkEl("sponsor-target");
+// The stub does not parse newly inserted HTML; the real browser check also
+// exercises this control. Use the frozen card's numbers for both score edges.
+const sponsorCard = JSON.parse(readFileSync(join(ROOT, "web/bounties/claimed-20of32.json"), "utf8"));
+sponsorTarget.value = String(sponsorCard.bounty.threshold);
+sponsorTarget.dataset = {score:String(sponsorCard.bounty.winningScore),capacity:String(sponsorCard.bank.capacity)};
+const sponsorButton = {disabled:false}; ctx.__sponsorButton = sponsorButton;
+await vm.runInContext("replaySponsorPayout(__sponsorButton)", ctx);
+const sponsorOk = /BOUNTY VERIFIED/.test(els.get("sponsorreplay")?.innerHTML ?? "") && !sponsorButton.disabled;
+console.log(`sponsor shortcut — captured bounty gate replay ${sponsorOk ? "PASS" : "FAIL"}`);
+if (!sponsorOk) fails++;
+sponsorTarget.value = String(sponsorCard.bounty.winningScore + 1);
+vm.runInContext('previewSponsorTarget(document.getElementById("sponsor-target"))',ctx);
+const higherTarget = /below this score target/.test(els.get("sponsor-scenario").textContent);
+sponsorTarget.value = String(sponsorCard.bounty.winningScore);
+vm.runInContext('previewSponsorTarget(document.getElementById("sponsor-target"))',ctx);
+const equalTarget = /meets this score target/.test(els.get("sponsor-scenario").textContent);
+console.log(`sponsor scenario — equal score meets, higher score fails ${higherTarget && equalTarget ? "PASS" : "FAIL"}`);
+if (!higherTarget || !equalTarget) fails++;
 for (const [query,expected] of [["?card=//evil.example/card.json",/Card URL refused/],["?card=does-not-exist.json",/Card unavailable: HTTP 404/]]) {
   ctx.location.search = query;
   vm.runInContext("__deepLinksDone = false", ctx);

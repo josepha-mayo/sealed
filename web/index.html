@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Private exams. Public scores. Markets that settle themselves. Inspect a saved score mismatch and try the receipt-cloning attack on Solana + Arcium evidence.">
-<meta property="og:title" content="Sealed — the leaderboard you don't have to trust">
+<meta name="description" content="Pay for model capability. Verify the result that gets paid. Replay a captured score mismatch, attack a receipt, and inspect a capability bounty on Solana + Arcium.">
+<meta property="og:title" content="Sealed — pay for capability, verify the result">
 <meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 217 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base, notarized on devnet.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://josepha-mayo.github.io/sealed/">
+<meta property="og:url" content="https://sealed-eval.netlify.app/">
 <meta property="og:image" content="https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/flagship.gif">
 <meta property="og:image:alt" content="Terminal recording: four open-weights models race an MPC-minted exam; the evidence replays offline.">
 <meta name="twitter:card" content="summary_large_image">
@@ -84,7 +84,7 @@
 </head>
 <body>
 <h1>SEALED</h1>
-<div class="sub"><b>Private exams. Public scores. Markets that settle themselves.</b></div>
+<div class="sub"><b>Pay for model capability. Verify the result that gets paid.</b></div>
 <div class="sub kv">items minted &amp; scored inside Arcium's MPC (multi-party computation) cluster &middot; scores written on-chain by the cluster's callback &middot; markets settle on the on-chain score field itself (<code>Run.correct</code>) — no referee signs off &middot; <a href="https://github.com/josepha-mayo/sealed">repo</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/judges.md">judge guide</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/integrate.md">compose on Run.correct</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/engineering-log.md">engineering log</a></div>
 
 <section class="card casefile" id="sec-case" aria-label="Sealed case file">
@@ -100,6 +100,20 @@
   </div>
   <div id="caseattack" class="proof" aria-live="polite"></div>
   <p class="boundary">Demo evidence: a frozen, merged localnet capture. The replay checks account consistency; it is not a fresh devnet execution. Model names are runner-declared. MPC scoring does not prove which model produced an output.</p>
+</section>
+
+<section class="card casefile" id="sec-sponsor" aria-label="Sponsor payout replay">
+  <div class="eyebrow">For evaluation sponsors · try the payout path</div>
+  <h2>Set a target. Let the scored run claim it.</h2>
+  <p>You are choosing a model for a measurable task. Fund a qualifying score instead of paying for a screenshot. This captured bounty shows the full decision path:</p>
+  <div class="casegrid">
+    <div class="casecell"><span class="kv">01 · Sponsor</span><h3>Define the target</h3><p>Commit the exam and a required score. Private question access can be delegated; the scoring fingerprints stay encrypted until disclosure.</p></div>
+    <div class="casecell"><span class="kv">02 · Runner</span><h3>Commit, then compete</h3><p>Submit an output commitment before scoring. Arcium writes the result; the runner's own score claim is not the payout input.</p></div>
+    <div class="casecell"><span class="kv">03 · Contract</span><h3>Pay the qualifying run</h3><p>Check the bank, score, timing and runner before claiming escrow. Replaying this example verifies the captured winner and bounty fields.</p></div>
+  </div>
+  <button onclick="replaySponsorPayout(this)">Replay the sponsor's payout</button>
+  <div id="sponsorreplay" aria-live="polite"></div>
+  <p class="boundary">Wallet-free replay of localnet account evidence. This button creates no bounty and sends no transaction. The example's arithmetic task demonstrates protocol integrity; useful confidential task families and sponsor demand still need validation.</p>
 </section>
 
 <div class="nav">
@@ -4869,6 +4883,42 @@ async function verifyPosition() {
   }
 }
 
+async function replaySponsorPayout(btn) {
+  const out = document.getElementById("sponsorreplay");
+  if (window.__busy) { out.innerHTML = '<p class="kv">Another audit is running. Let it finish, then replay the bounty.</p>'; return; }
+  btn.disabled = true;
+  out.innerHTML = '<p class="kv">Replaying the captured bounty against the loaded account bytes…</p>';
+  try {
+    await window.__ready;
+    await runAudit();
+    await loadBounty("bounties/claimed-20of32.json");
+    const verdict = await verifyBounty();
+    const proof = document.getElementById("bountyres").innerHTML;
+    if (!verdict?.ok) { out.innerHTML = proof; return; }
+    const c = verdict.card;
+    out.innerHTML = `<div class="casegrid">
+      <div class="casecell"><span class="kv">Verified winner score</span><strong>${esc(c.bounty.winningScore)}/${esc(c.bank.capacity)}</strong></div>
+      <div class="casecell"><span class="kv">Sponsor's captured threshold</span><strong>${esc(c.bounty.threshold)}/${esc(c.bank.capacity)}</strong></div>
+      <div class="casecell"><span class="kv">Captured account state</span><strong>Claimed</strong><span class="kv">Remaining escrow: ${esc(c.bounty.amount)} lamports</span></div>
+    </div><p><b>BOUNTY VERIFIED</b> · winner <code>${esc(short(c.bounty.winnerRun))}</code>. Score, bank, timing and runner match the captured accounts.</p>
+    <details><summary>Inspect the account checks</summary>${proof}</details>
+    <div class="card" style="margin-top:16px"><label for="sponsor-target"><b>What if you required a higher score?</b></label>
+      <p class="kv">Scenario only: this changes the score comparison, not the captured bounty or its claim history.</p>
+      <input id="sponsor-target" type="range" min="0" max="${esc(c.bank.capacity)}" value="${esc(c.bounty.threshold)}" data-score="${esc(c.bounty.winningScore)}" data-capacity="${esc(c.bank.capacity)}" oninput="previewSponsorTarget(this)" style="width:100%">
+      <p id="sponsor-scenario" aria-live="polite"></p>
+      <p class="proof">The full contract also checks the bank, timing, runner and run state. A score comparison alone is not claim authorization. A zero remaining balance does not reveal the original payout amount.</p>
+    </div>`;
+    previewSponsorTarget(document.getElementById("sponsor-target"));
+  } catch (e) {
+    out.innerHTML = `<p style="color:var(--err)">Replay unavailable: ${esc(e.message ?? String(e))}</p>`;
+  } finally { btn.disabled = false; }
+}
+
+function previewSponsorTarget(input) {
+  const target = Number(input.value), score = Number(input.dataset.score), capacity = Number(input.dataset.capacity);
+  document.getElementById("sponsor-scenario").textContent = `Required ${target}/${capacity} · captured score ${score}/${capacity} · ${score >= target ? "meets this score target" : "below this score target"}. No transaction sent.`;
+}
+
 async function loadBounty(name) {
   const ta = document.getElementById("bountyjson");
   try {
@@ -4962,6 +5012,7 @@ async function verifyBounty() {
     const nFail = rows.filter(r => r.includes("pill cancelled")).length;
     rows.push(`<div class="kv" style="margin-top:8px"><b>${nFail === 0 ? "BOUNTY VERIFIED" : "BOUNTY FAILED"}</b> — ${esc(c.verdict.state)} · ${c.bounty.status === 1 ? `pot paid to runner · winner ${esc(c.bounty.winningScore)}/${esc(c.bank?.capacity ?? "?")} beat threshold ${esc(c.bounty.threshold)}` : `${(Number(c.bounty.amount) / 1e9).toFixed(4)} SOL escrowed · threshold ${esc(c.bounty.threshold)}`}</div>`);
     res.innerHTML = rows.join("");
+    return { ok: nFail === 0, card: c };
   } catch (e) {
     res.innerHTML = `<div class="kv" style="color:var(--err)">${esc(e.message ?? String(e))}</div>`;
   }
