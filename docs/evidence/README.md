@@ -48,8 +48,8 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   deployment policy actually wants — an upper bound you don't have to
   trust. `chain ceiling --verify ceilings --snapshot ../../web/snapshot.json`
   replays all 31 (9 checks each). The honest marquee:
-  `llama-3.2-1b-instruct` ≤ **3.1%** — the model whose self-reported
-  64/64 the MPC scored 1/64.
+  `llama-3.2-1b-instruct` ≤ **3.1%** — and the sibling story: `openai`
+  (gpt-oss-20b)'s self-reported 64/64 was scored **1/64** by the MPC.
 - `circuit/` — **1 `sealed-circuit/v1` card**: the MPC itself as
   evidence. Every other artifact binds what the MPC *wrote*; this binds
   the MPC — the six computation-definition accounts (PDA seeds
@@ -66,7 +66,7 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   record's verdict + the embedded receipts the verdict replayed from.
   `min60-3runs.json` (whole registry), `strict70-vouched.json` (attested
   pre-reveal evidence only), `sealed-test-60pct.json` (bank-scoped —
-  29 records honestly report `no-evidence` in that scope). Replay any of
+  29 of the records honestly report `no-evidence` in that scope). Replay any of
   them: `chain gate --certify-verify policies/<file>.json`.
 - `matches/` — **`sealed-match/v1` head-to-head cards** — the portable
   match record: two records' PDA seeds, every receipt on every shared
@@ -117,7 +117,7 @@ other. All are offline-replayable; all are sha256-pinned in `SHA256SUMS`.
   anonymous Pollinations), run #2 on MPC-minted bank 6932: `correct=64/64`,
   `outputs_root` `0c305939…`, FINALIZED — every digit written by the MPC
   cluster's callback transactions, matching the local pre-score exactly.
-  The items it answered were born inside the enclave; no plaintext answer
+  The items it answered were born inside the MPC cluster; no plaintext answer
   key has ever existed.
 - `run-gen6932-real-artifact.json` — its local artifact: raw outputs,
   canonical answers, per-item output hashes, `itemsRoot` binding it to
@@ -191,9 +191,9 @@ market prices the race blind:
   winner claimed pro-rata.
 
 Two models raced an exam nobody could read without a grant — and the
-market never saw the questions. (Note: an earlier attempt created 4
+market never saw the questions. (Note: an earlier attempt created 4 orphan
 grants to a delegate key whose keypair was overwritten mid-run — those
-grants remain on-chain as orphans, honest evidence that grants are
+grants remain on-chain, honest evidence that grants are
 permanent records, not revocable sessions.)
 
 ### Prefund-grief reclaim (`unbrick_pda`) — `unbrick-demo.txt`
@@ -468,7 +468,7 @@ view of the questions was the on-chain grant trail.
   verdicts — all model records bit-exact, all resolutions matching
   `Run.correct`), `gate --all`, the paired-evidence leaderboard, a
   paired `compare`, the keeper board, a self-verifying `modelrec`, and
-  the bounty index — closing on `chain artifact --recursive` (all 115
+  the bounty index — closing on `chain artifact --recursive` (all 217
   artifacts replayed) and `chain fingerprint` (the whole tree as one
   sha256). Every line ran keyless against `web/snapshot.json`;
   the header shows how to reproduce it, and the loader sha256-checks the

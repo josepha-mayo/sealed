@@ -1,37 +1,25 @@
 # Judging Sealed
 
-**A benchmark whose answer key never existed — the exam nobody can
-leak, the score nobody can fake, the market that settles itself.**
-Exams are minted and scored inside an Arcium MPC cluster; Solana
-carries commitments, score receipts, and markets that settle off
-the on-chain score field itself (`Run.correct`) — no referee, no
-oracle operator.
+**Can a benchmark score decide who gets paid?** Sealed binds model outputs to
+an encrypted exam, writes the score through Arcium MPC, and lets Solana
+capability bounties settle against that score.
 
-Three paths, fastest first:
+Start with a failure, not a feature list: the explorer preserves a historical
+64/64 local claim whose submitted outputs scored 1/64 on the committed exam.
+That account dump is outside the current merged census and is labeled as such.
+Then try the receipt-cloning attack: a real winning receipt repeated many times
+must still fail the completeness check.
 
-1. **One link, zero setup** — https://josepha-mayo.github.io/sealed/?mega=1 —
-   the whole skeptic's suite runs in your browser (~8s): every account
-   address re-derived from its seeds, all 203 committed proof files
-   replayed, every forgery attack caught at the check that kills it,
-   the sealed exam decrypted in-page — ending on EVERYTHING VERIFIED
-   with a copyable verdict for your notes.
-2. **One line, zero clone** — `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote`
-   downloads a single stdlib Python file that fetches all 495 pinned
-   bytes itself and re-verifies the entire evidence base independently —
-   none of the code that produced it.
-3. **The full path** — `docs/judges.md` is the rubric-mapped deep-dive
-   (program tests, the MPC-rescore proof, forgery lab, capsule, devnet
-   anchor; ~40 min hands-on plus a localnet toolchain if you rebuild
-   everything).
+1. Open https://josepha-mayo.github.io/sealed/ and press **Try the receipt-cloning attack**.
+   Use `?mega=1` for the full browser replay: all 217 artifacts and the saved
+   adversarial exhibits. The single-file `standalone.html` also runs offline.
+2. Run `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote`
+   for independent Python replay of all 518 pinned files.
+3. Read `docs/judges.md` for the deeper implementation and reproduction path;
+   `docs/audit-2026-10-11.md` records the latest repairs and verification limits.
 
-**Trust nothing:** the whole bundle folds to one sha256
-(`chain fingerprint`), notarized on devnet via a memo transaction
-(`docs/evidence-anchor.json`). Terminal, browser, and Python all agree
-on it — or the evidence is dirty.
-
-**Break it:** download any artifact, edit any byte you like, and feed it
-back — `python3 scripts/verify.py --card <yours>` or drop it on the
-explorer's verifier (hit "⚔ forge this card" for the canned attack).
-A forged card that verifies earns a named entry in
-`docs/engineering-log.md`; the 46 committed exhibits in
-`docs/evidence/tamper/` are the ones we already killed.
+The bundle root is timestamped by a devnet memo. This binds published bytes;
+it does not independently prove historical MPC execution. The evidence is an
+eight-epoch localnet engineering capture. Model names are runner-declared,
+authorized viewers may disclose questions, and public arithmetic specs are
+solvable. Those boundaries are part of the product, not hidden in the pitch.

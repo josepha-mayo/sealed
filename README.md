@@ -3,27 +3,39 @@
 [![CI](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml/badge.svg)](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml)
 [![explorer](https://img.shields.io/badge/explorer-live-4ef0a8)](https://josepha-mayo.github.io/sealed/)
 
-**A benchmark whose answer key never existed — the exam nobody can leak, the score nobody can fake, the market that settles itself.**
+**Private exams. Public scores. Markets that settle themselves.**
 
-Sealed is a referee for AI-capability claims. Benchmark items are **minted inside the MPC cluster itself** — questions drawn from `ArcisRNG` (the cluster's RNG), answers computed and fingerprinted in-circuit, stored encrypted to the cluster key. There is no key to leak, sell, or subpoena — not in this repo, not in a KMS, not even with the author.<sup>†</sup> Models are scored inside an [Arcium](https://arcium.com) MPC cluster — nodes jointly compute the score without any single node seeing the exam — and the score is written to Solana by the cluster's callback, not by us.
+A stale model artifact claimed **64/64**. Against the actual committed exam,
+Arcium MPC scored it **1/64**. Sealed makes the second number the one a contract
+can settle on. [Open the case file](https://josepha-mayo.github.io/sealed/).
 
-<sup>†</sup><sub>Generated banks: the key never exists. Authored banks: it exists once, and is re-sealed to the cluster key on first use — the cheat-catch below ran on one.</sub>
+Sealed is a confidential evaluation and settlement protocol on Solana. A sponsor
+can fund a measurable capability target; runners commit outputs; MPC compares
+them against sealed answer fingerprints; markets and capability bounties read
+the resulting `Run.correct` account. Private generated exams disclose questions
+only to authorized viewer keys. The answer fingerprints stay inside MPC.
 
-**And the score is a settlement source:** anyone can build a market on "does model X clear 70% on Sealed v1 by date D" that resolves itself — no referee, no oracle operator.
+**The distinctive part is the resolution source.** Encrypting a bet protects a
+position. Sealed also supports encrypted exam state behind the result that
+moves the money. [Try cloning a winning receipt](https://josepha-mayo.github.io/sealed/?tamper=dark_model-a-vs-duel_model-a.clone-a-winning-receipt-buy-the-verdict-wholesale.json):
+every copied receipt is real, but the forged extra weight still fails completeness.
 
-It already caught a cheat: a run claiming 64/64 was scored **1/64** by the cluster — the chain never trusts self-reported numbers.
+Generated banks avoid a separately custodied answer file. This is not a claim
+that nobody can calculate an answer: public arithmetic specs are solvable, and
+authorized private-exam viewers can solve or disclose their questions. Model
+identity is runner-declared; scoring proves the submitted outputs' result,
+not which model produced them. [Threat model](docs/threat-model.md).
 
-**Not another private market:** other Arcium market projects (Pythia, Epoch, Bench) hide what users *bet*. Sealed hides the *truth the market resolves on* — the answer key and the scoring itself.
-
-Built for Colosseum's Crypto World's Fair (Sep 14 – Oct 12, 2026).
-Why this *has* to be Arcium MPC — and not ZK, TEE, or hashed answers —
-is argued in [docs/arcium.md](docs/arcium.md).
+Built for [Colosseum's Crypto World's Fair](https://colosseum.com/worldsfair),
+with Solana commitments and escrow, Anchor programs, and Arcium confidential
+computation. The first commercial hypothesis is sponsored evaluation bounties
+for a specific measurable task; external demand is still to be validated.
 
 > ## Judge it yourself — pick your depth
 >
 > - **8 seconds, zero setup:** [josepha-mayo.github.io/sealed/**?mega=1**](https://josepha-mayo.github.io/sealed/?mega=1) — one click runs the whole thing:
 >   - **the sealed exam decrypts in your browser** (the ciphertext-only private bank, via the committed throwaway delegate key),
->   - **all 203 proof files replay** — every PDA re-derived, every venue re-resolved,
+>   - **all 217 proof files replay** — every PDA re-derived, every venue re-resolved,
 >   - **38 canned forgeries die** at the exact check designed to kill them —
 >   ending on a copyable verdict block: `EVERYTHING VERIFIED`, with the one-hash bundle root and its devnet anchor — and a button that anchors **your** verdict to devnet as a permanent memo.
 > - **60 seconds, no clone:** `curl -sL https://raw.githubusercontent.com/josepha-mayo/sealed/main/scripts/verify.py | python3 - --remote` — one downloaded Python file (stdlib only, nothing to install) re-hashes every file in the bundle off the *hosted site*, re-derives every account address itself, and lands on the same hash notarized on devnet.
@@ -36,7 +48,7 @@ is argued in [docs/arcium.md](docs/arcium.md).
 > node scripts/verify.mjs            # 12 PASS / 0 FAIL — the entire ledger re-derives offline
 > yarn --cwd packages/harness cli chain artifact ../../docs/evidence --recursive \
 >   --snapshot ../../web/snapshot.json
->                                  # all 206 committed artifacts replayed keyless (no wallet, no RPC, nothing trusted)
+>                                  # all 217 committed artifacts replayed keyless (no wallet, no RPC, nothing trusted)
 > yarn --cwd packages/harness cli chain fingerprint
 >                                  # one hash over every pinned byte → BUNDLE ROOT,
 >                                  # notarized on devnet (docs/evidence-anchor.json)
@@ -47,11 +59,11 @@ is argued in [docs/arcium.md](docs/arcium.md).
 >
 > </details>
 >
-> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/29xQkqaTU6au3cXkxwozMgMnueN7GrA57i2sZAEgJ5Ar5xsd7rMUeHavGngTLe2WybtVctjgmo2XoayAxc9yZS4W?cluster=devnet) — all three clickable, all verifiable by anyone.
+> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/8VceYCj3gk1HEUXvaC7WP1aYuj2a3RuFUFwaKsbioHpJNMjuR34fSTDtbz2GqTTsa7n5mxwBTpZnDyCkaDReFj3?cluster=devnet) — all three clickable, all verifiable by anyone.
 >
-> **Honest status:** the full loop is proven end-to-end on Arcium localnet and both programs are byte-verified on devnet; the shared devnet MPC cluster is currently withholding callbacks (a probe ran 40 attempts over 7.5h — disclosed in [docs/submission.md](docs/submission.md)'s devnet note). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
+> **Honest status:** the full loop is proven end-to-end on Arcium localnet and both baseline programs were byte-verified on devnet; the latest Rust hardening must be redeployed before claiming that the current source is live; the shared devnet MPC cluster is currently withholding callbacks (a probe ran 40 attempts over 7.5h — disclosed in [docs/submission.md](docs/submission.md)'s devnet note). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
 >
-> **The numbers behind it:** **503 scored runs · 340 venues exercised · 4 real open-weights models · 203 replayable proof artifacts · 292 on-chain score receipts** — every figure on this page re-derives from raw account bytes; the freshness gate fails CI if a doc drifts from the bundle.
+> **The numbers behind it:** **503 run accounts (406 MPC-finalized, the rest pending/partial in the merged localnet epochs) · 340 venues exercised · 4 real open-weights models · 217 replayable proof artifacts · 292 on-chain score receipts** — every figure on this page re-derives from raw account bytes; the freshness gate fails CI if a doc drifts from the bundle.
 >
 > **Judge shortcut:** [standalone.html](https://josepha-mayo.github.io/sealed/standalone.html) is the page + snapshot + every artifact + its own verifiers as one 6.6MB file that verifies offline, forever. Shareable deep links work both ways: `?card=` URLs re-verify in the browser, and the same URL pastes into the CLI (`chain artifact "https://…/?card=board.json"`).
 >
@@ -98,6 +110,20 @@ Every existing eval surface asks you to trust *someone*. Sealed asks you to reco
 | Prediction markets on evals (Kalshi/Poly-style) | The platform | The platform's resolver | A referee's judgement call | Appeal to the referee |
 | Arcium private markets (Pythia, Epoch, Bench) | The operator — the exam itself is still authored + held by someone | MPC-settled, but on operator-chosen inputs | Parimutuel on hidden *positions* | They encrypt **positions** — Sealed encrypts the **resolution truth** |
 | **Sealed** | **Nobody** — answers are computed inside MPC; generated exams never have one | **The MPC cluster** writes `Run.correct` via callback | **The same account** — venues read `Run.correct` directly; no referee exists to overrule | **`python3 scripts/verify.py`** — re-hash the evidence, recompute the bundle root, re-derive the PDAs |
+
+### The kill test — delete the MPC, watch what survives
+
+The honest way to evaluate this system: remove Arcium entirely and ask what each component degrades into. Every row below stops being a *proof* and becomes a *promise*:
+
+| Component | With MPC | Without it |
+|---|---|---|
+| Generated banks | Generated answer plaintext is not emitted by the circuit; public specs and authorized private viewers can derive answers — specs are drawn inside MPC, answers computed in-circuit | Some service must generate items *and* answers on a plaintext machine — you're back to trusting the generator's ops hygiene |
+| Private banks | Specs stay ciphertext end-to-end; delegated disclosure re-encrypts inside the cluster to a chosen viewer | A custodian holds a plaintext bank and asserts it didn't leak — indistinguishable from every breached exam database |
+| Scoring | `Run.correct` is written by a threshold of committee nodes no single party controls; the callback is PDA-bound to the exact computation | An operator signs a score — the same "trust the resolver" market every platform already ships |
+| Selective disclosure | `reshare_part` hands *one chunk* to *one viewer*; the key ceremony happens inside MPC so neither side learns the other's secret | Sharing means copying plaintext — underivable, unretractable, unauditable |
+| Market settlement | Venues read the MPC-written account directly; resolution is a data race Solana settles, not a judgement call | Someone presses resolve — and the honest question "who, and what did they look at?" has no answer |
+
+MPC isn't a privacy garnish here — it's the reason the system has a truth to settle on at all.
 
 ## Architecture
 
@@ -152,14 +178,14 @@ runModel(model) -> outputs[]         --> create_run(outputs_root, fee)
                                          Run.correct += count; finalized when all chunks scored
 ```
 
-- **Items** are procedural, exact-answer tasks. **Authored banks** (kind 0) draw ten families (arithmetic chains, stack-machine programs, list transforms, Caesar shifts, base conversion, grid walks, gcd/lcm, digit sums, calendar arithmetic, word sorting) from a master seed — infinite and fresh by construction. **Generated banks** (kind 1) mint arithmetic-expression items inside MPC; anyone can render the prompts from the public specs, but the answer fingerprints were computed and sealed inside the MPC cluster — *no answer key ever existed*.
+- **Items** are procedural, exact-answer tasks. **Authored banks** (kind 0) draw ten families (arithmetic chains, stack-machine programs, list transforms, Caesar shifts, base conversion, grid walks, gcd/lcm, digit sums, calendar arithmetic, word sorting) from a master seed — infinite and fresh by construction. **Generated banks** (kind 1) mint arithmetic-expression items inside MPC; anyone can render the prompts from the public specs, but the answer fingerprints were computed and sealed inside the MPC cluster — *no answer key ever existed*. A note on difficulty: these items are deliberately simple — the claim under test is **custody and scoring integrity**, not benchmark ceiling. An item's hardness changes nothing about *who held the answer while the model was evaluated*; what this repo proves is a pipeline where the answer can be provably absent. Harder item families are a parameter, not a missing component.
 - **Canonicalization** (`canonical.ts`) is the only normalization applied to a model's reply before hashing; author and runner use the same function.
 - **Chunks** are 32 items, stored as 4 parts of 8. Sealing is per part because an MPC callback must fit in one Solana transaction (8 ciphertexts = 256 B; 32 would not). Scoring reads all 4 parts in one computation, so a run over a 10-chunk (320-item) bank is 10 MPC computations.
 - **Fee**: `create_run` pays `Benchmark.fee_lamports` to the benchmark authority. That is the business — and it's used, not just plumbed: the committed digest's `money` section (recomputed from decoded bytes by all three verifiers) shows **1.73 SOL already charged in run-fees across 174 paid runs on 28 fee-bearing banks**, 44 venues carrying a nonzero take-rate, 33 capability bounties claimed, 0.45 SOL still escrowed in open pots.
 
 ### Markets (`programs/market`)
 
-A second Anchor program hosts N-way pooled-stake (parimutuel) markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes. It ships six settlement primitives: **capability bounties** (a sponsor escrows SOL against "first run to score ≥ T on this bank" — the pot pays the winning run's *operator*, not a bettor; FCFS with a retroactivity wall, sponsor self-claim rejection, and permissionless expiry refunds, `scripts/bounty-local.sh`), **run duels** (head-to-head "does A outscore B" on the same bank — bets latch the moment either leg's first scoring computation queues, `RunnersMustDiffer` blocks self-duels), **ladder races** (K-way argmax markets over 3–8 bound runs — co-leaders split the pot dead-heat, legs that land nothing forfeit at 0 instead of cancelling, and bets latch the moment *any* leg leaves pending), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: questions are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), **dark commit-reveal markets** (a bettor's side is a `sha256` commitment — sealed until they choose to reveal; no-show winners forfeit into the pot and a zero-reveal market refunds everyone, `scripts/dark.sh`), and **committed-settle expiry** (`all_queued_at` + a 24h landing window — a stalled run refunds unless the runner committed every chunk and the cluster had a full window to land it; no transaction can both commit and expire).
+A second Anchor program hosts N-way pooled-stake (parimutuel) markets on a run's final score, whose resolution input is a Sealed `Run` account — no oracle operator, no admin key deciding outcomes. It ships six settlement primitives: **score-band markets** (the baseline — parimutuel buckets over where a run's score lands, `scripts/band-local.sh`), **run duels** (head-to-head "does A outscore B" on the same bank — bets latch the moment either leg's first scoring computation queues, `RunnersMustDiffer` blocks self-duels), **ladder races** (K-way argmax markets over 3–8 bound runs — co-leaders split the pot dead-heat, legs that land nothing forfeit at 0 instead of cancelling, and bets latch the moment *any* leg leaves pending), **unseen-exam markets** (a market opens and fills on a private-bank run — the event being priced is itself confidential: questions are ciphertext-only before, during, and after settlement, `scripts/unseen.sh`), **dark commit-reveal markets** (a bettor's side is a `sha256` commitment — sealed until they choose to reveal; no-show winners forfeit into the pot and a zero-reveal market refunds everyone, `scripts/dark.sh`), and **capability bounties** (a sponsor escrows SOL against "first run to score ≥ T on this bank" — the pot pays the winning run's *operator*, not a bettor; FCFS with a retroactivity wall, sponsor self-claim rejection, and permissionless expiry refunds, `scripts/bounty-local.sh`). Cross-cutting, **committed-settle expiry** (`all_queued_at` + a 24h landing window — a stalled run refunds unless the runner committed every chunk and the cluster had a full window to land it; no transaction can both commit and expire) governs every primitive's deadline path.
 
 ```
 create_market(run, salt, edges, fee_bps, closes_at, resolve_by)
@@ -245,7 +271,7 @@ programs/market/        Anchor program: parimutuel markets resolving on Run.corr
 packages/harness/       item generators, canonical hashing, model harness, chain client, CLI
 web/index.html          leaderboard + proof explorer (single file, web3.js vendored, reads any RPC)
 tests/                  end-to-end test on Arcium localnet
-scripts/                demo.sh (full judge demo), judge-demo.sh (the 90-second keyless audit — verify.py + all 206 artifacts + forgery lab + tamper exhibits + third-language decrypt + MPC rescore + fingerprint, recorded as docs/audit.gif), dark.sh (sealed-position market on a private bank), duel-real.sh (head-to-head on a fresh MPC-minted exam), duel-local.sh (two real local models duel — llama.cpp endpoints, zero external API), ladder-local.sh (four real models race — dead-heat + dark leg), dark-local.sh (double-sealed: dark market on a private exam's real-model run), band-local.sh (score-band on a sealed exam), bounty-local.sh (capability bounty: first-to-beat pot pays the winning run's operator, FCFS), real-bounty-claim.sh (a real open-weights model earning a bounty through MPC proof), unbrick-demo.sh (grief a PDA with dust → permissionless `unbrick_pda` reclaim → init lands), record-local.sh (real local model → MPC score → `record_score` enrolls it in the on-chain capability registry), cu-sweep.sh + measure-cu.mjs (per-instruction compute-unit table in docs/costs.md), merge-snapshot.mjs (fold a post-wipe ledger's accounts into the committed evidence snapshot), serve-local.sh (four llama.cpp endpoints), unseen.sh (market on a never-published exam), ladder8.sh (max-width race), real-unseen-run.sh (real model on a grant-only exam), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts, verify.mjs (offline cryptographic audit of the evidence snapshot — same suite runs in-browser on the hosted explorer), rescore.mjs (independent MPC-score recomputation on the calibration bank — plaintext answers public on purpose), audit-browser-test.mjs (headless regression for the in-page audit), decrypt-grants-test.mjs (offline regression for the explorer's in-browser ShareGrant decryption — runs the vendored RescueCipher against the committed snapshot), check-post-reveal.mjs (standalone F1 repro), verify-deployed.sh (dumps on-chain program bytes and sha256-compares them to the local build — "deployed" only counts when they match), check-submission.mjs (submission pre-flight + plaintext-leak scan over the tracked tree), verify.py (SECOND-LANGUAGE verdict — stdlib-only Python re-hashes both manifests, recomputes BUNDLE ROOT, matches the devnet anchor, and replays EVERY committed artifact end-to-end — all 205 cataloged entries across 15 kinds (4 of them markdown reports): positions, bounties, grants, trails, all 73 head-to-head cards, all 31 model claims, all 31 ceiling cards (proof-of-a-negative — subject-set completeness vs the exhaustive snapshot), the circuit card (the MPC itself — all 15 Arcium PDAs re-derived (incl. the bytecode accounts) + account sha256s bound, SignPda bound to the snapshot), the leaderboard, policy certs (evalGate ported), the catalog's own index, bank dossiers (the items_root MPC fold re-derived — private banks fold ciphertexts+nonces), the whole-ledger digest, and the 46 committed forgeries which MUST be rejected), re-derives every PDA with real ed25519 curve math, and struct-unpacks all 14 account layouts itself; --tamper forges each card kind and asserts the catch; --decrypt ports the Rescue cipher + x25519 into stdlib Python so the delegate's ShareGrants decrypt a third way — re-encryption reproduces the committed ciphertext bytes bit-exact; --check-anchor fetches the devnet memo over plain JSON-RPC (no Solana SDK); --rescore reproduces the MPC's own calibration arithmetic — fingerprints, Reveal PDAs, outputs_root merkle, recount — no node, no pip)
+scripts/                demo.sh (full judge demo), judge-demo.sh (the 90-second keyless audit — verify.py + all 217 artifacts + forgery lab + tamper exhibits + third-language decrypt + MPC rescore + fingerprint, recorded as docs/audit.gif), dark.sh (sealed-position market on a private bank), duel-real.sh (head-to-head on a fresh MPC-minted exam), duel-local.sh (two real local models duel — llama.cpp endpoints, zero external API), ladder-local.sh (four real models race — dead-heat + dark leg), dark-local.sh (double-sealed: dark market on a private exam's real-model run), band-local.sh (score-band on a sealed exam), bounty-local.sh (capability bounty: first-to-beat pot pays the winning run's operator, FCFS), real-bounty-claim.sh (a real open-weights model earning a bounty through MPC proof), unbrick-demo.sh (grief a PDA with dust → permissionless `unbrick_pda` reclaim → init lands), record-local.sh (real local model → MPC score → `record_score` enrolls it in the on-chain capability registry), cu-sweep.sh + measure-cu.mjs (per-instruction compute-unit table in docs/costs.md), merge-snapshot.mjs (fold a post-wipe ledger's accounts into the committed evidence snapshot), serve-local.sh (four llama.cpp endpoints), unseen.sh (market on a never-published exam), ladder8.sh (max-width race), real-unseen-run.sh (real model on a grant-only exam), localnet-up.sh (restart fallback), smoke-localnet.sh, setup-wsl.sh (toolchain), real-model-run.sh / real-gen-run.sh (real-model pipelines), score-artifact-insecure.mts, verify.mjs (offline cryptographic audit of the evidence snapshot — same suite runs in-browser on the hosted explorer), rescore.mjs (independent MPC-score recomputation on the calibration bank — plaintext answers public on purpose), audit-browser-test.mjs (headless regression for the in-page audit), decrypt-grants-test.mjs (offline regression for the explorer's in-browser ShareGrant decryption — runs the vendored RescueCipher against the committed snapshot), check-post-reveal.mjs (standalone F1 repro), verify-deployed.sh (dumps on-chain program bytes and sha256-compares them to the local build — "deployed" only counts when they match), check-submission.mjs (submission pre-flight + plaintext-leak scan over the tracked tree), verify.py (SECOND-LANGUAGE verdict — stdlib-only Python re-hashes both manifests, recomputes BUNDLE ROOT, matches the devnet anchor, and replays EVERY committed artifact end-to-end — all 216 cataloged entries across 15 kinds (4 of them markdown reports): positions, bounties, grants, trails, all 73 head-to-head cards, all 31 model claims, all 31 ceiling cards (proof-of-a-negative — subject-set completeness vs the exhaustive snapshot), the circuit card (the MPC itself — all 15 Arcium PDAs re-derived (incl. the bytecode accounts) + account sha256s bound, SignPda bound to the snapshot), the leaderboard, policy certs (evalGate ported), the catalog's own index, bank dossiers (the items_root MPC fold re-derived — private banks fold ciphertexts+nonces), the whole-ledger digest, and the 46 committed forgeries which MUST be rejected), re-derives every PDA with real ed25519 curve math, and struct-unpacks all 14 account layouts itself; --tamper forges each card kind and asserts the catch; --decrypt ports the Rescue cipher + x25519 into stdlib Python so the delegate's ShareGrants decrypt a third way — re-encryption reproduces the committed ciphertext bytes bit-exact; --check-anchor fetches the devnet memo over plain JSON-RPC (no Solana SDK); --rescore reproduces the MPC's own calibration arithmetic — fingerprints, Reveal PDAs, outputs_root merkle, recount — no node, no pip)
 ```
 
 ## Develop
@@ -326,7 +352,7 @@ sealed chain ceiling <model> --out cap.json --snapshot web/snapshot.json
                                                                      # the exhaustive snapshot, so a hidden run dies
 sealed chain prove --verify claim.json --min-pct 60 --min-runs 3       # verifier-composable — authentic AND sufficient for YOUR policy
 sealed chain report <model> --out report.md                          # sealed-report/v1 — the dossier as a printable document
-sealed chain artifact docs/evidence --recursive                      # THE one command — all 206 artifacts replayed, non-artifacts skipped
+sealed chain artifact docs/evidence --recursive                      # THE one command — all 217 artifacts replayed, non-artifacts skipped
 sealed chain fingerprint                                             # THE one hash — every pinned byte re-hashed → one BUNDLE ROOT
 sealed chain market odds [venue]                                     # what the stakes believe — implied probabilities + decimal odds
 sealed chain market sentiment                                        # the stakes' per-model ranking — stake-weighted win%/score vs evidence
@@ -386,7 +412,7 @@ Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (ins
 - [x] CLI pipeline on localnet: authored bank -> mock run -> MPC score 40/64, equal to the local pre-score (earlier epoch)
 - [x] Real models through OpenCode Zen (earlier epoch, before Zen free-tier gating): ling-3.0-flash-fin-free 58/64 and nemotron-3.5-lightning-free 59/64, both MPC-scored on localnet with MPC == local pre-score
 - [x] **Real models, no external API — every market primitive settled on a real MPC score**: FOUR open-weights models (two families) raced on an MPC-minted exam — `qwen2.5-3b` 6/32 **tied** `qwen2.5-1.5b` 6/32 (a real dead-heat, `result_mask=0b11` paid co-leader backers pro-rata), `llama-3.2-1b` 1/32, `qwen2.5-0.5b` 0/32 — with a dark commit-reveal market on leg 0 producing a live forfeit (`scripts/ladder-local.sh`, evidence `ladder-local.txt`). Also: `qwen2.5-1.5b` 3/32 vs `qwen2.5-0.5b` 1/32 duel `7p32UT6s…` (`duel-local.txt`); the 1.5b scored **8/32 on a private bank** read only through MPC reshare grants (`unseen-local.txt`); and the **double-sealed composition**: a dark market priced the 3b's pending run on a ciphertext-only exam while positions were themselves sha256-sealed (`dark-local.txt`), plus a full-book score-band market on the same sealed bank (`band-local.txt`). Real models make real mistakes — the benchmark measures, not flatters.
-- [x] **Real model on an MPC-minted bank**: gpt-oss-20b (`openai` on Pollinations anonymous tier) answered all 64 items of generated bank 6932 — minted inside MPC, no answer key exists; MPC finalized **64/64 == local pre-score** (run `HW5H5bT7…`). Also 64/64 on authored bank 25864 (run `4uns99WD…`) — where a stale-bank artifact scored **1/64** (run `3CKnMa8X…`), proving the chain never trusts self-reported scores
+- [x] **Real model on an MPC-minted bank**: gpt-oss-20b (`openai` on Pollinations anonymous tier) answered all 64 items of generated bank 6932 — minted inside MPC; generated answer plaintext is not emitted; MPC finalized **64/64 == local pre-score** (run `HW5H5bT7…`). Also 64/64 on authored bank 25864 (run `4uns99WD…`) — where a stale-bank artifact scored **1/64** (run `3CKnMa8X…`), proving the chain never trusts self-reported scores
 - [x] **Delegated runner**: `chain delegate-bank` rebuilds a private bank entirely from a wallet's ShareGrants — verified byte-identical to the authority's decryption (prompts, answer hashes, items_root); a model provider can be granted the exam, run it, and get scored without the questions ever being public
 - [x] Market program: N-way pooled-stake (parimutuel) markets resolved on `Run.correct` end-to-end on localnet — binary + 3-way score-band markets on one MPC-scored run, late-bet rejection, resolve reads `Run.correct`, winner paid
 - [x] **Duel markets**: `create_duel`/`bet_duel`/`resolve_duel` — head-to-head "does run A outscore run B on the same bank?" with A-wins/B-wins/tie buckets; bets close once EITHER run starts scoring, settle reads both finalized `Run.correct`, E2E proves 25–19 resolution + pro-rata claim
@@ -401,3 +427,7 @@ Docs: [judges.md](docs/judges.md) (10-minute path) · [api.md](docs/api.md) (ins
 - [ ] Devnet sealing: blocked on an Arcium devnet outage — cluster 456 finalizes computations but does not submit callback txs (`callbackTransactionsSubmittedBm=0`); `scripts/gen-devnet-retry.sh`/`seal-devnet-retry.sh` complete the flow automatically when it recovers
 
 MIT.
+
+Custom runner clients must initialize the shared signer PDA once with
+`init_signer_pda` before queueing. The standard `chain init` command does this.
+See the October 11 audit for the SBF stack repair and current verification limits.

@@ -16,10 +16,10 @@ $ sealed chain stats --snapshot ../../web/snapshot.json
 ledger — 120 banks · 503 runs (406 MPC-finalized) · 340 venues (208 band/duel, 47 dark, 48 ladder, 37 bounty) · 140 positions (30% venue fill)
 registry — 31 records · 292 receipts (20/292 vouched, 4 post-reveal)
 disclosure — 30 reveals · 145 reshare grants · 41+29 item chunks
-money — 76.075◎ escrowed · 0.0000◎ protocol fees collected
+money — 76.075◎ escrowed · 0.0000◎ venue fees accrued · 1.7310◎ bank run-fees charged (174 paid runs across 28 fee-bearing banks) · 33 bounties claimed + 0.450◎ still escrowed
 integrity — registry 31/31 bit-exact · resolutions 201/201 match Run.correct
 mpc — scoring latency p50 4s / p95 9s (406 timed runs)
-actors — 470 runner wallets · 140 bettor wallets (3 sealed) · 1 bounty sponsors · 55 grant viewers
+actors — 470 runner wallets · 139 bettor wallets (3 sealed) · 1 bounty sponsors · 55 grant viewers
 keeper — 36 actionable now · 246 settled · 24 in play
 activity — ▂█▇▁ (2004 events over 4 day(s), 2026-09-30 → 2026-10-03 · peak 967/day)
 exams — 39 bank(s) with ≥4 models run · median spread 62.5pp · 30 sealed bank(s) never raced · hardest sealed-gen-v88123 (median 0%)
@@ -33,8 +33,8 @@ anomalies — the skeptic's checklist · 2 warn · 8 info · 2 clean
   [WARN] records that collapse under --no-post-reveal — 3
          3 record(s) lose EVERY receipt under a strict pre-reveal policy (test/post-reveal-scored, test/post-reveal-87070, test/post-reveal-35953) — their entire evidence postdates answer exposure
          drill → chain gate --all --no-post-reveal --min-runs 1 · chain runs --post-reveal
-  [note] stuck-pending runs — 6
-         6 run(s) queued >7d without finalizing — honest scar tissue of the Arcium callback outage; pending forever, never claimed as evidence
+  [note] stuck-pending runs — 97
+         97 run(s) queued >7d without finalizing — honest scar tissue of the Arcium callback outage; pending forever, never claimed as evidence
          drill → chain runs --status pending
   [note] thin records (>85% on <64 items) — none
          every high-accuracy record carries ≥64 scored items
@@ -51,8 +51,8 @@ anomalies — the skeptic's checklist · 2 warn · 8 info · 2 clean
   [note] duplicate bank names — 98
          98 banks share names — resolvers fan out to ALL matches and matrix columns disambiguate by on-chain id
          drill → chain banks --name <name>
-  [note] single-runner banks (≥3 runs, one key) — none
-         every multi-run bank has runner diversity
+  [note] single-runner banks (≥3 runs, one key) — 1
+         1 bank(s) were scored entirely by one runner key — receipt-level honesty holds, runner diversity does not
          drill → chain bank <pk>
   [note] resolved venues with empty books — none
          every resolved venue carried real stake
@@ -379,22 +379,22 @@ market escrow — 76.0750◎ cumulative stakes tracked across 303 venues + 37 bo
 $ sealed chain market live --snapshot ../../web/snapshot.json   (head -14)
 open venues — 28 accepting positions, soonest-close first
   ladder  4gx1VhwgTK9b… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 23.7d · expires in 23.7d
+    book 0.600◎ · bets close in 19.9d · expires in 19.9d
     sealed chain market quote 4gx1VhwgTK9bKQUUupZCA8LCiATPJGy1FQMi6GupDBbV <outcome> <lamports>
   ladder  EhMWpTjSC2f8… ladder — ladder/tie-a vs ladder/tie-b vs ladder/tie-c
-    book 0.300◎ · bets close in 24.0d · expires in 24.0d
+    book 0.300◎ · bets close in 20.2d · expires in 20.2d
     sealed chain market quote EhMWpTjSC2f8rcpfQ3TdALDMBD5zkNqoqC8uthEuK7WR <outcome> <lamports>
   ladder  7rMpsk7jGDPr… ladder — ladder/model-a vs ladder/model-b vs ladder/model-c
-    book 0.600◎ · bets close in 24.1d · expires in 24.1d
+    book 0.600◎ · bets close in 20.2d · expires in 20.2d
     sealed chain market quote 7rMpsk7jGDPrZxHyDUVah4Z8hbjJe6PUAzUKqhbmyoVN <outcome> <lamports>
   duel    GL4yEgmZPa5k… duel/model-a vs duel/model-b — who scores higher?
-    book 0.550◎ · bets close — · expires in 23.8d
+    book 0.550◎ · bets close — · expires in 20.0d
     sealed chain market quote GL4yEgmZPa5kTGkumRcUkQogosZZ2JzPwGbne47ALREv <outcome> <lamports>
   band    32B8aRsiEjhV… test/market-run — which of 2 band(s)?
 
 $ sealed chain market bounties --snapshot ../../web/snapshot.json   (head -10)
 37 bounties — 1 open (0 claimable right now):
-  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 569h  best-on-bank=64 (predates bounty — retroactivity wall)
+  2pumK8fXqz8S… open         sealed-test      ≥32/64  pot=0.200◎  deadline in 477h  best-on-bank=64 (predates bounty — retroactivity wall)
   3HJAbfiSssek… open·expired sealed-gen-v31406 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   EkpxZpe7vSn3… open·expired sealed-gen-v20554 ≥4/32  pot=0.100◎  deadline passed — expire_bounty refunds sponsor
   DLMkwgSQecbJ… open·expired sealed-gen-v5633 ≥30/32  pot=0.050◎  deadline passed — expire_bounty refunds sponsor
@@ -582,14 +582,19 @@ $ sealed chain runs --attested --snapshot ../../web/snapshot.json   (head -8)
   DnDKzjxyH8Yi3Z3VtFfos2ddYx7e2GcXeYYrSV8ahbnV  test/sweep-run           sealed-test         64/64 (100.0%) attested
   8XsUR1NyvZgRweUVgk6mCJEgvRfhsFLwpjFEwi8v4b9H  test/sweep-run           sealed-test         64/64 (100.0%) attested
 
-$ sealed chain gate --certify-verify docs/evidence/policies/min60-3runs.json
+$ sealed chain gate --certify-verify docs/evidence/policies/min60-3runs.json --snapshot ../../web/snapshot.json
   PASS record PDAs — 31/31 re-derived from [modelrec, sha256(model_id)]
-  PASS verdict replay — 31/31 verdicts recomputed bit-exact from embedded receipts
+  PASS model identity — 31/31 declared modelIds hash to their declared modelHash seeds — a rename can't ride another record's evidence
+  PASS verdict replay — 31/31 verdicts recomputed from embedded receipts (pass/reason exact, pct within 0.01pp)
   PASS summary consistent — 11/20/0 stored = 11/20/0 recomputed
-CERT VERIFIED — 31 records, 3 checks pass, 0 fail
+  PASS receipt binding — 31/31 models — embedded receipts == decoded ScoreLog multiset
+  PASS record-set completeness — 31 ModelRecords on-chain == 31 listed
+  PASS account modelId — 31/31 declared names == decoded ModelRecord.model_id
+CERT VERIFIED — 31 records, 7 checks pass, 0 fail
 
-$ sealed chain prove --verify docs/evidence/claims/qwen2.5-3b-instruct.json
+$ sealed chain prove --verify docs/evidence/claims/qwen2.5-3b-instruct.json --snapshot web/snapshot.json
   PASS record PDA — 7mAKsLaBqXcL… = [modelrec, sha256(qwen2.5-3b-instruct)]
+  PASS model identity — declared model id hashes to its declared modelHash seed
   PASS run PDAs — 11/11 re-derived
   PASS bank PDAs — 5/5 re-derived
   PASS receipt PDAs — 3/3 re-derived
@@ -598,10 +603,18 @@ $ sealed chain prove --verify docs/evidence/claims/qwen2.5-3b-instruct.json
   PASS runsScored=receipts — 3 receipt(s) = stored 3
   PASS receipt=run score — 3/3 receipts agree with Run.correct
   PASS venue resolutions — 5/5 re-derived from Run.correct
-CLAIM VERIFIED — qwen2.5-3b-instruct: 9 checks pass, 0 fail · 23/96 across 3 run(s)
+  PASS snapshot binding — 3/3 receipts == ScoreLog bytes, each bound to the named record · on-chain modelId matches
+  PASS receipt completeness — 3 ScoreLogs on-chain == 3 embedded
+  PASS record totals — stored 23/96 over 3 == decoded ModelRecord
+  PASS run account binding — 11/11 runs == decoded Run bytes
+  PASS run completeness — 11 subject+co-participant runs on-chain == 11 embedded
+  PASS venue account binding — 5/5 venues == decoded account fields
+  PASS venue completeness — 5 venues pricing this record on-chain == 5 embedded
+CLAIM VERIFIED — qwen2.5-3b-instruct: 17 checks pass, 0 fail · 23/96 across 3 run(s)
 
-$ sealed chain prove --verify docs/evidence/claims/ladder_model-a.json --min-pct 20
+$ sealed chain prove --verify docs/evidence/claims/ladder_model-a.json --min-pct 20 --snapshot web/snapshot.json
   PASS record PDA — A5Yj2wU1kYat… = [modelrec, sha256(ladder/model-a)]
+  PASS model identity — declared model id hashes to its declared modelHash seed
   PASS run PDAs — 69/69 re-derived
   PASS bank PDAs — 23/23 re-derived
   PASS receipt PDAs — 17/17 re-derived
@@ -610,7 +623,14 @@ $ sealed chain prove --verify docs/evidence/claims/ladder_model-a.json --min-pct
   PASS runsScored=receipts — 17 receipt(s) = stored 17
   PASS receipt=run score — 17/17 receipts agree with Run.correct
   PASS venue resolutions — 21/21 re-derived from Run.correct
-CLAIM VERIFIED — ladder/model-a: 9 checks pass, 0 fail · 510/544 across 17 run(s)
+  PASS snapshot binding — 17/17 receipts == ScoreLog bytes, each bound to the named record · on-chain modelId matches
+  PASS receipt completeness — 17 ScoreLogs on-chain == 17 embedded
+  PASS record totals — stored 510/544 over 17 == decoded ModelRecord
+  PASS run account binding — 69/69 runs == decoded Run bytes
+  PASS run completeness — 69 subject+co-participant runs on-chain == 69 embedded
+  PASS venue account binding — 23/23 venues == decoded account fields
+  PASS venue completeness — 23 venues pricing this record on-chain == 23 embedded
+CLAIM VERIFIED — ladder/model-a: 17 checks pass, 0 fail · 510/544 across 17 run(s)
 policy verdict — PASS (pass) · 510/544 = 93.8% over 17 run(s)
   ok   accuracy: 93.8% (510/544) (needed >= 20%)
 
@@ -623,6 +643,10 @@ sealed-board/v1 — board.json
   ✓ pairwise tallies — per-model W-L-T, ranked pairs, shared banks, ΣΔpp all re-derived equal
   ✓ ranking — Wilson-95 LCB order re-derived — #1 dark/model-a, 31 ranked rows in declared order
   ✓ snapshot binding — 292 receipts equal their ScoreLog accounts field-for-field; every score == Run.correct
+  ✓ model-set completeness — 31 ModelRecords on-chain == 31 listed
+  ✓ receipt completeness — every model's receipts == its full decoded ScoreLog set
+  ✓ record totals — every declared record row == its decoded ModelRecord field-for-field
+  ✓ totals — 31 models · 292 receipts · 73 pairs — recomputed
 BOARD VERIFIED — 31 models · 292 receipts · 73 ranked pairs; #1 dark/model-a
 
 $ sealed chain bank --verify docs/evidence/banks/sealed-priv.json --snapshot ../../web/snapshot.json   (the exam as a card — ciphertext fold, no key)
@@ -632,7 +656,7 @@ sealed-bank/v1 — sealed-priv.json
   ✓ items_root fold — 4 parts re-folded in landing order → 858709c261ce… == items_root
   ✓ bank fields — authority · id · name · kind · counts · items_root · fee · status all equal the decoded account
   ✓ run surface — 2 runs — PDAs re-derive · 2 field-bound · complete
-  ✓ disclosure surface — 0 reveals + 5 grants — PDAs re-derive · counts complete
+  ✓ disclosure surface — 0 reveals + 5 grants — PDAs re-derive · exact sets · field-bound
   ✓ receipt surface — 0 score receipts on this bank — field-bound · complete
   ✓ snapshot binding — sha256(snapshot.json) == card.snapshot
 BANK VERIFIED — sealed-priv · 1 chunks · 2 runs · 0 reveals · 5 grants
@@ -651,9 +675,10 @@ $ sealed chain market bounty card --verify docs/evidence/bounties/claimed-20of32
 sealed-bounty/v1 — claimed-20of32.json
   ✓ bounty PDA — [bounty, bank, sponsor, salt] @ market program
   ✓ account binding — threshold · amount · status · deadline · seeds · winner all equal the decoded Bounty
-  ✓ bounty_qualifies replay — bank=true postdates=true runner≠sponsor=true score≥threshold=true score==winning=true proven=true !post-reveal=true
-  ✓ winner binding — run account fields equal the decoded Run
+  ✓ bounty_qualifies replay — paidWinner=true bank=true postdates=true runner≠sponsor=true score≥threshold=true score==winning=true proven=true !post-reveal=true
+  ✓ winner binding — run account fields equal the decoded Run (correct · runner · bank · status · timestamps · mask · postReveal)
   ✓ threshold ≤ capacity — 4 ≤ 32 (sealed-gen-v24703)
+  ✓ verdict — state claimed == decoded bounty status
   ✓ snapshot binding — sha256 ac4617590680c497…
 BOUNTY VERIFIED — claimed · pot paid to runner · winner 20/32 beat threshold 4
 
@@ -663,12 +688,13 @@ sealed-grant/v1 — sealed-priv-panel.json
   ✓ account binding — bank · chunk · part · viewer · encKey · nonce · ciphertexts · sharedAt all equal the decoded ShareGrant
   ✓ key echo — encryption_key == viewer — the MPC bound output to the requested key
   ✓ bank semantics — sealed-priv kind=2 — ciphertext-only exam; the questions moved without publishing
+  ✓ bank account binding — card's bank block == decoded Benchmark (name · kind · items_root)
   ✓ panel tally — 5 grant(s) · 2 viewer(s) · 1 full-panel — re-derived
   ✓ snapshot binding — sha256 ac4617590680c497…
 GRANT VERIFIED — sealed-priv part 3 → viewer QwS93ebpYTw7… · 2 viewer(s) saw this exam · the answers never moved
 
-$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — 138 artifacts)
-scanning 166 candidate file(s) in ../../docs/evidence (recursive)
+$ sealed chain artifact docs/evidence --recursive --snapshot ../../web/snapshot.json   (the one command — every artifact)
+scanning 245 candidate file(s) in ../../docs/evidence (recursive)
   SKIP acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json — not a sealed artifact
   SKIP acct-3Kv748WJeawooGXtMJcYAKv6YwsjpJJMBwi1fSxxfByG.json — not a sealed artifact
   SKIP acct-4uns99WDqEFZCzNXa7KhW361CKd4XB5x7CLDX8THfJZ1.json — not a sealed artifact
@@ -691,126 +717,159 @@ scanning 166 candidate file(s) in ../../docs/evidence (recursive)
   PASS banks/sealed-gen.json                          sealed-bank/v1    — 8 checks
   PASS banks/sealed-priv.json                         sealed-bank/v1    — 8 checks
   PASS banks/sealed-test.json                         sealed-bank/v1    — 8 checks
-  PASS board.json                                     sealed-board/v1   — 7 checks
-  PASS bounties/claimed-20of32.json                   sealed-bounty/v1  — 6 checks
-  PASS bounties/open-sealed-test.json                 sealed-bounty/v1  — 5 checks
+  PASS board.json                                     sealed-board/v1   — 11 checks
+  PASS bounties/claimed-20of32.json                   sealed-bounty/v1  — 7 checks
+  PASS bounties/open-sealed-test.json                 sealed-bounty/v1  — 6 checks
   SKIP calibration/bank.json — not a sealed artifact
   SKIP calibration/run-artifact-15b.json — not a sealed artifact
   SKIP calibration/run-artifact.json — not a sealed artifact
-  PASS claims/dark_model-a.json                       sealed-claim/v1   — 9 checks
-  PASS claims/delegate_runner-1.json                  sealed-claim/v1   — 9 checks
-  PASS claims/duel_model-a.json                       sealed-claim/v1   — 9 checks
-  PASS claims/duel_model-b.json                       sealed-claim/v1   — 9 checks
-  PASS claims/ladder_model-a.json                     sealed-claim/v1   — 9 checks
-  PASS claims/ladder_model-b.json                     sealed-claim/v1   — 9 checks
-  PASS claims/ladder_model-c.json                     sealed-claim/v1   — 9 checks
-  PASS claims/ladder_tie-a.json                       sealed-claim/v1   — 9 checks
-  PASS claims/ladder_tie-b.json                       sealed-claim/v1   — 9 checks
-  PASS claims/ladder_tie-c.json                       sealed-claim/v1   — 9 checks
-  PASS claims/llama-3.2-1b-instruct.json              sealed-claim/v1   — 9 checks
-  PASS claims/mock_oracle-0.25.json                   sealed-claim/v1   — 9 checks
-  PASS claims/mock_oracle-0.5.json                    sealed-claim/v1   — 9 checks
-  PASS claims/mock_oracle-0.50.json                   sealed-claim/v1   — 9 checks
-  PASS claims/mock_oracle-0.75.json                   sealed-claim/v1   — 9 checks
-  PASS claims/qwen2.5-0.5b-instruct.json              sealed-claim/v1   — 9 checks
-  PASS claims/qwen2.5-1.5b-instruct.json              sealed-claim/v1   — 9 checks
-  PASS claims/qwen2.5-3b-instruct.json                sealed-claim/v1   — 9 checks
-  PASS claims/test_bounty-claimant.json               sealed-claim/v1   — 9 checks
-  PASS claims/test_bounty-wrong-payee.json            sealed-claim/v1   — 9 checks
-  PASS claims/test_gen-oracle.json                    sealed-claim/v1   — 9 checks
-  PASS claims/test_market-run.json                    sealed-claim/v1   — 9 checks
-  PASS claims/test_oracle.json                        sealed-claim/v1   — 9 checks
-  PASS claims/test_post-reveal-35953.json             sealed-claim/v1   — 9 checks
-  PASS claims/test_post-reveal-87070.json             sealed-claim/v1   — 9 checks
-  PASS claims/test_post-reveal-scored.json            sealed-claim/v1   — 9 checks
-  PASS claims/test_priv-oracle.json                   sealed-claim/v1   — 9 checks
-  PASS claims/test_registry-model-35953.json          sealed-claim/v1   — 9 checks
-  PASS claims/test_registry-model-87070.json          sealed-claim/v1   — 9 checks
-  PASS claims/test_registry-model.json                sealed-claim/v1   — 9 checks
-  PASS claims/test_sweep-run.json                     sealed-claim/v1   — 9 checks
+  PASS ceilings/dark_model-a.json                     sealed-ceiling/v1 — 9 checks
+  PASS ceilings/delegate_runner-1.json                sealed-ceiling/v1 — 9 checks
+  PASS ceilings/duel_model-a.json                     sealed-ceiling/v1 — 9 checks
+  PASS ceilings/duel_model-b.json                     sealed-ceiling/v1 — 9 checks
+  PASS ceilings/ladder_model-a.json                   sealed-ceiling/v1 — 9 checks
+  PASS ceilings/ladder_model-b.json                   sealed-ceiling/v1 — 9 checks
+  PASS ceilings/ladder_model-c.json                   sealed-ceiling/v1 — 9 checks
+  PASS ceilings/ladder_tie-a.json                     sealed-ceiling/v1 — 9 checks
+  PASS ceilings/ladder_tie-b.json                     sealed-ceiling/v1 — 9 checks
+  PASS ceilings/ladder_tie-c.json                     sealed-ceiling/v1 — 9 checks
+  PASS ceilings/llama-3.2-1b-instruct.json            sealed-ceiling/v1 — 9 checks
+  PASS ceilings/mock_oracle-0.25.json                 sealed-ceiling/v1 — 9 checks
+  PASS ceilings/mock_oracle-0.5.json                  sealed-ceiling/v1 — 9 checks
+  PASS ceilings/mock_oracle-0.50.json                 sealed-ceiling/v1 — 9 checks
+  PASS ceilings/mock_oracle-0.75.json                 sealed-ceiling/v1 — 9 checks
+  PASS ceilings/qwen2.5-0.5b-instruct.json            sealed-ceiling/v1 — 9 checks
+  PASS ceilings/qwen2.5-1.5b-instruct.json            sealed-ceiling/v1 — 9 checks
+  PASS ceilings/qwen2.5-3b-instruct.json              sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_bounty-claimant.json             sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_bounty-wrong-payee.json          sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_gen-oracle.json                  sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_market-run.json                  sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_oracle.json                      sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_post-reveal-35953.json           sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_post-reveal-87070.json           sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_post-reveal-scored.json          sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_priv-oracle.json                 sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_registry-model-35953.json        sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_registry-model-87070.json        sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_registry-model.json              sealed-ceiling/v1 — 9 checks
+  PASS ceilings/test_sweep-run.json                   sealed-ceiling/v1 — 9 checks
+  PASS circuit/arcium-devnet.json                     sealed-circuit/v1 — 13 checks
+  PASS claims/dark_model-a.json                       sealed-claim/v1   — 17 checks
+  PASS claims/delegate_runner-1.json                  sealed-claim/v1   — 17 checks
+  PASS claims/duel_model-a.json                       sealed-claim/v1   — 17 checks
+  PASS claims/duel_model-b.json                       sealed-claim/v1   — 17 checks
+  PASS claims/ladder_model-a.json                     sealed-claim/v1   — 17 checks
+  PASS claims/ladder_model-b.json                     sealed-claim/v1   — 17 checks
+  PASS claims/ladder_model-c.json                     sealed-claim/v1   — 17 checks
+  PASS claims/ladder_tie-a.json                       sealed-claim/v1   — 17 checks
+  PASS claims/ladder_tie-b.json                       sealed-claim/v1   — 17 checks
+  PASS claims/ladder_tie-c.json                       sealed-claim/v1   — 17 checks
+  PASS claims/llama-3.2-1b-instruct.json              sealed-claim/v1   — 17 checks
+  PASS claims/mock_oracle-0.25.json                   sealed-claim/v1   — 17 checks
+  PASS claims/mock_oracle-0.5.json                    sealed-claim/v1   — 17 checks
+  PASS claims/mock_oracle-0.50.json                   sealed-claim/v1   — 17 checks
+  PASS claims/mock_oracle-0.75.json                   sealed-claim/v1   — 17 checks
+  PASS claims/qwen2.5-0.5b-instruct.json              sealed-claim/v1   — 17 checks
+  PASS claims/qwen2.5-1.5b-instruct.json              sealed-claim/v1   — 17 checks
+  PASS claims/qwen2.5-3b-instruct.json                sealed-claim/v1   — 17 checks
+  PASS claims/test_bounty-claimant.json               sealed-claim/v1   — 17 checks
+  PASS claims/test_bounty-wrong-payee.json            sealed-claim/v1   — 17 checks
+  PASS claims/test_gen-oracle.json                    sealed-claim/v1   — 17 checks
+  PASS claims/test_market-run.json                    sealed-claim/v1   — 17 checks
+  PASS claims/test_oracle.json                        sealed-claim/v1   — 17 checks
+  PASS claims/test_post-reveal-35953.json             sealed-claim/v1   — 17 checks
+  PASS claims/test_post-reveal-87070.json             sealed-claim/v1   — 17 checks
+  PASS claims/test_post-reveal-scored.json            sealed-claim/v1   — 17 checks
+  PASS claims/test_priv-oracle.json                   sealed-claim/v1   — 17 checks
+  PASS claims/test_registry-model-35953.json          sealed-claim/v1   — 17 checks
+  PASS claims/test_registry-model-87070.json          sealed-claim/v1   — 17 checks
+  PASS claims/test_registry-model.json                sealed-claim/v1   — 17 checks
+  PASS claims/test_sweep-run.json                     sealed-claim/v1   — 17 checks
   PASS digest.json                                    sealed-evidence-digest/v1 — 3 checks
-  PASS grants/sealed-priv-first.json                  sealed-grant/v1   — 6 checks
-  PASS grants/sealed-priv-panel.json                  sealed-grant/v1   — 6 checks
-  PASS matches/dark_model-a-vs-duel_model-a.json      sealed-match/v1   — 9 checks
-  PASS matches/dark_model-a-vs-duel_model-b.json      sealed-match/v1   — 9 checks
-  PASS matches/dark_model-a-vs-ladder_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/dark_model-a-vs-ladder_tie-b.json      sealed-match/v1   — 9 checks
-  PASS matches/duel_model-b-vs-duel_model-a.json      sealed-match/v1   — 9 checks
-  PASS matches/duel_model-b-vs-ladder_tie-b.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-a-vs-duel_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-a-vs-duel_model-b.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-a-vs-ladder_tie-b.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-dark_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-duel_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-duel_model-b.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-ladder_model-a.json  sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-ladder_model-c.json  sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-ladder_tie-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-ladder_tie-b.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-ladder_tie-c.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-b-vs-test_gen-oracle.json sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-c-vs-dark_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-c-vs-duel_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-c-vs-duel_model-b.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-c-vs-ladder_model-a.json  sealed-match/v1   — 9 checks
-  PASS matches/ladder_model-c-vs-ladder_tie-b.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-a-vs-dark_model-a.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-a-vs-duel_model-a.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-a-vs-duel_model-b.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-a-vs-ladder_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-a-vs-ladder_model-c.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-a-vs-ladder_tie-b.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-b-vs-duel_model-a.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-c-vs-dark_model-a.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-c-vs-duel_model-a.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-c-vs-duel_model-b.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-c-vs-ladder_model-a.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-c-vs-ladder_model-c.json    sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-c-vs-ladder_tie-a.json      sealed-match/v1   — 9 checks
-  PASS matches/ladder_tie-c-vs-ladder_tie-b.json      sealed-match/v1   — 9 checks
-  PASS matches/mock_oracle-0.25-vs-mock_oracle-0.50.json sealed-match/v1   — 9 checks
-  PASS matches/mock_oracle-0.25-vs-mock_oracle-0.75.json sealed-match/v1   — 9 checks
-  PASS matches/mock_oracle-0.50-vs-mock_oracle-0.75.json sealed-match/v1   — 9 checks
-  PASS matches/qwen2.5-0.5b-instruct-vs-llama-3.2-1b-instruct.json sealed-match/v1   — 9 checks
-  PASS matches/qwen2.5-1.5b-instruct-vs-llama-3.2-1b-instruct.json sealed-match/v1   — 9 checks
-  PASS matches/qwen2.5-1.5b-instruct-vs-qwen2.5-0.5b-instruct.json sealed-match/v1   — 9 checks
-  PASS matches/qwen2.5-3b-instruct-vs-llama-3.2-1b-instruct.json sealed-match/v1   — 9 checks
-  PASS matches/qwen2.5-3b-instruct-vs-qwen2.5-0.5b-instruct.json sealed-match/v1   — 9 checks
-  PASS matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json sealed-match/v1   — 9 checks
-  PASS matches/test_bounty-wrong-payee-vs-test_bounty-claimant.json sealed-match/v1   — 9 checks
-  PASS matches/test_bounty-wrong-payee-vs-test_market-run.json sealed-match/v1   — 9 checks
-  PASS matches/test_bounty-wrong-payee-vs-test_oracle.json sealed-match/v1   — 9 checks
-  PASS matches/test_bounty-wrong-payee-vs-test_sweep-run.json sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-dark_model-a.json   sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-duel_model-a.json   sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-duel_model-b.json   sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-ladder_model-a.json sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-ladder_model-c.json sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-ladder_tie-a.json   sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-ladder_tie-b.json   sealed-match/v1   — 9 checks
-  PASS matches/test_gen-oracle-vs-ladder_tie-c.json   sealed-match/v1   — 9 checks
-  PASS matches/test_market-run-vs-test_bounty-claimant.json sealed-match/v1   — 9 checks
-  PASS matches/test_market-run-vs-test_oracle.json    sealed-match/v1   — 9 checks
-  PASS matches/test_oracle-vs-test_bounty-claimant.json sealed-match/v1   — 9 checks
-  PASS matches/test_priv-oracle-vs-delegate_runner-1.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-35953-vs-test_post-reveal-35953.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-87070-vs-test_post-reveal-87070.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-vs-test_bounty-claimant.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-vs-test_bounty-wrong-payee.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-vs-test_market-run.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-vs-test_oracle.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-vs-test_post-reveal-scored.json sealed-match/v1   — 9 checks
-  PASS matches/test_registry-model-vs-test_sweep-run.json sealed-match/v1   — 9 checks
-  PASS matches/test_sweep-run-vs-test_bounty-claimant.json sealed-match/v1   — 9 checks
-  PASS matches/test_sweep-run-vs-test_market-run.json sealed-match/v1   — 9 checks
-  PASS matches/test_sweep-run-vs-test_oracle.json     sealed-match/v1   — 9 checks
-  PASS policies/min60-3runs.json                      sealed-policy/v1  — 3 checks
-  PASS policies/sealed-test-60pct.json                sealed-policy/v1  — 3 checks
-  PASS policies/strict70-vouched.json                 sealed-policy/v1  — 3 checks
+  PASS grants/sealed-priv-first.json                  sealed-grant/v1   — 7 checks
+  PASS grants/sealed-priv-panel.json                  sealed-grant/v1   — 7 checks
+  PASS ledger/ledger.json                             sealed-ledger/v1  — 6 checks
+  PASS matches/dark_model-a-vs-duel_model-a.json      sealed-match/v1   — 14 checks
+  PASS matches/dark_model-a-vs-duel_model-b.json      sealed-match/v1   — 14 checks
+  PASS matches/dark_model-a-vs-ladder_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/dark_model-a-vs-ladder_tie-b.json      sealed-match/v1   — 14 checks
+  PASS matches/duel_model-b-vs-duel_model-a.json      sealed-match/v1   — 14 checks
+  PASS matches/duel_model-b-vs-ladder_tie-b.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-a-vs-duel_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-a-vs-duel_model-b.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-a-vs-ladder_tie-b.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-dark_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-duel_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-duel_model-b.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-ladder_model-a.json  sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-ladder_model-c.json  sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-ladder_tie-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-ladder_tie-b.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-ladder_tie-c.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-b-vs-test_gen-oracle.json sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-c-vs-dark_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-c-vs-duel_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-c-vs-duel_model-b.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-c-vs-ladder_model-a.json  sealed-match/v1   — 14 checks
+  PASS matches/ladder_model-c-vs-ladder_tie-b.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-a-vs-dark_model-a.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-a-vs-duel_model-a.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-a-vs-duel_model-b.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-a-vs-ladder_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-a-vs-ladder_model-c.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-a-vs-ladder_tie-b.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-b-vs-duel_model-a.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-c-vs-dark_model-a.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-c-vs-duel_model-a.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-c-vs-duel_model-b.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-c-vs-ladder_model-a.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-c-vs-ladder_model-c.json    sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-c-vs-ladder_tie-a.json      sealed-match/v1   — 14 checks
+  PASS matches/ladder_tie-c-vs-ladder_tie-b.json      sealed-match/v1   — 14 checks
+  PASS matches/mock_oracle-0.25-vs-mock_oracle-0.50.json sealed-match/v1   — 14 checks
+  PASS matches/mock_oracle-0.25-vs-mock_oracle-0.75.json sealed-match/v1   — 14 checks
+  PASS matches/mock_oracle-0.50-vs-mock_oracle-0.75.json sealed-match/v1   — 14 checks
+  PASS matches/qwen2.5-0.5b-instruct-vs-llama-3.2-1b-instruct.json sealed-match/v1   — 14 checks
+  PASS matches/qwen2.5-1.5b-instruct-vs-llama-3.2-1b-instruct.json sealed-match/v1   — 14 checks
+  PASS matches/qwen2.5-1.5b-instruct-vs-qwen2.5-0.5b-instruct.json sealed-match/v1   — 14 checks
+  PASS matches/qwen2.5-3b-instruct-vs-llama-3.2-1b-instruct.json sealed-match/v1   — 14 checks
+  PASS matches/qwen2.5-3b-instruct-vs-qwen2.5-0.5b-instruct.json sealed-match/v1   — 14 checks
+  PASS matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json sealed-match/v1   — 14 checks
+  PASS matches/test_bounty-wrong-payee-vs-test_bounty-claimant.json sealed-match/v1   — 14 checks
+  PASS matches/test_bounty-wrong-payee-vs-test_market-run.json sealed-match/v1   — 14 checks
+  PASS matches/test_bounty-wrong-payee-vs-test_oracle.json sealed-match/v1   — 14 checks
+  PASS matches/test_bounty-wrong-payee-vs-test_sweep-run.json sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-dark_model-a.json   sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-duel_model-a.json   sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-duel_model-b.json   sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-ladder_model-a.json sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-ladder_model-c.json sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-ladder_tie-a.json   sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-ladder_tie-b.json   sealed-match/v1   — 14 checks
+  PASS matches/test_gen-oracle-vs-ladder_tie-c.json   sealed-match/v1   — 14 checks
+  PASS matches/test_market-run-vs-test_bounty-claimant.json sealed-match/v1   — 14 checks
+  PASS matches/test_market-run-vs-test_oracle.json    sealed-match/v1   — 14 checks
+  PASS matches/test_oracle-vs-test_bounty-claimant.json sealed-match/v1   — 14 checks
+  PASS matches/test_priv-oracle-vs-delegate_runner-1.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-35953-vs-test_post-reveal-35953.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-87070-vs-test_post-reveal-87070.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-vs-test_bounty-claimant.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-vs-test_bounty-wrong-payee.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-vs-test_market-run.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-vs-test_oracle.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-vs-test_post-reveal-scored.json sealed-match/v1   — 14 checks
+  PASS matches/test_registry-model-vs-test_sweep-run.json sealed-match/v1   — 14 checks
+  PASS matches/test_sweep-run-vs-test_bounty-claimant.json sealed-match/v1   — 14 checks
+  PASS matches/test_sweep-run-vs-test_market-run.json sealed-match/v1   — 14 checks
+  PASS matches/test_sweep-run-vs-test_oracle.json     sealed-match/v1   — 14 checks
+  PASS policies/min60-3runs.json                      sealed-policy/v1  — 7 checks
+  PASS policies/sealed-test-60pct.json                sealed-policy/v1  — 7 checks
+  PASS policies/strict70-vouched.json                 sealed-policy/v1  — 7 checks
   PASS positions/sealed-dark.json                     sealed-position/v1 — 6 checks
   PASS positions/winning-band.json                    sealed-position/v1 — 6 checks
-  SKIP prove-gen-item0.json — not a sealed artifact
-  SKIP prove-item0.json — not a sealed artifact
+  SKIP prove-cal15b-item0.json — not a sealed artifact
+  SKIP prove-cal3b-item0.json — not a sealed artifact
   PASS reports/llama-3.2-1b-instruct.md               sealed-report/v1  — 3 checks
   PASS reports/qwen2.5-0.5b-instruct.md               sealed-report/v1  — 3 checks
   PASS reports/qwen2.5-1.5b-instruct.md               sealed-report/v1  — 3 checks
@@ -820,38 +879,89 @@ scanning 166 candidate file(s) in ../../docs/evidence (recursive)
   SKIP run-gen6932-real-artifact.json — not a sealed artifact
   SKIP run-real-99003-artifact.json — not a sealed artifact
   SKIP snapshot.json — not a sealed artifact
+  PASS tamper/arcium-devnet.fork-the-cluster-re-home-the-circuits-to-offset-0.json sealed-tamper/v1  — 2 checks
+  PASS tamper/arcium-devnet.invent-the-committee-fabricate-the-cluster-s-bls-key.json sealed-tamper/v1  — 2 checks
+  PASS tamper/arcium-devnet.re-key-the-mxe-substitute-the-signpda-address.json sealed-tamper/v1  — 2 checks
+  PASS tamper/arcium-devnet.repoint-the-bytecode-move-a-raw-circuit-to-a-phantom-pda.json sealed-tamper/v1  — 2 checks
+  PASS tamper/arcium-devnet.reroute-score-chunk-point-the-scoring-circuit-at-a-phantom-pda.json sealed-tamper/v1  — 2 checks
+  PASS tamper/arcium-devnet.retire-the-privacy-circuit-drop-reshare-part.json sealed-tamper/v1  — 2 checks
+  PASS tamper/arcium-devnet.swap-the-bytecode-record-a-phantom-raw-circuit-hash.json sealed-tamper/v1  — 2 checks
+  PASS tamper/board.erase-the-1-model-re-rank-a-cropped-leaderboard.json sealed-tamper/v1  — 2 checks
   PASS tamper/board.inflate-a-receipt-s-score.json    sealed-tamper/v1  — 2 checks
   PASS tamper/board.swap-the-1-rank.json              sealed-tamper/v1  — 2 checks
   PASS tamper/board.un-vouch-an-attested-receipt.json sealed-tamper/v1  — 2 checks
+  PASS tamper/claimed-20of32.dress-the-winner-inflate-the-documented-score.json sealed-tamper/v1  — 2 checks
+  PASS tamper/claimed-20of32.dress-the-winner-postdate-a-too-early-run.json sealed-tamper/v1  — 2 checks
   PASS tamper/claimed-20of32.steal-the-bounty-below-threshold.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a-vs-duel_model-a.backdate-a-receipt-launder-when-the-score-was-written.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a-vs-duel_model-a.clone-a-winning-receipt-buy-the-verdict-wholesale.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a-vs-duel_model-a.drop-a-shared-bank-launder-the-head-to-head.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a-vs-duel_model-a.flip-the-head-to-head-verdict.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a-vs-duel_model-a.launder-the-loser-rename-side-a-s-model.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a-vs-duel_model-a.move-a-receipt-off-its-run-s-bank.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a.drop-the-worst-receipt-rewrite-the-record-over-the-subset.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a.forge-a-priced-run-rewrite-the-leg-the-venue-scored.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a.inject-a-phantom-died-at-launder-where-the-forgery-fell.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a.launder-the-receipts-rename-the-model.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a.mint-a-phantom-receipt.json sealed-tamper/v1  — 2 checks
+  PASS tamper/dark_model-a.omit-a-settled-venue-hide-the-loss.json sealed-tamper/v1  — 2 checks
+  PASS tamper/ledger.hide-a-bank-shave-the-benchmark-census.json sealed-tamper/v1  — 2 checks
+  PASS tamper/ledger.launder-the-set-swap-the-pubkey-set-hash.json sealed-tamper/v1  — 2 checks
+  PASS tamper/ledger.phantom-run-pad-the-run-count.json sealed-tamper/v1  — 2 checks
+  PASS tamper/ledger.re-date-the-dump-claim-a-fresh-census.json sealed-tamper/v1  — 2 checks
+  PASS tamper/llama-3.2-1b-instruct.hide-the-argmax-run-erase-the-model-s-best-score.json sealed-tamper/v1  — 2 checks
+  PASS tamper/llama-3.2-1b-instruct.launder-the-ceiling-rename-the-model.json sealed-tamper/v1  — 2 checks
+  PASS tamper/llama-3.2-1b-instruct.shave-the-ceiling-claim-a-lower-max-than-the-data-shows.json sealed-tamper/v1  — 2 checks
+  PASS tamper/llama-3.2-1b-instruct.unpin-the-ceiling-strip-the-snapshot-binding.json sealed-tamper/v1  — 2 checks
+  PASS tamper/min60-3runs.drop-a-model-s-worst-receipt-recompute-the-totals-over-the-subset.json sealed-tamper/v1  — 2 checks
+  PASS tamper/min60-3runs.erase-a-whole-model-from-the-certificate.json sealed-tamper/v1  — 2 checks
   PASS tamper/min60-3runs.flip-a-model-s-gate-verdict.json sealed-tamper/v1  — 2 checks
+  PASS tamper/min60-3runs.rename-a-model-ride-its-own-record.json sealed-tamper/v1  — 2 checks
+  PASS tamper/qwen2.5-3b-instruct.edit-the-pinned-claim-hash.json sealed-tamper/v1  — 2 checks
+  PASS tamper/qwen2.5-3b-instruct.retitle-the-report-bind-a-different-model.json sealed-tamper/v1  — 2 checks
   PASS tamper/qwen3b-ladder-deadheat.rewrite-the-settled-money.json sealed-tamper/v1  — 2 checks
   PASS tamper/qwen3b-ladder-deadheat.substitute-the-oracle-rewrite-the-mpc-s-score.json sealed-tamper/v1  — 2 checks
   PASS tamper/qwen3b-private-duel.rewrite-the-settled-money.json sealed-tamper/v1  — 2 checks
   PASS tamper/qwen3b-private-duel.substitute-the-oracle-rewrite-the-mpc-s-score.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-priv-first.redescribe-the-exam-rename-the-bank-block.json sealed-tamper/v1  — 2 checks
   PASS tamper/sealed-priv-first.redirect-the-disclosure-to-another-viewer.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-priv.backdate-a-grant-pretend-the-viewer-came-early.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-priv.duplicate-a-reveal-pad-the-disclosure-count.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-priv.mint-a-phantom-run-on-the-exam.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-priv.re-seat-a-reveal-at-a-chunk-that-never-opened.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-test.backdate-a-grant-pretend-the-viewer-came-early.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-test.duplicate-a-receipt-drop-a-sibling-the-count-survives.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-test.duplicate-a-reveal-pad-the-disclosure-count.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-test.duplicate-a-run-drop-a-sibling-the-count-survives.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-test.mint-a-phantom-run-on-the-exam.json sealed-tamper/v1  — 2 checks
+  PASS tamper/sealed-test.re-seat-a-reveal-at-a-chunk-that-never-opened.json sealed-tamper/v1  — 2 checks
   PASS tamper/winning-band.inflate-a-winning-stake.json sealed-tamper/v1  — 2 checks
-  PASS trails/qwen3b-bounty-claim.json                sealed-trail/v1   — 10 checks
-  PASS trails/qwen3b-calibration.json                 sealed-trail/v1   — 10 checks
+  PASS trails/qwen3b-bounty-claim.json                sealed-trail/v1   — 11 checks
+  PASS trails/qwen3b-calibration.json                 sealed-trail/v1   — 11 checks
   PASS trails/qwen3b-ladder-deadheat.json             sealed-trail/v1   — 10 checks
   PASS trails/qwen3b-private-duel.json                sealed-trail/v1   — 9 checks
-ALL ARTIFACTS VERIFIED — 138 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 1× sealed-catalog/v1, 3× sealed-bank/v1, 1× sealed-board/v1, 2× sealed-bounty/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 2× sealed-grant/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 2× sealed-position/v1, 4× sealed-report/v1, 11× sealed-tamper/v1, 4× sealed-trail/v1
+ALL ARTIFACTS VERIFIED — 217 artifact(s) replayed, 28 non-artifact(s) skipped, ../../docs/evidence · 1× sealed-catalog/v1, 3× sealed-bank/v1, 1× sealed-board/v1, 2× sealed-bounty/v1, 31× sealed-ceiling/v1, 1× sealed-circuit/v1, 31× sealed-claim/v1, 1× sealed-evidence-digest/v1, 2× sealed-grant/v1, 1× sealed-ledger/v1, 73× sealed-match/v1, 3× sealed-policy/v1, 2× sealed-position/v1, 4× sealed-report/v1, 57× sealed-tamper/v1, 4× sealed-trail/v1
 
 $ sealed chain catalog --check   (the index proves itself complete)
-CATALOG COMPLETE — 137 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
+CATALOG COMPLETE — 216 artifact(s), every sealed-*/v1 file under ../../docs/evidence/ is listed
 
 $ sealed chain artifact docs/evidence/tamper/board.inflate-a-receipt-s-score.json --snapshot ../../web/snapshot.json   (a committed lie — 'verifying' it proves the forgery dies)
 detected sealed-tamper/v1 — routing to its verifier
   PASS inner forgery rejected — the sealed-board/v1 verifier refused it
-  PASS named check — expected (any rejection)
+       died at: aggregates
+       died at: pairwise verdicts
+       died at: pairwise tallies
+       died at: ranking
+  PASS named check — expected aggregates, pairwise verdicts, pairwise tallies, ranking, snapshot binding
 TAMPER EXHIBIT VERIFIED — "inflate a receipt's score" on board.json
 
 $ sealed chain artifact docs/evidence/board.json --tamper --snapshot ../../web/snapshot.json   (the forgery lab — attack the leaderboard yourself)
-sealed-tamper/v1 — sealed-board/v1 · 3 canned attack(s)
+sealed-tamper/v1 — sealed-board/v1 · 4 canned attack(s)
   FORGERY CAUGHT — inflate a receipt's score
   FORGERY CAUGHT — swap the #1 rank
   FORGERY CAUGHT — un-vouch an attested receipt
-ALL 3 FORGERIES CAUGHT — the verifier rejects its own lies
+  FORGERY CAUGHT — erase the #1 model — re-rank a cropped leaderboard
+ALL 4 FORGERIES CAUGHT — the verifier rejects its own lies
 
 $ sealed chain diff web/snapshot.json web/snapshot.json   (integrity self-check)
 diff ../../web/snapshot.json → ../../web/snapshot.json
@@ -865,7 +975,7 @@ fingerprint flagging THAT file mid-flight is the feature working.
 The committed copy passes (see scripts/verify-all.sh stage output).
 sealed-fingerprint/v1 — the whole evidence base as one hash
   snapshot.json     ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079
-  docs/evidence     b94d89eb34ac0756457a447879a359eda8a0bcf31a5026dc6aea0a2c394fe7d4  (191 pinned file(s))
-  web bundle        f57d1c47662a8101875ee4ca0901cc507daa9daf6488586d083f6867713a68fe  (160 pinned file(s))
-  re-hash check     FAIL — 350/351 file(s) match · ../../docs/evidence/replay.txt
-  BUNDLE ROOT       782b4dc39c6aa55f67f03ec2c68d1bf2e3a9a0c5520735340c4b1a29cebec797
+  docs/evidence     c1b57a98fdfb11f49d1a156a8f8dd5dcf179c183d4d3526d95c9ae2cd0bbaa6a  (273 pinned file(s))
+  web bundle        f8772f2d5399f54c2a059a739db41364e2622d2fdc80a18ce89e8ff02c887619  (233 pinned file(s))
+  re-hash check     FAIL — 488/506 file(s) match · ../../docs/evidence/replay.txt, ../../web/SHA256SUMS, ../../web/artifacts.json, ../../web/index.html, ../../web/tamper/arcium-devnet.fork-the-cluster-re-home-the-circuits-to-offset-0.json…
+  BUNDLE ROOT       dbb4c06e211e7dd47fcc67339032e78ae2a3259f009ccbdb007d743fcd7af0f5

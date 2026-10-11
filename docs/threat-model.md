@@ -1,15 +1,20 @@
 # Sealed — threat model
 
-What each participant can and cannot do. The whole point of the design is that
-nobody — including the operator — ever sees the plaintext benchmark answers
-after sealing, and nobody can fabricate a score.
+What each participant can and cannot do. Confidentiality depends on the
+executing MPC committee and the data disclosed by each circuit. Scoring binds
+submitted outputs to the committed exam; it does not prove model identity.
+An authored-bank author knows the answers. Public generated specs are solvable,
+and authorized private-exam viewers can solve or leak the questions they receive.
+The offline bundle checks internal consistency, not independent historical
+chain origin. A malicious capture producer can invent consistent bytes; an
+independent live chain read or signed execution provenance is a separate claim.
 
 ## Actors
 
 - **Benchmark author** (authored banks only) — holds the plaintext bank and the
   shared encryption key until the last `seal_part` lands. After that the key can
   be discarded; the onchain state only carries MXE-encrypted ciphertexts.
-  **Generated banks have no author at all** — items are minted inside MPC and
+  **Generated banks have no separately authored answer file** — the bank operator still chooses the task and can mint multiple exams. Items are minted inside MPC and
   the answer fingerprints are born as MXE ciphertext.
 - **Runner** — submits a model's outputs as public hashes (`outputs_root` +
   per-chunk hashes), pays the run fee.
@@ -31,9 +36,9 @@ after sealing, and nobody can fabricate a score.
 | An operator cannot steal the pot | Parimutuel payout is pro-rata of `amounts`/`totals`; the market account only pays `position` PDAs belonging to real bettors; no admin withdraw |
 | Bets are placed without leaked score info | `bet`/`create_market` reject runs where `scored_mask != 0` — once MPC scoring starts, partial scores could leak information |
 | Judges can audit a run without trusting us | `sealed prove --item i` emits a Merkle proof against the onchain `outputs_root`; the web verifier recomputes it in-browser |
-| A generated bank has no answer key to leak | `gen_part` draws item specs from `ArcisRNG` inside MPC, computes answers in-circuit, fingerprints them (SHA3-256 over raw i64 bytes), and returns them `Enc<Mxe>`. Plaintext answers never exist on any machine. |
+| Generated fingerprints avoid a separately custodied answer file | `gen_part` draws item specs from `ArcisRNG` inside MPC, computes answers in-circuit, fingerprints them (SHA3-256 over raw i64 bytes), and returns them `Enc<Mxe>`. No generated answer plaintext is emitted by this circuit. Public specs and authorized private-question viewers can still compute answers. |
 | A private bank's questions stay confidential | `gen_part_private` returns the specs as `Enc<Shared, Pack<GenPart>>` to a viewer x25519 key (the authority's, derived from their Solana keypair). `PrivItemChunk` stores ciphertext + nonce + the recipient pubkey only — a public RPC reader sees encrypted bytes. The `items_root` fold commits to the ciphertext itself (`sealed/v1/privitems` over cts‖nonce), so the mint transcript is verifiable by anyone without the key. Only the authority decrypts (`DH(viewer_priv, mxe_pub)`); a wrong key yields garbage that fails the spec range check. The mint also publishes a **spec commitment** per part (SHA3-256 over the plaintext specs, revealed by the circuit): the callback writes it onto `PrivItemChunk.spec_commitments[part]`, and `reshare_part` recomputes it onto every `ShareGrant` — a delegate re-hashes its decrypted specs and proves the grant carries THE bank's committed exam, not a doctored substitute. |
-| Generated items can't be planted or pre-leaked | Specs are drawn at mint time from cluster randomness — after the benchmark is created, after models trained. No operator authored them, so nothing was cherry-picked for a favored model. |
+| Generated specs are drawn inside the computation | Specs use cluster randomness at mint. This does not prove the operator avoided re-minting, selecting a favorable exam, or disclosing solvable questions in advance. |
 | Generated specs are auditable | Every spec lands publicly in an `ItemChunk` account; the benchmark's `items_root` is a running SHA-256 fold over the exact spec bytes — anyone can re-render prompts and re-fold to verify. |
 | A score can be spot-checked without a key | `reveal_part` declassifies one part's eight answer *fingerprints* at the authority's request — the circuit decrypts inside MPC and returns hashes, never plaintext. `chain verify` compares them to a run's committed output hashes, so anyone can recompute what `score_chunk` counted on the revealed positions. The authority chooses what to declassify; MPC mediates so even it never receives answers. |
 | Questions can be disclosed selectively without publishing | `reshare_part` decrypts a private bank part inside MPC and re-encrypts the specs to a *delegate's* x25519 key — the grant lands in a per-(chunk, part, viewer) `ShareGrant` PDA, so who-can-see-what is onchain evidence. Disclosure is one-directional: the delegate decrypts with their own wallet (`DH(delegate_priv, mxe_pub)`) while the authority's key cannot open the delegate's grant, and a stranger cannot queue a reshare (`NotAuthority`). Answers never move — only the questions. The chain records *that* disclosure happened, not *what* was disclosed. |
@@ -54,9 +59,9 @@ after sealing, and nobody can fabricate a score.
   mechanically. A fully-malicious cluster could forge `correct`; that is
   the same trust model every Arcium app inherits — what Sealed removes is
   the *benchmark operator*, the *scoring vendor*, and the *leaderboard
-  maintainer*, none of which exist here.
+  maintainer*, whose roles do not determine a correctly executed callback score; operators and maintainers still exist and are relevant to task selection and capture provenance.
 - **Benchmark author honesty** — *authored banks only*. The author chooses the
-  questions and answers; Sealed prevents *leakage* and *score forgery*, not a
+  questions and answers; Sealed restricts normal onchain disclosure and binds scoring to committed data under MPC assumptions; it cannot stop an author leaking answers or creating a
   bad-faith bank. Reputation + published `items_root` are the mitigation.
 - **Callback delivery binding** — the score/reveal/reshare callbacks rely on
   the Arcium program's registered-account-list enforcement (queue-time

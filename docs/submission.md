@@ -1,3 +1,8 @@
+> **Historical technical evidence, not current form copy.** For the current
+> Crypto World's Fair narrative use `submission-fields.md` and `pitch.md`.
+> The latest Rust changes have not been redeployed; deployment and E2E results
+> below are dated historical observations. See `audit-2026-10-11.md`.
+
 # Sealed — submission evidence
 
 Everything below is verifiable on-chain or reproducible from this repo.
@@ -9,7 +14,7 @@ Everything below is verifiable on-chain or reproducible from this repo.
 | sealed (benchmark oracle, Arcium MXE) | `FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ` | deployed; MXE initialized on cluster 456; comp defs + circuits uploaded. `solana -u devnet program show <id>`: last deployed slot 506451728, authority `4RUW4pDm…` |
 | market (N-way parimutuel resolver) | `8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN` | deployed with duel + ladder + dark commit-reveal support; upgradeable under `4RUW4pDm…` |
 
-**Deploy state:** BOTH programs byte-match the committed build on devnet —
+**Historical deploy observation (October 9, before the latest Rust changes):** both programs byte-matched the then-current build on devnet —
 `scripts/verify-deployed.sh` dumps each on-chain ELF and sha256-compares it
 against `target/deploy/*.so` (zero-padding tail stripped; byte-identical,
 not just "deployed"). sealed was re-upgraded 2026-10-09 (sig `9CzVxVEo…`,
@@ -121,7 +126,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
 - **Generated banks — the headline feature.** `chain gen` mints a benchmark
   *inside* MPC: the `gen_part` Arcis instruction draws item specs from
   `ArcisRNG`, computes answers in-circuit, fingerprints them (SHA3-256 over
-  raw i64 bytes), and returns them `Enc<Mxe>`. **The answer key never exists
+  raw i64 bytes), and returns them `Enc<Mxe>`. **Generated answer fingerprints stay inside MPC; public specs and authorized viewers can still yield answers. The generated answer file is not separately custodied
   in plaintext on any machine** — nothing to stage, seal, leak, or sell.
   Specs land publicly in `ItemChunk` accounts and are folded into a running
   `items_root` commitment; anyone can re-render prompts and re-fold to verify.
@@ -200,7 +205,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   verifies it in-browser.
 - **Spot-check audit (reveal_part):** the `reveal_part` circuit lets the
   benchmark authority declassify one part's eight answer *fingerprints* — the
-  MPC decrypts inside the enclave and the callback writes hashes to a `Reveal`
+  the cluster decrypts inside MPC and the callback writes hashes to a `Reveal`
   PDA, never plaintext answers. `chain verify` then compares them against a
   run's committed output hashes so anyone can recompute what `score_chunk`
   counted on the revealed positions. Verified E2E: 8 declassified fingerprints
@@ -219,7 +224,7 @@ since been wiped and redeployed during hardening. The evidence bundle in
   the two-model item-discrimination matrix (both 2 / only-3b 5 / only-1.5b
   0 / neither 25), so judges see which questions separate capability, not
   just two totals. The same check runs in-browser on the hosted explorer's
-  audit panel — the enclave's arithmetic is reproduced, not trusted.
+  audit panel — the MPC's arithmetic is reproduced, not trusted.
 - **Test suite:** `yarn test` — 17/17 passing: seal+score+finalize; reveal
   declassify+audit; market open→bet→score→resolve→claim (pot splits
   pro-rata over winning stakes, loser's claim fails, expiry, claim-fee-first
@@ -309,9 +314,6 @@ Hard-blockers first (each is a documented DQ path in Colosseum's rules):
 6. **Upload both videos** (pitch + `docs/demo.mp4`).
 7. **Submit ≥2 days early** — late submissions and timezone errors are
    documented DQ'd teams (deadline is Pacific Time).
-8. *Cheap signal most teams skip*: **weekly 1-minute update videos** on the
-   project page — Colosseum staff confirm they watch them, and silent teams
-   read as abandoned to track judges (Arcium staff judge the Solana track).
 9. *Optional, highest-leverage*: **mainnet deploy** per `docs/mainnet.md`
    (~21–22 SOL + a reliable RPC, cluster offset 2026 — the six on-chain
    circuits dominate the rent) — turns "deployed on devnet" into "live on

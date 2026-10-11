@@ -16,12 +16,12 @@ encrypted, stays encrypted, and is scored by the cluster itself.
 2/ AI leaderboards today: a lab submits a score, or an operator runs the
 eval and posts a number. Both are trusted claims.
 
-Sealed inverts it: the answer key never leaves MPC. Runners can't see it.
+Sealed inverts it: generated scoring fingerprints stay encrypted until disclosure. Runners can derive answers from the questions they receive.
 The bank owner can't see it. The score on-chain is the only score.
 
-3/ The primitive stack, all live:
+3/ The primitive stack, captured on localnet:
 
-- MPC-minted banks (items born inside the enclave, fingerprinted answers)
+- MPC-minted banks (items born inside the MPC cluster, fingerprinted answers)
 - Private banks (ciphertext-only specs on-chain)
 - Selective disclosure — show a judge the questions, not the answers
 - MPC scoring — run.correct is written by the cluster, not an oracle
@@ -49,7 +49,7 @@ the offline audit — every artifact and Merkle proof in the repo,
 replayable bit-for-bit.
 
 6/ Headline run: gpt-oss-20b scored 64/64 on a bank minted inside MPC —
-no answer key ever existed outside the enclave. A stale-artifact cheat
+no answer key ever existed outside the MPC boundary. A stale-artifact cheat
 attempt on the same pipeline scored 1/64 honestly.
 
 The model can't cheat what it can't see.
@@ -63,8 +63,8 @@ Built for @colosseum Crypto World's Fair on @arcium.
 ## Arcium outreach (Discord / DM to team or judges channel)
 
 > Hey — building Sealed for CWF: prediction markets on AI benchmark
-> results where the answer key never exists outside MPC. Banks are minted
-> by gen_part inside the enclave, scored by score_chunk callbacks, and
+> results where the generated circuit does not emit answer plaintext. Banks are minted
+> by gen_part inside MPC, scored by score_chunk callbacks, and
 > markets resolve directly from the Run accounts your nodes finalize —
 > no oracle. Also shipped a novel K-way "ladder race" market primitive on
 > top (argmax + dead-heat mask), which lines up with the novel-mechanisms
@@ -77,7 +77,7 @@ Built for @colosseum Crypto World's Fair on @arcium.
 
 ## Colosseum forum post (if a project channel exists)
 
-Title: Sealed — benchmark answer keys that never exist in plaintext
+Title: Sealed — private exams and scores that settle capability bounties
 
 Body (paste-ready; numbers verified against web/snapshot.json):
 
@@ -97,7 +97,7 @@ Body (paste-ready; numbers verified against web/snapshot.json):
 >
 > Verify it in seconds, not trust: the explorer's **`?mega=1`** link runs
 > the entire audit in your browser (~8s) — every account's PDA re-derived,
-> all 206 artifacts replayed, 35 forgeries dying at named checks, the
+> all 217 artifacts replayed, 35 forgeries dying at named checks, the
 > sealed exam decrypted in-page. Or `curl …/verify.py | python3 - --remote`
 > — one stdlib file re-verifies all 487 served bytes, zero clone. The
 > forgery lab lets you run the attacks yourself.
@@ -136,7 +136,7 @@ Body (paste-ready; numbers verified against web/snapshot.json):
   share no bank — paired ranking != aggregate), `banks --depth`.
 - Verifier chain: `chain stats` replays 31 aggregates + 201 resolutions
   inline, `chain items` regenerates an MPC-minted exam from raw chunks,
-  `chain artifact docs/evidence --recursive` replays all 206 artifacts,
+  `chain artifact docs/evidence --recursive` replays all 217 artifacts,
   `chain fingerprint` folds everything to one BUNDLE ROOT. `chain prove`
   mints `sealed-claim/v1` cards (31 committed, `--verify claims/`
   replays 279 checks; `--min-pct N` re-grades against caller policy);

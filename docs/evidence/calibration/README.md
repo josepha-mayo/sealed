@@ -61,7 +61,7 @@ The MPC did not just claim 7 — the arithmetic is reproduced publicly.
 
 The 3b run was created and scored **before** any `reveal_part` landed, so
 `post_reveal = 0`: the model's outputs were committed (and scored inside the
-enclave) while every fingerprint was still sealed. Only then did the
+MPC) while every fingerprint was still sealed. Only then did the
 authority declassify — the sequence mirrors the intended production audit:
 blind scoring first, transparency on demand.
 

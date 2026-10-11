@@ -34,8 +34,8 @@ const FORGE_COUNT = (html.match(/^const FORGE_DEFS = \{([\s\S]*?)\n\};/m)?.[1]
 const ctx = {
   window: { solanaWeb3: web3 },
   document: documentStub,
-  location: { search: "?snapshot=bundled" },
-  URLSearchParams,
+  location: { search: "?snapshot=snapshot.json", href: "http://localhost/web/?snapshot=snapshot.json", origin: "http://localhost", pathname: "/web/", protocol: "http:", hostname: "localhost" },
+  URL, URLSearchParams,
   fetch: async (u) => {
     const s = String(u);
     const file = s.includes("raw.githubusercontent.com") && s.includes("evidence-anchor") ? "docs/evidence-anchor.json"
@@ -46,13 +46,13 @@ const ctx = {
       : s.includes("calibration/run-artifact") ? "web/calibration/run-artifact.json"
       : s === "snapshot.json" ? "web/snapshot.json"
       : existsSync(join(ROOT, "web", s)) ? join("web", s)  // manifest-listed asset
-      : "web/snapshot.json";
-    if (file === null) return { ok: false, json: async () => { throw new Error("no net"); }, text: async () => { throw new Error("no net"); } };
+      : null;
+    if (file === null) return { ok: false, status: 404, json: async () => { throw new Error("no net"); }, text: async () => { throw new Error("no net"); } };
     try {
       const buf = readFileSync(join(ROOT, file));
       return { ok: true, json: async () => JSON.parse(buf.toString("utf8")), text: async () => buf.toString("utf8"), arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
     } catch {
-      return { ok: false, json: async () => { throw new Error("404"); }, text: async () => { throw new Error("404"); }, arrayBuffer: async () => { throw new Error("404"); } };
+      return { ok: false, status: 404, json: async () => { throw new Error("404"); }, text: async () => { throw new Error("404"); }, arrayBuffer: async () => { throw new Error("404"); } };
     }
   },
   TextEncoder, TextDecoder, DataView, Uint8Array, BigInt, JSON, Math, Number, Date, Response,
@@ -83,7 +83,8 @@ if (PAGE === "standalone.html") {
   if (!capOk) process.exit(1);
 }
 
-await new Promise((r) => setTimeout(r, 50)); // let applySnapshot + renderAll settle
+await ctx.window.__ready;
+await ctx.window.__caseReady; // wait for the actual snapshot hash + render, not a machine-dependent delay
 // renderAll must COMPLETE — a mid-render throw leaves #out empty and only
 // surfaces in #err, which the audit rows alone would never show.
 const renderErr = els.get("err")?.textContent ?? "";
@@ -411,7 +412,7 @@ if (!statOk) fails++;
   await new Promise((r) => setTimeout(r, 400));
   const badTxt = (els.get("auditres")?.innerHTML ?? "");
   const linkBad = /LINK CLAIM FAILED/.test(badTxt) && !/LINK CLAIM VERIFIED/.test(badTxt);
-  ctx.location.search = "?snapshot=bundled";
+  ctx.location.search = "?snapshot=snapshot.json";
   await vm.runInContext("runAudit(true)", ctx);
   console.log(`in-page link claims — ?root= match ${linkOk ? "VERIFIED" : "MISSED"} · forged root ${linkBad ? "rejected" : "MISSED"} ${linkOk && linkBad ? "PASS" : "FAIL"}`);
   if (!(linkOk && linkBad)) fails++;
@@ -427,7 +428,7 @@ if (!statOk) fails++;
   const cardOk = /sealed-bank\/v1/.test(noteTxt) && /BANK VERIFIED/.test(bankTxt);
   console.log(`in-page ?card= deep link — artifact fetched, routed, verified ${cardOk ? "PASS" : "FAIL"}`);
   if (!cardOk) fails++;
-  ctx.location.search = "?snapshot=bundled";
+  ctx.location.search = "?snapshot=snapshot.json";
 }
 // the evidence catalog — every artifact listed as a ?card= link, plus the
 // index's own self-verifying link (ART_COUNT + 1 total).
@@ -470,7 +471,7 @@ if (!statOk) fails++;
   const forgeLinkOk = fr?.state === "caught" && /run surface/.test(fr.check ?? "");
   console.log(`in-page ?forge= deep link — attack ran and died at a named check ${forgeLinkOk ? "PASS" : "FAIL"}`);
   if (!forgeLinkOk) fails++;
-  ctx.location.search = "?snapshot=bundled";
+  ctx.location.search = "?snapshot=snapshot.json";
 }
 // the ?tamper= deep link — a URL that replays a committed forged artifact
 // and lands on FORGERY CAUGHT at the named check recorded at mint time.
@@ -487,7 +488,7 @@ if (!statOk) fails++;
   const tamperLinkOk = /EXHIBIT VERIFIED/.test(tr) && /inner forgery rejected/.test(tr);
   console.log(`in-page ?tamper= deep link — exhibit replayed, inner lie died at its named check ${tamperLinkOk ? "PASS" : "FAIL"}`);
   if (!tamperLinkOk) fails++;
-  ctx.location.search = "?snapshot=bundled";
+  ctx.location.search = "?snapshot=snapshot.json";
 }
 // guided tour — the bar opens on the first stop with its caption, and
 // next() advances through the section walk.
@@ -626,6 +627,35 @@ const vOk = /SEALED — evidence verdict/.test(vtxt) && /bundle root/.test(vtxt)
   /[0-9a-f]{64}/.test(vtxt) && new RegExp(`forgeries\\s+${FORGE_COUNT}/${FORGE_COUNT}`).test(vtxt);
 console.log(`in-page copyable verdict — root + all stage counts on the paste-ready block ${vOk ? "PASS" : "FAIL"}`);
 if (!vOk) fails++;
+// Regressions for the case file and the verdict's state transitions.
+const caseFacts = els.get("casefacts")?.innerHTML ?? "";
+const caseOk = /64\s*\/\s*64/.test(caseFacts) && /1\s*\/\s*64/.test(caseFacts) && /Run.correct/.test(caseFacts);
+const attackButton = {disabled:false}; ctx.__attackButton = attackButton;
+await vm.runInContext("runCaseAttack(__attackButton)", ctx);
+const caseAttackOk = /FORGERY REJECTED/.test(els.get("caseattack")?.innerHTML ?? "") && !attackButton.disabled;
+console.log(`case file — decoded score + receipt-cloning rejection ${caseOk && caseAttackOk ? "PASS" : "FAIL"}`);
+if (!caseOk || !caseAttackOk) fails++;
+for (const [query,expected] of [["?card=//evil.example/card.json",/Card URL refused/],["?card=does-not-exist.json",/Card unavailable: HTTP 404/]]) {
+  ctx.location.search = query;
+  vm.runInContext("__deepLinksDone = false", ctx);
+  await vm.runInContext("maybeAudit()", ctx);
+  const ok = expected.test(els.get("artifactnote")?.textContent ?? "");
+  console.log(`card link ${query} — ${ok ? "refused PASS" : "FAIL"}`);
+  if (!ok) fails++;
+}
+ctx.window.__busy = true;
+await vm.runInContext("sealVerdict()", ctx);
+const busyOk = /REFUSED/.test(els.get("sealres")?.innerHTML ?? "") && /still running/.test(els.get("sealres")?.innerHTML ?? "");
+ctx.window.__busy = false;
+ctx.window.__lastVerdict = {allOk:true,text:"original audit"};
+mkEl("verdicttxt").innerText = "edited audit";
+await vm.runInContext("sealVerdict()", ctx);
+const editedOk = /REFUSED/.test(els.get("sealres")?.innerHTML ?? "") && /edited/.test(els.get("sealres")?.innerHTML ?? "");
+ctx.__originalSnapshot = JSON.parse(snapText); ctx.location.search = "";
+await vm.runInContext("applySnapshot(__originalSnapshot, 'replacement-snapshot')", ctx);
+const resetOk = !ctx.window.__lastVerdict;
+console.log(`verdict guards — running audit, edited text, replacement ledger ${busyOk && editedOk && resetOk ? "PASS" : "FAIL"}`);
+if (!busyOk || !editedOk || !resetOk) fails++;
 // SEALED_DUMP_VERDICT=<path> — persist the paste-ready block so docs tooling
 // (the verified.svg card) renders real output instead of a mock-up.
 if (process.env.SEALED_DUMP_VERDICT) {

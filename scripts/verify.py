@@ -336,6 +336,12 @@ def snapshot_bytes():
 
 
 # --- sealed-circuit/v1 content binding (chain.ts verifyCircuitCard 3b–3d) ---
+# Compiled program identities (chain.ts sealedProgramId()/MARKET_PROGRAM_ID/
+# ARCIUM_PID_STR). A card's declared programs are checked against THESE —
+# not against the snapshot's own meta.programs, which a coherent forged
+# bundle (foreign dump + matching card) would self-consistently echo.
+SEALED_PID = "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ"
+MARKET_PID = "8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN"
 ARCIUM_PID = "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
 RAW_CIRCUIT_SEED = b"ComputationDefinitionRaw"  # [RAW, compdef, u8(idx)] PDAs
 
@@ -1051,94 +1057,125 @@ def main():
         ok &= check(f"{card_path.name}: snapshot binding",
                     card.get("snapshotSha256") == snap_hash,
                     snap_hash[:16] + "…")
-        mpid = card["programs"]["market"]
-        seeds = card["position"]["seeds"]
-        if card["position"]["account"] == "dark":
-            raw = [b"darkpos", b58decode(seeds["venue"]),
-                   b58decode(seeds["bettor"]), u64le(seeds["posSalt"])]
-        else:
-            raw = [b"position", b58decode(seeds["venue"]),
-                   b58decode(seeds["bettor"])]
-        derived = pda(raw, mpid)
-        ok &= check(f"{card_path.name}: position PDA",
-                    derived is not None and b58encode_check(derived, card["position"]["pk"]),
-                    "re-derived from declared seeds, off-curve as required")
+        try:
+            mpid = card["programs"]["market"]
+            seeds = card["position"]["seeds"]
+            if card["position"]["account"] == "dark":
+                raw = [b"darkpos", b58decode(seeds["venue"]),
+                       b58decode(seeds["bettor"]), u64le(seeds["posSalt"])]
+            else:
+                raw = [b"position", b58decode(seeds["venue"]),
+                       b58decode(seeds["bettor"])]
+            derived = pda(raw, mpid)
+            ok &= check(f"{card_path.name}: position PDA",
+                        derived is not None and b58encode_check(derived, card["position"]["pk"]),
+                        "re-derived from declared seeds, off-curve as required")
 
-        v = card["venue"]
-        s = v["seeds"]
-        if v["kind"] in ("band",):
-            vs = [b"market", b58decode(s["run"]), u64le(s["salt"])]
-        elif v["kind"] == "duel":
-            vs = [b"duel", b58decode(s["runA"]), b58decode(s["runB"]), u64le(s["salt"])]
-        elif v["kind"] == "dark":
-            vs = [b"dark", b58decode(s["run"]), u64le(s["salt"])]
-        elif v["kind"] == "ladder":
-            vs = [b"ladder", b58decode(s["firstLeg"]), u64le(s["salt"])]
-        else:
-            vs = None
-        if vs:
-            vd = pda(vs, mpid)
-            ok &= check(f"{card_path.name}: venue PDA ({v['kind']})",
-                        vd is not None and b58encode_check(vd, v["pk"]))
+            v = card["venue"]
+            s = v["seeds"]
+            if v["kind"] in ("band",):
+                vs = [b"market", b58decode(s["run"]), u64le(s["salt"])]
+            elif v["kind"] == "duel":
+                vs = [b"duel", b58decode(s["runA"]), b58decode(s["runB"]), u64le(s["salt"])]
+            elif v["kind"] == "dark":
+                vs = [b"dark", b58decode(s["run"]), u64le(s["salt"])]
+            elif v["kind"] == "ladder":
+                vs = [b"ladder", b58decode(s["firstLeg"]), u64le(s["salt"])]
+            else:
+                vs = None
+            if vs:
+                vd = pda(vs, mpid)
+                ok &= check(f"{card_path.name}: venue PDA ({v['kind']})",
+                            vd is not None and b58encode_check(vd, v["pk"]))
 
-        # account binding — decode the account bytes HERE and compare.
-        msec = SNAP["market"]
-        if card["position"]["account"] == "dark":
-            raw = find_account(msec, card["position"]["pk"], DISC["darkPosition"])
-            dec = decode_dark_position(raw) if raw else None
-            ok &= check(f"{card_path.name}: account binding",
-                        dec is not None and dec["market"] == card["position"]["seeds"]["venue"]
-                        and dec["bettor"] == card["position"]["seeds"]["bettor"]
-                        and str(dec["amount"]) == str(card["stake"]["amount"])
-                        and dec["commitment"] == card["stake"]["commitment"]
-                        and dec["revealed"] == card["stake"]["revealed"],
-                        "dark position fields unpacked from account bytes")
-        else:
-            raw = find_account(msec, card["position"]["pk"], DISC["position"])
-            dec = decode_position(raw) if raw else None
-            ok &= check(f"{card_path.name}: account binding",
-                        dec is not None and dec["market"] == card["position"]["seeds"]["venue"]
-                        and dec["bettor"] == card["position"]["seeds"]["bettor"]
-                        and dec["amounts"] == [int(x) for x in card["stake"]["amounts"]],
-                        "stake amounts unpacked from account bytes")
+            # account binding — decode the account bytes HERE and compare.
+            msec = SNAP["market"]
+            if card["position"]["account"] == "dark":
+                raw = find_account(msec, card["position"]["pk"], DISC["darkPosition"])
+                dec = decode_dark_position(raw) if raw else None
+                ok &= check(f"{card_path.name}: account binding",
+                            dec is not None and dec["market"] == card["position"]["seeds"]["venue"]
+                            and dec["bettor"] == card["position"]["seeds"]["bettor"]
+                            and str(dec["amount"]) == str(card["stake"]["amount"])
+                            and dec["commitment"] == card["stake"]["commitment"]
+                            and dec["revealed"] == card["stake"]["revealed"],
+                            "dark position fields unpacked from account bytes")
+            else:
+                raw = find_account(msec, card["position"]["pk"], DISC["position"])
+                dec = decode_position(raw) if raw else None
+                ok &= check(f"{card_path.name}: account binding",
+                            dec is not None and dec["market"] == card["position"]["seeds"]["venue"]
+                            and dec["bettor"] == card["position"]["seeds"]["bettor"]
+                            and dec["amounts"] == [int(x) for x in card["stake"]["amounts"]],
+                            "stake amounts unpacked from account bytes")
 
-        # venue field binding — a card-declared null is honest only when the
-        # account field is absent too; every declared field must equal bytes.
-        ints = lambda xs: None if xs is None else [int(x) for x in xs]
-        big = lambda x: None if x is None else int(x)
-        vdisc = {"band": "Market", "duel": "Market", "dark": "DarkMarket",
-                 "ladder": "Ladder"}.get(v["kind"])
-        vraw = find_account(msec, v["pk"], disc(vdisc)) if vdisc else None
-        if vraw is None:
-            ok &= check(f"{card_path.name}: venue binding", False,
-                        "venue not in snapshot")
-        elif v["kind"] in ("band", "duel"):
-            a = decode_market(vraw)
-            ok &= check(f"{card_path.name}: venue binding",
-                        a["status"] == v["status"] and a["feeBps"] == v["feeBps"]
-                        and a["outcome"] == v["outcome"]
-                        and ints(v["totals"]) == a["totals"]
-                        and v["mask"] is None and v["tallied"] is None
-                        and v["poolTotal"] is None and v["winTotal"] is None,
-                        "status · outcome · totals · fee equal the decoded Market")
-        elif v["kind"] == "dark":
-            a = decode_dark_market(vraw)
-            ok &= check(f"{card_path.name}: venue binding",
-                        a["status"] == v["status"] and a["feeBps"] == v["feeBps"]
-                        and a["outcome"] == v["outcome"]
-                        and big(v["poolTotal"]) == a["poolTotal"]
-                        and big(v["winTotal"]) == a["winTotal"]
-                        and v["tallied"] == bool(a["tallied"])
-                        and v["totals"] is None and v["mask"] is None,
-                        "status · outcome · pools · tallied equal the decoded DarkMarket")
-        else:
-            a = decode_ladder(vraw)
-            ok &= check(f"{card_path.name}: venue binding",
-                        a["status"] == v["status"] and a["feeBps"] == v["feeBps"]
-                        and a["resultMask"] == v["mask"]
-                        and ints(v["totals"]) == a["totals"]
-                        and v["outcome"] is None,
-                        "status · resultMask · totals · fee equal the decoded Ladder")
+            # venue field binding — a card-declared null is honest only when the
+            # account field is absent too; every declared field must equal bytes.
+            ints = lambda xs: None if xs is None else [int(x) for x in xs]
+            big = lambda x: None if x is None else int(x)
+            vdisc = {"band": "Market", "duel": "Market", "dark": "DarkMarket",
+                     "ladder": "Ladder"}.get(v["kind"])
+            vraw = find_account(msec, v["pk"], disc(vdisc)) if vdisc else None
+            if vraw is None:
+                ok &= check(f"{card_path.name}: venue binding", False,
+                            "venue not in snapshot")
+            elif v["kind"] in ("band", "duel"):
+                a = decode_market(vraw)
+                ok &= check(f"{card_path.name}: venue binding",
+                            a["status"] == v["status"] and a["feeBps"] == v["feeBps"]
+                            and a["outcome"] == v["outcome"]
+                            and ints(v["totals"]) == a["totals"]
+                            and v["mask"] is None and v["tallied"] is None
+                            and v["poolTotal"] is None and v["winTotal"] is None,
+                            "status · outcome · totals · fee equal the decoded Market")
+            elif v["kind"] == "dark":
+                a = decode_dark_market(vraw)
+                ok &= check(f"{card_path.name}: venue binding",
+                            a["status"] == v["status"] and a["feeBps"] == v["feeBps"]
+                            and a["outcome"] == v["outcome"]
+                            and big(v["poolTotal"]) == a["poolTotal"]
+                            and big(v["winTotal"]) == a["winTotal"]
+                            and v["tallied"] == bool(a["tallied"])
+                            and v["totals"] is None and v["mask"] is None,
+                            "status · outcome · pools · tallied equal the decoded DarkMarket")
+            else:
+                a = decode_ladder(vraw)
+                ok &= check(f"{card_path.name}: venue binding",
+                            a["status"] == v["status"] and a["feeBps"] == v["feeBps"]
+                            and a["resultMask"] == v["mask"]
+                            and ints(v["totals"]) == a["totals"]
+                            and v["outcome"] is None,
+                            "status · resultMask · totals · fee equal the decoded Ladder")
+
+            # verdict replay — the same parimutuel math the TS dossiers
+            # print (classifyPositions): state machine + pro-rata payout
+            # recomputed from the DECODED position and venue accounts,
+            # so a card that prettifies its verdict dies here.
+            vd = card.get("verdict") or {}
+            vix = snap_idx()
+            vmaps = venue_maps(vix["markets"], vix["ladders"], vix["darks"])
+            row = None
+            if dec is not None:
+                if card["position"]["account"] == "dark":
+                    dpos = [{"pk": card["position"]["pk"], "bettor": dec["bettor"],
+                             "market": dec["market"], "amount": dec["amount"],
+                             "revealed": dec["revealed"]}]
+                    row = (classify_positions([], dpos, vmaps,
+                                              seeds["bettor"]) or [None])[0]
+                else:
+                    pos = [{"pk": card["position"]["pk"], "bettor": dec["bettor"],
+                            "market": dec["market"], "amounts": dec["amounts"]}]
+                    row = (classify_positions(pos, [], vmaps,
+                                              seeds["bettor"]) or [None])[0]
+            ok &= check(f"{card_path.name}: verdict replay",
+                        row is not None and row["state"] == vd.get("state")
+                        and str(row["est"]) == str(vd.get("estPayout"))
+                        and str(row["staked"]) == str(vd.get("staked")),
+                        f"recomputed {row['state']}" if row else
+                        "position unclassifiable — no decoded row")
+        except Exception as e:
+            ok &= check(f"{card_path.name}: card parse", False,
+                        f"malformed card — {str(e)[:80]}")
 
     for card_path in card_iter(ROOT / "docs" / "evidence" / "bounties", kind="sealed-bounty/v1"):
         if card_path.name == "index.json":
@@ -1149,37 +1186,104 @@ def main():
         ok &= check(f"{card_path.name}: snapshot binding",
                     card.get("snapshotSha256") == snap_hash,
                     snap_hash[:16] + "…")
-        s = card["bounty"]["seeds"]
-        derived = pda([b"bounty", b58decode(s["bank"]),
-                       b58decode(s["sponsor"]), u64le(s["salt"])],
-                      card["programs"]["market"])
-        ok &= check(f"{card_path.name}: bounty PDA",
-                    derived is not None and b58encode_check(derived, card["bounty"]["pk"]),
-                    "re-derived [bounty, bank, sponsor, salt], off-curve as required")
-        raw = find_account(SNAP["market"], card["bounty"]["pk"], DISC["bounty"])
-        dec = decode_bounty(raw) if raw else None
-        if dec is not None:
-            winner_ok = (card["bounty"]["status"] != 1) or (
-                dec["winnerRun"] == card["bounty"]["winnerRun"]
-                and dec["winningScore"] == card["bounty"]["winningScore"])
-            ok &= check(f"{card_path.name}: account binding",
-                        dec["sponsor"] == card["bounty"]["seeds"]["sponsor"]
-                        and dec["bank"] == card["bounty"]["seeds"]["bank"]
-                        and str(dec["salt"]) == str(card["bounty"]["seeds"]["salt"])
-                        and dec["status"] == card["bounty"]["status"]
-                        and dec["threshold"] == card["bounty"]["threshold"]
-                        and str(dec["amount"]) == str(card["bounty"]["amount"])
-                        and dec["createdAt"] == int(card["bounty"]["createdAt"])
-                        and dec["deadline"] == int(card["bounty"]["deadline"])
-                        and winner_ok,
-                        "sponsor · bank · salt · status · threshold · amount · deadline · winner")
-        else:
-            ok &= check(f"{card_path.name}: account binding", False, "bounty not found in snapshot")
-        if card["bounty"]["status"] == 1:
-            w = card.get("winner") or {}
-            ok &= check(f"{card_path.name}: paid-winner binding",
-                        w.get("run") == card["bounty"]["winnerRun"],
-                        "the embedded winner run IS the run the pot paid")
+        try:
+            s = card["bounty"]["seeds"]
+            derived = pda([b"bounty", b58decode(s["bank"]),
+                           b58decode(s["sponsor"]), u64le(s["salt"])],
+                          card["programs"]["market"])
+            ok &= check(f"{card_path.name}: bounty PDA",
+                        derived is not None and b58encode_check(derived, card["bounty"]["pk"]),
+                        "re-derived [bounty, bank, sponsor, salt], off-curve as required")
+            raw = find_account(SNAP["market"], card["bounty"]["pk"], DISC["bounty"])
+            dec = decode_bounty(raw) if raw else None
+            if dec is not None:
+                winner_ok = (card["bounty"]["status"] != 1) or (
+                    dec["winnerRun"] == card["bounty"]["winnerRun"]
+                    and dec["winningScore"] == card["bounty"]["winningScore"])
+                ok &= check(f"{card_path.name}: account binding",
+                            dec["sponsor"] == card["bounty"]["seeds"]["sponsor"]
+                            and dec["bank"] == card["bounty"]["seeds"]["bank"]
+                            and str(dec["salt"]) == str(card["bounty"]["seeds"]["salt"])
+                            and dec["status"] == card["bounty"]["status"]
+                            and dec["threshold"] == card["bounty"]["threshold"]
+                            and str(dec["amount"]) == str(card["bounty"]["amount"])
+                            and dec["createdAt"] == int(card["bounty"]["createdAt"])
+                            and dec["deadline"] == int(card["bounty"]["deadline"])
+                            and winner_ok,
+                            "sponsor · bank · salt · status · threshold · amount · deadline · winner")
+            else:
+                ok &= check(f"{card_path.name}: account binding", False, "bounty not found in snapshot")
+            if card["bounty"]["status"] == 1:
+                w = card.get("winner") or {}
+                ok &= check(f"{card_path.name}: paid-winner binding",
+                            w.get("run") == card["bounty"]["winnerRun"],
+                            "the embedded winner run IS the run the pot paid")
+                # bounty_qualifies gate replay — the program's own claim
+                # gate (chain.ts bountyVerify [3]) over the embedded winner
+                # run: paid winner, same bank, postdates the bounty,
+                # runner ≠ sponsor, score ≥ threshold AND == winningScore,
+                # proven now, not post-reveal.
+                if w:
+                    proven_now = _proven(
+                        {"status": w.get("status"),
+                         "allQueuedAt": int(w.get("allQueuedAt") or 0),
+                         "scoredMask": str(w.get("scoredMask") or "0")},
+                        int(time.time()))
+                    ok &= check(f"{card_path.name}: bounty_qualifies replay",
+                                w.get("run") == card["bounty"].get("winnerRun")
+                                and w.get("benchmark") == card["bounty"]["seeds"]["bank"]
+                                and int(w.get("createdAt") or 0) >= int(card["bounty"]["createdAt"])
+                                and w.get("runner") != card["bounty"]["seeds"]["sponsor"]
+                                and int(w.get("correct") or -1) >= int(card["bounty"]["threshold"])
+                                and int(w.get("correct") or -1) == int(card["bounty"]["winningScore"])
+                                and proven_now
+                                and not w.get("postReveal"),
+                                "the on-chain claim gate re-passes on the embedded run")
+                    # winner binding — every field the gate read must equal
+                    # the decoded Run account, or the replay applauded a
+                    # costume.
+                    wrun = snap_idx()["runs"].get(w.get("run"))
+                    ok &= check(f"{card_path.name}: winner binding",
+                                wrun is not None
+                                and wrun["correct"] == w.get("correct")
+                                and wrun["runner"] == w.get("runner")
+                                and wrun["benchmark"] == w.get("benchmark")
+                                and wrun["status"] == w.get("status")
+                                and wrun["createdAt"] == int(w.get("createdAt") or 0)
+                                and wrun["firstPendingAt"] == int(w.get("firstPendingAt") or 0)
+                                and wrun["allQueuedAt"] == int(w.get("allQueuedAt") or 0)
+                                and str(wrun["scoredMask"]) == str(w.get("scoredMask") or "0")
+                                and bool(wrun["postReveal"]) == bool(w.get("postReveal")),
+                                "run account fields equal the decoded Run "
+                                "(correct · runner · bank · status · timestamps · mask · postReveal)")
+                else:
+                    ok &= check(f"{card_path.name}: bounty_qualifies replay", False,
+                                "claimed card without a winner run")
+            else:
+                ok &= check(f"{card_path.name}: verdict", True,
+                            "open — pot still escrowed, no referee needed to claim it")
+            # threshold ≤ capacity — the threshold can't exceed what the
+            # bank can score; capacity comes from the DECODED Benchmark
+            # (chunk_count × 32), not the card's echoed bank block.
+            if card.get("bank"):
+                braw = find_account(SNAP["sealed"], card["bank"].get("pk"), disc("Benchmark"))
+                bdec = decode_benchmark(braw) if braw else None
+                cap = bdec["chunkCount"] * 32 if bdec else int(card["bank"].get("capacity") or 0)
+                ok &= check(f"{card_path.name}: threshold ≤ capacity",
+                            int(card["bounty"]["threshold"]) <= cap,
+                            f"{card['bounty']['threshold']} ≤ {cap} ({card['bank'].get('name')})")
+            # verdict field — "claimed" is only true when the decoded
+            # Bounty says status==1 (the card's word for it isn't enough).
+            vd = card.get("verdict")
+            if isinstance(vd, dict) and vd.get("state") is not None:
+                expected = "claimed" if card["bounty"]["status"] == 1 else "open"
+                ok &= check(f"{card_path.name}: verdict",
+                            vd["state"] == expected
+                            and (dec is None or dec["status"] == card["bounty"]["status"]),
+                            f"state {vd['state']} == decoded bounty status")
+        except Exception as e:
+            ok &= check(f"{card_path.name}: card parse", False,
+                        f"malformed card — {str(e)[:80]}")
 
     for card_path in card_iter(ROOT / "docs" / "evidence" / "grants", kind="sealed-grant/v1"):
         if card_path.name == "index.json":
@@ -1190,48 +1294,69 @@ def main():
         ok &= check(f"{card_path.name}: snapshot binding",
                     card.get("snapshotSha256") == snap_hash,
                     snap_hash[:16] + "…")
-        s = card["grant"]["seeds"]
-        derived = pda([b"grant", b58decode(s["bank"]),
-                       struct.pack("<H", int(s["chunkIndex"])),
-                       bytes([int(s["part"])]), b58decode(s["viewer"])],
-                      card["programs"]["sealed"])
-        ok &= check(f"{card_path.name}: grant PDA",
-                    derived is not None and b58encode_check(derived, card["grant"]["pk"]),
-                    "re-derived [grant, bank, chunk, part, viewer] — viewer is x25519")
-        ok &= check(f"{card_path.name}: key echo",
-                    card["grant"]["encryptionKey"] == card["grant"]["viewer"],
-                    "encryption_key == viewer — the MPC bound output to the requested key")
-        raw = find_account(SNAP["sealed"], card["grant"]["pk"], DISC["shareGrant"])
-        dec = decode_share_grant(raw) if raw else None
-        ok &= check(f"{card_path.name}: account binding",
-                    dec is not None and dec["benchmark"] == card["grant"]["benchmark"]
-                    and dec["chunkIndex"] == card["grant"]["chunkIndex"]
-                    and dec["part"] == card["grant"]["part"]
-                    and dec["viewer"] == card["grant"]["viewer"]
-                    and dec["encryptionKey"] == card["grant"]["encryptionKey"]
-                    and str(dec["nonce"]) == str(card["grant"]["nonce"])
-                    and dec["ciphertexts"] == card["grant"]["ciphertexts"]
-                    and dec["sharedAt"] == int(card["grant"]["sharedAt"])
-                    and card["grant"]["seeds"]["bank"] == card["grant"]["benchmark"],
-                    "all eight ShareGrant fields unpacked from account bytes")
-        # bank semantics — grants are evidence only on ciphertext banks; a
-        # card without the bank block proves nothing about the exam it names.
-        bank = card.get("bank")
-        ok &= check(f"{card_path.name}: bank semantics",
-                    bank is not None and card["grant"]["benchmark"] == bank["pk"]
-                    and card["grant"]["seeds"]["bank"] == bank["pk"]
-                    and int(bank["kind"]) == 2,
-                    "kind=2 ciphertext exam — the questions moved, not the answers")
-        # the bank block is card-say-so until it's bound — a forged card
-        # could claim kind=2 on an authored bank or a fake items_root.
-        braw = find_account(SNAP["sealed"], card["grant"]["benchmark"], disc("Benchmark"))
-        bdec = decode_benchmark(braw) if braw else None
-        ok &= check(f"{card_path.name}: bank account binding",
-                    bank is not None and bdec is not None
-                    and str(bdec["name"]) == str(bank["name"])
-                    and str(bdec["kind"]) == str(bank["kind"])
-                    and bdec["itemsRoot"] == bank["itemsRoot"],
-                    "card's bank block == decoded Benchmark (name · kind · items_root)")
+        try:
+            s = card["grant"]["seeds"]
+            derived = pda([b"grant", b58decode(s["bank"]),
+                           struct.pack("<H", int(s["chunkIndex"])),
+                           bytes([int(s["part"])]), b58decode(s["viewer"])],
+                          card["programs"]["sealed"])
+            ok &= check(f"{card_path.name}: grant PDA",
+                        derived is not None and b58encode_check(derived, card["grant"]["pk"]),
+                        "re-derived [grant, bank, chunk, part, viewer] — viewer is x25519")
+            ok &= check(f"{card_path.name}: key echo",
+                        card["grant"]["encryptionKey"] == card["grant"]["viewer"],
+                        "encryption_key == viewer — the MPC bound output to the requested key")
+            raw = find_account(SNAP["sealed"], card["grant"]["pk"], DISC["shareGrant"])
+            dec = decode_share_grant(raw) if raw else None
+            ok &= check(f"{card_path.name}: account binding",
+                        dec is not None and dec["benchmark"] == card["grant"]["benchmark"]
+                        and dec["chunkIndex"] == card["grant"]["chunkIndex"]
+                        and dec["part"] == card["grant"]["part"]
+                        and dec["viewer"] == card["grant"]["viewer"]
+                        and dec["encryptionKey"] == card["grant"]["encryptionKey"]
+                        and str(dec["nonce"]) == str(card["grant"]["nonce"])
+                        and dec["ciphertexts"] == card["grant"]["ciphertexts"]
+                        and dec["sharedAt"] == int(card["grant"]["sharedAt"])
+                        and card["grant"]["seeds"]["bank"] == card["grant"]["benchmark"],
+                        "all eight ShareGrant fields unpacked from account bytes")
+            # bank semantics — grants are evidence only on ciphertext banks; a
+            # card without the bank block proves nothing about the exam it names.
+            bank = card.get("bank")
+            ok &= check(f"{card_path.name}: bank semantics",
+                        bank is not None and card["grant"]["benchmark"] == bank["pk"]
+                        and card["grant"]["seeds"]["bank"] == bank["pk"]
+                        and int(bank["kind"]) == 2,
+                        "kind=2 ciphertext exam — the questions moved, not the answers")
+            # the bank block is card-say-so until it's bound — a forged card
+            # could claim kind=2 on an authored bank or a fake items_root.
+            braw = find_account(SNAP["sealed"], card["grant"]["benchmark"], disc("Benchmark"))
+            bdec = decode_benchmark(braw) if braw else None
+            ok &= check(f"{card_path.name}: bank account binding",
+                        bank is not None and bdec is not None
+                        and str(bdec["name"]) == str(bank["name"])
+                        and str(bdec["kind"]) == str(bank["kind"])
+                        and bdec["itemsRoot"] == bank["itemsRoot"],
+                        "card's bank block == decoded Benchmark (name · kind · items_root)")
+            # panel tally — who else was shown the exam? Re-derived from
+            # the snapshot's decoded ShareGrants, not the card's say-so
+            # (chain.ts grantVerify [5]).
+            if dec is not None:
+                panel = card.get("panel") or {}
+                on_bank = [g for g in grants
+                           if g["bench"] == card["grant"]["benchmark"]]
+                viewers = {g["viewer"] for g in on_bank}
+                full = sum(1 for vw in viewers
+                           if len({g["part"] for g in on_bank
+                                   if g["viewer"] == vw}) >= 4)
+                ok &= check(f"{card_path.name}: panel tally",
+                            panel.get("grantsOnBank") == len(on_bank)
+                            and panel.get("viewersOnBank") == len(viewers)
+                            and panel.get("viewersAllParts") == full,
+                            f"{len(on_bank)} grant(s) · {len(viewers)} viewer(s) · "
+                            f"{full} full-panel — re-derived")
+        except Exception as e:
+            ok &= check(f"{card_path.name}: card parse", False,
+                        f"malformed card — {str(e)[:80]}")
 
     for card_path in card_iter(ROOT / "docs" / "evidence" / "trails", kind="sealed-trail/v1"):
         if card_path.name == "index.json":
@@ -1241,111 +1366,115 @@ def main():
         ok &= check(f"{name}: kind", card.get("kind") == "sealed-trail/v1")
         ok &= check(f"{name}: snapshot binding",
                     card.get("snapshotSha256") == snap_hash, snap_hash[:16] + "…")
-        spid = card["programs"]["sealed"]
-        mpid = card["programs"]["market"]
-        r = card["run"]
-        ok &= check(f"{name}: run PDA",
-                    b58encode_check(pda([b"run", b58decode(r["benchmark"]), u64le(r["index"])], spid) or b"", r["pk"]),
-                    "[run, bank, u64le(index)]")
-        if card.get("bank"):
-            b = card["bank"]
-            ok &= check(f"{name}: bank PDA",
-                        b58encode_check(pda([b"benchmark", b58decode(b["authority"]),
-                                             struct.pack("<I", int(b["id"]))], spid) or b"", b["pk"]))
-        if card.get("receipt"):
-            ok &= check(f"{name}: receipt PDA",
-                        b58encode_check(pda([b"scorelog", b58decode(r["pk"])], spid) or b"",
-                                        card["receipt"]["pk"]),
-                        "[scorelog, run]")
+        try:
+            spid = card["programs"]["sealed"]
+            mpid = card["programs"]["market"]
+            r = card["run"]
+            ok &= check(f"{name}: run PDA",
+                        b58encode_check(pda([b"run", b58decode(r["benchmark"]), u64le(r["index"])], spid) or b"", r["pk"]),
+                        "[run, bank, u64le(index)]")
+            if card.get("bank"):
+                b = card["bank"]
+                ok &= check(f"{name}: bank PDA",
+                            b58encode_check(pda([b"benchmark", b58decode(b["authority"]),
+                                                 struct.pack("<I", int(b["id"]))], spid) or b"", b["pk"]))
+            if card.get("receipt"):
+                ok &= check(f"{name}: receipt PDA",
+                            b58encode_check(pda([b"scorelog", b58decode(r["pk"])], spid) or b"",
+                                            card["receipt"]["pk"]),
+                            "[scorelog, run]")
 
-        # run binding — decode the Run's raw bytes, not the card's claims.
-        raw = find_account(SNAP["sealed"], r["pk"], disc("Run"))
-        dr = decode_run(raw) if raw else None
-        ok &= check(f"{name}: run binding",
-                    dr is not None and dr["correct"] == r["correct"]
-                    and dr["status"] == r["status"] and dr["runner"] == r["runner"]
-                    and dr["modelId"] == r["modelId"] and dr["benchmark"] == r["benchmark"]
-                    and dr["postReveal"] == bool(r["postReveal"]),
-                    "correct · status · runner · model · bank · post_reveal unpacked")
+            # run binding — decode the Run's raw bytes, not the card's claims.
+            raw = find_account(SNAP["sealed"], r["pk"], disc("Run"))
+            dr = decode_run(raw) if raw else None
+            ok &= check(f"{name}: run binding",
+                        dr is not None and dr["correct"] == r["correct"]
+                        and dr["status"] == r["status"] and dr["runner"] == r["runner"]
+                        and dr["modelId"] == r["modelId"] and dr["benchmark"] == r["benchmark"]
+                        and dr["postReveal"] == bool(r["postReveal"]),
+                        "correct · status · runner · model · bank · post_reveal unpacked")
 
-        v_ok, v_n = 0, 0
-        for v in card["venues"]:
-            v_n += 1
-            s = v["seeds"]
-            seeds = ([b"market", b58decode(s["run"]), u64le(s["salt"])] if v["kind"] == "band"
-                     else [b"duel", b58decode(s["runA"]), b58decode(s["runB"]), u64le(s["salt"])] if v["kind"] == "duel"
-                     else [b"dark", b58decode(s["run"]), u64le(s["salt"])] if v["kind"] == "dark"
-                     else [b"ladder", b58decode(s["firstLeg"]), u64le(s["salt"])] if v["kind"] == "ladder"
-                     else [b"bounty", b58decode(s["bank"]), b58decode(s["sponsor"]), u64le(s["salt"])])
-            if not b58encode_check(pda(seeds, mpid) or b"", v["pk"]):
-                continue
-            vtype = {"band": "Market", "duel": "Market", "dark": "DarkMarket",
-                     "ladder": "Ladder", "bounty": "Bounty"}[v["kind"]]
-            raw = find_account(SNAP["market"], v["pk"], disc(vtype))
-            if raw is None:
-                continue
-            if v["kind"] in ("band", "duel"):
-                a = decode_market(raw)
-                seed_ok = (a["run"] == s.get("run", s.get("runA"))
-                           and str(a["salt"]) == str(s["salt"])
-                           and (v["kind"] != "duel" or a["runB"] == s["runB"]))
-                money_ok = a["totals"] == [int(x) for x in v["totals"]]
-                score_ok = (a["status"] == v["status"]
-                            and (a["status"] != 1 or (a["resolvedScore"] == v["resolvedScore"]
-                                 and a["outcome"] == v["outcome"])))
-            elif v["kind"] == "dark":
-                a = decode_dark_market(raw)
-                seed_ok = a["run"] == s["run"] and str(a["salt"]) == str(s["salt"])
-                forfeit = sum(p["amount"] for p in dark_positions(SNAP["market"], v["pk"]))
-                money_ok = (a["poolTotal"] == int(v["poolTotal"]) and a["winTotal"] == int(v["winTotal"])
-                            and a["revealedCount"] == v["revealedCount"] and a["tallied"] == bool(v["tallied"])
-                            and forfeit == int(v["forfeitTotal"]))
-                score_ok = a["status"] == v["status"] and (a["status"] != 1 or a["resolvedScore"] == v["resolvedScore"])
-            elif v["kind"] == "ladder":
-                a = decode_ladder(raw)
-                seed_ok = (a["legs"][0] == s["firstLeg"] and str(a["salt"]) == str(s["salt"])
-                           and a["legs"][v["legIndex"]] == r["pk"])
-                money_ok = a["totals"] == [int(x) for x in v["totals"]]
-                score_ok = (a["status"] == v["status"] and a["legCount"] == v["legCount"]
-                            and (a["status"] != 1 or a["resultMask"] == v["resultMask"]))
-                # every leg's run fields bound to its own decoded account
-                for leg in v.get("legs", []):
-                    lr = find_account(SNAP["sealed"], leg["pk"], disc("Run"))
-                    ld = decode_run(lr) if lr else None
-                    money_ok = money_ok and ld is not None and ld["correct"] == leg["correct"] \
-                        and ld["status"] == leg["status"] and ld["benchmark"] == leg["benchmark"] \
-                        and ld["index"] == leg["index"]
-            else:
-                a = decode_bounty(raw)
-                seed_ok = (a["bank"] == s["bank"] and a["sponsor"] == s["sponsor"]
-                           and str(a["salt"]) == str(s["salt"]))
-                money_ok = a["amount"] == int(v["amount"])
-                score_ok = (a["status"] == v["status"] and a["threshold"] == v["threshold"]
-                            and (a["status"] != 1 or (a["winningScore"] == v["winningScore"]
-                                 and a["winnerRun"] == v["winnerRun"])))
-            if seed_ok and money_ok and score_ok:
-                v_ok += 1
-        ok &= check(f"{name}: venue binding", v_ok == v_n,
-                    f"{v_ok}/{v_n} venue PDAs + account fields bound (incl. leg runs)")
+            v_ok, v_n = 0, 0
+            for v in card["venues"]:
+                v_n += 1
+                s = v["seeds"]
+                seeds = ([b"market", b58decode(s["run"]), u64le(s["salt"])] if v["kind"] == "band"
+                         else [b"duel", b58decode(s["runA"]), b58decode(s["runB"]), u64le(s["salt"])] if v["kind"] == "duel"
+                         else [b"dark", b58decode(s["run"]), u64le(s["salt"])] if v["kind"] == "dark"
+                         else [b"ladder", b58decode(s["firstLeg"]), u64le(s["salt"])] if v["kind"] == "ladder"
+                         else [b"bounty", b58decode(s["bank"]), b58decode(s["sponsor"]), u64le(s["salt"])])
+                if not b58encode_check(pda(seeds, mpid) or b"", v["pk"]):
+                    continue
+                vtype = {"band": "Market", "duel": "Market", "dark": "DarkMarket",
+                         "ladder": "Ladder", "bounty": "Bounty"}[v["kind"]]
+                raw = find_account(SNAP["market"], v["pk"], disc(vtype))
+                if raw is None:
+                    continue
+                if v["kind"] in ("band", "duel"):
+                    a = decode_market(raw)
+                    seed_ok = (a["run"] == s.get("run", s.get("runA"))
+                               and str(a["salt"]) == str(s["salt"])
+                               and (v["kind"] != "duel" or a["runB"] == s["runB"]))
+                    money_ok = a["totals"] == [int(x) for x in v["totals"]]
+                    score_ok = (a["status"] == v["status"]
+                                and (a["status"] != 1 or (a["resolvedScore"] == v["resolvedScore"]
+                                     and a["outcome"] == v["outcome"])))
+                elif v["kind"] == "dark":
+                    a = decode_dark_market(raw)
+                    seed_ok = a["run"] == s["run"] and str(a["salt"]) == str(s["salt"])
+                    forfeit = sum(p["amount"] for p in dark_positions(SNAP["market"], v["pk"]))
+                    money_ok = (a["poolTotal"] == int(v["poolTotal"]) and a["winTotal"] == int(v["winTotal"])
+                                and a["revealedCount"] == v["revealedCount"] and a["tallied"] == bool(v["tallied"])
+                                and forfeit == int(v["forfeitTotal"]))
+                    score_ok = a["status"] == v["status"] and (a["status"] != 1 or a["resolvedScore"] == v["resolvedScore"])
+                elif v["kind"] == "ladder":
+                    a = decode_ladder(raw)
+                    seed_ok = (a["legs"][0] == s["firstLeg"] and str(a["salt"]) == str(s["salt"])
+                               and a["legs"][v["legIndex"]] == r["pk"])
+                    money_ok = a["totals"] == [int(x) for x in v["totals"]]
+                    score_ok = (a["status"] == v["status"] and a["legCount"] == v["legCount"]
+                                and (a["status"] != 1 or a["resultMask"] == v["resultMask"]))
+                    # every leg's run fields bound to its own decoded account
+                    for leg in v.get("legs", []):
+                        lr = find_account(SNAP["sealed"], leg["pk"], disc("Run"))
+                        ld = decode_run(lr) if lr else None
+                        money_ok = money_ok and ld is not None and ld["correct"] == leg["correct"] \
+                            and ld["status"] == leg["status"] and ld["benchmark"] == leg["benchmark"] \
+                            and ld["index"] == leg["index"]
+                else:
+                    a = decode_bounty(raw)
+                    seed_ok = (a["bank"] == s["bank"] and a["sponsor"] == s["sponsor"]
+                               and str(a["salt"]) == str(s["salt"]))
+                    money_ok = a["amount"] == int(v["amount"])
+                    score_ok = (a["status"] == v["status"] and a["threshold"] == v["threshold"]
+                                and (a["status"] != 1 or (a["winningScore"] == v["winningScore"]
+                                     and a["winnerRun"] == v["winnerRun"])))
+                if seed_ok and money_ok and score_ok:
+                    v_ok += 1
+            ok &= check(f"{name}: venue binding", v_ok == v_n,
+                        f"{v_ok}/{v_n} venue PDAs + account fields bound (incl. leg runs)")
 
-        # settlement replay — against the DECODED score, not the card's
-        resolved = [v for v in card["venues"] if v["status"] == 1]
-        s_ok = sum(
-            1 for v in resolved
-            if (v["resolvedScore"] if v["kind"] in ("band", "dark")
-                else (v["resolvedScore"] >> 16 if v["side"] == "a" else v["resolvedScore"] & 0xffff) if v["kind"] == "duel"
-                else v["winningScore"] if v["kind"] == "bounty"
-                else v["legs"][v["legIndex"]]["correct"]) == (dr["correct"] if dr else -1))
-        ok &= check(f"{name}: settlements from decoded Run.correct",
-                    s_ok == len(resolved), f"{s_ok}/{len(resolved)} replayed")
-        pools = sum(sum(v["totals"]) if v.get("totals") else int(v.get("poolTotal") or 0)
-                    for v in card["venues"])
-        vd = card["verdict"]
-        ok &= check(f"{name}: verdict summary",
-                    vd["venuesTotal"] == v_n and vd["resolvedVenues"] == len(resolved)
-                    and vd["poolsLamports"] == pools
-                    and vd["scoreMismatches"] == len(resolved) - s_ok,
-                    f"{pools} lamports · {len(resolved)}/{v_n} resolved · 0 mismatch")
+            # settlement replay — against the DECODED score, not the card's
+            resolved = [v for v in card["venues"] if v["status"] == 1]
+            s_ok = sum(
+                1 for v in resolved
+                if (v["resolvedScore"] if v["kind"] in ("band", "dark")
+                    else (v["resolvedScore"] >> 16 if v["side"] == "a" else v["resolvedScore"] & 0xffff) if v["kind"] == "duel"
+                    else v["winningScore"] if v["kind"] == "bounty"
+                    else v["legs"][v["legIndex"]]["correct"]) == (dr["correct"] if dr else -1))
+            ok &= check(f"{name}: settlements from decoded Run.correct",
+                        s_ok == len(resolved), f"{s_ok}/{len(resolved)} replayed")
+            pools = sum(sum(v["totals"]) if v.get("totals") else int(v.get("poolTotal") or 0)
+                        for v in card["venues"])
+            vd = card["verdict"]
+            ok &= check(f"{name}: verdict summary",
+                        vd["venuesTotal"] == v_n and vd["resolvedVenues"] == len(resolved)
+                        and vd["poolsLamports"] == pools
+                        and vd["scoreMismatches"] == len(resolved) - s_ok,
+                        f"{pools} lamports · {len(resolved)}/{v_n} resolved · 0 mismatch")
+        except Exception as e:
+            ok &= check(f"{name}: card parse", False,
+                        f"malformed card — {str(e)[:80]}")
 
     # --- sealed-board/v1 — the leaderboard card ---------------------------
     # Re-derive every record/receipt PDA, replay the aggregates bit-exact,
@@ -1522,8 +1651,8 @@ def main():
             if card.get("kind") != "sealed-match/v1":
                 continue
             m_n += 1
-            spid = card["programs"]["sealed"]
             try:
+                spid = card["programs"]["sealed"]
                 ident = (
                     b58encode_check(pda([b"modelrec", bytes.fromhex(card["a"]["seeds"]["modelHash"])],
                                         spid) or b"", card["a"]["recordPk"])
@@ -1565,7 +1694,8 @@ def main():
                                 or sl["correct"] != l["correct"] or sl["items"] != l["items"]
                                 or sl["modelRecord"] != card[side]["recordPk"]
                                 or bool(sl["vouched"]) != bool(l["vouchedAtRecord"])
-                                or bool(sl["postReveal"]) != bool(l["postReveal"])):
+                                or bool(sl["postReveal"]) != bool(l["postReveal"])
+                                or ("recordedAt" in l and sl["recordedAt"] != l["recordedAt"])):
                             bind_ok = False
                     # the record's on-chain modelId must be the card's
                     # claimed side name — same mislabel trap as claims.
@@ -1581,11 +1711,17 @@ def main():
                 banks_of = lambda pk: {l["benchmark"] for l in idx["logsByRec"].get(pk, {}).values()}
                 true_shared = banks_of(card["a"]["recordPk"]) & banks_of(card["b"]["recordPk"])
                 bank_set_ok = true_shared == {b["pk"] for b in card["banks"]}
-                rec_ok = all(
-                    {p for p, l in idx["logsByRec"].get(card[s]["recordPk"], {}).items()
-                     if l["benchmark"] in true_shared}
-                    == {r["pk"] for r in card["receipts"][s]}
-                    for s in ("a", "b"))
+                # multiset identity, not just set equality — a byte-
+                # identical duplicate of a winning receipt survives the
+                # Set collapse but multiplies its weight in the pooled
+                # aggregates above; length + set pins it down.
+                rec_ok = True
+                for s in ("a", "b"):
+                    want_set = {p for p, l in idx["logsByRec"].get(card[s]["recordPk"], {}).items()
+                                if l["benchmark"] in true_shared}
+                    got_pks = [r["pk"] for r in card["receipts"][s]]
+                    if len(got_pks) != len(want_set) or set(got_pks) != want_set:
+                        rec_ok = False
                 bind_ok = bind_ok and bank_set_ok and rec_ok
                 bank_pks = {b["pk"] for b in card["banks"]}
                 agg = {}
@@ -1640,9 +1776,9 @@ def main():
             if card.get("kind") != "sealed-claim/v1":
                 continue
             c_n += 1
-            spid = card["programs"]["sealed"]
-            mpid = card["programs"]["market"]
             try:
+                spid = card["programs"]["sealed"]
+                mpid = card["programs"]["market"]
                 ident = b58encode_check(
                     pda([b"modelrec", bytes.fromhex(card["record"]["seeds"]["modelHash"])],
                         spid) or b"", card["record"]["pk"])
@@ -1694,7 +1830,8 @@ def main():
                             or sl["correct"] != l["correct"] or sl["items"] != l["items"]
                             or sl["modelRecord"] != card["record"]["pk"]
                             or bool(sl["vouched"]) != bool(l["vouched"])
-                            or bool(sl["postReveal"]) != bool(l["postReveal"])):
+                            or bool(sl["postReveal"]) != bool(l["postReveal"])
+                                or ("recordedAt" in l and sl["recordedAt"] != l["recordedAt"])):
                         bind_ok = False
                 # the record's on-chain modelId must BE the card's model —
                 # a card renaming the model while keeping real receipts
@@ -1822,8 +1959,8 @@ def main():
             if card.get("kind") != "sealed-ceiling/v1":
                 continue
             k_n += 1
-            spid = card["programs"]["sealed"]
             try:
+                spid = card["programs"]["sealed"]
                 okc = b58encode_check(
                     pda([b"modelrec", bytes.fromhex(card["record"]["seeds"]["modelHash"])],
                         spid) or b"", card["record"]["pk"])
@@ -1901,7 +2038,7 @@ def main():
             try:
                 spid = card["programs"]["sealed"]
                 okc = (card["programs"]["arcium"] == ARCIUM
-                       and spid == SNAP["meta"]["programs"]["sealed"])
+                       and spid == SEALED_PID)
                 # the canonical six — no dropped, no phantom
                 named = {c["name"] for c in card["circuits"]}
                 okc &= named == CIRCUITS and len(card["circuits"]) == 6
@@ -1988,8 +2125,8 @@ def main():
                 continue
             l_n += 1
             try:
-                okl = (card["programs"]["sealed"] == SNAP["meta"]["programs"]["sealed"]
-                       and card["programs"]["market"] == SNAP["meta"]["programs"]["market"])
+                okl = (card["programs"]["sealed"] == SEALED_PID
+                       and card["programs"]["market"] == MARKET_PID)
                 okl &= card.get("snapshotSha256") == snap_hash
                 okl &= card.get("takenAt") == SNAP["meta"].get("takenAt")
                 for section, km in (("sealed", SEALED_KINDS), ("market", MARKET_KINDS)):
@@ -2019,16 +2156,56 @@ def main():
                 continue
             mm = re.search(r"claim-card content sha256 `([0-9a-f]{64})`", txt)
             model_m = re.search(r"# Capability report — (.+)", txt)
-            claim = ROOT / "docs" / "evidence" / "claims" / f"{model_m.group(1).strip()}.json" if model_m else None
+            rec_m = re.search(r"record PDA `([1-9A-HJ-NP-Za-km-z]{32,44})`", txt)
+            claim = None
+            if model_m:
+                mname = model_m.group(1).strip()
+                for cdir_ in (ROOT / "docs" / "evidence" / "claims",
+                              ROOT / "web" / "claims"):
+                    p = cdir_ / f"{mname}.json"
+                    if p.exists():
+                        claim = p
+                        break
+            c = None
+            if claim is not None:
+                try:
+                    c = json.loads(claim.read_text())
+                except Exception:
+                    c = None
             ok_h = False
-            if mm and claim and claim.exists():
-                c = json.loads(claim.read_text())
-                c.pop("generatedAt", None); c.pop("source", None)
-                canon = json.dumps(c, sort_keys=True, separators=(",", ":")).encode()
+            if mm and c is not None:
+                body = dict(c)
+                body.pop("generatedAt", None); body.pop("source", None)
+                canon = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
                 ok_h = hashlib.sha256(canon).hexdigest() == mm.group(1)
             ok &= check(f"{rpt.name}: claim-card binding", ok_h,
                         "report's numbers hash-commit to the replayed claim card"
                         if ok_h else "canonical hash mismatch or claim missing")
+            # record PDA — re-derive [modelrec, sha256(model)] @ sealed and
+            # bind the report's printed PDA to the card's bound record
+            # (chain.ts reportVerify — the forged replay at
+            # forged_report_checks does the same).
+            rec_ok = False
+            if rec_m and model_m and c is not None:
+                try:
+                    spid_r = (c.get("programs") or {}).get("sealed") or SEALED_PID
+                    rec_pda = b58encode(
+                        pda([b"modelrec", hashlib.sha256(
+                            model_m.group(1).strip().encode()).digest()],
+                            spid_r) or b"")
+                    rec_ok = (rec_pda == rec_m.group(1)
+                              and rec_pda == (c.get("model") or {}).get("recordPk"))
+                except Exception:
+                    rec_ok = False
+            ok &= check(f"{rpt.name}: record PDA", rec_ok,
+                        "printed PDA == [modelrec, sha256(model)] == card's bound record")
+            # bound card replay — the report is only as honest as the
+            # evidence it fingerprints; the claim card itself must pass
+            # the same check block the artifact pass runs.
+            rep = forged_card_checks(c) if isinstance(c, dict) else {"(thrown)"}
+            ok &= check(f"{rpt.name}: bound card replay", not rep,
+                        "the bound claim card replays clean"
+                        if not rep else f"bound card dies at: {sorted(rep)[:3]}")
 
     # --- sealed-policy/v1 — gate certificates -----------------------------
     pdir = ROOT / "docs" / "evidence" / "policies"
@@ -2128,25 +2305,14 @@ def main():
     if cat_path.exists() and (_CARD is None or _CARD[1] == "sealed-catalog/v1"):
         card = json.loads(cat_path.read_text())
         if card.get("kind") == "sealed-catalog/v1":
-            # completeness — the same walk the TypeScript scanner performs
-            found = []
-            for dp, _dn, fn in os.walk(ROOT / "docs" / "evidence"):
-                for f in sorted(fn):
-                    if not f.endswith((".json", ".md")) or f in ("index.json", "artifacts.json", "SHA256SUMS", "README.md"):
-                        continue
-                    full = Path(dp) / f
-                    rel = full.relative_to(ROOT / "docs" / "evidence").as_posix()
-                    try:
-                        raw = full.read_text()
-                        k = ("sealed-report/v1" if f.endswith(".md") and "sealed-report/v1" in raw
-                             else None if f.endswith(".md") else json.loads(raw).get("kind"))
-                    except Exception:
-                        k = None
-                    if k:
-                        found.append(rel)
+            # completeness — the same scanArtifacts walk the TypeScript
+            # verifier replays: every entry {path, kind, title} must equal
+            # a fresh scan of the tree (catalogVerify's "completeness").
+            found = catalog_scan(ROOT / "docs" / "evidence")
             listed = [a["path"] for a in card.get("artifacts", [])]
             ok &= check("artifacts.json: completeness",
-                        sorted(found) == sorted(listed) and card.get("count") == len(listed),
+                        found == card.get("artifacts")
+                        and card.get("count") == len(listed),
                         f"{len(listed)} listed / {len(found)} found")
             # kind honesty + hash pinning vs SHA256SUMS
             sums = {}
@@ -2284,7 +2450,13 @@ def main():
                 d = base64.b64decode(a["data"])
                 if d[:8] == disc("Run") and b58encode(d[8:40]) == bank["pk"]:
                     real_runs[a["pubkey"]] = decode_run(d)
-            r_bad = 0 if len(real_runs) == len(card["runs"]) else 1
+            # dup+omit: a count-only check waves a duplicated real run
+            # past a hidden one — only exact pk-set equality binds
+            # "these are ALL the runs on this exam" (chain.ts bankVerify).
+            card_run_pks = [r["pk"] for r in card["runs"]]
+            r_bad = 0 if (len(real_runs) == len(card["runs"])
+                          and len(set(card_run_pks)) == len(card["runs"])
+                          and all(pk in real_runs for pk in card_run_pks)) else 1
             for r in card["runs"]:
                 if not b58encode_check(
                         pda([b"run", b58decode(bank["pk"]), u64le(r["index"])], spid) or b"", r["pk"]):
@@ -2352,7 +2524,13 @@ def main():
                 d = base64.b64decode(a["data"])
                 if d[:8] == disc("ScoreLog") and b58encode(d[72:104]) == bank["pk"]:
                     real_logs[a["pubkey"]] = decode_scorelog(d)
-            l_bad = 0 if len(real_logs) == len(card["receipts"]) else 1
+            # same dup+omit trap on receipts — a duplicated real receipt
+            # keeps the count while hiding another; only the exact pk
+            # set proves "every receipt on this exam".
+            card_log_pks = [l["pk"] for l in card["receipts"]]
+            l_bad = 0 if (len(real_logs) == len(card["receipts"])
+                          and len(set(card_log_pks)) == len(card["receipts"])
+                          and all(pk in real_logs for pk in card_log_pks)) else 1
             for l in card["receipts"]:
                 r = real_logs.get(l["pk"])
                 if not (r and r["run"] == l["run"] and r["modelRecord"] == l["modelRecord"]
@@ -2378,9 +2556,13 @@ def main():
             ok &= check("digest.json: snapshot binding",
                         card.get("snapshotSha256") == snap_sha,
                         "sha256(snapshot.json) matches the digest's bound bytes")
+            # canonical field equality — Python's != accepts 1==True,
+            # 0==False, and treats missing keys as equal to null; the
+            # JSON-serialized comparison pins type AND presence.
+            canon = lambda x: json.dumps(x, sort_keys=True, separators=(",", ":"))
             diffs = [k for k in set(list(card) + list(rebuilt))
                      if k not in ("generatedAt", "source")
-                     and card.get(k) != rebuilt.get(k)]
+                     and canon(card.get(k)) != canon(rebuilt.get(k))]
             ok &= check("digest.json: field replay", not diffs,
                         "counts, integrity rows, keeper board, bank + record ledgers — "
                         "all rebuilt from decoded account bytes"
@@ -2421,6 +2603,7 @@ def main():
                         and "(thrown)" in died)
             if not died or not (named_ok or throw_ok):
                 t_bad += 1
+                print(f"    ! {card_path.name}: expected {sorted(expected)}, got {sorted(died)}")
         ok &= check("sealed-tamper/v1 exhibits", t_bad == 0,
                     f"{t_n - t_bad}/{t_n} committed forgeries rejected at the "
                     f"recorded named checks")
@@ -2478,28 +2661,39 @@ def snap_idx():
     the claim card's venue completeness + binding checks re-derive."""
     if _SNAPIDX[0] is None:
         idx = {"logs": {}, "logsByRec": {}, "recs": {}, "runs": {},
-               "markets": {}, "darks": {}, "ladders": {}, "bounties": {}}
+               "markets": {}, "darks": {}, "ladders": {}, "bounties": {},
+               "positions": {}, "darkPositions": {}}
         for e in SNAP.get("sealed", []):
             d = base64.b64decode(e["data"])
-            if d[:8] == disc("ScoreLog"):
-                l = decode_scorelog(d)
-                idx["logs"][e["pubkey"]] = l
-                idx["logsByRec"].setdefault(l["modelRecord"], {})[e["pubkey"]] = l
-            elif d[:8] == disc("ModelRecord"):
-                idx["recs"][e["pubkey"]] = decode_model_record(d)
-            elif d[:8] == disc("Run"):
-                idx["runs"][e["pubkey"]] = decode_run(d)
+            try:
+                if d[:8] == disc("ScoreLog"):
+                    l = decode_scorelog(d)
+                    idx["logs"][e["pubkey"]] = l
+                    idx["logsByRec"].setdefault(l["modelRecord"], {})[e["pubkey"]] = l
+                elif d[:8] == disc("ModelRecord"):
+                    idx["recs"][e["pubkey"]] = decode_model_record(d)
+                elif d[:8] == disc("Run"):
+                    idx["runs"][e["pubkey"]] = decode_run(d)
+            except Exception:
+                continue  # undecodable → snapOf's skip, not a traceback
         for e in SNAP.get("market", []):
             d = base64.b64decode(e["data"])
-            dd = d[:8]
-            if dd == disc("Market"):
-                idx["markets"][e["pubkey"]] = decode_market(d)
-            elif dd == disc("DarkMarket"):
-                idx["darks"][e["pubkey"]] = decode_dark_market(d)
-            elif dd == disc("Ladder"):
-                idx["ladders"][e["pubkey"]] = decode_ladder(d)
-            elif dd == disc("Bounty"):
-                idx["bounties"][e["pubkey"]] = decode_bounty(d)
+            try:
+                dd = d[:8]
+                if dd == disc("Market"):
+                    idx["markets"][e["pubkey"]] = decode_market(d)
+                elif dd == disc("DarkMarket"):
+                    idx["darks"][e["pubkey"]] = decode_dark_market(d)
+                elif dd == disc("Ladder"):
+                    idx["ladders"][e["pubkey"]] = decode_ladder(d)
+                elif dd == disc("Bounty"):
+                    idx["bounties"][e["pubkey"]] = decode_bounty(d)
+                elif dd == disc("Position"):
+                    idx["positions"][e["pubkey"]] = decode_position(d)
+                elif dd == disc("DarkPosition"):
+                    idx["darkPositions"][e["pubkey"]] = decode_dark_position(d)
+            except Exception:
+                continue
         _SNAPIDX[0] = idx
     return _SNAPIDX[0]
 
@@ -3039,6 +3233,105 @@ def classify_board(bounties, markets, ladders, runs, now):
     return board
 
 
+def venue_maps(markets, ladders, darks):
+    """venueMapsOf (chain.ts) — the pk → venue-field maps the position
+    classifier prices payouts against. Inputs are pk → decoded-account
+    dicts (snap_idx's markets / ladders / darks)."""
+    mk = {p: {"pk": p, "kind": "duel" if m.get("runB") and m["runB"] != NULL_PK
+              else "band", "status": m["status"], "outcome": m["outcome"],
+              "totals": m["totals"], "feeBps": m["feeBps"]}
+          for p, m in markets.items()}
+    lk = {p: {"pk": p, "kind": "ladder", "status": l["status"],
+              "mask": l["resultMask"], "totals": l["totals"],
+              "feeBps": l["feeBps"]}
+          for p, l in ladders.items()}
+    dk = {p: {"pk": p, "kind": "dark", "status": d["status"],
+              "outcome": d["outcome"], "poolTotal": d["poolTotal"],
+              "winTotal": d["winTotal"], "feeBps": d["feeBps"],
+              "tallied": bool(d["tallied"])}
+          for p, d in darks.items()}
+    return {"mk": mk, "lk": lk, "dk": dk}
+
+
+def classify_positions(positions, dark_positions, maps, me=None):
+    """classifyPositions (chain.ts ~8977) ported — payout classification
+    of positions against venue maps: the state machine (payable / lost /
+    refund / live / sealed / forfeit), dark-reveal logic, the ladder
+    result-mask math, and feeBps deduction (netOf). Positions are plain
+    decoded dicts ({pk,bettor,market,amounts} / {pk,bettor,market,amount,
+    revealed}); `me` filters by bettor (None = all). Returns rows with
+    {pk, posPk, bettor, kind, state, staked, est} — the verdict replay
+    compares state/staked/est against the card's declared verdict."""
+    mk, lk, dk = maps["mk"], maps["lk"], maps["dk"]
+    rows = []
+
+    def net_of(totals, fee_bps):
+        pot = sum(totals)
+        return pot - pot * int(fee_bps) // 10000
+
+    for p in positions:
+        if me is not None and p["bettor"] != me:
+            continue
+        amounts = [int(a) for a in p["amounts"]]
+        staked = sum(amounts)
+        v = mk.get(p["market"]) or lk.get(p["market"])
+        if not v:
+            continue
+        row = {"pk": p["market"], "posPk": p["pk"], "bettor": p["bettor"],
+               "kind": v["kind"]}
+        if v["status"] == 2:
+            rows.append({**row, "state": "refund", "staked": staked, "est": staked})
+            continue
+        if v["status"] != 1:
+            rows.append({**row, "state": "live", "staked": staked, "est": 0})
+            continue
+        if v["kind"] == "ladder":
+            mask = v["mask"]
+            won = sum(a for i, a in enumerate(amounts) if mask & (1 << i))
+            win_total = sum(t for i, t in enumerate(v["totals"]) if mask & (1 << i))
+            est = won * net_of(v["totals"], v["feeBps"]) // win_total \
+                if won > 0 and win_total > 0 else 0
+            rows.append({**row, "state": "payable" if won > 0 else "lost",
+                         "staked": won if won > 0 else staked, "est": est})
+        else:
+            won = amounts[v["outcome"]] if 0 <= v["outcome"] < len(amounts) else 0
+            win_total = v["totals"][v["outcome"]] \
+                if 0 <= v["outcome"] < len(v["totals"]) else 0
+            est = won * net_of(v["totals"], v["feeBps"]) // win_total \
+                if won > 0 and win_total > 0 else 0
+            rows.append({**row, "state": "payable" if won > 0 else "lost",
+                         "staked": won if won > 0 else staked, "est": est})
+    for p in dark_positions:
+        if me is not None and p["bettor"] != me:
+            continue
+        amount = int(p["amount"])
+        revealed = int(p["revealed"])
+        v = dk.get(p["market"])
+        if not v:
+            continue
+        row = {"pk": p["market"], "posPk": p["pk"], "bettor": p["bettor"],
+               "kind": "dark"}
+        if v["status"] == 2:
+            rows.append({**row, "state": "refund", "staked": amount, "est": amount})
+            continue
+        if v["status"] == 0:
+            rows.append({**row, "state": "sealed", "staked": amount, "est": 0})
+            continue
+        if not v["tallied"]:
+            rows.append({**row, "state": "live", "staked": amount, "est": 0})
+            continue
+        if revealed == 255:
+            rows.append({**row, "state": "forfeit", "staked": amount, "est": 0})
+            continue
+        if revealed != v["outcome"] or v["winTotal"] == 0:
+            rows.append({**row, "state": "lost", "staked": amount, "est": 0})
+            continue
+        est = amount * (v["poolTotal"] - v["poolTotal"] * int(v["feeBps"]) // 10000) \
+            // v["winTotal"]
+        rows.append({**row, "state": "payable", "staked": amount, "est": est})
+    return rows
+
+
 def build_digest():
     """buildDigestData() ported — every digest field recomputed from decoded
     snapshot accounts (used to field-compare against the committed card)."""
@@ -3251,6 +3544,102 @@ def forged_card_rejected(f):
     return bool(forged_card_checks(f))
 
 
+def _catalog_title(raw, base):
+    # port of chain.ts scanArtifacts' titleOf — every committed artifact
+    # title in artifacts.json was generated by this exact recipe. `??`
+    # semantics: only a MISSING (None) field falls back to the default —
+    # 0/""/false survive, exactly like TypeScript's nullish coalescing.
+    _nn = lambda x, d: d if x is None else x
+    raw = raw if isinstance(raw, dict) else {}
+    k = raw.get("kind")
+    if k == "sealed-claim/v1":
+        return _nn((raw.get("model") or {}).get("id"), base)
+    if k == "sealed-match/v1":
+        a, b = (raw.get("a") or {}).get("id"), (raw.get("b") or {}).get("id")
+        return f"{a} vs {b}" if a and b else base
+    if k == "sealed-policy/v1":
+        p = raw.get("policy") or {}
+        parts = [f"≥{p.get('minPct')}%", f"≥{p.get('minRuns')} runs",
+                 "vouched" if p.get("vouchedOnly") else "",
+                 "no post-reveal" if p.get("noPostReveal") else "",
+                 f"bank {str(p.get('bank'))[:8]}…" if p.get("bank") else ""]
+        return " · ".join(x for x in parts if x)
+    if k == "sealed-bank/v1":
+        b = raw.get("bank") or {}
+        kindname = (["authored", "generated", "private"][b["kind"]]
+                    if b.get("kind") in (0, 1, 2) else "bank")
+        return f"{_nn(b.get('name'), base)} ({kindname})"
+    if k == "sealed-evidence-digest/v1":
+        return "whole-ledger digest"
+    if k == "sealed-board/v1":
+        return "paired-evidence leaderboard"
+    if k == "sealed-position/v1":
+        return (f"{_nn((raw.get('verdict') or {}).get('state'), '?')} · "
+                f"{_nn((raw.get('venue') or {}).get('kind'), '?')} venue — "
+                f"{str(_nn(((raw.get('position') or {}).get('seeds') or {}).get('bettor'), ''))[:8]}…")
+    if k == "sealed-bounty/v1":
+        v = (raw.get("verdict") or {}).get("state")
+        if v is None:
+            v = "claimed" if (raw.get("bounty") or {}).get("status") == 1 else "open"
+        amount = float(_nn((raw.get("bounty") or {}).get("amount"), 0)) / 1e9
+        return (f"{v} · {amount:.3f} SOL · "
+                f"≥{_nn((raw.get('bounty') or {}).get('threshold'), '?')}/"
+                f"{_nn((raw.get('bank') or {}).get('capacity'), '?')} — "
+                f"{str(_nn(((raw.get('bounty') or {}).get('seeds') or {}).get('sponsor'), ''))[:8]}…")
+    if k == "sealed-grant/v1":
+        return (f"{_nn((raw.get('bank') or {}).get('name'), '?')} part "
+                f"{_nn((raw.get('grant') or {}).get('part'), '?')} → "
+                f"{str(_nn((raw.get('grant') or {}).get('viewer'), ''))[:8]}… · "
+                f"{_nn((raw.get('panel') or {}).get('viewersOnBank'), '?')} viewer(s)")
+    if k == "sealed-trail/v1":
+        return f"run {str(_nn((raw.get('run') or {}).get('pk'), base))[:8]}… ({base})"
+    if k == "sealed-tamper/v1":
+        return f"forgery: {_nn(raw.get('attack'), '?')} → {_nn(raw.get('targetCard'), base)}"
+    if k == "sealed-ceiling/v1":
+        return (f"{_nn((raw.get('model') or {}).get('id'), base)} ≤ "
+                f"{_nn((raw.get('ceiling') or {}).get('maxPct'), '∅')} "
+                f"over {_nn((raw.get('scope') or {}).get('finalizedRuns'), '?')} run(s)")
+    if k == "sealed-circuit/v1":
+        n = len(raw["circuits"]) if raw.get("circuits") is not None else "?"
+        return (f"{n} Arcium circuits @ cluster "
+                f"{_nn((raw.get('cluster') or {}).get('offset'), '?')}")
+    if k == "sealed-ledger/v1":
+        c = raw.get("census") or {}
+        n = _nn((c.get("sealed") or {}).get("accounts"), 0) + \
+            _nn((c.get("market") or {}).get("accounts"), 0)
+        return f"whole-ledger census — {n} accounts"
+    return base
+
+
+def catalog_scan(dirpath):
+    # port of chain.ts scanArtifacts — the same walk catalogVerify replays:
+    # every .json/.md under the tree (minus the index files themselves)
+    # classified by kind, titled, and path-sorted.
+    out = []
+    for dp, _dn, fn in os.walk(dirpath):
+        for f in sorted(fn):
+            if not f.endswith((".json", ".md")):
+                continue
+            if f in ("index.json", "artifacts.json", "SHA256SUMS", "README.md"):
+                continue
+            full = Path(dp) / f
+            rel = full.relative_to(dirpath).as_posix()
+            raw_txt = full.read_text(encoding="utf-8")
+            try:
+                parsed = json.loads(raw_txt)
+                kind = parsed.get("kind")
+            except Exception:
+                parsed = None
+                kind = "sealed-report/v1" if "sealed-report/v1" in raw_txt else None
+            if not kind or not kind.startswith("sealed-"):
+                continue
+            base = f.rsplit(".", 1)[0]
+            out.append({"path": rel, "kind": kind,
+                        "title": _catalog_title(parsed, base)})
+    out.sort(key=lambda a: a["path"])
+    return out
+
+
 def forged_card_checks(f):
     """Return the set of check names the forged card FAILS — the SAME names
     the TypeScript check()/note() rows print, so a committed exhibit's
@@ -3417,7 +3806,8 @@ def forged_card_checks(f):
                         or sl["correct"] != l["correct"] or sl["items"] != l["items"]
                         or sl["modelRecord"] != f["record"]["pk"]
                         or bool(sl["vouched"]) != bool(l["vouched"])
-                        or bool(sl["postReveal"]) != bool(l["postReveal"])):
+                        or bool(sl["postReveal"]) != bool(l["postReveal"])
+                                or ("recordedAt" in l and sl["recordedAt"] != l["recordedAt"])):
                     died.add("snapshot binding")
             rec_dec = idx["recs"].get(f["record"]["pk"])
             if not rec_dec or rec_dec["modelId"] != f["model"]["id"]:
@@ -3539,7 +3929,8 @@ def forged_card_checks(f):
                             or sl["correct"] != l["correct"] or sl["items"] != l["items"]
                             or sl["modelRecord"] != f[sd]["recordPk"]
                             or bool(sl["vouched"]) != bool(l["vouchedAtRecord"])
-                            or bool(sl["postReveal"]) != bool(l["postReveal"])):
+                            or bool(sl["postReveal"]) != bool(l["postReveal"])
+                                or ("recordedAt" in l and sl["recordedAt"] != l["recordedAt"])):
                         died.add("snapshot binding")
                 rec_dec = idx["recs"].get(f[sd]["recordPk"])
                 if not rec_dec or rec_dec["modelId"] != f[sd]["id"]:
@@ -3552,7 +3943,11 @@ def forged_card_checks(f):
             for sd in ("a", "b"):
                 want = {p for p, l in idx["logsByRec"].get(f[sd]["recordPk"], {}).items()
                         if l["benchmark"] in true_shared}
-                if want != {r["pk"] for r in f["receipts"][sd]}:
+                # multiset identity — a duplicated receipt survives the
+                # Set collapse but multiplies its pooled weight (TS's
+                # receipt completeness: sizes AND membership).
+                got = [r["pk"] for r in f["receipts"][sd]]
+                if len(got) != len(want) or set(got) != want:
                     died.add("receipt completeness")
             # verdict replay — shared banks, pooled aggregates, wins, winner
             bank_pks = {b["pk"] for b in f["banks"]}
@@ -3699,7 +4094,7 @@ def forged_card_checks(f):
                         "gen_part_private", "reveal_part", "reshare_part"}
             progs = f.get("programs", {})
             spid = progs.get("sealed")
-            if not (progs.get("arcium") == ARCIUM and spid == SNAP["meta"]["programs"]["sealed"]):
+            if not (progs.get("arcium") == ARCIUM and spid == SEALED_PID):
                 died.add("program identity")
             named = {c["name"] for c in f.get("circuits", [])}
             if named != CIRCUITS or len(f.get("circuits", [])) != 6:
@@ -3769,8 +4164,8 @@ def forged_card_checks(f):
                         "kinds": kinds}
 
             progs = f.get("programs", {})
-            if not (progs.get("sealed") == SNAP["meta"]["programs"]["sealed"]
-                    and progs.get("market") == SNAP["meta"]["programs"]["market"]):
+            if not (progs.get("sealed") == SEALED_PID
+                    and progs.get("market") == MARKET_PID):
                 died.add("program identity")
             sha_ok = f.get("snapshotSha256") == hashlib.sha256(snapshot_bytes()).hexdigest()
             if not sha_ok:
@@ -3874,19 +4269,58 @@ def forged_card_checks(f):
                 if w is None:
                     died.add("bounty_qualifies replay")
                 else:
+                    proven_now = _proven(
+                        {"status": w.get("status"),
+                         "allQueuedAt": int(w.get("allQueuedAt") or 0),
+                         "scoredMask": str(w.get("scoredMask") or "0")},
+                        int(time.time()))
                     if not (w["run"] == b.get("winnerRun")
                             and w["benchmark"] == b["seeds"]["bank"]
                             and int(w["createdAt"]) >= int(b["createdAt"])
                             and w["runner"] != b["seeds"]["sponsor"]
                             and w["correct"] >= b["threshold"]
                             and w["correct"] == b["winningScore"]
+                            and proven_now
                             and not w.get("postReveal")):
                         died.add("bounty_qualifies replay")
+                    # every field the gate replayed must equal the decoded
+                    # Run — an unbound field is a costume (postdate
+                    # createdAt or hide postReveal and this dies).
                     wrun = idx["runs"].get(w["run"])
-                    if wrun is None or wrun["correct"] != w["correct"] or wrun["runner"] != w["runner"]:
+                    if not (wrun is not None
+                            and wrun["correct"] == w.get("correct")
+                            and wrun["runner"] == w.get("runner")
+                            and wrun["benchmark"] == w.get("benchmark")
+                            and wrun["status"] == w.get("status")
+                            and wrun["createdAt"] == int(w.get("createdAt") or 0)
+                            and wrun["firstPendingAt"] == int(w.get("firstPendingAt") or 0)
+                            and wrun["allQueuedAt"] == int(w.get("allQueuedAt") or 0)
+                            and str(wrun["scoredMask"]) == str(w.get("scoredMask") or "0")
+                            and bool(wrun["postReveal"]) == bool(w.get("postReveal"))):
                         died.add("winner binding")
-            if f.get("bank") and b["threshold"] > f["bank"]["capacity"]:
-                died.add("threshold ≤ capacity")
+            if f.get("bank"):
+                # capacity comes from the DECODED Benchmark when the
+                # snapshot carries it — a forged card shrinking
+                # card.bank.capacity comparison dies (chain.ts [4]).
+                bdec = next((x for x in (SNAP.get("sealed") or [])
+                             if x.get("pubkey") == f["bank"].get("pk")
+                             and base64.b64decode(x["data"])[:8] == disc("Benchmark")), None)
+                bcap = None
+                if bdec is not None:
+                    try:
+                        bcap = decode_benchmark(base64.b64decode(bdec["data"]))["chunkCount"] * 32
+                    except Exception:
+                        bcap = None
+                cap = bcap if bcap is not None else f["bank"].get("capacity", 0)
+                if b["threshold"] > cap:
+                    died.add("threshold ≤ capacity")
+            # verdict field — "claimed" only when the decoded Bounty says
+            # status==1 (the card's word for it isn't enough).
+            vd = f.get("verdict")
+            if isinstance(vd, dict) and vd.get("state") is not None:
+                expected = "claimed" if b.get("status") == 1 else "open"
+                if vd["state"] != expected or (d is not None and d["status"] != b.get("status")):
+                    died.add("verdict")
             if f.get("snapshotSha256") and \
                     f["snapshotSha256"] != hashlib.sha256(snapshot_bytes()).hexdigest():
                 died.add("snapshot binding")
@@ -3921,6 +4355,26 @@ def forged_card_checks(f):
                 died.add("bank account binding")
             if f["grant"].get("encryptionKey") != f["grant"]["viewer"]:
                 died.add("key echo")
+            # panel tally — re-derived from the snapshot's decoded
+            # ShareGrants, not the card's say-so (chain.ts grantVerify [5]).
+            panel = f.get("panel") or {}
+            on_bank = []
+            for a in SNAP["sealed"]:
+                dd = base64.b64decode(a["data"])
+                if dd[:8] == DISC["shareGrant"]:
+                    try:
+                        g = decode_share_grant(dd)
+                        if g["benchmark"] == f["grant"].get("benchmark"):
+                            on_bank.append(g)
+                    except Exception:
+                        continue
+            viewers = {g["viewer"] for g in on_bank}
+            full = sum(1 for vw in viewers
+                       if len({g["part"] for g in on_bank if g["viewer"] == vw}) >= 4)
+            if not (panel.get("grantsOnBank") == len(on_bank)
+                    and panel.get("viewersOnBank") == len(viewers)
+                    and panel.get("viewersAllParts") == full):
+                died.add("panel tally")
         elif kind == "sealed-bank/v1":
             # the exam dossier — mirror of the honest replay block: bank
             # PDA, chunk-set PDAs + completeness + field binding, bank
@@ -3991,7 +4445,10 @@ def forged_card_checks(f):
                 d = base64.b64decode(a["data"])
                 if d[:8] == disc("Run") and b58encode(d[8:40]) == bpk:
                     real_runs[a["pubkey"]] = decode_run(d)
-            r_bad = 0 if len(real_runs) == len(f.get("runs", [])) else 1
+            frun_pks = [r["pk"] for r in f.get("runs", [])]
+            r_bad = 0 if (len(real_runs) == len(f.get("runs", []))
+                          and len(set(frun_pks)) == len(f.get("runs", []))
+                          and all(pk in real_runs for pk in frun_pks)) else 1
             for r in f.get("runs", []):
                 if not b58encode_check(
                         pda([b"run", b58decode(bpk), u64le(r["index"])],
@@ -4052,7 +4509,10 @@ def forged_card_checks(f):
                 d = base64.b64decode(a["data"])
                 if d[:8] == disc("ScoreLog") and b58encode(d[72:104]) == bpk:
                     real_logs[a["pubkey"]] = decode_scorelog(d)
-            l_bad = 0 if len(real_logs) == len(f.get("receipts", [])) else 1
+            flog_pks = [l["pk"] for l in f.get("receipts", [])]
+            l_bad = 0 if (len(real_logs) == len(f.get("receipts", []))
+                          and len(set(flog_pks)) == len(f.get("receipts", []))
+                          and all(pk in real_logs for pk in flog_pks)) else 1
             for l in f.get("receipts", []):
                 r = real_logs.get(l["pk"])
                 if not (r and r["run"] == l["run"] and r["modelRecord"] == l["modelRecord"]
@@ -4067,23 +4527,63 @@ def forged_card_checks(f):
                 died.add("snapshot binding")
         elif kind == "sealed-position/v1":
             msec = SNAP["market"]
+            mpid = f.get("programs", {}).get("market")
             acct = f["position"]["account"]
+            seeds = f["position"]["seeds"]
+            # [1] position PDA — dark positions carry the bettor-chosen
+            # pos_salt seed (chain.ts positionVerify [1]).
+            praw = ([b"darkpos", b58decode(seeds["venue"]),
+                     b58decode(seeds["bettor"]),
+                     u64le(seeds.get("posSalt") or 0)]
+                    if acct == "dark"
+                    else [b"position", b58decode(seeds["venue"]),
+                          b58decode(seeds["bettor"])])
+            if not b58encode_check(pda(praw, mpid) or b"", f["position"]["pk"]):
+                died.add("position PDA")
+            # [2] venue PDA — seeds re-derive by declared kind.
+            vv = f.get("venue", {})
+            vs = vv.get("seeds") or {}
+            vseeds = None
+            if vv.get("kind") == "band":
+                vseeds = [b"market", b58decode(vs["run"]), u64le(vs["salt"])]
+            elif vv.get("kind") == "duel":
+                vseeds = [b"duel", b58decode(vs["runA"]), b58decode(vs["runB"]),
+                          u64le(vs["salt"])]
+            elif vv.get("kind") == "dark":
+                vseeds = [b"dark", b58decode(vs["run"]), u64le(vs["salt"])]
+            elif vv.get("kind") == "ladder":
+                vseeds = [b"ladder", b58decode(vs["firstLeg"]), u64le(vs["salt"])]
+            elif vv.get("kind") == "bounty":
+                vseeds = [b"bounty", b58decode(vs["bank"]),
+                          b58decode(vs["sponsor"]), u64le(vs["salt"])]
+            if vseeds is None or not b58encode_check(
+                    pda(vseeds, mpid) or b"", vv.get("pk", "")):
+                died.add("venue PDA")
+            # [3] account + stake binding — the decoded position's
+            # market/bettor must equal the declared seeds AND every stake
+            # field must equal bytes (TS "stake binding" shape).
             raw = find_account(msec, f["position"]["pk"],
                                DISC["darkPosition"] if acct == "dark" else DISC["position"])
+            dec = None
             if raw is None:
                 died.add("position account binding")
             else:
                 if acct == "dark":
-                    d = decode_dark_position(raw)
-                    if str(d["amount"]) != str(f["stake"]["amount"]):
+                    dec = decode_dark_position(raw)
+                    if not (dec["market"] == seeds["venue"]
+                            and dec["bettor"] == seeds["bettor"]
+                            and str(dec["amount"]) == str(f["stake"]["amount"])
+                            and dec["commitment"] == f["stake"]["commitment"]
+                            and dec["revealed"] == f["stake"]["revealed"]):
                         died.add("stake binding")
                 else:
-                    d = decode_position(raw)
-                    if d["amounts"] != [int(x) for x in f["stake"]["amounts"]]:
+                    dec = decode_position(raw)
+                    if not (dec["market"] == seeds["venue"]
+                            and dec["bettor"] == seeds["bettor"]
+                            and dec["amounts"] == [int(x) for x in f["stake"]["amounts"]]):
                         died.add("stake binding")
             # venue field binding — a card-declared null is honest only when
             # the account field is absent too (parity with the honest path).
-            vv = f.get("venue", {})
             vvdisc = {"band": "Market", "duel": "Market", "dark": "DarkMarket",
                       "ladder": "Ladder"}.get(vv.get("kind"))
             vvraw = find_account(msec, vv.get("pk", ""), disc(vvdisc)) if vvdisc else None
@@ -4116,21 +4616,74 @@ def forged_card_checks(f):
                             and vv_ints(vv["totals"]) == a["totals"]
                             and vv.get("outcome") is None):
                         died.add("venue binding")
-                # verdict replay — staked = winning-bucket amount; estPayout =
-                # pro-rata pool share (fee-free cards only — the committed ones).
-                v = f.get("verdict", {})
-                venue = f.get("venue", {})
-                if acct != "dark" and venue.get("status") == 1 and venue.get("totals"):
-                    outc = venue["outcome"]
-                    staked = int(f["stake"]["amounts"][outc])
-                    pool = sum(int(x) for x in venue["totals"])
-                    wtot = int(venue["totals"][outc])
-                    est = pool * staked // wtot if wtot else 0
-                    if int(v["staked"]) != staked or int(v["estPayout"]) != est:
-                        died.add("verdict replay")
+            # verdict replay — the full classifyPositions state machine
+            # (payable/lost/refund/live/sealed/forfeit + pro-rata est)
+            # over the DECODED position and venue accounts — a card that
+            # prettifies its payout dies here.
+            v = f.get("verdict", {})
+            row = None
+            if dec is not None:
+                vmaps = venue_maps(idx["markets"], idx["ladders"], idx["darks"])
+                if acct == "dark":
+                    row = (classify_positions(
+                        [], [{"pk": f["position"]["pk"], "bettor": dec["bettor"],
+                              "market": dec["market"], "amount": dec["amount"],
+                              "revealed": dec["revealed"]}],
+                        vmaps, seeds["bettor"]) or [None])[0]
+                else:
+                    row = (classify_positions(
+                        [{"pk": f["position"]["pk"], "bettor": dec["bettor"],
+                          "market": dec["market"], "amounts": dec["amounts"]}],
+                        [], vmaps, seeds["bettor"]) or [None])[0]
+            if not (row and row["state"] == v.get("state")
+                    and str(row["est"]) == str(v.get("estPayout"))
+                    and str(row["staked"]) == str(v.get("staked"))):
+                died.add("verdict replay")
+            # snapshot binding — the card must pin THIS dump.
+            if f.get("snapshotSha256") != hashlib.sha256(snapshot_bytes()).hexdigest():
+                died.add("snapshot binding")
         elif kind == "sealed-catalog/v1":
-            # catalog forgeries mutate the index; replay completeness vs disk
-            pass
+            # catalog forgeries mutate the index; run the same three
+            # catalogVerify checks — completeness vs a fresh scan, then
+            # existence + kind honesty + sha256-binding per declared entry.
+            ev_root = ROOT / "docs" / "evidence"
+            fresh = catalog_scan(ev_root)
+            declared_list = f.get("artifacts") or []
+            if fresh != declared_list:
+                died.add("completeness")
+            declared = {a["path"]: a["kind"] for a in declared_list
+                        if isinstance(a, dict) and "path" in a}
+            kind_ok = True
+            for p, kk in declared.items():
+                try:
+                    raw_txt = (ev_root / p).read_text(encoding="utf-8")
+                    actual = (("sealed-report/v1" if "sealed-report/v1" in raw_txt
+                               else None) if p.endswith(".md")
+                              else json.loads(raw_txt).get("kind"))
+                except Exception:
+                    actual = None
+                if actual != kk:
+                    kind_ok = False
+            if not kind_ok:
+                died.add("existence + kind honesty")
+            try:
+                sums = {}
+                for line in (ev_root / "SHA256SUMS").read_text(
+                        encoding="utf-8").splitlines():
+                    if "  " in line:
+                        h, p = line.split("  ", 1)
+                        sums[p.lstrip("./")] = h
+                hash_ok = True
+                for p in declared:
+                    full = ev_root / p
+                    want = sums.get(p)
+                    if (not want or not full.exists()
+                            or hashlib.sha256(full.read_bytes()).hexdigest() != want):
+                        hash_ok = False
+                if not hash_ok:
+                    died.add("hash binding")
+            except Exception:
+                died.add("hash binding")
     except Exception:
         died.add("(thrown)")
     return died
@@ -4920,7 +5473,7 @@ def check_anchor():
 KNOWN_KINDS = {f"sealed-{k}/v1" for k in
                ("position", "bounty", "grant", "trail", "board", "match",
                 "claim", "policy", "catalog", "bank", "evidence-digest",
-                "tamper", "report", "ceiling", "circuit")}
+                "tamper", "report", "ceiling", "circuit", "ledger")}
 
 if __name__ == "__main__":
     argv = sys.argv[1:]

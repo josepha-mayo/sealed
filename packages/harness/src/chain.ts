@@ -2258,9 +2258,11 @@ function buildMatchCard(recA: SnapAccount, recB: SnapAccount, logs: SnapAccount[
       chunkCount: num(r.account.chunkCount), postReveal: !!r.account.postReveal })),
     receipts: {
       a: logsA.map((l) => ({ pk: l.publicKey.toBase58(), run: b58(l.account.run), benchmark: b58(l.account.benchmark),
-        correct: num(l.account.correct), items: num(l.account.items), vouchedAtRecord: !!l.account.vouchedAtRecord, postReveal: !!l.account.postReveal })),
+        correct: num(l.account.correct), items: num(l.account.items), vouchedAtRecord: !!l.account.vouchedAtRecord,
+        postReveal: !!l.account.postReveal, recordedAt: num(l.account.recordedAt) })),
       b: logsB.map((l) => ({ pk: l.publicKey.toBase58(), run: b58(l.account.run), benchmark: b58(l.account.benchmark),
-        correct: num(l.account.correct), items: num(l.account.items), vouchedAtRecord: !!l.account.vouchedAtRecord, postReveal: !!l.account.postReveal })),
+        correct: num(l.account.correct), items: num(l.account.items), vouchedAtRecord: !!l.account.vouchedAtRecord,
+        postReveal: !!l.account.postReveal, recordedAt: num(l.account.recordedAt) })),
     },
     verdict: { pooledA: pA.c, pooledItemsA: pA.i, pooledB: pB.c, pooledItemsB: pB.i,
       pctA, pctB, bankWins: wins, sharedBanks: rows.length,
@@ -2428,7 +2430,8 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
             (real.account.modelRecord as PublicKey).toBase58() !== card[side].recordPk ||
             Number(real.account.correct) !== l.correct || Number(real.account.items) !== l.items ||
             Number(real.account.vouchedAtRecord ?? 0) !== (l.vouchedAtRecord ? 1 : 0) ||
-            Number(real.account.postReveal ?? 0) !== (l.postReveal ? 1 : 0)) bBad++;
+            Number(real.account.postReveal ?? 0) !== (l.postReveal ? 1 : 0) ||
+            (l.recordedAt !== undefined && Number(real.account.recordedAt) !== Number(l.recordedAt))) bBad++;
       }
     }
     const recA = recs.get(card.a.recordPk), recB = recs.get(card.b.recordPk);
@@ -2458,12 +2461,16 @@ function verifyMatchCard(card: any, emit?: (what: string, ok: boolean, detail: s
     for (const side of ["a", "b"] as const) {
       const want = new Set(allLogs.filter((l) => l.account.modelRecord.toBase58() === card[side].recordPk
           && sharedSet.has(l.account.benchmark.toBase58())).map((l) => l.publicKey.toBase58()));
-      const got = new Set(card.receipts[side].map((l: any) => l.pk));
-      if (want.size !== got.size || [...want].some((k) => !got.has(k))) rcBad++;
+      const list: any[] = card.receipts[side];
+      const got = new Set(list.map((l: any) => l.pk));
+      // set equality AND multiset identity — a byte-identical duplicate of a
+      // winning receipt survives every per-entry check but multiplies its
+      // weight in the pooled verdict; the Set would silently collapse it.
+      if (want.size !== got.size || got.size !== list.length || [...want].some((k) => !got.has(k))) rcBad++;
     }
     check("receipt completeness", rcBad === 0,
-      rcBad === 0 ? "both sides — embedded receipts == decoded logs on every shared bank"
-        : `${rcBad} side(s) carry a receipt subset — a dropped receipt on a kept bank launders the bank's delta`);
+      rcBad === 0 ? "both sides — embedded receipts == decoded logs on every shared bank, exactly once each"
+        : `${rcBad} side(s) carry a wrong receipt multiset — a duplicate launders extra weight, a dropped one hides a delta`);
   } else {
     check("snapshot binding", false,
       "needs --snapshot — without the account dump a match card is self-certifying");
@@ -2496,7 +2503,7 @@ export async function matchVerify(file: string, json = false, snapPath?: string)
     }
     if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
     else console.log(`${okAll ? "ALL MATCHES VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
-    if (!okAll) process.exit(1);
+    if (!okAll) process.exitCode = 1;
     return { ok: okAll, cards: results };
   }
   const card = JSON.parse(readFileSync(file, "utf8"));
@@ -2862,6 +2869,14 @@ export async function boardVerify(file: string, json = false, snapPath?: string)
       "needs --snapshot — without the account dump a leaderboard card is self-certifying");
   }
 
+  // totals — echoed into the VERIFIED line, so recompute rather than trust
+  const totOk = card.totals &&
+    card.totals.models === card.models.length &&
+    card.totals.receipts === card.models.reduce((s: number, m: any) => s + m.receipts.length, 0) &&
+    card.totals.pairs === card.pairs.length &&
+    card.totals.unrankedPairs === (card.models.length * (card.models.length - 1)) / 2 - card.pairs.length;
+  note(!!totOk, "totals", `${card.totals?.models} models · ${card.totals?.receipts} receipts · ${card.totals?.pairs} pairs — recomputed`);
+
   const ok = fail === 0;
   if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
   else {
@@ -3078,7 +3093,11 @@ export async function bankVerify(file: string, json = false, snapPath?: string):
   if (ss) {
     const realRuns = new Map(snapOf(ss, "Run").filter((r) => (r.account.benchmark as PublicKey).toBase58() === card.bank.pk)
       .map((r) => [r.publicKey.toBase58(), r]));
-    if (realRuns.size !== card.runs.length) rBad++;
+    // dup+omit: count-only waves a duplicated real run past a hidden one —
+    // only exact pk-set equality binds "these are ALL the runs".
+    if (realRuns.size !== card.runs.length ||
+        new Set(card.runs.map((r: any) => r.pk)).size !== card.runs.length ||
+        card.runs.some((r: any) => !realRuns.has(r.pk))) rBad++;
     for (const r of card.runs) {
       const real = realRuns.get(r.pk)?.account;
       if (real && Number(real.index) === r.index && String(real.modelId) === r.modelId &&
@@ -3138,7 +3157,11 @@ export async function bankVerify(file: string, json = false, snapPath?: string):
   if (ss) {
     const real = new Map(snapOf(ss, "ScoreLog").filter((l) => (l.account.benchmark as PublicKey).toBase58() === card.bank.pk)
       .map((l) => [l.publicKey.toBase58(), l]));
-    if (real.size !== card.receipts.length) lBad++;
+    // dup+omit: a duplicated real receipt keeps the count while hiding
+    // another — only the exact pk set proves "every receipt on this exam".
+    if (real.size !== card.receipts.length ||
+        new Set(card.receipts.map((l: any) => l.pk)).size !== card.receipts.length ||
+        card.receipts.some((l: any) => !real.has(l.pk))) lBad++;
     for (const l of card.receipts) {
       const r = real.get(l.pk)?.account;
       if (!r || (r.run as PublicKey).toBase58() !== l.run ||
@@ -3268,7 +3291,11 @@ export async function positionVerify(file: string, json = false, snapPath?: stri
     ? [Buffer.from("ladder"), new PublicKey(card.venue.seeds.firstLeg).toBuffer(), u64le(salt)]
     : card.venue.kind === "dark"
       ? [Buffer.from("dark"), new PublicKey(card.venue.seeds.run).toBuffer(), u64le(salt)]
-      : [Buffer.from("market"), new PublicKey(card.venue.seeds.run).toBuffer(), u64le(salt)];
+      : card.venue.kind === "duel"
+        ? [Buffer.from("duel"), new PublicKey(card.venue.seeds.runA).toBuffer(), new PublicKey(card.venue.seeds.runB).toBuffer(), u64le(salt)]
+        : card.venue.kind === "bounty"
+          ? [Buffer.from("bounty"), new PublicKey(card.venue.seeds.bank).toBuffer(), new PublicKey(card.venue.seeds.sponsor).toBuffer(), u64le(salt)]
+          : [Buffer.from("market"), new PublicKey(card.venue.seeds.run).toBuffer(), u64le(salt)];
   const [venuePda] = PublicKey.findProgramAddressSync(vseeds, mpid);
   note(venuePda.toBase58() === card.venue.pk, "venue PDA", `${card.venue.kind} seeds re-derive`);
   // [3+4] snapshot account bindings
@@ -3317,7 +3344,9 @@ export async function positionVerify(file: string, json = false, snapPath?: stri
     note(ok, "verdict replay", row ? `recomputed ${row.state}${row.est > 0n ? ` ~${solAmt(row.est)} SOL` : ""}` : "position unclassifiable");
   } else note(false, "verdict replay", "missing account binding — cannot replay");
   // [6] snapshot binding
-  if (snapPath && card.snapshotSha256)
+  if (!snapPath || !card.snapshotSha256)
+    note(false, "snapshot binding", !snapPath ? "needs --snapshot — a card verified against nothing is self-certifying" : "card carries no snapshotSha256 — nothing to bind to");
+  else
     note(createHash("sha256").update(readFileSync(snapPath)).digest("hex") === card.snapshotSha256, "snapshot binding", `sha256 ${card.snapshotSha256.slice(0, 16)}…`);
   const ok = fail === 0;
   if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
@@ -3454,8 +3483,19 @@ export async function bountyVerify(file: string, json = false, snapPath?: string
       note(isPaidWinner && sameBank && postdates && notSelf && meets && scoreMatch && provenNow && notPostReveal,
         "bounty_qualifies replay",
         `paidWinner=${isPaidWinner} bank=${sameBank} postdates=${postdates} runner≠sponsor=${notSelf} score≥threshold=${meets} score==winning=${scoreMatch} proven=${provenNow} !post-reveal=${notPostReveal}`);
-      if (winnerAcct) note(w.correct === Number(winnerAcct.correct) && w.runner === (winnerAcct.runner as PublicKey).toBase58(),
-        "winner binding", "run account fields equal the decoded Run");
+      // every field the gate replays must equal the decoded Run — an
+      // unbound field is a costume: hide postReveal or move createdAt
+      // and the replay applauds a lie.
+      if (winnerAcct) note(w.correct === Number(winnerAcct.correct)
+        && w.runner === (winnerAcct.runner as PublicKey).toBase58()
+        && w.benchmark === (winnerAcct.benchmark as PublicKey).toBase58()
+        && Number(w.status) === Number(winnerAcct.status)
+        && Number(w.createdAt) === Number(winnerAcct.createdAt)
+        && Number(w.firstPendingAt ?? 0) === Number(winnerAcct.firstPendingAt ?? 0)
+        && Number(w.allQueuedAt ?? 0) === Number(winnerAcct.allQueuedAt ?? 0)
+        && String(w.scoredMask ?? "0") === String(winnerAcct.scoredMask?.toString() ?? "0")
+        && Number(w.postReveal ?? 0) === Number(winnerAcct.postReveal ?? 0),
+        "winner binding", "run account fields equal the decoded Run (correct · runner · bank · status · timestamps · mask · postReveal)");
     } else note(false, "bounty_qualifies replay", "claimed card without a winner run");
   } else {
     // open card — a claim is still possible; the verdict is the gate
@@ -3474,8 +3514,17 @@ export async function bountyVerify(file: string, json = false, snapPath?: string
     }
     note(card.bounty.threshold <= cap, "threshold ≤ capacity", `${card.bounty.threshold} ≤ ${cap} (${card.bank.name})`);
   }
+  // verdict field — echoed into the VERIFIED line, so it must be earned:
+  // "claimed" is only true when the decoded Bounty says status==1.
+  if (card.verdict?.state !== undefined) {
+    const expected = card.bounty.status === 1 ? "claimed" : "open";
+    note(card.verdict.state === expected && (!bAcct || Number(bAcct.status) === card.bounty.status),
+      "verdict", `state ${card.verdict.state} == decoded bounty status`);
+  }
   // [5] snapshot binding
-  if (snapPath && card.snapshotSha256)
+  if (!snapPath || !card.snapshotSha256)
+    note(false, "snapshot binding", !snapPath ? "needs --snapshot — a card verified against nothing is self-certifying" : "card carries no snapshotSha256 — nothing to bind to");
+  else
     note(createHash("sha256").update(readFileSync(snapPath)).digest("hex") === card.snapshotSha256, "snapshot binding", `sha256 ${card.snapshotSha256.slice(0, 16)}…`);
   const ok = fail === 0;
   if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
@@ -3582,6 +3631,7 @@ export async function grantVerify(file: string, json = false, snapPath?: string)
         cmp(card.grant.chunkIndex, gAcct.chunkIndex) && cmp(card.grant.part, gAcct.part) &&
         same32(gAcct.viewer, card.grant.viewer) && same32(gAcct.encryptionKey, card.grant.encryptionKey) &&
         cmp(card.grant.nonce, gAcct.nonce) && cmp(card.grant.sharedAt, gAcct.sharedAt) &&
+        (card.grant.ciphertexts?.length ?? 0) === (gAcct.ciphertexts as any[]).length &&
         (gAcct.ciphertexts as any[]).every((c, i) => same32(c, card.grant.ciphertexts[i])),
         "account binding", "bank · chunk · part · viewer · encKey · nonce · ciphertexts · sharedAt all equal the decoded ShareGrant");
     } else note(false, "account binding", "grant not in the snapshot");
@@ -3623,7 +3673,9 @@ export async function grantVerify(file: string, json = false, snapPath?: string)
       "panel tally", `${onBank.length} grant(s) · ${viewers.size} viewer(s) · ${full} full-panel — re-derived`);
   }
   // [6] snapshot binding
-  if (snapPath && card.snapshotSha256)
+  if (!snapPath || !card.snapshotSha256)
+    note(false, "snapshot binding", !snapPath ? "needs --snapshot — a card verified against nothing is self-certifying" : "card carries no snapshotSha256 — nothing to bind to");
+  else
     note(createHash("sha256").update(readFileSync(snapPath)).digest("hex") === card.snapshotSha256, "snapshot binding", `sha256 ${card.snapshotSha256.slice(0, 16)}…`);
   const ok = fail === 0;
   if (json) console.log(JSON.stringify({ kind: card.kind, ok, pass, fail, lines }, null, 2));
@@ -4217,10 +4269,13 @@ function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: s
     if (!ok) fails.push(what);
     ok ? pass++ : fail++;
   };
-  // fail closed: with a snapshot loaded, an unpinned card cannot bind its
-  // money trail to a frozen ledger — that absence is a FAILED check, not
-  // a skipped one (same contract as ceiling/bank cards).
-  if (snap?.sha256 && !card.snapshotSha256)
+  // fail closed: a trail card verified against nothing is self-certifying —
+  // no snapshot is a FAILED check, not a skipped one (same contract as
+  // claim/match/ceiling/bank cards).
+  if (!snap?.sha256)
+    check("snapshot binding", false,
+      "needs --snapshot — without the account dump a money trail is self-certifying");
+  else if (!card.snapshotSha256)
     check("snapshot binding", false, "card carries no snapshotSha256 — the money trail has nothing to bind to");
   if (snap?.sha256 && card.snapshotSha256)
     check("snapshot binding", snap.sha256 === card.snapshotSha256,
@@ -4257,6 +4312,22 @@ function verifyTrailCard(card: any, emit?: (what: string, ok: boolean, detail: s
       String(runA.benchmark) === card.run.benchmark &&
       String(!!runA.postReveal) === String(card.run.postReveal),
       "correct · status · runner · model · bank · post_reveal equal the decoded Run");
+    if (card.receipt) {
+      const rl = snapOf(snap.ss, "ScoreLog").find((x) => x.publicKey.toBase58() === card.receipt.pk)?.account as any;
+      check("receipt binding", !!rl &&
+        String(rl.run) === card.run.pk && String(rl.benchmark) === card.run.benchmark &&
+        String(rl.correct) === String(card.run.correct) &&
+        Number(rl.items) === Number(card.run.chunkCount) * 32 &&
+        String(rl.modelRecord) === dv([Buffer.from("modelrec"), createHash("sha256").update(card.run.modelId).digest()]) &&
+        (card.receipt.correct === undefined || String(rl.correct) === String(card.receipt.correct)) &&
+        (card.receipt.items === undefined || String(rl.items) === String(card.receipt.items)) &&
+        (card.receipt.modelRecord === undefined || String(rl.modelRecord) === card.receipt.modelRecord) &&
+        Number(rl.vouchedAtRecord ?? 0) === (card.receipt.vouchedAtRecord ? 1 : 0) &&
+        Number(rl.postReveal ?? 0) === (card.receipt.postReveal ? 1 : 0) &&
+        (card.receipt.recordedBy === undefined || String(rl.recordedBy) === card.receipt.recordedBy) &&
+        (card.receipt.recordedAt === undefined || Number(rl.recordedAt) === Number(card.receipt.recordedAt)),
+        "receipt fields == decoded ScoreLog bytes");
+    }
     const venueType: Record<string, string> = { band: "Market", duel: "Market", dark: "DarkMarket", ladder: "Ladder", bounty: "Bounty" };
     const darkPoss = snapOf(snap.sm, "DarkPosition");
     let bOk = 0, bN = 0;
@@ -4370,7 +4441,7 @@ export async function trailVerify(file: string, json = false, snapPath?: string)
     }
     if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
     else console.log(`${okAll ? "ALL TRAILS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
-    if (!okAll) process.exit(1);
+    if (!okAll) process.exitCode = 1;
     return { ok: okAll, cards: results };
   }
   const card = JSON.parse(readFileSync(file, "utf8"));
@@ -4439,7 +4510,7 @@ export async function artifactVerify(target: string, json = false, snapPath?: st
     const walk = (dir: string, depth: number) => {
       for (const f of readdirSync(dir).sort()) {
         const full = `${dir}/${f}`;
-        if (statSync(full).isDirectory()) { if (recursive && depth < 3) walk(full, depth + 1); continue; }
+        if (statSync(full).isDirectory()) { if (recursive && depth < 8) walk(full, depth + 1); continue; }
         if (isArtifactFile(f)) files.push(full);
       }
     };
@@ -4596,6 +4667,41 @@ const TAMPER_DEFS: Record<string, { label: string; mutate?: (c: any) => void; mu
       if (!l) return;
       l.benchmark = c.banks[c.banks.length - 1].pk;
     } },
+    { label: "clone a winning receipt — buy the verdict wholesale", mutate: (c) => {
+      // the deepest forgery this surface admits: push a byte-identical copy
+      // of a real receipt onto the WINNING side, then recompute every
+      // verdict field over the inflated array. PDA checks pass (the pk is
+      // real), per-entry field binding passes (it IS the decoded log) —
+      // only multiset-aware completeness sees the weight the copy adds.
+      const side = c.verdict.winner === "b" ? "b" : "a";
+      const pool = c.receipts[side];
+      if (!pool.length) return;
+      pool.push(JSON.parse(JSON.stringify(pool[0])));
+      const sum = (sd: string) => c.receipts[sd].reduce((t: any, r: any) => ({ c: t.c + r.correct, i: t.i + r.items }), { c: 0, i: 0 });
+      const A = sum("a"), B = sum("b");
+      c.verdict.pooledA = A.c; c.verdict.pooledItemsA = A.i;
+      c.verdict.pooledB = B.c; c.verdict.pooledItemsB = B.i;
+      c.verdict.pctA = A.i ? (100 * A.c) / A.i : 0;
+      c.verdict.pctB = B.i ? (100 * B.c) / B.i : 0;
+      const wins = { a: 0, tie: 0, b: 0 };
+      for (const b of c.banks) {
+        const pa = c.receipts.a.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.correct, 0)
+          / Math.max(1, c.receipts.a.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.items, 0));
+        const pb = c.receipts.b.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.correct, 0)
+          / Math.max(1, c.receipts.b.filter((r: any) => r.benchmark === b.pk).reduce((s: number, r: any) => s + r.items, 0));
+        if (pa > pb) wins.a++; else if (pa < pb) wins.b++; else wins.tie++;
+      }
+      c.verdict.bankWins = wins;
+      c.verdict.winner = c.verdict.pctA === c.verdict.pctB ? "tie" : c.verdict.pctA > c.verdict.pctB ? "a" : "b";
+    } },
+    { label: "backdate a receipt — launder when the score was written", mutate: (c) => {
+      // works on both card generations: mint-era cards carry recordedAt
+      // (mutate it); legacy cards don't (inject a claim the decoded log
+      // contradicts). Either way the ScoreLog's recordedAt wins.
+      const l = c.receipts.a[0];
+      if (!l) return;
+      l.recordedAt = "1";
+    } },
   ],
   "sealed-claim/v1": [
     { label: "mint a phantom receipt", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.receipts[0])); r.correct += 1; c.receipts.push(r); } },
@@ -4651,6 +4757,14 @@ const TAMPER_DEFS: Record<string, { label: string; mutate?: (c: any) => void; mu
       c.model.totalCorrect = c.receipts.reduce((s: number, r: any) => s + r.correct, 0);
       c.model.totalItems = c.receipts.reduce((s: number, r: any) => s + r.items, 0);
     } },
+    { label: "inject a phantom died-at — launder where the forgery fell", mutate: (c) => {
+      // smuggle a fake check-failure line inside the model id (echoed in the
+      // MODEL ID MISMATCH detail). The named check is one this forgery NEVER
+      // reaches — a naive died-name extractor would mint an exhibit claiming
+      // "circuit provenance" caught it, laundering a weak forgery into a
+      // strong-looking rejection. Anchored extraction keeps expectFail honest.
+      c.model.id = `x\n✗ circuit provenance — injected claim`;
+    } },
   ],
   "sealed-trail/v1": [
     { label: "rewrite the settled money", mutate: (c) => {
@@ -4676,6 +4790,25 @@ const TAMPER_DEFS: Record<string, { label: string; mutate?: (c: any) => void; mu
   ],
   "sealed-bank/v1": [
     { label: "mint a phantom run on the exam", mutate: (c) => { const r = JSON.parse(JSON.stringify(c.runs[0])); r.correct = (r.correct ?? 0) + 1; c.runs.push(r); } },
+    { label: "duplicate a run, drop a sibling — the count survives", mutate: (c) => {
+      // dup+omit: overwrite run[1] with a clone of run[0] — length and every
+      // surviving entry check pass, but the dropped run is erased. Only the
+      // exact-pk-set check notices the coverage hole.
+      if (c.runs.length >= 2) { c.runs[1] = JSON.parse(JSON.stringify(c.runs[0])); return; }
+      if (c.runs.length) { c.runs.push(JSON.parse(JSON.stringify(c.runs[0]))); return; }
+      c.runs.push({pk:c.bank.pk, correct:0, chunkCount:0}); // no sibling: fabricate membership
+
+    } },
+    { label: "duplicate a receipt, drop a sibling — the count survives", mutate: (c) => {
+      if (c.receipts.length >= 2) { c.receipts[1] = JSON.parse(JSON.stringify(c.receipts[0])); return; }
+      if (c.receipts.length) { c.receipts.push(JSON.parse(JSON.stringify(c.receipts[0]))); return; }
+      // A bank without enrolled runs has no receipt to clone. Fabricate a
+      // well-shaped receipt instead; an unchanged card is not an attack.
+      const run = c.runs[0]?.pk ?? c.bank.pk;
+      const [pk] = PublicKey.findProgramAddressSync([Buffer.from("scorelog"), new PublicKey(run).toBuffer()],new PublicKey(c.programs.sealed));
+      c.receipts.push({pk:pk.toBase58(),run,modelRecord:c.bank.pk,correct:0,items:32,vouched:0,postReveal:0});
+
+    } },
     { label: "duplicate a reveal — pad the disclosure count", mutate: (c) => {
       if (c.reveals.length) { c.reveals.push(JSON.parse(JSON.stringify(c.reveals[0]))); return; }
       // nothing to dup — fabricate a phantom whose PDA still re-derives:
@@ -4713,6 +4846,21 @@ const TAMPER_DEFS: Record<string, { label: string; mutate?: (c: any) => void; mu
     { label: "steal the bounty below threshold", mutate: (c) => {
       if (c.winner) { c.winner.correct = c.bounty.threshold - 1; c.bounty.winningScore = c.bounty.threshold - 1; }
       else { c.bounty.threshold = 0; } // open bounty — drop the bar so anyone qualifies
+    } },
+    { label: "dress the winner — inflate the documented score", mutate: (c) => {
+      // bump winner.correct AND the mirrored winningScore so the
+      // qualification replay still applauds (score ≥ threshold holds) —
+      // only the account binding notices the ledger never scored that.
+      if (!c.winner) return;
+      c.winner.correct += 1;
+      c.bounty.winningScore += 1;
+    } },
+    { label: "dress the winner — postdate a too-early run", mutate: (c) => {
+      // the gate requires run.created_at ≥ bounty.created_at; slide the
+      // claimed clock forward and the replay stays green while the
+      // binding exposes the real timestamp.
+      if (!c.winner) return;
+      c.winner.createdAt = String(BigInt(c.bounty.createdAt) + 3600n);
     } },
   ],
   "sealed-grant/v1": [
@@ -4823,7 +4971,7 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
     const walk = (d: string, depth: number) => {
       for (const f of readdirSync(d).sort()) {
         const full = join(d, f);
-        if (statSync(full).isDirectory()) { if (recursive && depth < 3) walk(full, depth + 1); continue; }
+        if (statSync(full).isDirectory()) { if (recursive && depth < 8) walk(full, depth + 1); continue; }
         if (!f.endsWith(".json") || ["index.json", "SHA256SUMS"].includes(f)) continue;
         try { const k = JSON.parse(readFileSync(full, "utf8")).kind; if (k && TAMPER_DEFS[k]) files.push(full); } catch {}
       }
@@ -4878,8 +5026,11 @@ export async function artifactTamper(target: string, snapPath?: string, recursiv
       // wrapped with the attack name + the check(s) it died at. Verifying
       // the exhibit positively replays the rejection.
       if (exhibitDir) {
-        const died = lines.filter((l) => /\bFAIL\b|✗/.test(l))
-          .map((l) => l.replace(/^.*?(?:\bFAIL\b|✗)\s*/, "").split("—")[0].trim())
+        // check-marker must lead the line — a card-controlled field inside a
+        // detail string ("↳ x FAIL snapshot binding — y") must not mint a
+        // died-name the forgery never hit.
+        const died = lines.filter((l) => /^\s*(?:FAIL\b|✗)/.test(l))
+          .map((l) => l.replace(/^\s*(?:FAIL\b|✗)\s*/, "").split("—")[0].trim())
           .filter(Boolean);
         // a forgery that throws (malformed-by-construction) names its death
         // too — record the thrown signature so verification stays strict.
@@ -4938,16 +5089,19 @@ export async function tamperCardVerify(file: string, json = false, snapPath?: st
   try { const r = await route(tmp); ok = (r.ok ?? (r.fail === 0)) === true; }
   catch (e: any) { ok = false; err = String(e?.message ?? e); }
   finally { console.log = orig; process.exitCode = saved; }
-  const died = lines.filter((l) => /\bFAIL\b|✗/.test(l))
-    .map((l) => l.replace(/^.*?(?:\bFAIL\b|✗)\s*/, "").split("—")[0].trim()).filter(Boolean);
+  // check-marker must lead the line — a card-controlled string carrying an
+  // embedded "FAIL <name> —" must not mint a died-at it never reached.
+  const died = lines.filter((l) => /^\s*(?:FAIL\b|✗)/.test(l))
+    .map((l) => l.replace(/^\s*(?:FAIL\b|✗)\s*/, "").split("—")[0].trim()).filter(Boolean);
   const expected: string[] = card.expectFail ?? [];
   // strict: EVERY recorded check must fire — an exhibit that claims it died
   // at "account binding" but actually dies earlier is a lie about its lie.
   const checksNamed = expected.every((x) => died.includes(x));
   // a thrown rejection carries its signature in expectThrow — require the
-  // replay to throw the same message head.
+  // replay to throw the same message head. A too-short signature is
+  // vacuous ("a" matches every throw), so it can't name a death.
   const throwNamed = typeof card.expectThrow === "string" &&
-    err.includes(card.expectThrow.slice(0, 60));
+    card.expectThrow.length >= 12 && err.includes(card.expectThrow.slice(0, 60));
   const named = expected.length ? checksNamed : (card.expectThrow ? throwNamed : true);
   const pass = !ok && named;
   if (!json) {
@@ -4968,7 +5122,7 @@ async function scanArtifacts(dir: string) {
   const walk = (d: string, depth: number) => {
     for (const f of readdirSync(d).sort()) {
       const full = `${d}/${f}`;
-      if (statSync(full).isDirectory()) { if (depth < 3) walk(full, depth + 1); continue; }
+      if (statSync(full).isDirectory()) { if (depth < 8) walk(full, depth + 1); continue; }
       if (!(f.endsWith(".json") || f.endsWith(".md"))) continue;
       if (["index.json", "artifacts.json", "SHA256SUMS", "README.md"].includes(f)) continue;
       files.push(full);
@@ -6784,7 +6938,7 @@ export async function chainProve(modelStr: string | undefined, out: string | und
 export async function chainProveVerify(file: string, policy?: GatePolicy, json = false, snapPath?: string) {
   const { statSync, readdirSync } = await import("node:fs");
   if (statSync(file).isDirectory()) {
-    const files = readdirSync(file).filter((f) => f.endsWith(".json")).sort();
+    const files = readdirSync(file).filter((f) => f.endsWith(".json") && f !== "index.json").sort();
     if (!files.length) throw new Error(`no claim cards (*.json) in ${file}`);
     let okAll = true;
     const results: any[] = [];
@@ -6800,7 +6954,7 @@ export async function chainProveVerify(file: string, policy?: GatePolicy, json =
     }
     if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
     else console.log(`${okAll ? "ALL CARDS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
-    if (!okAll) process.exit(1);
+    if (!okAll) process.exitCode = 1;
     return { ok: okAll, cards: results };
   }
   const card = JSON.parse(readFileSync(file, "utf8"));
@@ -7164,7 +7318,7 @@ export async function chainCeiling(modelStr: string | undefined, out: string | u
 export async function ceilingVerify(file: string, json = false, snapPath?: string) {
   const { statSync, readdirSync } = await import("node:fs");
   if (statSync(file).isDirectory()) {
-    const files = readdirSync(file).filter((f) => f.endsWith(".json")).sort();
+    const files = readdirSync(file).filter((f) => f.endsWith(".json") && f !== "index.json").sort();
     if (!files.length) throw new Error(`no ceiling cards (*.json) in ${file}`);
     let okAll = true;
     const results: any[] = [];
@@ -7180,7 +7334,7 @@ export async function ceilingVerify(file: string, json = false, snapPath?: strin
     }
     if (json) console.log(JSON.stringify({ dir: file, cards: results, ok: okAll }));
     else console.log(`${okAll ? "ALL CARDS VERIFIED" : "VERIFICATION FAILED"} — ${files.length} card(s), ${file}`);
-    if (!okAll) process.exit(1);
+    if (!okAll) process.exitCode = 1;
     return { ok: okAll, cards: results };
   }
   const card = JSON.parse(readFileSync(file, "utf8"));
@@ -7242,10 +7396,13 @@ export function verifyCeilingCard(card: any, emit?: (what: string, ok: boolean, 
 
   // 3. snapshot binding: the run set must EQUAL the decoded subject set —
   //    the negative claim lives here. An omitted run lowers the ceiling;
-  //    a phantom run raises it; both die. When --snapshot is given the
-  //    binding is mandatory — a ceiling card that cannot bind its run set
-  //    to a pinned ledger is just an anecdote, so it fails closed.
-  if (snapPath && !card.snapshotSha256)
+  //    a phantom run raises it; both die. The binding is mandatory — a
+  //    ceiling card that cannot bind its run set to a pinned ledger is
+  //    just an anecdote, so it fails closed (with OR without --snapshot).
+  if (!snapPath)
+    check("snapshot binding", false,
+      "needs --snapshot — without the account dump a ceiling card is self-certifying");
+  else if (!card.snapshotSha256)
     check("snapshot binding", false, "card carries no snapshotSha256 — completeness has nothing to bind to");
   if (snapPath && card.snapshotSha256) {
     const snapRaw = readFileSync(snapPath);

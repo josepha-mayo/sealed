@@ -18,7 +18,7 @@ parimutuel markets resolved from `Run.correct`.
 - `node scripts/explorer-check.mjs [rpc]` → live account-parse sanity check.
 - `scripts/verify-all.sh` → one-command audit (8 stages + fingerprint
   closer): offline verify + headless browser audit + grant-decrypt
-  regression + calibration rescore + recursive artifact replay (203
+  regression + calibration rescore + recursive artifact replay (217
   artifacts in one pass) + evidence/web manifests + doc-count freshness
   + submission preflight, ending on the BUNDLE ROOT hash.
 - `node scripts/rescore.mjs --bank <bank.json> --run <artifact.json>
@@ -31,7 +31,7 @@ parimutuel markets resolved from `Run.correct`.
   apply to the evidence copy); qwen2.5-3b scored 7/32, rescore 7 PASS.
 - `node scripts/gen-standalone.mjs` → emits `web/standalone.html` — the
   evidence capsule: every MANIFEST-pinned asset inlined into a single
-  6.6MB page with a fetch() shim so all verifiers run offline. Excluded
+  9.7MB page with a fetch() shim so all verifiers run offline. Excluded
   from MANIFEST (self-pinning is circular). `--check` = freshness gate
   (verify-all stage 6c). Vendored deps: web3 iife + noble-ed25519 +
   rescue.bundle (esbuild flat bundles — the page is CDN-free; a
@@ -60,7 +60,7 @@ parimutuel markets resolved from `Run.correct`.
   multiset binding), the catalog index, bank dossiers (items_root fold
   replayed in mint_order — gen banks fold specs, private fold
   ciphertexts+nonces), the whole-ledger digest (integrity rows + keeper
-  classification), and the 46 tamper exhibits which MUST be rejected.
+  classification), and the 57 tamper exhibits which MUST be rejected.
   No node, no pip, no RPC — proof the evidence is language-agnostic.
   `--tamper` forges each card family and asserts the catch at a named
   check. `--decrypt` ports the whole disclosure stack — RFC7748 x25519
@@ -188,7 +188,7 @@ parimutuel markets resolved from `Run.correct`.
   board/bank/position/bounty/grant/catalog/tamper/v1 payload and routes
   to the right replay (dir mode mixes kinds; non-artifacts skipped;
   `--recursive` walks the whole evidence tree — verify-all stage 5
-  replays all 206 artifacts in one pass). `chain artifact <file>
+  replays all 217 artifacts in one pass). `chain artifact <file>
   --tamper` is the CLI forgery lab: kind-aware mutations re-run the
   verifier and MUST fail — a forged card that verifies exits 1 (all
   every artifact kind carries canned attacks (15 kinds — the report kind mutates its
@@ -604,3 +604,13 @@ parimutuel markets resolved from `Run.correct`.
   + embedded receipts; `gate --certify-verify` replays PDA + verdict +
   summary. Committed example: docs/evidence/policies/min60-3runs.json.
   `yarn harness:test` → 75/75.
+
+## October 11 bootstrap and replay audit
+
+Queue instructions require the signer singleton to be initialized by
+`chain init` / `init_signer_pda`. They no longer allocate it inside each
+queue's Accounts validator: that generated SBF stack-overwrite diagnostics
+in GenPartPrivate and ScoreChunk. The initializer remains permissionless,
+idempotent and prefund-aware; owner, discriminator and seed validation remain.
+Initialize it before queueing from a custom client. Source and fresh-build
+status are in docs/audit-2026-10-11.md; the capture is historical localnet.

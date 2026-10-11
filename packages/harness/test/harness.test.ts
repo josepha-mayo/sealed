@@ -1651,7 +1651,7 @@ test("sealed-bounty/v1 — the sponsor's card replays the qualifies gate; a stol
     // over the winner run (7 legs incl. !post-reveal) + winner binding.
     const claimed = (await bountyVerify(join(dir0, "claimed-20of32.json"), false, snap)) as any;
     assert.equal(claimed.fail, 0);
-    assert.equal(claimed.pass, 6);
+    assert.equal(claimed.pass, 7);
     // open card: escrow state binds, no winner invented.
     const open = (await bountyVerify(join(dir0, "open-sealed-test.json"), false, snap)) as any;
     assert.equal(open.fail, 0);
@@ -1775,7 +1775,7 @@ test("sealed-board/v1 — the leaderboard card replays end-to-end; a flipped ran
     // verify the committed card — all checks including snapshot binding
     const ok = (await boardVerify(tmp, false, snapPath)) as any;
     assert.equal(ok.fail, 0);
-    assert.equal(ok.pass, 10);
+    assert.equal(ok.pass, 11);
     // a mutated ranking LCB breaks the ranking check
     const tampered = JSON.parse(readFileSync(tmp, "utf8"));
     tampered.ranking[0].pairwise.lcb = 99.9;
@@ -1869,15 +1869,15 @@ test("artifact --tamper — the CLI forgery lab: every canned attack dies at a n
     // must fail here, not just when the forgery would verify.
     const expectedAttacks: Record<string, number> = {
       "docs/evidence/board.json": 4,
-      "docs/evidence/matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json": 4,
-      "docs/evidence/claims/qwen2.5-3b-instruct.json": 5,
+      "docs/evidence/matches/qwen2.5-3b-instruct-vs-qwen2.5-1.5b-instruct.json": 6,
+      "docs/evidence/claims/qwen2.5-3b-instruct.json": 6,
       "docs/evidence/trails/qwen3b-ladder-deadheat.json": 2,
       "docs/evidence/digest.json": 1,
-      "docs/evidence/banks/sealed-gen.json": 4,
+      "docs/evidence/banks/sealed-gen.json": 6,
       "docs/evidence/artifacts.json": 1,
       "docs/evidence/positions/winning-band.json": 1,
       "docs/evidence/positions/sealed-dark.json": 1,
-      "docs/evidence/bounties/claimed-20of32.json": 1,
+      "docs/evidence/bounties/claimed-20of32.json": 3,
       "docs/evidence/grants/sealed-priv-first.json": 2,
       "docs/evidence/policies/min60-3runs.json": 4,
       "docs/evidence/ceilings/dark_model-a.json": 4,

@@ -76,7 +76,7 @@ const claims = [
   [/(\d+)\s+band\/duel/g, truth.bandDuel],
   [/(?<![a-z0-9])(\d+)\s+ladders?\b/g, truth.ladders],
   [/(\d+)\s+dark\b/g, truth.darks],
-  [/(\d+)\s+bount(?:y|ies)\b/g, truth.bounties],
+  [/(?<![a-z0-9-])(\d+)\s+bount(?:y|ies)\b/g, truth.bounties],
   [/(\d+)\s+(?:persistent\s+)?model(?:\s|-)capability\s+records|(\d+)\s+model\s+records|(\d+)\s+records\b/g, truth.records],
   [/(\d+)\s+score\s+(?:log|receipt)|(\d+)\s+ScoreLog\s+receipts|(\d+)\s+receipts\b/g, truth.scoreLogs],
   [/(\d+)\s+grants\b/g, truth.grants],
@@ -86,7 +86,10 @@ const claims = [
   // "all 142 artifacts", "All 142 artifact cards", "142 replayed",
   // "142 committed artifacts" — matched case-insensitively.
   // the (?<![a-z0-9]) lookbehind keeps "sha256 replayed" from counting its 256
-  [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifact\(s\)\s+replayed\b|(\d+)\s+artifacts?\s+replayed\b|(?<![a-z0-9])(\d+)\s+replayed\b|(\d+)\s+portable\s+artifacts?\b|replay\s+all\s+(\d+)\s+proofs?\b/gi, truth.artifacts],
+  [/all\s+(\d+)\s+(?:committed\s+)?artifact(?:\s+card)?s?\b|(\d+)\s+committed\s+artifacts?\b|(\d+)\s+artifact\(s\)\s+replayed\b|(\d+)\s+artifacts?\s+replayed\b|(?<![a-z0-9])(\d+)\s+replayed\b|(\d+)\s+portable\s+artifacts?\b|replay\s+all\s+(\d+)\s+proofs?\b|(\d+)\s+artifacts?\s+across\b/gi, truth.artifacts],
+  // catalog-side bare counts: "205 cataloged", "205 catalog entries",
+  // "205 entries across" — the catalog excludes itself
+  [/(\d+)\s+catalog(?:ed|ued)\b|(?<![a-z0-9])(\d+)\s+catalog\s+entries\b|(\d+)\s+entries\s+across\s+\d+\s+kinds?/gi, truth.catalog],
   // the catalog's own line: "141 artifact(s)" — excludes itself.
   // NOTE: no trailing \b (")" is non-word — "\b" after it can never match);
   // the negative lookahead keeps "203 artifact(s) replayed" on the line above.
@@ -113,14 +116,28 @@ const claims = [
   [/(\d+)\/\1\s+(?:mocha|E2E)\b/g, truth.e2e],
 ];
 
-const WORDS = {
-  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
-  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
-  "twenty-one": 21, "twenty-two": 22, "twenty-three": 23, "twenty-four": 24,
-  "twenty-five": 25, "twenty-six": 26, "twenty-seven": 27, "twenty-eight": 28,
-  "twenty-nine": 29, thirty: 30, "thirty-one": 31, "thirty-two": 32,
-};
-const files = ["README.md", "JUDGING.md", "AGENTS.md", "web/index.html", "scripts/verify-all.sh", ...readdirSync("docs").filter((f) => f.endsWith(".md")).map((f) => `docs/${f}`)];
+// spelled-number coverage generated to 99 — hand-rolling the table left a
+// hole above 32 while real counts (46 exhibits) already exceeded it
+const ONES = ["zero","one","two","three","four","five","six","seven","eight","nine","ten",
+  "eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+const WORDS = {};
+for (let n = 1; n <= 99; n++) {
+  const w = n < 20 ? ONES[n] : n % 10 ? `${TENS[(n / 10) | 0]}-${ONES[n % 10]}` : TENS[(n / 10) | 0];
+  WORDS[w] = n;
+}
+// docs/**/*.md recursively — docs/evidence/README.md drifted past the gate
+// once already because the scan was shallow. Cataloged artifacts (the
+// reports/*.md) are frozen evidence — their counts are per-subject scope
+// owned by the artifact verifiers, not doc claims, so they're skipped.
+const artifactPaths = new Set(
+  (JSON.parse(readFileSync("docs/evidence/artifacts.json", "utf8")).artifacts || [])
+    .map((e) => `docs/evidence/${e.path || e.file || ""}`)
+);
+const walkDocs = (dir) => readdirSync(dir, { withFileTypes: true })
+  .flatMap((e) => e.isDirectory() ? walkDocs(`${dir}/${e.name}`) : e.name.endsWith(".md") ? [`${dir}/${e.name}`] : []);
+const files = ["README.md", "JUDGING.md", "AGENTS.md", "web/index.html", "scripts/verify-all.sh", ...walkDocs("docs")]
+  .filter((f) => !artifactPaths.has(f));
 let bad = 0;
 for (const f of files) {
   let text;

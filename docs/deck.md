@@ -1,44 +1,19 @@
-# Slide deck outline — Colosseum Crypto World's Fair
+# Sealed — five-slide presentation outline
 
-Colosseum's guidance: concise slides, each title a takeaway (not a topic).
-~10 slides, under 60 seconds of skimming. Drop each row into a slide;
-the "evidence" column is what goes on-screen.
+1. **Which score moves the money?** Show the saved 64/64 claim beside the
+   decoded 1/64 result. Label it a stale-artifact mismatch from localnet.
+2. **An exam sponsor, a runner, an escrow.** One buyer funds a measurable
+   threshold. Private questions go to authorized viewers. Committed outputs
+   are scored by Arcium; the Solana result account controls settlement.
+3. **Try to buy the verdict twice.** Repeat a genuine winning receipt and show
+   the completeness rejection. This demonstrates a specific trust boundary.
+4. **A usable prototype, bounded evidence.** Show the working explorer,
+   authorized-question decrypt, public result interface and independent
+   replays. Keep localnet provenance and runner-declared identity visible.
+5. **Validate the sponsor workflow.** Pilot one useful task family. Measure
+   time to result, repeat usage and willingness to pay. Per-run and resolution
+   fees exist in the prototype; paying demand remains unverified.
 
-| # | Title (the takeaway) | On-screen |
-|---|---|---|
-| 1 | Every AI score you trust was made by a party who could fake it | 3 logos: lab self-report, leaked benchmark, leaderboard — each crossed out |
-| 2 | Sealed deletes the trusted party — the answer key never exists | One-line architecture: items minted INSIDE Arcium MPC → answers born encrypted to the cluster key. Sub-line: "a ZK proof needs a witness holding the key; a TEE trusts one vendor's chip; a hash can't selectively disclose — only MPC can generate the secret inside the boundary it never leaves" |
-| 3 | The exam is ciphertext end-to-end | Explorer private-bank card: `PrivItemChunk` ciphertext blobs, `items_root` commitment, "questions never in plaintext" |
-| 4 | It already caught a cheat: 64/64 claimed, 1/64 scored | The run card `3CKnMa8X…`: artifact declared 64/64, MPC scored it 1/64 — the chain never trusts self-reported numbers. Split screen: claimed vs written |
-| 5 | Real models get real scores — verifiably | Leaderboard screenshot: FOUR open-weights models raced one MPC-minted exam — `qwen2.5-3b` **6/32** tied `qwen2.5-1.5b` **6/32**, `llama-3.2-1b` 1/32, `qwen2.5-0.5b` 0/32 — every digit written by the cluster, zero external API |
-| 6 | Markets settle themselves off the MPC count | Ladder `A4fMA7eK`: dead-heat `result_mask=0b11` paid both co-leaders; dark market on a ciphertext-only private bank resolved blind (`7TVjSaFD`) — exam sealed + positions sealed + MPC score; private-bank duel between two grant-delegates. 6 primitives (incl. capability bounties — pot pays the winning run's operator, not a bettor), all settling real-model scores |
-| 7 | The wedge: the TRUTH is encrypted, not just the bet | Competitive grid — Pythia/Epoch/ArxPredict hide the *position*; Sealed hides the *resolution truth*; insider edge is cryptographically impossible |
-| 8 | Confidential AI needs an onchain referee — now | Arcium × Inpher/Blackthorn confidential-inference narrative; Sealed is the settlement layer underneath it |
-| 9 | Live business: fees + take-rate on-chain today | `create_run` fee_lamports + `fee_bps` skim; buyers: market venues, eval orgs, judges/insurers. Unit economics: a 64-item exam ≈0.02 SOL total rent; a bettor seat ≈0.002 SOL (refunded on claim/close) |
-| 10 | Proven, not promised | Numbers strip: **503 runs · 340 venues · 4 real open-weights models · 1 sha256 · 0 trust required** — every claim replayable: one command, one browser click (`?mega=1`), or one stdlib file with no clone at all (`curl … verify.py \| python3 - --remote` re-hashes all 487 served bytes); speaker notes carry the detail (6 primitives, 203 artifacts, forgery lab, CI green, devnet deployed) |
-| 11 | The resolution layer for AI capability | "Every future claim about what a model can do is addressable market surface" — roadmap: confidential stakes, quorum disclosure panels, TEE-attested runners, private banks-as-a-service; team line + repo/Pages QR |
-
-## Regulatory posture (keep as a backup slide or appendix)
-
-- Sealed markets resolve **verifiable events** (deterministic computation
-  outputs), not opinions or off-chain votes — the closest analog is a
-  parametric payout, not a securities bet.
-- The protocol has **no custody engine**: positions are PDAs paying
-  parimutuel pro-rata from a pool the program itself holds; there is no
-  operator wallet in the payout path, no order book, no matching.
-- The dark-market primitive hides *direction*, not *identity* — bettors
-  are on-chain signers; this is game-theoretic privacy, not anonymity.
-- Non-custodial + permissionless-exit (`expire`/`void` refund paths) are
-  the structural mitigations; jurisdiction gating is a venue-layer choice
-  for market operators composing on `Run.correct`.
-
-## Competitive analysis (appendix or slide 6 expansion)
-
-| Project | What they hide | What resolves the market | Sealed's edge |
-|---|---|---|---|
-| Pythia (Cypherpunk, Arcium) | positions | ordinary event outcomes | resolution truth is MPC-computed, not reported |
-| Epoch / ArxPredict | bets/positions | external resolution | the event itself is confidential + self-settling |
-| Melee / Bench / Flew | stake or side | external resolution | same — plus our truth never existed in plaintext |
-| LMArena / Epoch AI | n/a (leaderboards) | trusted operator | the referee is infrastructure, not a vendor |
-| CrunchDAO | submissions | coordinator holds answer key | no key exists to hold |
-| TEE harnesses (Phala, CC) | execution | hardware vendor trust | MPC threshold trust, no single-vendor root |
+Use the live Colosseum form to confirm video requirements before recording.
+Avoid market-size estimates, customer logos or fresh devnet claims without
+evidence. Product demo and founder presentation serve different purposes.

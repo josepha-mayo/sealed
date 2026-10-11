@@ -1284,7 +1284,9 @@
       "name": "init_signer_pda",
       "docs": [
         "Eager, grief-proof initializer for the shared Arcium signer PDA.",
-        "Every queue path lazily `init_if_needed`s this singleton. Anchor's",
+        "Bootstrap this singleton before any queue path (the CLI's init does",
+        "so). Queue validators require an initialized, owned typed account.",
+        "Anchor's",
         "init codegen already tolerates prefunded PDAs (top-up + allocate +",
         "assign), so grief dust can't stall queueing — but it would be",
         "donated to the program's rent. Since the program owns the seeds, we",
@@ -3349,6 +3351,11 @@
       "code": 6039,
       "name": "EmptyOutputsRoot",
       "msg": "outputs_root is zero — no Merkle leaf can reach it, the run is unscorable"
+    },
+    {
+      "code": 6040,
+      "name": "InvalidProof",
+      "msg": "merkle proof longer than 7 siblings — cannot reach a 64-leaf root"
     }
   ],
   "types": [

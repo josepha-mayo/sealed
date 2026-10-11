@@ -90,7 +90,8 @@ correct.reveal()
 
 Each of the 8 items draws `a, b, c` from `ArcisRNG` (width-6 → 0..63) and two
 ops. The answer is computed *in-circuit* (`apply_op`) and fingerprinted
-in-circuit — at no point does a plaintext answer exist anywhere on Earth.
+in-circuit. These circuits do not emit generated answer plaintext. Public specs
+and authorized private-question viewers can still derive answers.
 `gen_part` uses `mint_part` (public draws — the specs are public anyway);
 `gen_part_private` uses `mint_part_secret` (secret-share draws — nodes see
 nothing, which is the difference between "confidential questions" and "the

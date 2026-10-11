@@ -225,8 +225,23 @@ fn past_cap(r: &Run, now: i64) -> bool {
 /// but its post-commit landing window hasn't elapsed yet. The second case
 /// covers just-in-time commits: a runner who queues the remaining chunks at
 /// the last moment must still give the cluster a full cap-window to land
-/// them before any partial may settle — a live cluster finalizes the run
-/// (the honest outcome), and only a genuinely dead one leaves the partial.
+/// them before any partial may settle — a cluster that lands within the
+/// window finalizes the run (the honest outcome), and only one that misses
+/// it leaves the partial.
+///
+/// Honest bounds a bettor should price:
+///  - The two windows OR independently: first-queue at T0 plus a last-instant
+///    commit at T0+23h59m pushes effective market lock to ~2 cap-windows past
+///    the earliest queue (intended JIT defense; expiry is permissionless so
+///    prompt expirers bound the tail).
+///  - `all_queued_at` is write-once: a chunk swept and re-queued inside the
+///    window does NOT earn a fresh landing window — it settles with the wave
+///    it was first committed in. The symmetric consequence: when a
+///    computation genuinely dies, the RUNNER chooses whether the market sees
+///    a proven partial (don't requeue) or the true score (requeue in-window).
+///    Partials only ever understate, and betting latches before first queue —
+///    but the runner can pre-position before queueing. This is the committed-
+///    settle tradeoff, stated plainly.
 fn still_moving(r: &Run, now: i64) -> bool {
     if r.status == RUN_FINALIZED {
         return false;
@@ -389,9 +404,23 @@ fn expire_decision(ra: &Run, rb: Option<&Run>, now: i64) -> ExpireAction {
             if proven(ra, now) && proven(rb, now) {
                 ExpireAction::SettleDuel(ra.correct, rb.correct)
             } else {
-                // A never-queued or uncommitted leg is dead — refund. Settling
-                // it at 0 would let a sybil'd attacker mint a ringer leg and
-                // steal the other side's stake.
+                // A never-queued or uncommitted leg is dead — refund.
+                // Deliberate asymmetry vs ladders: dead ladder legs forfeit
+                // at 0, because an 8-way race still means something with a
+                // leg missing. A 2-leg duel with one dead leg is no contest —
+                // and forfeiting it would hand a sybil'd attacker the ringer
+                // steal: mint both legs, make one look attractive, let the
+                // crowd load the doomed side, then kill it and collect.
+                // Cancel keeps everyone whole instead.
+                //
+                // KNOWN RESIDUAL (the symmetric free exit): a leg operator
+                // holding a position on their OWN leg can stall it when
+                // public ChunkScored events show it losing, converting a
+                // likely loss into a wash refund. Bounded — they forfeit all
+                // upside, they can only stall before `proven` latches, and
+                // bettors should price leg-runner-held positions the way
+                // they price any runner-staked residual. Same documented
+                // wash the single-leg score markets carry.
                 ExpireAction::Cancel
             }
         }
@@ -749,6 +778,15 @@ pub mod market {
             ErrorCode::ScoringStarted
         );
         m.status = MARKET_CANCELLED;
+        // Authority cancels must not be invisible to event indexers — emit
+        // the same cancelled resolution an expire-cancel produces.
+        emit!(MarketResolved {
+            market: m.key(),
+            run: ctx.accounts.run.key(),
+            correct: 0,
+            outcome: u8::MAX,
+            cancelled: true,
+        });
         Ok(())
     }
 
@@ -771,6 +809,13 @@ pub mod market {
             ErrorCode::ScoringStarted
         );
         m.status = MARKET_CANCELLED;
+        emit!(DuelResolved {
+            market: m.key(),
+            a_correct: 0,
+            b_correct: 0,
+            outcome: u8::MAX,
+            cancelled: true,
+        });
         Ok(())
     }
 
@@ -808,20 +853,22 @@ pub mod market {
                 m.status = MARKET_CANCELLED;
                 // Expire-cancels were invisible to event indexers — emit the
                 // same resolved events the settle paths use, flagged cancelled.
+                // Sentinels, not the partial count: `correct` is not a score
+                // here (nothing resolved), `u8::MAX` outcome == cancelled.
                 if duel {
                     emit!(DuelResolved {
                         market: m.key(),
-                        a_correct: ra.correct,
-                        b_correct: rb.map(|r| r.correct).unwrap_or(0),
-                        outcome: m.outcome,
+                        a_correct: 0,
+                        b_correct: 0,
+                        outcome: u8::MAX,
                         cancelled: true,
                     });
                 } else {
                     emit!(MarketResolved {
                         market: m.key(),
                         run: ctx.accounts.run_a.key(),
-                        correct: ra.correct,
-                        outcome: m.outcome,
+                        correct: 0,
+                        outcome: u8::MAX,
                         cancelled: true,
                     });
                 }
@@ -1011,6 +1058,13 @@ pub mod market {
             );
         }
         m.status = MARKET_CANCELLED;
+        emit!(LadderResolved {
+            ladder: m.key(),
+            result_mask: 0,
+            winning_score: 0,
+            scores: Vec::new(),
+            cancelled: true,
+        });
         Ok(())
     }
 
@@ -1496,6 +1550,13 @@ pub mod market {
             ErrorCode::ScoringStarted
         );
         m.status = MARKET_CANCELLED;
+        emit!(DarkResolved {
+            market: m.key(),
+            run: ctx.accounts.run.key(),
+            correct: 0,
+            outcome: u8::MAX,
+            cancelled: true,
+        });
         Ok(())
     }
 

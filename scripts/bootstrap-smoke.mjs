@@ -1,0 +1,32 @@
+// Exercise the freshly built signer bootstrap on an isolated local validator.
+// Deliberately fixed to localhost; uses the published, disposable demo payer.
+import * as anchor from '@anchor-lang/core';
+import BN from 'bn.js';
+import {Connection,Keypair,PublicKey,SystemProgram,Transaction,sendAndConfirmTransaction} from '@solana/web3.js';
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const connection = new Connection('http://127.0.0.1:18899','confirmed');
+const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(new URL('../web/demo-anchor.json',import.meta.url)))));
+const provider = new anchor.AnchorProvider(connection,new anchor.Wallet(payer),{commitment:'confirmed'});
+const program = new anchor.Program(JSON.parse(readFileSync(new URL('../idl/sealed.json',import.meta.url))),provider);
+await connection.confirmTransaction(await connection.requestAirdrop(payer.publicKey,2e9),'confirmed');
+const [signer] = PublicKey.findProgramAddressSync([Buffer.from('ArciumSignerAccount')],program.programId);
+assert.equal(await connection.getAccountInfo(signer),null,'use a fresh isolated ledger');
+await sendAndConfirmTransaction(connection,new Transaction().add(SystemProgram.transfer({fromPubkey:payer.publicKey,toPubkey:signer,lamports:1000000})),[payer]);
+const initialize = () => program.methods.initSignerPda().accounts({payer:payer.publicKey,signPdaAccount:signer}).rpc();
+await initialize();
+const initialized = await connection.getAccountInfo(signer);
+assert.equal(initialized.owner.toBase58(),program.programId.toBase58());
+assert.equal(initialized.data.length,9);
+await initialize();
+assert.deepEqual((await connection.getAccountInfo(signer)).data,initialized.data);
+console.log('PASS signer bootstrap: prefund recovered, typed account initialized, repeated call idempotent');
+const id = 18182026;
+const seed = Buffer.alloc(4); seed.writeUInt32LE(id);
+const [bank] = PublicKey.findProgramAddressSync([Buffer.from('benchmark'),payer.publicKey.toBuffer(),seed],program.programId);
+await program.methods.createBenchmark(id,'audit-bootstrap',1,Array(32).fill(1),new BN(0),0).accounts({authority:payer.publicKey}).rpc();
+const state = await program.account.benchmark.fetch(bank);
+assert.equal(state.name,'audit-bootstrap');
+assert.equal(state.chunkCount,1);
+console.log('PASS fresh sealed ELF: benchmark created and decoded on the isolated validator');
+console.log('Smoke scope: bootstrap and account creation; no MPC scoring or settlement exercised.');

@@ -1,7 +1,7 @@
 {
   "kind": "sealed-catalog/v1",
   "root": "../../docs/evidence",
-  "count": 205,
+  "count": 216,
   "byKind": {
     "sealed-bank/v1": 3,
     "sealed-board/v1": 1,
@@ -16,7 +16,7 @@
     "sealed-policy/v1": 3,
     "sealed-position/v1": 2,
     "sealed-report/v1": 4,
-    "sealed-tamper/v1": 46,
+    "sealed-tamper/v1": 57,
     "sealed-trail/v1": 4
   },
   "artifacts": [
@@ -851,9 +851,29 @@
       "title": "forgery: un-vouch an attested receipt → board.json"
     },
     {
+      "path": "tamper/claimed-20of32.dress-the-winner-inflate-the-documented-score.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: dress the winner — inflate the documented score → claimed-20of32.json"
+    },
+    {
+      "path": "tamper/claimed-20of32.dress-the-winner-postdate-a-too-early-run.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: dress the winner — postdate a too-early run → claimed-20of32.json"
+    },
+    {
       "path": "tamper/claimed-20of32.steal-the-bounty-below-threshold.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: steal the bounty below threshold → claimed-20of32.json"
+    },
+    {
+      "path": "tamper/dark_model-a-vs-duel_model-a.backdate-a-receipt-launder-when-the-score-was-written.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: backdate a receipt — launder when the score was written → dark_model-a-vs-duel_model-a.json"
+    },
+    {
+      "path": "tamper/dark_model-a-vs-duel_model-a.clone-a-winning-receipt-buy-the-verdict-wholesale.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: clone a winning receipt — buy the verdict wholesale → dark_model-a-vs-duel_model-a.json"
     },
     {
       "path": "tamper/dark_model-a-vs-duel_model-a.drop-a-shared-bank-launder-the-head-to-head.json",
@@ -884,6 +904,11 @@
       "path": "tamper/dark_model-a.forge-a-priced-run-rewrite-the-leg-the-venue-scored.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: forge a priced run — rewrite the leg the venue scored → dark_model-a.json"
+    },
+    {
+      "path": "tamper/dark_model-a.inject-a-phantom-died-at-launder-where-the-forgery-fell.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: inject a phantom died-at — launder where the forgery fell → dark_model-a.json"
     },
     {
       "path": "tamper/dark_model-a.launder-the-receipts-rename-the-model.json",
@@ -1019,6 +1044,36 @@
       "path": "tamper/sealed-priv.re-seat-a-reveal-at-a-chunk-that-never-opened.json",
       "kind": "sealed-tamper/v1",
       "title": "forgery: re-seat a reveal at a chunk that never opened → sealed-priv.json"
+    },
+    {
+      "path": "tamper/sealed-test.backdate-a-grant-pretend-the-viewer-came-early.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: backdate a grant — pretend the viewer came early → sealed-test.json"
+    },
+    {
+      "path": "tamper/sealed-test.duplicate-a-receipt-drop-a-sibling-the-count-survives.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: duplicate a receipt, drop a sibling — the count survives → sealed-test.json"
+    },
+    {
+      "path": "tamper/sealed-test.duplicate-a-reveal-pad-the-disclosure-count.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: duplicate a reveal — pad the disclosure count → sealed-test.json"
+    },
+    {
+      "path": "tamper/sealed-test.duplicate-a-run-drop-a-sibling-the-count-survives.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: duplicate a run, drop a sibling — the count survives → sealed-test.json"
+    },
+    {
+      "path": "tamper/sealed-test.mint-a-phantom-run-on-the-exam.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: mint a phantom run on the exam → sealed-test.json"
+    },
+    {
+      "path": "tamper/sealed-test.re-seat-a-reveal-at-a-chunk-that-never-opened.json",
+      "kind": "sealed-tamper/v1",
+      "title": "forgery: re-seat a reveal at a chunk that never opened → sealed-test.json"
     },
     {
       "path": "tamper/winning-band.inflate-a-winning-stake.json",

@@ -209,6 +209,10 @@ describe("Sealed", () => {
 
   it("seals a bank, scores a run in MPC, and finalizes", async () => {
     console.log(`init comp defs (cluster offset ${arciumEnv.arciumClusterOffset}, program ${program.programId.toBase58()})`);
+    // Queue validators require the singleton created by deployment bootstrap.
+    const [signPda] = PublicKey.findProgramAddressSync([Buffer.from("ArciumSignerAccount")], program.programId);
+    await program.methods.initSignerPda().accounts({ payer: owner.publicKey, signPdaAccount: signPda })
+      .signers([owner]).rpc({ preflightCommitment: "processed", commitment: "confirmed" });
     await initCompDef("seal_part", () => program.methods.initSealPartCompDef());
     await initCompDef("score_chunk", () => program.methods.initScoreChunkCompDef());
     const mxePublicKey = await getMXEPublicKeyWithRetry(provider, program.programId);

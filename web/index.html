@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="A benchmark whose answer key was never written down, scored by nobody in particular — MPC-generated exams, on-chain score receipts, and prediction markets that settle without a referee. Replay the whole evidence base keyless.">
+<meta name="description" content="Private exams. Public scores. Markets that settle themselves. Inspect a saved score mismatch and try the receipt-cloning attack on Solana + Arcium evidence.">
 <meta property="og:title" content="Sealed — the leaderboard you don't have to trust">
-<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 206 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base, notarized on devnet.">
+<meta property="og:description" content="MPC-generated exams scored inside the encryption boundary; 503 runs, 340 venues, 217 portable artifacts — every claim replays in this page, one sha256 for the whole evidence base, notarized on devnet.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://josepha-mayo.github.io/sealed/">
 <meta property="og:image" content="https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/flagship.gif">
@@ -13,8 +13,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="Terminal recording: four open-weights models race an MPC-minted exam; the evidence replays offline.">
 <meta name="twitter:title" content="Sealed — benchmark truth without a referee">
-<meta name="twitter:description" content="A benchmark whose answer key was never written down, scored by nobody in particular. Solana + Arcium MPC. Replay the evidence in-browser.">
-<title>Sealed — the exam nobody can leak</title>
+<meta name="twitter:description" content="A perfect-score claim met an exam it had not taken. Replay Sealed: confidential evaluations and capability-bounty settlement on Solana + Arcium.">
+<title>Sealed — private truth, public settlement</title>
 <script src="vendor/web3.iife.min.js"></script>
 <style>
   :root { --bg:#0a0e0f; --fg:#c8e6d5; --dim:#5f7a6b; --acc:#4ef0a8; --warn:#f0b84e; --err:#f06e5a; --card:#101715; --line:#1d2a24; }
@@ -62,17 +62,45 @@
   .qlink { display:inline-block; border:1px solid var(--line); border-radius:14px; padding:3px 12px; margin:2px 6px 2px 0; font-size:12px; color:var(--acc); } .qlink:hover { border-color:var(--acc); text-decoration:none; }
   table { display:block; overflow-x:auto; }
   .cfg input { max-width:100%; }
-  .nav { position:sticky; top:0; z-index:5; background:var(--bg); padding:8px 0; border-bottom:1px solid var(--line); margin-bottom:8px; }
-  .nav a { font-size:12px; color:var(--dim); margin-right:14px; white-space:nowrap; }
+  .nav { display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; position:sticky; top:0; z-index:5; background:var(--bg); padding:8px 0; border-bottom:1px solid var(--line); margin-bottom:8px; }
+  .nav a { font-size:12px; color:var(--dim); margin-right:0; white-space:nowrap; }
   .nav a:hover { color:var(--acc); text-decoration:none; }
   .nav input { background:var(--card); border:1px solid var(--line); color:var(--fg); padding:4px 8px; border-radius:6px; font:11px monospace; width:420px; margin-left:auto; }
   .nav input:focus { outline:none; border-color:var(--acc); }
+
+  .casefile { margin-top:22px; border-color:#53614e; padding:24px; background:linear-gradient(135deg,#17201b,#101715 70%); }
+  .casefile .eyebrow { color:var(--warn); font-size:11px; letter-spacing:.12em; text-transform:uppercase; }
+  .casefile h2 { margin:12px 0; color:var(--fg); text-transform:none; font-size:clamp(24px,4vw,40px); letter-spacing:-1px; line-height:1.12; max-width:720px; }
+  .casefile p { max-width:780px; }
+  .casefile .casegrid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:20px 0; }
+  .casefile .casecell { padding:14px; border:1px solid var(--line); border-radius:6px; }
+  .casefile .casecell strong { display:block; font-size:30px; font-weight:500; margin:5px 0; }
+  .casefile button { background:var(--acc); color:#062015; padding:10px 14px; border:0; border-radius:5px; font:inherit; cursor:pointer; }
+  .casefile button.secondary { background:transparent; color:var(--fg); border:1px solid #53614e; }
+  .casefile button:disabled { opacity:.5; cursor:wait; }
+  .casefile .boundary { border-left:2px solid var(--warn); padding-left:12px; font-size:12px; color:#9bb0a0; }
+  @media(max-width:650px) { body { padding:14px; } .casefile { padding:18px; } .casefile .casegrid { grid-template-columns:1fr; } .nav input { width:100%; } }
 </style>
 </head>
 <body>
 <h1>SEALED</h1>
-<div class="sub"><b>The benchmark whose answer key never existed — the exam nobody can leak, the score nobody can fake, the market that settles itself.</b></div>
+<div class="sub"><b>Private exams. Public scores. Markets that settle themselves.</b></div>
 <div class="sub kv">items minted &amp; scored inside Arcium's MPC (multi-party computation) cluster &middot; scores written on-chain by the cluster's callback &middot; markets settle on the on-chain score field itself (<code>Run.correct</code>) — no referee signs off &middot; <a href="https://github.com/josepha-mayo/sealed">repo</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/judges.md">judge guide</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/integrate.md">compose on Run.correct</a> &middot; <a href="https://github.com/josepha-mayo/sealed/blob/main/docs/engineering-log.md">engineering log</a></div>
+
+<section class="card casefile" id="sec-case" aria-label="Sealed case file">
+  <div class="eyebrow">Crypto World's Fair · Solana · case file 01</div>
+  <h2>A perfect score met an exam it hadn't taken.</h2>
+  <p>A stale model artifact claimed a perfect result. Against the actual committed exam, MPC counted one correct answer. The useful question: <b>which number gets to move the money?</b></p>
+  <div id="casefacts" class="casegrid" aria-live="polite"><span class="kv">Opening the saved account evidence…</span></div>
+  <p>Sealed makes the resolution source a protocol: commit outputs, score against sealed fingerprints, settle on the callback's score. Private generated exams keep questions encrypted until a viewer receives a grant.</p>
+  <div class="row">
+    <button onclick="runCaseAttack(this)">Try the receipt-cloning attack</button>
+    <button class="secondary" onclick="quickDecrypt(this)">Open only the questions</button>
+    <a class="qlink" href="#sec-hero">Replay the whole evidence bundle ↓</a>
+  </div>
+  <div id="caseattack" class="proof" aria-live="polite"></div>
+  <p class="boundary">Demo evidence: a frozen, merged localnet capture. The replay checks account consistency; it is not a fresh devnet execution. Model names are runner-declared. MPC scoring does not prove which model produced an output.</p>
+</section>
 
 <div class="nav">
   <span class="kv">ledger:</span><a href="#sec-leaderboard">leaderboard</a><a href="#sec-records">registry</a><a href="#sec-h2h">head-to-head</a><a href="#sec-runs">runs</a><a href="#sec-grants">disclosures</a><a href="#sec-cal">calibration</a><a href="#sec-banks">banks</a><a href="#sec-board">keeper board</a><a href="#sec-feed">activity</a><a href="#sec-sentiment">sentiment</a><a href="#sec-champions">settlement</a><a href="#sec-divergence">divergence</a><a href="#sec-matrix">matrix</a><a href="#sec-escrow">escrow</a><a href="#sec-markets">markets</a><a href="#sec-ladders">ladders</a><a href="#sec-dark">dark</a><a href="#sec-bounties">bounties</a>
@@ -85,7 +113,7 @@
   <div class="kv" style="margin-bottom:6px"><b>This page audits itself.</b> No wallet, no RPC, nothing trusted — every score below was written by the MPC cluster's callback, and you can recount any of them right here:</div>
   <div>
     <button onclick="megaAudit()" style="border-color:var(--acc)">▶ PROVE EVERYTHING — one click (~8s)</button>
-    <span class="kv">audit → all 206 artifacts replayed → 38 forgery attacks caught → the sealed exam decrypted in-page → copyable verdict — then seal it on devnet. Or: <a href="#" onclick="startTour();return false">guided tour</a> (25 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
+    <span class="kv">audit → all 217 artifacts replayed → 38 forgery attacks caught → the sealed exam decrypted in-page → copyable verdict — then seal it on devnet. Or: <a href="#" onclick="startTour();return false">guided tour</a> (25 captioned stops) · <a href="?decrypt=1">?decrypt=1</a> opens the private exam directly</span>
     <div id="megares" style="margin-top:8px"></div>
   </div>
   <div style="margin-top:8px">
@@ -99,7 +127,7 @@
     <button onclick="quickVerify()">verify the leaderboard card</button>
     <button onclick="quickForge()">watch a forgery die</button>
     <button onclick="quickDecrypt(this)">read the sealed exam</button>
-    <button onclick="quickReplay()">replay all 206 proofs</button>
+    <button onclick="quickReplay()">replay all 217 proofs</button>
   </div>
 </div>
 <div class="cfg">
@@ -200,7 +228,7 @@
 
 <h2 id="sec-audit">cryptographic audit</h2>
 <div class="card">
-  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 206 artifacts + its own verifiers as ONE offline file</div>
+  <div class="kv" style="margin-bottom:8px">every claim above re-derived in this page — account PDAs, commitment folds, market resolutions, burn flags. The same checks ship offline in two more languages: <code>node scripts/verify.mjs</code> and a stdlib-Python second implementation (<code>python3 scripts/verify.py</code> — no node, no pip, no RPC). <span class="verlink" onclick="runAudit(true)">re-run audit</span> · <a href="snapshot.json">download the evidence bundle</a> · <a href="SHA256SUMS">its manifest</a> · <a href="standalone.html">the capsule</a> — this whole page + all 217 artifacts + its own verifiers as ONE offline file</div>
   <div id="auditres"><span class="kv">waiting for data…</span></div>
 </div>
 
@@ -244,7 +272,7 @@
   <div class="kv" style="margin-bottom:8px">the anti-claim — a <code>sealed-ceiling/v1</code> card (<code>chain ceiling &lt;model&gt; --snapshot</code> mints them) proves a negative: <i>&#8220;no finalized run of this model EVER scored above N%&#8221;</i>. Claim cards prove existence — show the receipt. A ceiling card proves nonexistence, possible only because the snapshot is an exhaustive account dump: the card lists EVERY subject run and the page re-derives that set itself from the decoded accounts — a hidden argmax run dies at completeness, a phantom run dies at binding, a shaved number dies at the argmax replay. The primitive a regulator or deployer actually wants: an enforceable upper bound on demonstrated capability. Same checks as <code>chain ceiling --verify</code>.</div>
   <div><select id="ceilpick" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:4px;min-width:280px"><option value="">— pick one of 31 committed ceiling cards —</option></select>
   <button onclick="loadCeiling(document.getElementById('ceilpick').value || 'llama-3.2-1b-instruct.json')">load card</button>
-  <span class="kv">every card is sha256-pinned in this bundle&#8217;s MANIFEST — llama-3.2-1b is the cheat-catch: ceiling 3.1%</span></div>
+  <span class="kv">every card is sha256-pinned in this bundle&#8217;s MANIFEST — llama-3.2-1b's saved ceiling is 3.1%; the stale-artifact case is the separate openai run</span></div>
   <div><textarea id="ceiljson" rows="7" style="width:100%;margin-top:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit" placeholder='{"kind":"sealed-ceiling/v1", &#8230;}'></textarea></div>
   <button onclick="verifyCeiling()">verify ceiling</button>
   <div id="ceilres"></div>
@@ -437,6 +465,26 @@ const sol = (l) => (Number(l) / 1e9).toFixed(3);
 const params = new URLSearchParams(location.search);
 const rpcIn = document.getElementById("rpc");
 rpcIn.value = params.get("rpc") || "http://127.0.0.1:8899";
+// ?rpc=<url> is provenance-sensitive (same template as ?snapshot=): the
+// Solana public RPCs are neutral ground, but any other endpoint — a shared
+// link's redirect target, a stranger's gateway — means every "decoded
+// account" below is bytes THAT server chose. When the param names a
+// third-party endpoint the page carries a persistent banner on #net;
+// it re-appends after each textContent rewrite so the 15s repoll and
+// snapshot loads can't quietly strip it.
+const rpcParam = (params.get("rpc") || "").trim();
+const foreignRpc = (() => {
+  if (!rpcParam) return false;
+  try { return !["api.devnet.solana.com", "api.mainnet-beta.solana.com", "api.testnet.solana.com"].includes(new URL(rpcParam).hostname); }
+  catch { return true; } // unparseable endpoint — still not a pinned RPC
+})();
+const rpcProvenance = () => {
+  if (!foreignRpc) return;
+  const warn = document.createElement("div");
+  warn.style.cssText = "border:1px solid var(--warn);border-radius:6px;padding:6px 10px;margin-top:6px;color:var(--warn)";
+  warn.textContent = `PROVENANCE WARNING — third-party RPC ${rpcParam}. Every account below is bytes that endpoint chose — card verifications bind against third-party bytes, not this site's pinned bundle.`;
+  document.getElementById("net").appendChild(warn);
+};
 
 function parseBenchmark(d) {
   const v = new DataView(d.buffer, d.byteOffset, d.byteLength); let o = 8;
@@ -629,22 +677,44 @@ async function decryptBank(benchPk, btn) {
     const gs = (window.__audit?.grants || []).filter(g => g.bench === benchPk && g.viewer === viewerB58)
       .sort((a, b2) => a.chunk - b2.chunk || a.part - b2.part);
     if (!gs.length) throw new Error(`no ShareGrants on this bank for demo delegate ${demo.solana_pubkey.slice(0, 8)}…`);
-    let rows = "";
+    let rows = "", anchored = 0, commitFails = 0;
     for (const g of gs) {
       const cts = [unhex(g.cts.slice(0, 64)), unhex(g.cts.slice(64, 128))].map(u => Array.from(u));
       const specs = unpackSpecs(cipher.decrypt(cts, unhex(g.nonce)));
+      // specCommitment: the MPC's keccak digest over this part's 5-byte spec
+      // stream, emitted as circuit output on both the ShareGrant and the
+      // owning PrivItemChunk (post-upgrade accounts only). Re-hash the just-
+      // decrypted specs and compare — a doctored grant or reshare serving a
+      // different exam dies HERE, before its rows render. Legacy accounts
+      // minted no commitment; they count as unanchored, not as failures.
+      const body = new Uint8Array(specs.length * 5);
+      specs.forEach((s, i) => body.set([s.a, s.b, s.c, s.op0, s.op1], i * 5));
+      const mine = hex(sha3u8(cat(D_SPEC_COMMIT, body)));
+      const pc = (window.__privChunks || []).find(c => c.bench === benchPk && c.index === g.chunk);
+      const pcSaid = pc?.specCommitments?.[g.part];
+      const bad = (g.specCommitment && g.specCommitment !== mine) || (pcSaid && pcSaid !== mine);
+      if (bad) {
+        commitFails++;
+        rows += `<tr><td>${g.chunk * 32 + g.part * 8}–${g.chunk * 32 + g.part * 8 + 7}</td><td colspan="2" class="mono" style="color:var(--err)">commitment MISMATCH — decrypted specs hash ${mine.slice(0, 16)}… ≠ committed ${(g.specCommitment ?? pcSaid).slice(0, 16)}… — these rows are not the MPC-committed exam</td></tr>`;
+        continue;
+      }
+      if (g.specCommitment || pcSaid) anchored++;
       specs.forEach((s, k) => {
         const idx = g.chunk * 32 + g.part * 8 + k;
         rows += `<tr><td>${idx}</td><td class="mono">${specExpr(s)}</td><td>${specVal(s)}</td></tr>`;
       });
     }
-    slot.innerHTML = `<div class="proof" style="margin-top:4px">decrypted <b>${gs.length} grant${gs.length === 1 ? "" : "s"}</b> in your browser —
+    slot.innerHTML = `<div class="proof" style="margin-top:4px" data-dok="${commitFails === 0 ? 1 : 0}">decrypted <b>${gs.length} grant${gs.length === 1 ? "" : "s"}</b> in your browser —
       Rescue/x25519 shared secret derived locally; plaintext never touched the wire or the chain.
       The <b>answers</b> shown are recomputed by the page — on-chain they exist only as MPC-held fingerprints.
+      &middot; spec commitments <b>${anchored}/${gs.length} verified</b>${anchored < gs.length ? ` <span class="kv">(${gs.length - anchored} grant${gs.length - anchored === 1 ? "" : "s"} on pre-commitment accounts — nothing anchored to check)</span>` : ""}${commitFails ? ` <b style="color:var(--err)">commitment MISMATCH — ${commitFails} part(s) are NOT the committed exam</b>` : ""}
       <table style="margin-top:6px"><tr><th>#</th><th>question</th><th>answer</th></tr>${rows}</table></div>`;
   } catch (e) {
     if (slot) slot.innerHTML = `<div class="proof" style="color:var(--err)">decrypt failed: ${esc(e.message)}</div>`;
     else console.warn("decrypt failed:", e.message);
+  } finally {
+    // restore unconditionally — a throw before the old catch ran (or a
+    // verifier that never reaches it) used to leave the button dead.
     btn.disabled = false; btn.textContent = "decrypt with demo delegate key";
   }
 }
@@ -885,6 +955,7 @@ async function load() {
   const conn = new solanaWeb3.Connection(url, "confirmed");
   clusterTag = clusterOf(url);
   document.getElementById("net").textContent = " LIVE — " + url;
+  rpcProvenance();
   let sealedAccs, marketAccs;
   try {
     [sealedAccs, marketAccs] = await Promise.all([
@@ -917,7 +988,10 @@ async function load() {
   try {
     // live-rendered accounts aren't base64 snapshot entries — drop any stale
     // bundle bytes so fingerprint/diff fall through to the decoded accounts.
+    // The snapshot-bound caches go too: a live render must not keep answering
+    // snapshotSha()/snapshotJson() with a bundle it is no longer showing.
     window.__raw = new Map();
+    window.__snapSha = undefined; window.__snapText = undefined; window.__snapJson = undefined;
     renderAll(sealedAccs, marketAccs);
   } catch (e) {
     document.getElementById("err").textContent = "render error: " + e.message + " (old-layout accounts on this ledger?)";
@@ -988,6 +1062,7 @@ function applySnapshot(snap, loadedSha) {
   // the sha256 of the bytes just ingested, so snapshot-binding checks pin
   // THIS dump, not whatever snapshot.json happens to be served.
   window.__snapSha = loadedSha ?? undefined; window.__snapText = undefined; window.__signPda = undefined; window.__reportBoundCard = undefined;
+  window.__lastRoot = undefined; window.__lastAnchor = undefined; // a different bundle must not inherit a fingerprint/anchor computed over the old one
   window.__snapJson = snap; // the ledger census reads raw entries per section
   window.__loadedOnce = true;
   document.getElementById("err").textContent = "";
@@ -1005,6 +1080,7 @@ function applySnapshot(snap, loadedSha) {
     gloss.textContent = " — merged localnet capture (validator wipes between epochs); every account still self-certifies by PDA re-derivation, not trust";
     document.getElementById("net").appendChild(gloss);
   }
+  rpcProvenance();
   try {
     renderAll(dec(snap.sealed), dec(snap.market));
   } catch (e) {
@@ -1096,7 +1172,60 @@ async function loadExampleProof() {
   } catch (e) { document.getElementById("vres").innerHTML = `<div class="proof" style="color:var(--err)">example proof unavailable: ${esc(e.message)}</div>`; }
 }
 
+
+// A short, evidence-bound entrance to the explorer. Never fabricate a case
+// when a user loads a different ledger; all numeric score facts come from Run.
+async function renderCase() {
+  const out = document.getElementById("casefacts");
+  const casePk = "3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka";
+  let run = window.__runs?.get(casePk);
+  let provenance = "loaded ledger";
+  const ledgerSha = window.__snapSha;
+  try {
+    if (!run) {
+      // This older specimen is preserved separately from the eight-epoch
+      // census. Do not invent membership in whichever ledger was loaded.
+      if (ledgerSha !== "ac4617590680c497de239016068684ef7adbbabad13e65a67c2b6fa3c59ab079") throw new Error("use the bundled capture to view the historical specimen");
+      const response = await fetch("acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json");
+      if (!response.ok) throw new Error("historical account file unavailable");
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (hex(await sha(bytes)) !== "dd36832808d6f2a3a1d52cc51a3e4a8492eb21087e899ca7d2f507ef4e3594a0") throw new Error("historical account hash mismatch");
+      const saved = JSON.parse(new TextDecoder().decode(bytes));
+      if (saved.pubkey !== casePk || saved.account.owner !== "FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ") throw new Error("historical account identity mismatch");
+      const data = Uint8Array.from(atob(saved.account.data[0]), c => c.charCodeAt(0));
+      if (hex(data.slice(0,8)) !== DISC.run) throw new Error("historical specimen is not a Run");
+      run = {pk:casePk,...parseRun(data)};
+      provenance = 'historical account dump · outside the merged census';
+    }
+    if (run.status !== 1 || run.modelId !== "openai") throw new Error("saved case fields do not match");
+    if (window.__snapSha !== ledgerSha) return; // a newer ledger superseded this fetch
+    const items = run.chunkCount * 32;
+    out.innerHTML = `<div class="casecell"><span class="kv">LOCAL ARTIFACT CLAIM</span><strong>64 / 64</strong><span class="kv">historical transcript · not a chain score</span></div>` +
+      `<div class="casecell"><span class="kv">DECODED MPC RESULT</span><strong style="color:var(--warn)">${run.correct} / ${items}</strong><span class="kv">${esc(run.modelId)} · ${esc(provenance)} · <a href="acct-3CKnMa8Xbr3ph5BZZ94Q6STXWMS27YfMJUoK5iF5JXka.json" target="_blank" rel="noopener">inspect raw account ↗</a></span></div>` +
+      `<div class="casecell"><span class="kv">SETTLEMENT SOURCE</span><strong style="font-size:22px;color:var(--acc)">Run.correct</strong><span class="kv">the market reads the result account</span></div>`;
+  } catch (e) {
+    if (window.__snapSha === ledgerSha) out.textContent = "Case specimen unavailable: " + (e.message ?? String(e));
+  }
+}
+async function runCaseAttack(btn) {
+  const out = document.getElementById("caseattack");
+  if (window.__busy || btn.disabled) { out.textContent = "Wait for the current audit to finish, then run the attack."; return; }
+  btn.disabled = true;
+  try {
+    out.textContent = "Replaying a forged card that repeats a real winning receipt…";
+    const name = "dark_model-a-vs-duel_model-a.clone-a-winning-receipt-buy-the-verdict-wholesale.json";
+    if (!await loadTamper(name)) throw new Error("attack exhibit unavailable");
+    await verifyTamper();
+    const verdict = document.getElementById("tamperres").innerHTML;
+    const caught = /EXHIBIT VERIFIED/.test(verdict) && /receipt completeness/.test(verdict);
+    out.innerHTML = `<span class="pill ${caught ? "resolved" : "cancelled"}">${caught ? "FORGERY REJECTED" : "REPLAY FAILED"}</span> ` +
+      (caught ? 'Every receipt is real. Repeating one still fails <b>receipt completeness</b>: a real score cannot buy extra weight. <a href="#sec-tampercard">Inspect the forged card and checks ↓</a>' : 'The exhibit did not reach its expected rejection. <a href="#sec-tampercard">Inspect the failure ↓</a>');
+  } catch (e) { out.textContent = "Case replay failed: " + (e.message ?? String(e)); }
+  finally { btn.disabled = false; }
+}
+
 function renderAll(sealedAccs, marketAccs) {
+  window.__lastVerdict = null; // a refreshed ledger invalidates the previous audit receipt
   const benches = [], runs = [], markets = [], ladders = [], positions = [], chunks = [], itemChunks = [], privChunks = [], reveals = [], grants = [], darkMarkets = [], darkPositions = [], bounties = [], modelRecords = [], scoreLogs = [];
   const skipped = [];
   for (const { pubkey, account } of sealedAccs) {
@@ -1135,6 +1264,7 @@ function renderAll(sealedAccs, marketAccs) {
   window.__itemChunks = itemChunks;
   window.__privChunks = privChunks;
   window.__audit = { benches, runs, markets, ladders, positions, chunks, itemChunks, privChunks, reveals, grants, darkMarkets, darkPositions, bounties, modelRecords, scoreLogs, signPda: window.__signPda ?? null, skipped: skipped.length };
+  window.__caseReady = renderCase();
 
   let h = "";
 
@@ -1488,7 +1618,7 @@ function renderAll(sealedAccs, marketAccs) {
         if (shown++ >= 16) break;
         h += `<span class="kv mono" style="font-size:12px">${specExpr(c.specs[si])}</span>`;
       }
-      h += `</div><div class="proof" style="margin-top:4px">${minted > 16 ? `+ ${minted - 16} more — ` : ""}values like <span class="mono">${specExpr(bics[0].specs[0])} = ${specVal(bics[0].specs[0])}</span> were hashed inside MPC; only the count leaves the enclave.</div>`;
+      h += `</div><div class="proof" style="margin-top:4px">${minted > 16 ? `+ ${minted - 16} more — ` : ""}values like <span class="mono">${specExpr(bics[0].specs[0])} = ${specVal(bics[0].specs[0])}</span> were hashed inside MPC; only the count leaves the MPC boundary.</div>`;
     }
     const bpcs = privChunks.filter(c => c.bench === b.pk).sort((a, b2) => a.index - b2.index);
     if (bpcs.length) {
@@ -1558,7 +1688,7 @@ function renderAll(sealedAccs, marketAccs) {
         for (const b of rBounts) venues.push(`bounty ${link(b.pk)} — claimed at ${b.winningScore} (threshold ${b.threshold})`);
         h += `<tr class="custody"><td colspan="7"><details><summary class="kv" style="cursor:pointer">custody chain — ${rLog ? "registry receipt ✓" : "no receipt"}${venues.length ? ` · ${venues.length} venue(s)` : ""}${postReveal ? " · post-reveal ⚠" : ""}</summary>
           <div class="kv" style="padding:4px 0 2px 8px">
-          created ${fmtTs(r.createdAt)} → first MPC queue ${fmtTs(r.firstPendingAt)} → finalized ${fmtTs(r.finalizedAt)}${rLat !== null ? ` (enclave ${rLat}s)` : ""} · scored ${popcount(r.scoredMask)}/${r.chunkCount} chunks · outputs_root <span class="mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 24)}…</span>
+          created ${fmtTs(r.createdAt)} → first MPC queue ${fmtTs(r.firstPendingAt)} → finalized ${fmtTs(r.finalizedAt)}${rLat !== null ? ` (MPC ${rLat}s)` : ""} · scored ${popcount(r.scoredMask)}/${r.chunkCount} chunks · outputs_root <span class="mono" title="${r.outputsRoot}">${r.outputsRoot.slice(0, 24)}…</span>
           ${venues.length ? `<div>settled venues — ${venues.join(" · ")}</div>` : ""}
           ${rLog ? `<div>registry — receipt ${link(rLog.pk)} → record ${link(rLog.modelRecord)} @ ${fmtTs(rLog.recordedAt)}${rLog.vouched ? ` <span class="pill resolved">vouched snapshot</span>` : ""}${rLog.postReveal ? ` <span class="pill cancelled">receipt marked post-reveal</span>` : ""}</div>` : ""}
           ${postReveal ? `<div><span class="pill cancelled">post-reveal</span> minted after fingerprint disclosure on this bank — market creators refuse it on-chain (PostRevealRun)</div>` : ""}
@@ -2234,6 +2364,46 @@ const modelTag = (id) => MODEL_META[id] ? `<div class="kv" style="font-size:10px
 async function sha(b) { return new Uint8Array(await crypto.subtle.digest("SHA-256", b)); }
 const D_COUT = utf8("sealed/v1/chunkout\0"), D_NODE = new Uint8Array([1]);
 const D_GI = utf8("sealed/v1/genitems\0"), D_PI = utf8("sealed/v1/privitems\0");
+// Keccak-f[1600] SHA3-256 — the WebCrypto subtle API has no SHA-3, and the
+// specCommitment recipe (packages/harness/src/hash.ts specCommitments) is
+// keccak, not SHA-256. Vendored so decryptBank can prove the plaintext it
+// reveals is the stream the grant committed to, not just "a decryption".
+// Byte-exact vs hashlib.sha3_256 on empty/abc/domain-commit/200B vectors.
+function sha3u8(data) {
+  const RC = [0x0000000000000001n,0x0000000000008082n,0x800000000000808an,0x8000000080008000n,0x000000000000808bn,0x0000000080000001n,0x8000000080008081n,0x8000000000008009n,0x000000000000008an,0x0000000000000088n,0x0000000080008009n,0x000000008000000an,0x000000008000808bn,0x800000000000008bn,0x8000000000008089n,0x8000000000008003n,0x8000000000008002n,0x8000000000000080n,0x000000000000800an,0x800000008000000an,0x8000000080008081n,0x8000000000008080n,0x0000000080000001n,0x8000000080008008n];
+  const R = [[0,36,3,41,18],[1,44,10,45,2],[62,6,43,15,61],[28,55,25,21,56],[27,20,39,8,14]];
+  const M = 0xffffffffffffffffn;
+  const rot = (x, n) => n === 0 ? x : ((x << BigInt(n)) | (x >> BigInt(64 - n))) & M;
+  const st = new Array(25).fill(0n);
+  const rate = 136; // SHA3-256: 1088-bit rate
+  // pad10*1 with the keccak 0x06 domain byte: q pad bytes appended, q ∈ [1,rate]
+  const q = rate - (data.length % rate);
+  const buf = new Uint8Array(data.length + q); buf.set(data);
+  buf[data.length] = 0x06;
+  buf[buf.length - 1] |= 0x80;
+  const out = new Uint8Array(32);
+  for (let base = 0; base < buf.length; base += rate) {
+    for (let i = 0; i < rate / 8; i++) {
+      let w = 0n;
+      for (let j = 7; j >= 0; j--) w = (w << 8n) | BigInt(buf[base + i * 8 + j]);
+      st[i] ^= w;
+    }
+    // keccak-f round
+    for (let round = 0; round < 24; round++) {
+      const C = new Array(5), D = new Array(5);
+      for (let x = 0; x < 5; x++) C[x] = st[x] ^ st[x + 5] ^ st[x + 10] ^ st[x + 15] ^ st[x + 20];
+      for (let x = 0; x < 5; x++) D[x] = C[(x + 4) % 5] ^ rot(C[(x + 1) % 5], 1);
+      for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) st[x + 5 * y] ^= D[x];
+      const B = new Array(25);
+      for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) B[y + 5 * ((2 * x + 3 * y) % 5)] = rot(st[x + 5 * y], R[x][y]);
+      for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) st[x + 5 * y] = B[x + 5 * y] ^ ((~B[(x + 1) % 5 + 5 * y]) & B[(x + 2) % 5 + 5 * y] & M);
+      st[0] ^= RC[round];
+    }
+  }
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 8; j++) out[i * 8 + j] = Number((st[i] >> BigInt(8 * j)) & 0xffn);
+  return out;
+}
+const D_SPEC_COMMIT = utf8("sealed/v1/speccommit\0");
 
 // Replay the on-chain items_root commitment fold in-browser — the same
 // sequential hash the gen callbacks apply, ordered by each part's recorded
@@ -2385,7 +2555,7 @@ async function loadCalibrationSpecimen() {
       r.hashes.forEach((h, j) => revealHashes.set(r.chunk * 32 + r.part * 8 + j, BigInt("0x" + h)));
     const modelCols = cas.map((ca) => ({ ca, run: runOf(ca), name: esc(ca.model.length > 24 ? ca.model.slice(0, 24) : ca.model) }));
     renderCalQuiz(cb, modelCols);
-    let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${esc(cb.benchmarkId)}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). ${modelCols.map(m => `<b>${m.name}</b> → MPC wrote <b>${m.run ? m.run.correct : "?"}/${cb.items.length}</b>`).join(" · ")}. The fingerprint column is the on-chain value the enclave compared against.</div>`;
+    let h = `<div class="kv" style="margin-bottom:8px">authored bank <b>${esc(cb.benchmarkId)}</b> — plaintext answers published at <span class="mono">docs/evidence/calibration/</span> (seed-deterministic: <span class="mono">calibration-77007</span> rebuilds it byte-for-byte). ${modelCols.map(m => `<b>${m.name}</b> → MPC wrote <b>${m.run ? m.run.correct : "?"}/${cb.items.length}</b>`).join(" · ")}. The fingerprint column is the on-chain value the MPC compared against.</div>`;
     h += `<div style="overflow-x:auto"><table><tr><th>#</th><th>family</th><th>prompt</th><th>canonical</th>${modelCols.map(m => `<th>${m.name}</th>`).join("")}<th>fingerprint == on-chain</th></tr>`;
     const indep = cas.map(() => 0);
     const agree = { both: 0, neither: 0, only: new Array(cas.length).fill(0) };
@@ -3319,7 +3489,8 @@ async function verifyMatch() {
         const r = logs.get(l.pk);
         if (!r || r.run !== l.run || r.benchmark !== l.benchmark || r.modelRecord !== c[side].recordPk ||
             r.correct !== l.correct || r.items !== l.items ||
-            !!r.vouched !== !!l.vouchedAtRecord || !!r.postReveal !== !!l.postReveal) bBad++;
+            !!r.vouched !== !!l.vouchedAtRecord || !!r.postReveal !== !!l.postReveal ||
+            (l.recordedAt != null && Number(r.recordedAt) !== Number(l.recordedAt))) bBad++;
       }
       const recA = A5.modelRecords.find(m => m.pk === c.a.recordPk);
       const recB = A5.modelRecords.find(m => m.pk === c.b.recordPk);
@@ -3344,7 +3515,7 @@ async function verifyMatch() {
       for (const side of ["a", "b"]) {
         const want = new Set(A5.scoreLogs.filter(l => l.modelRecord === c[side].recordPk && sharedSet.has(l.benchmark)).map(l => l.pk));
         const got = new Set(c.receipts[side].map(l => l.pk));
-        if (want.size !== got.size || [...want].some(k => !got.has(k))) rcBad++;
+        if (got.size !== c.receipts[side].length || want.size !== c.receipts[side].length || [...want].some(k => !got.has(k))) rcBad++;
       }
       rcBad === 0
         ? pass("receipt completeness", "both sides — embedded receipts == decoded logs on every shared bank")
@@ -3528,26 +3699,48 @@ function quickReplay() {
 // end and keeps score: the account-level audit, all committed
 // artifacts through their kind verifiers, then every forgery attack in
 // the lab. Nothing trusted — the cascade IS the demo.
+// __busy serializes the DOM-shared heavy passes — runAudit, replayBundle,
+// megaAudit all write into the same result slots, so a second click (or a
+// deep-link trigger) mid-run would interleave verdicts. Internal calls pass
+// _inner=true through the guard; an external runAudit while busy re-queues
+// once instead of being dropped (the audit tab stays honest after data churn).
 async function megaAudit() {
+  if (window.__busy) return;
+  window.__busy = true;
+  window.__lastVerdict = null;
+  try { await megaAuditBody(); }
+  finally { window.__busy = false; }
+}
+async function megaAuditBody() {
   const res = document.getElementById("megares");
   const rows = [];
   const draw = (extra = "") => {
     res.innerHTML = rows.join("") + extra;
   };
   const cnt = (id, cls) => (document.getElementById(id).innerHTML.match(new RegExp(cls, "g")) || []).length;
+  // bare `class="pill"` = a check that never ran (skip note) — counts as
+  // unproven, never as pass/fail silence; `pill pending` = an informational
+  // finding that ran and reported.
+  const skipped = (id) => (document.getElementById(id).innerHTML.match(/class="pill">note</g) || []).length;
+  const noted = (id) => (document.getElementById(id).innerHTML.match(/pill pending/g) || []).length;
   const stage = (html) => `<div class="proof">${html}</div>`;
+  // a stage reads PASS only when checks actually ran and none failed or were
+  // skipped — "0 pass 0 fail" is an empty audit, not a green one.
+  const stagePill = (fails, skipN, passN) => fails ? ["cancelled", "FAIL"] : (skipN || !passN) ? ["pending", "PARTIAL"] : ["resolved", "PASS"];
   const t0 = Date.now();
 
   draw(stage(`<span class="pill open">RUNNING</span> account audit — every PDA re-derived, every fold + resolution replayed`));
-  await runAudit(true);
-  const aPass = cnt("auditres", "pill resolved"), aFail = cnt("auditres", "pill cancelled");
-  rows.push(stage(`<span class="pill ${aFail ? "cancelled" : "resolved"}">${aFail ? "FAIL" : "PASS"}</span> account audit — ${aPass} pass · ${aFail} fail (<a href="#sec-audit">full list ↓</a>)`));
+  await runAudit(true, true);
+  const aPass = cnt("auditres", "pill resolved"), aFail = cnt("auditres", "pill cancelled"), aSkip = skipped("auditres"), aNote = noted("auditres");
+  const [aCls, aTxt] = stagePill(aFail, aSkip, aPass);
+  rows.push(stage(`<span class="pill ${aCls}">${aTxt}</span> account audit — ${aPass} pass · ${aFail} fail${aSkip ? ` · ${aSkip} skipped` : ""}${aNote ? ` · ${aNote} noted` : ""} (<a href="#sec-audit">full list ↓</a>)`));
   draw(stage(`<span class="pill open">RUNNING</span> artifact replay — every committed proof through its own verifier`));
 
-  await replayBundle();
-  const bFail = cnt("bundleres", "pill cancelled"), bPass = cnt("bundleres", "pill resolved");
+  await replayBundle(true);
+  const bFail = cnt("bundleres", "pill cancelled"), bPass = cnt("bundleres", "pill resolved"), bSkip = skipped("bundleres"), bNote = noted("bundleres");
   const bTotal = (document.getElementById("bundleres")?.innerHTML.match(/(\d+)\/(\d+) artifacts replayed/)?.[2]) ?? "?";
-  rows.push(stage(`<span class="pill ${bFail ? "cancelled" : "resolved"}">${bFail ? "FAIL" : "PASS"}</span> artifact replay — ${bPass} kind-groups pass · ${bFail} fail (<a href="#sec-artifact">all ${bTotal} ↓</a>)`));
+  const [bCls, bTxt] = stagePill(bFail, bSkip, bPass);
+  rows.push(stage(`<span class="pill ${bCls}">${bTxt}</span> artifact replay — ${bPass} kind-groups pass · ${bFail} fail${bSkip ? ` · ${bSkip} skipped` : ""}${bNote ? ` · ${bNote} noted` : ""} (<a href="#sec-artifact">all ${bTotal} ↓</a>)`));
   draw(stage(`<span class="pill open">RUNNING</span> forgery sweep — every lab attack, automated`));
 
   let caught = 0, forgedN = 0;
@@ -3563,12 +3756,15 @@ async function megaAudit() {
   const dGhost = { disabled: false, textContent: "" };
   await decryptBank(PRIV_BANK, dGhost);
   const dHtml = document.getElementById("dec-" + PRIV_BANK)?.innerHTML ?? "";
-  const dOk = /decrypted/.test(dHtml) && !/decrypt failed/.test(dHtml);
-  rows.push(stage(`<span class="pill ${dOk ? "resolved" : "cancelled"}">${dOk ? "PASS" : "FAIL"}</span> disclosure replay — ${dOk ? "the sealed exam rendered from ciphertext in your browser — answers never moved" : "decrypt failed"} (<a href="#sec-banks">the exam ↓</a>)`));
+  // data-dok is stamped by decryptBank only when every minted specCommitment
+  // on the decrypted grants re-hashed clean — "decrypted" text alone could
+  // coexist with a commitment mismatch, which is a fail, not a pass.
+  const dOk = /decrypted/.test(dHtml) && /data-dok="1"/.test(dHtml) && !/decrypt failed/.test(dHtml);
+  rows.push(stage(`<span class="pill ${dOk ? "resolved" : "cancelled"}">${dOk ? "PASS" : "FAIL"}</span> disclosure replay — ${dOk ? "the sealed exam rendered from ciphertext in your browser — answers never moved" : "decrypt failed or commitment mismatch"} (<a href="#sec-banks">the exam ↓</a>)`));
 
   const secs = ((Date.now() - t0) / 1000).toFixed(1);
-  const allOk = aFail === 0 && bFail === 0 && forgeryOk && dOk;
-  rows.push(`<div class="kv" style="margin-top:8px"><b>${allOk ? "EVERYTHING VERIFIED" : "NOT ALL GREEN"}</b> — audit ${aPass} pass · artifact groups ${bPass}/${bPass + bFail} pass · forgeries ${caught}/${forgedN} caught · sealed exam ${dOk ? "read" : "unread"} · in ${secs}s, in your browser, on bytes served to nobody but you</div>`);
+  const allOk = aFail === 0 && aSkip === 0 && aPass > 0 && bFail === 0 && bSkip === 0 && bPass > 0 && forgeryOk && dOk;
+  rows.push(`<div class="kv" style="margin-top:8px"><b>${allOk ? "EVERYTHING VERIFIED" : "NOT ALL GREEN"}</b> — audit ${aPass} pass${aSkip ? ` · ${aSkip} skipped` : ""}${aNote ? ` · ${aNote} noted` : ""} · artifact groups ${bPass}/${bPass + bFail} pass · forgeries ${caught}/${forgedN} caught · sealed exam ${dOk ? "read" : "unread"} · in ${secs}s, in your browser, on bytes served to nobody but you</div>`);
 
   // the copyable verdict — a judge's review note, pre-written. Every
   // number on it was recomputed on this machine, not narrated.
@@ -3593,6 +3789,11 @@ async function megaAudit() {
     `re-run        ${pageBase}?mega=1`,
     ...(window.__lastRoot ? [`proof link    ${pageBase}?root=${window.__lastRoot} — the page re-checks this claim on open`] : []),
   ].join("\n");
+  // the seal gate's anchor: sealVerdict only notarizes the verdict THIS
+  // audit produced, and only when the whole cascade went green. A hand-
+  // edited verdict block, or a verdict copied from someone else's run,
+  // is refused (see sealVerdict).
+  window.__lastVerdict = { text: verdict, allOk };
   rows.push(`<pre id="verdicttxt" style="white-space:pre-wrap;margin-top:6px;font-size:12px;color:var(--dim);font-family:inherit">${esc(verdict)}</pre>` +
     `<div class="kv"><a href="#" onclick="const t=document.getElementById('verdicttxt').innerText;if(navigator.clipboard){navigator.clipboard.writeText(t).then(()=>this.textContent='copied ✓').catch(()=>this.textContent='copy blocked — select the block')}else{const r=document.createRange();r.selectNodeContents(document.getElementById('verdicttxt'));const s=getSelection();s.removeAllRanges();s.addRange(r);this.textContent='selected — press ctrl+c'}return false">copy this verdict</a> — paste it straight into a review note</div>`);
   // seal your verdict — enabled only on a fully green audit. The memo is a
@@ -3601,7 +3802,7 @@ async function megaAudit() {
   rows.push(`<div class="kv" style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">seal your verdict — ` +
     `judge <input id="judgename" size="10" value="judge" spellcheck="false" autocomplete="off" style="background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;font:inherit;padding:2px 6px"> ` +
     `<button id="sealbtn" onclick="sealVerdict()" ${allOk ? "" : "disabled"}>anchor this verdict on devnet</button>` +
-    (allOk ? ` <span class="kv" style="opacity:.75">a memo tx from the committed throwaway key — the audit receipt becomes chain-permanent; if devnet won't take it you still get a signed local witness card</span>` : ` <span class="kv" style="opacity:.75">disabled — the audit did not run fully green</span>`) +
+    (allOk ? ` <span class="kv" style="opacity:.75">a memo tx from the committed throwaway key — the audit receipt becomes chain-permanent; if devnet won't take it you get a public demo-key integrity witness, not judge authentication</span>` : ` <span class="kv" style="opacity:.75">disabled — the audit did not run fully green</span>`) +
     `<div id="sealres"></div></div>`);
   draw();
 }
@@ -3622,10 +3823,18 @@ const DEMO_ANCHOR_SK = [103,170,208,191,244,113,213,166,99,153,42,90,223,224,117
 const MEMO_PID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 async function sealVerdict() {
   const out = document.getElementById("sealres"), btn = document.getElementById("sealbtn");
+  if (!out) return;
+  const refuse = (why) => { out.innerHTML = `<span class="pill cancelled">REFUSED</span> — ${esc(why)}`; };
   try {
-    if (btn) { btn.disabled = true; btn.textContent = "anchoring…"; }
+    // notarize only a verdict THIS page's audit produced — unedited, and
+    // fully green. The button's disabled attribute is cosmetic (devtools
+    // can re-enable it); the gate is what binds the memo to the audit.
+    if (window.__busy) { refuse("an audit is still running — wait for its final verdict"); return; }
+    if (!window.__lastVerdict?.allOk) { refuse("no fully-green audit verdict on this page — run ▶ PROVE EVERYTHING first"); return; }
     const vEl = document.getElementById("verdicttxt");
-    const verdictText = vEl ? (vEl.innerText ?? vEl.textContent ?? "") : "";
+    const verdictText = (vEl ? (vEl.innerText ?? vEl.textContent ?? "") : "").replace(/\s+$/, "");
+    if (verdictText !== window.__lastVerdict.text.replace(/\s+$/, "")) { refuse("the rendered verdict was edited after the audit — re-run ▶ PROVE EVERYTHING, then seal"); return; }
+    if (btn) { btn.disabled = true; btn.textContent = "anchoring…"; }
     const name = (((document.getElementById("judgename")?.value || "judge").trim()) || "judge").slice(0, 40);
     const ts = new Date().toISOString();
     const memo = `sealed-verdict/v1 ${hex(await sha(utf8(`${verdictText}|${name}|${ts}`)))}`;
@@ -3649,9 +3858,10 @@ async function sealVerdict() {
       // as a witness card the judge keeps (or pins later from any wallet).
       const { ed25519 } = await import("./vendor/noble-ed25519.mjs");
       const signature = hex(ed25519.sign(utf8(memo), Uint8Array.from(DEMO_ANCHOR_SK.slice(0, 32))));
-      const card = { kind: "sealed-verdict-witness/v1", memo, signer: DEMO_ANCHOR_PUB, signature, judge: name, ts,
-        note: `devnet send failed (${String(e?.message ?? e).slice(0, 100)}) — LOCAL signature over the memo bytes: a valid receipt, not chain-permanent. Fund ${DEMO_ANCHOR_PUB} and re-anchor, or post the memo from any wallet.` };
-      out.innerHTML = `<span class="pill open">LOCAL WITNESS</span> — devnet took no tx, so the same memo was signed locally instead:` +
+      const card = { kind: "sealed-verdict-witness/v1", memo, verdict: verdictText, signer: DEMO_ANCHOR_PUB, signature, judge: name, ts,
+        authentication: "public demo key; anyone can sign — not proof of judge identity",
+        note: `devnet send failed (${String(e?.message ?? e).slice(0, 100)}) — LOCAL signature over the memo bytes: a demo-key integrity record, not judge authentication or a chain timestamp. Fund ${DEMO_ANCHOR_PUB} and re-anchor, or post the memo from any wallet.` };
+      out.innerHTML = `<span class="pill open">LOCAL DEMO-KEY WITNESS</span> — devnet took no tx, so the same memo was signed locally instead:` +
         `<pre class="mono" style="white-space:pre-wrap;font-size:11px;margin:6px 0;padding:6px;border:1px solid var(--line);border-radius:6px;max-height:220px;overflow:auto">${esc(JSON.stringify(card, null, 2))}</pre>` +
         `<span class="kv">verify anywhere: <code>ed25519.verify(signature, utf8(memo), ${esc(DEMO_ANCHOR_PUB)})</code> — retry the devnet anchor when online.</span>`;
     }
@@ -3733,11 +3943,14 @@ async function forgeThis(k) {
     ta.value = JSON.stringify(c);
     note.innerHTML = ` — <b>forged copy of YOUR card</b>: ${esc(d.label)} — re-verifying…`;
     await d.verify();
-    const m = (document.getElementById(d.res).innerHTML ?? "")
-      .match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
+    const h = document.getElementById(d.res).innerHTML ?? "";
+    const m = h.match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
+    const err = !m && h.match(/<div class="kv"[^>]*color:var\(--err\)[^>]*>([\s\S]*?)<\/div>/);
     note.innerHTML = m
       ? ` — <span class="pill cancelled">FORGERY CAUGHT</span> ${esc(d.label)} died at the <b>${esc(m[1].trim())}</b> check — on your bytes, not ours`
-      : ` — <span style="color:var(--err)">NOT CAUGHT — the verifier accepted the forgery</span>`;
+      : err
+        ? ` — <span class="pill cancelled">FORGERY CAUGHT</span> ${esc(d.label)} rejected before checks — <b>${esc(err[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 90))}</b> (parse/transport)`
+        : ` — <span style="color:var(--err)">NOT CAUGHT — the verifier accepted the forgery</span>`;
   } catch (e) {
     note.innerHTML = ` — <span class="kv">mutation ${esc(d.label)} doesn't apply to this card's shape (${esc(e.message ?? String(e))})</span>`;
   }
@@ -3751,7 +3964,14 @@ const verifiedMark = (h) => /<b>[A-Z ]*VERIFIED<\/b>/.test(h) || /pill ok">CATAL
 // committed artifact index and drive each file through the SAME verifier a
 // judge would click — pills in each section's own result render are counted,
 // so a check that renders here is the check that ran.
-async function replayBundle() {
+async function replayBundle(_inner) {
+  if (window.__busy && !_inner) return; // DOM-shared with megaAudit — a second click mid-run would interleave verdicts
+  const owned = !window.__busy;
+  if (owned) window.__busy = true;
+  try { await replayBundleBody(); }
+  finally { if (owned) window.__busy = false; }
+}
+async function replayBundleBody() {
   const res = document.getElementById("bundleres");
   if (!canPda()) { res.innerHTML = `<div class="kv">web3.js unreachable — PDA checks need the vendored web3.js (the CLI recursive verifier works without it)</div>`; return; }
   const KINDS = [
@@ -4445,7 +4665,9 @@ async function verifyBank() {
     {
       let rBad = 0, rBound = 0;
       const realRuns = new Map(A.runs.filter(r => r.benchmark === c.bank.pk).map(r => [r.pk, r]));
-      if (realRuns.size !== (c.runs ?? []).length) rBad++;
+      const listedRuns = c.runs ?? [];
+      if (new Set(listedRuns.map(r => r.pk)).size !== listedRuns.length ||
+          realRuns.size !== listedRuns.length || listedRuns.some(r => !realRuns.has(r.pk))) rBad++;
       for (const r of c.runs ?? []) {
         if (pdaB([utf8("run"), pkB(c.bank.pk), u64(r.index)], spid) !== r.pk) { rBad++; continue; }
         const real = realRuns.get(r.pk);
@@ -4494,7 +4716,9 @@ async function verifyBank() {
     {
       let lBad = 0, lBound = 0;
       const real = new Map(A.scoreLogs.filter(l => l.benchmark === c.bank.pk).map(l => [l.pk, l]));
-      if (real.size !== (c.receipts ?? []).length) lBad++;
+      const listedReceipts = c.receipts ?? [];
+      if (new Set(listedReceipts.map(l => l.pk)).size !== listedReceipts.length ||
+          real.size !== listedReceipts.length || listedReceipts.some(l => !real.has(l.pk))) lBad++;
       for (const l of c.receipts ?? []) {
         const r = real.get(l.pk);
         if (r && r.run === l.run && r.modelRecord === l.modelRecord &&
@@ -4709,7 +4933,10 @@ async function verifyBounty() {
         gOk ? pass("bounty_qualifies replay", `bank ✓ postdates ✓ runner≠sponsor ✓ score≥threshold ✓ score==winning ✓ proven ✓ !post-reveal ✓`)
           : fail("bounty_qualifies replay", Object.entries(gate).map(([k, v]) => `${k}=${v}`).join(" "));
         if (realRun) {
-          const wOk = realRun.correct === w.correct && realRun.runner === w.runner && realRun.benchmark === w.benchmark;
+          const wOk = realRun.correct === w.correct && realRun.runner === w.runner && realRun.benchmark === w.benchmark &&
+            realRun.status === w.status && String(realRun.createdAt) === String(w.createdAt) && Number(realRun.firstPendingAt ?? 0) === Number(w.firstPendingAt ?? 0) &&
+            String(realRun.allQueuedAt) === String(w.allQueuedAt) && String(realRun.scoredMask) === String(w.scoredMask) &&
+            !!realRun.postReveal === !!w.postReveal;
           wOk ? pass("winner binding", "run account fields equal the decoded Run")
             : fail("winner binding", "declared winner fields differ from the account bytes");
         } else fail("winner binding", "winner run not in the snapshot");
@@ -4890,17 +5117,23 @@ async function verifyTamper() {
     catch (e) { threw = String(e?.message ?? e); }
     finally { ta.value = savedTa; inner.innerHTML = savedHtml; }
     const diedAt = [...verdictHtml.matchAll(/pill cancelled[^<]*<\/span>\s*([^—<]+)/g)].map(m => m[1].trim());
-    const rejected = /pill cancelled|FAILED/.test(verdictHtml) || !!threw;
+    // a verifier that dies before its first named check still rejected the
+    // forgery — the error-colored kv block is the refusal. Collect its text
+    // so an expectThrow signature can match what actually rendered.
+    const kvErrs = [...verdictHtml.matchAll(/<div class="kv"[^>]*color:var\(--err\)[^>]*>([\s\S]*?)<\/div>/g)]
+      .map(m => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+    const errText = `${threw} ${kvErrs.join(" ")}`.trim();
+    const rejected = /pill cancelled|FAILED/.test(verdictHtml) || !!threw || kvErrs.length > 0;
     // exhibit fields are card data too — expectFail must be an array (a
     // string has no .every) and expectThrow a string before .slice.
     const exp = Array.isArray(c.expectFail) ? c.expectFail.map(String) : [];
     const expThrow = typeof c.expectThrow === "string" ? c.expectThrow : "";
-    // strict: EVERY recorded check must fire; a thrown rejection matches its
-    // recorded expectThrow signature.
+    // strict: EVERY recorded check must fire; a thrown/rendered rejection
+    // matches its recorded expectThrow signature.
     const named = exp.length ? exp.every(x => diedAt.includes(x))
-      : (expThrow ? threw.includes(expThrow.slice(0, 60)) : true);
+      : (expThrow ? errText.includes(expThrow.slice(0, 60)) : true);
     rejected
-      ? pass("inner forgery rejected", `the ${f.kind} verifier refused it — died at ${diedAt.slice(0, 3).join(", ") || (threw ? `threw ${threw.slice(0, 60)}` : "a thrown check")}`)
+      ? pass("inner forgery rejected", `the ${f.kind} verifier refused it — died at ${diedAt.slice(0, 3).join(", ") || (errText ? errText.slice(0, 60) : "a thrown check")}`)
       : fail("inner forgery rejected", "THE VERIFIER TOOK THE LIE — the inner card VERIFIED");
     named
       ? pass("named check", `expected ${exp.join(", ") || expThrow || "any rejection"}`)
@@ -5085,11 +5318,17 @@ async function forge(k) {
       ? d.mutateText(raw)
       : JSON.stringify(d.mutate(JSON.parse(raw)));
     await d.verify();
-    const m = (document.getElementById(d.res).innerHTML ?? "")
-      .match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
+    const h = document.getElementById(d.res).innerHTML ?? "";
+    const m = h.match(/pill cancelled">FAIL<\/span>\s*([^—<]+)/);
+    // a verifier that dies before its first named check still caught the
+    // forgery — the error-colored kv rejection IS the refusal. Name it
+    // honestly (parse/transport), never "the verifier took the lie".
+    const err = !m && h.match(/<div class="kv"[^>]*color:var\(--err\)[^>]*>([\s\S]*?)<\/div>/);
     __forgeOut[k] = m
       ? { label: d.label, sec: d.sec, state: "caught", check: m[1].trim() }
-      : { label: d.label, sec: d.sec, state: "NOT CAUGHT — verifier accepted the forgery" };
+      : err
+        ? { label: d.label, sec: d.sec, state: "caught", check: `${err[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 90)} — rejected before checks (parse/transport)` }
+        : { label: d.label, sec: d.sec, state: "NOT CAUGHT — verifier accepted the forgery" };
   } catch (e) {
     __forgeOut[k] = { label: d.label, sec: d.sec, state: `error — ${esc(e.message ?? String(e))}` };
   }
@@ -5305,15 +5544,16 @@ async function maybeAudit() {
   // named card, hand it to the universal router, land on the verdict. The
   // link IS the claim — the page re-verifies on open.
   const cardParam = new URLSearchParams(location.search).get("card");
-  if (cardParam && /^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(cardParam) && !cardParam.includes("..")) {
-    try {
+  if (cardParam) {
+    if (!/^[a-zA-Z0-9._\/-]+\.(json|md)$/.test(cardParam) || cardParam.includes("..") || cardParam.startsWith("/") || cardParam.startsWith("//")) {
+      document.getElementById("artifactnote").textContent = "Card URL refused — use a relative path inside this bundle.";
+    } else try {
       const r = await fetch(cardParam);
-      if (r.ok) {
-        document.getElementById("artifactjson").value = await r.text();
-        window.__cardSrc = cardParam;
-        verifyAnyArtifact();
-      }
-    } catch { /* unreachable card — the link is stale, not broken crypto */ }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      document.getElementById("artifactjson").value = await r.text();
+      window.__cardSrc = cardParam;
+      await verifyAnyArtifact();
+    } catch (e) { document.getElementById("artifactnote").textContent = "Card unavailable: " + (e.message ?? String(e)); }
   }
   // ?forge=<attack> — a shareable "watch it fail" link: auto-run the named
   // lab attack and land on FORGERY CAUGHT. The demo IS the URL.
@@ -5355,7 +5595,7 @@ const TOUR_STOPS = [
   ["sec-escrow", "every staked lamport reconciled to an obligation — the ledger balances exactly"],
   ["sec-anomalies", "we audit ourselves — twelve hostile checks on our own bundle"],
   ["sec-audit", "every claim re-derived in-page — and one sha256 for the whole evidence base"],
-  ["sec-artifact", "verify anything — then 'replay the whole bundle': 206 committed artifacts"],
+  ["sec-artifact", "verify anything — then 'replay the whole bundle': 217 committed artifacts"],
   ["sec-catalog", "the evidence catalog — every artifact is a link you can forward; each re-verifies on open"],
   ["sec-claim", "the deliverable — 31 portable claim cards, each replayable keyless"],
   ["sec-policy", "the referee — admission gates replay as portable certificates; every verdict re-derives from the receipts embedded in it"],
@@ -5501,7 +5741,22 @@ function renderAnomalies() {
     f.map(x => `<div style="margin:6px 0 0">${pill(x.sev)} <b>${esc(x.what)}</b> — <span class="kv">${x.count ? esc(String(x.count)) : "none"}</span><div class="kv" style="margin-left:52px">${esc(x.detail)}</div></div>`).join("");
 }
 
-async function runAudit(force) {
+async function runAudit(force, _inner) {
+  if (window.__busy && !_inner) {
+    // don't drop the request — queue exactly one re-run so the audit tab
+    // reflects the newest data once the current pass unwinds.
+    if (!window.__auditQueued) {
+      window.__auditQueued = true;
+      setTimeout(() => { window.__auditQueued = false; runAudit(force); }, 800);
+    }
+    return;
+  }
+  const owned = !window.__busy;
+  if (owned) window.__busy = true;
+  try { await runAuditBody(force); }
+  finally { if (owned) window.__busy = false; }
+}
+async function runAuditBody(force) {
   const out = document.getElementById("auditres");
   const A = window.__audit;
   if (!A) { out.innerHTML = `<span class="kv">no data loaded yet — waiting for RPC/snapshot…</span>`; return; }
@@ -5510,6 +5765,10 @@ async function runAudit(force) {
   const pass = (n, d) => rows.push(`<div class="proof"><span class="pill resolved">PASS</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
   const fail = (n, d) => rows.push(`<div class="proof"><span class="pill cancelled">FAIL</span> ${esc(n)} — <span class="kv" style="color:var(--err)">${esc(d)}</span></div>`);
   const skip = (n, d) => rows.push(`<div class="proof"><span class="pill">note</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
+  // informational findings that DID run — the mega-audit counts bare-pill
+  // skips as "checks that never ran"; notes like reveal-burn are expected
+  // evidence, so they carry a real (pending) pill, not a skip.
+  const note = (n, d) => rows.push(`<div class="proof"><span class="pill pending">note</span> ${esc(n)} — <span class="kv">${esc(d)}</span></div>`);
   out.innerHTML = `<span class="kv">auditing…</span>`;
   try {
     // [1] decode: renderAll already classified — unknowns land in `skipped`.
@@ -5765,7 +6024,7 @@ async function runAudit(force) {
     }
     for (const b of A.benches) {
       const nrv = A.reveals.filter(x => x.bench === b.pk && x.revealedAt > 0).length;
-      if (nrv) skip(`reveal-burn · bank ${short(b.pk)}`, `${nrv} reveal(s) landed — ${A.runs.filter(r => r.benchmark === b.pk && r.postReveal).length} run(s) stamped post_reveal; markets refuse them (PostRevealRun)`);
+      if (nrv) note(`reveal-burn · bank ${short(b.pk)}`, `${nrv} reveal(s) landed — ${A.runs.filter(r => r.benchmark === b.pk && r.postReveal).length} run(s) stamped post_reveal; markets refuse them (PostRevealRun)`);
     }
     flagBad === 0 ? pass("post_reveal flags", `${flagged} flagged on-chain / ${inferred} inferred by timestamp — consistent`) : fail("post_reveal flags", `${flagBad} flag(s) without a prior reveal`);
 
@@ -6125,9 +6384,9 @@ function runCompare() {
 const snapUrl = params.get("snapshot");
 const hosted = !["localhost", "127.0.0.1", ""].includes(location.hostname) && !params.get("rpc");
 loadForgePick(); // populate the compose-your-own card picker from the catalog
-if (snapUrl) loadSnapshotUrl(snapUrl);
-else if (hosted) loadSnapshotUrl("snapshot.json");
-else { load(); setInterval(load, 15000); }
+if (snapUrl) window.__ready = loadSnapshotUrl(snapUrl);
+else if (hosted) window.__ready = loadSnapshotUrl("snapshot.json");
+else { window.__ready = load(); setInterval(load, 15000); }
 </script>
 </body>
 </html>

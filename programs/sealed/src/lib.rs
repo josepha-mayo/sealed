@@ -116,7 +116,9 @@ pub mod sealed {
     }
 
     /// Eager, grief-proof initializer for the shared Arcium signer PDA.
-    /// Every queue path lazily `init_if_needed`s this singleton. Anchor's
+    /// Bootstrap this singleton before any queue path (the CLI's init does
+    /// so). Queue validators require an initialized, owned typed account.
+    /// Anchor's
     /// init codegen already tolerates prefunded PDAs (top-up + allocate +
     /// assign), so grief dust can't stall queueing — but it would be
     /// donated to the program's rent. Since the program owns the seeds, we
@@ -447,6 +449,12 @@ pub mod sealed {
         // computation PDA is derived from the recorded offset, so only the
         // callback of the currently-queued computation is accepted.
         require!(
+            // `sealing_offset` binds this callback to the exact computation
+            // the queue staged (offsets are unique per computation — a stale
+            // one can never derive to the same PDA), and `sealing_part`
+            // pins WHICH part it was staged for. One pending seal at a time
+            // (`PartSealPending` on stage) + `part` read back from the chunk
+            // means a replayed/forged callback can't mislabel its payload.
             ctx.accounts.computation_account.key()
                 == derive_comp_pda!(c.sealing_offset, ctx.accounts.mxe_account),
             ErrorCode::StaleComputation
@@ -565,6 +573,12 @@ pub mod sealed {
         // computation PDA is derived from the recorded offset, so only the
         // callback of the currently-queued computation is accepted.
         require!(
+            // `sealing_offset` binds this callback to the exact computation
+            // the queue staged (offsets are unique per computation — a stale
+            // one can never derive to the same PDA), and `sealing_part`
+            // pins WHICH part it was staged for. One pending seal at a time
+            // (`PartSealPending` on stage) + `part` read back from the chunk
+            // means a replayed/forged callback can't mislabel its payload.
             ctx.accounts.computation_account.key()
                 == derive_comp_pda!(c.sealing_offset, ctx.accounts.mxe_account),
             ErrorCode::StaleComputation
@@ -732,6 +746,12 @@ pub mod sealed {
         // computation PDA is derived from the recorded offset, so only the
         // callback of the currently-queued computation is accepted.
         require!(
+            // `sealing_offset` binds this callback to the exact computation
+            // the queue staged (offsets are unique per computation — a stale
+            // one can never derive to the same PDA), and `sealing_part`
+            // pins WHICH part it was staged for. One pending seal at a time
+            // (`PartSealPending` on stage) + `part` read back from the chunk
+            // means a replayed/forged callback can't mislabel its payload.
             ctx.accounts.computation_account.key()
                 == derive_comp_pda!(c.sealing_offset, ctx.accounts.mxe_account),
             ErrorCode::StaleComputation
@@ -1193,6 +1213,10 @@ pub mod sealed {
         let bit = 1u64 << chunk_index;
         require!(r.scored_mask & bit == 0, ErrorCode::ChunkAlreadyScored);
         require!(r.pending_mask & bit == 0, ErrorCode::ChunkScorePending);
+        // 64 chunks → merkle depth ≤ 6 (+1 slack). A longer proof can never
+        // reach outputs_root anyway (the positional fold is deterministic) —
+        // reject the oversized input before paying CU to fold it.
+        require!(proof.len() <= 7, ErrorCode::InvalidProof);
 
         // Bind the submitted outputs to the pre-scoring commitment:
         //   leaf = sha256("sealed/v1/chunkout\0" || u16le(chunk) || outputs_le)
@@ -1361,6 +1385,11 @@ pub mod sealed {
 #[account]
 #[derive(InitSpace)]
 pub struct Benchmark {
+    // INVARIANT: the market program reads this account by RAW BYTE OFFSET
+    // (load_benchmark: status@45, chunk_count@46, kind@106). Every field
+    // before `name` is frozen in place forever — new fields may ONLY be
+    // tail-appended after `reveal_count`. Inserting a field earlier shifts
+    // the bounty threshold cap reads and silently corrupts open bounties.
     pub authority: Pubkey,
     pub id: u32,
     pub bump: u8,
@@ -1894,15 +1923,11 @@ pub struct SealPart<'info> {
         bump = chunk.bump,
     )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
-    #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
-    )]
-    pub sign_pda_account: Account<'info, ArciumSignerAccount>,
+    // Initialized once by init_signer_pda (chain init). Keeping allocation
+    // out of each queue validator prevents SBF stack-frame overflow.
+    #[account(mut, seeds = [&SIGN_PDA_SEED], bump,
+        address = derive_sign_pda!())]
+    pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
     #[account(mut, address = derive_mempool_pda!(mxe_account))]
@@ -1971,14 +1996,10 @@ pub struct GenPart<'info> {
         bump = items.bump,
     )]
     pub items: Box<Account<'info, ItemChunk>>,
-    #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
-    )]
+    // Initialized once by init_signer_pda (chain init). Keeping allocation
+    // out of each queue validator prevents SBF stack-frame overflow.
+    #[account(mut, seeds = [&SIGN_PDA_SEED], bump,
+        address = derive_sign_pda!())]
     pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
@@ -2075,8 +2096,8 @@ pub struct InitResharePartCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
-/// `init_signer_pda` — manual init because the generic `init`/`init_if_needed`
-/// machinery dies on prefunded PDAs (see handler). Seeds + address pin the
+/// `init_signer_pda` — explicit, idempotent bootstrap keeps allocation out
+/// of large queue validators and reclaims prefunds. Seeds + address pin the
 /// account to the one-and-only signer PDA; everything else is handled inside.
 #[derive(Accounts)]
 pub struct InitSignerPda<'info> {
@@ -2127,14 +2148,10 @@ pub struct GenPartPrivate<'info> {
         bump = items.bump,
     )]
     pub items: Box<Account<'info, PrivItemChunk>>,
-    #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
-    )]
+    // Initialized once by init_signer_pda (chain init). Keeping allocation
+    // out of each queue validator prevents SBF stack-frame overflow.
+    #[account(mut, seeds = [&SIGN_PDA_SEED], bump,
+        address = derive_sign_pda!())]
     pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
@@ -2212,14 +2229,10 @@ pub struct RevealPart<'info> {
         bump,
     )]
     pub reveal: Box<Account<'info, Reveal>>,
-    #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
-    )]
+    // Initialized once by init_signer_pda (chain init). Keeping allocation
+    // out of each queue validator prevents SBF stack-frame overflow.
+    #[account(mut, seeds = [&SIGN_PDA_SEED], bump,
+        address = derive_sign_pda!())]
     pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
@@ -2294,14 +2307,10 @@ pub struct ResharePart<'info> {
         bump,
     )]
     pub grant: Box<Account<'info, ShareGrant>>,
-    #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
-    )]
+    // Initialized once by init_signer_pda (chain init). Keeping allocation
+    // out of each queue validator prevents SBF stack-frame overflow.
+    #[account(mut, seeds = [&SIGN_PDA_SEED], bump,
+        address = derive_sign_pda!())]
     pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
@@ -2370,15 +2379,11 @@ pub struct ScoreChunk<'info> {
         bump = chunk.bump,
     )]
     pub chunk: Box<Account<'info, AnswerChunk>>,
-    #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
-    )]
-    pub sign_pda_account: Account<'info, ArciumSignerAccount>,
+    // Initialized once by init_signer_pda (chain init). Keeping allocation
+    // out of each queue validator prevents SBF stack-frame overflow.
+    #[account(mut, seeds = [&SIGN_PDA_SEED], bump,
+        address = derive_sign_pda!())]
+    pub sign_pda_account: Box<Account<'info, ArciumSignerAccount>>,
     #[account(address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
     #[account(mut, address = derive_mempool_pda!(mxe_account))]
@@ -2611,4 +2616,6 @@ pub enum ErrorCode {
     EmptyModelId,
     #[msg("outputs_root is zero — no Merkle leaf can reach it, the run is unscorable")]
     EmptyOutputsRoot,
+    #[msg("merkle proof longer than 7 siblings — cannot reach a 64-leaf root")]
+    InvalidProof,
 }
