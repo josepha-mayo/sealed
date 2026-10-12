@@ -1,18 +1,24 @@
-# Netlify byte-preserving deployment
+# Netlify short URL and canonical verification host
 
 Package with `python3 scripts/netlify-package.py /tmp/sealed-netlify.zip`.
 Upload that zip to the existing sealed-eval project. Only public web assets
-and the `_headers` deployment configuration are included.
+and response/routing configuration are included.
 
-Keep Pretty URLs and Powered by Netlify badge disabled for this project.
-`deploy/netlify-headers` sets `no-transform` so edge marketing comments do
-not change the manifest-pinned HTML. HTML also uses `no-store` to prevent a
-previously transformed response from remaining in a browser cache. Hosting
-configuration is outside the web asset manifest because `_headers` is
-processed by the platform rather than served as an evidence asset.
+The short Netlify URL opens the identical verifier release on GitHub Pages.
+Netlify continues serving the data assets; root, index and capsule navigation
+redirect to GitHub Pages. The forced redirect rules are in
+`deploy/netlify-redirects`. `_redirects` and `_headers` are platform
+configuration, outside the public evidence asset manifest.
 
-Verify with a browser user agent as well as Python. On October 12 the
-browser correctly caught an injected comment that a default script request
-did not receive. Do not normalize or strip altered HTML to make it pass.
-The UI status now inspects actual failed check elements; the text `0 fail`
-no longer creates a false warning.
+Why: actual Brave navigation and its hash check caught a Netlify hosting
+comment inserted into HTML. Turning the badge off and requesting
+no-transform removed visible branding and worked for some script requests,
+but did not reliably remove the comment from actual browser responses.
+Script-only validation therefore was insufficient. The verifier stayed
+fail-closed: no comment stripping, normalization, hash exception or changed
+trust claim was added. GitHub Pages serves the source bytes unchanged.
+
+The release root and protocol are identical on both deployments. The short
+link is retained in Colosseum, while the browser opens the canonical Pages
+copy. The devnet memo timestamps the bundle bytes and does not prove fresh
+MPC execution.

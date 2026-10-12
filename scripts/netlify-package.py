@@ -9,4 +9,5 @@ with ZipFile(args.output,'w',ZIP_DEFLATED) as z:
     for f in sorted((repo/'web').rglob('*')):
         if f.is_file(): z.write(f,f.relative_to(repo/'web').as_posix())
     z.write(repo/'deploy/netlify-headers','_headers')
+    z.write(repo/'deploy/netlify-redirects','_redirects')
 print(args.output)
