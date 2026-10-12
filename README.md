@@ -3,11 +3,15 @@
 [![CI](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml/badge.svg)](https://github.com/josepha-mayo/sealed/actions/workflows/ci.yml)
 [![explorer](https://img.shields.io/badge/explorer-live-4ef0a8)](https://sealed-eval.netlify.app/)
 
-**Proof before payout. Put model evidence on trial, then decide what to fund.**
+**Before you fund an AI score, check whether the evidence is enough.**
 
 [Open the Proof Room](https://sealed-eval.netlify.app/) ·
-[Decision room](https://sealed-eval.netlify.app/?view=decision) ·
+[60-second judge path](https://sealed-eval.netlify.app/?view=decision) ·
 [Challenge lab](https://sealed-eval.netlify.app/?view=challenge)
+
+Sealed helps teams paying for AI evaluations explain which claims they accept—and which they refuse.
+
+**Try it:** choose “Start the 60-second walkthrough.” Accept one trial, then require three: a 21.9% score still clears the 20% floor, but one receipt is insufficient. Export the refusal and try to forge it.
 
 Sealed is a decision desk for evaluation sponsors. Choose one exact exam,
 set a score floor and a minimum amount of evidence, and inspect which
@@ -80,7 +84,7 @@ runs. Useful task families, sponsor demand and pricing remain unvalidated.
 >
 > </details>
 >
-> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/2x5X3FtZ1qtjmwBEpDTbn82qemsNDoVFfyaP42x3FVGhUtA2QWQJYrUSHVBv2Du21FAfrF7i9afhGTB8ugpMSmCK?cluster=devnet) — all three clickable, all verifiable by anyone.
+> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/4hyJDi6xhwCM8CiJo7Li94Xr5hs9buU6sdLqP9NuQq7reoe4Xv8PXd7CSFteNxJiorzwSErAVMV3xFga7rj7eVR2?cluster=devnet) — all three clickable, all verifiable by anyone.
 >
 > **Honest status:** the full loop is proven end-to-end on Arcium localnet and both baseline programs were byte-verified on devnet; the latest Rust hardening must be redeployed before claiming that the current source is live; a historical shared-cluster probe withheld callbacks over 40 attempts and 7.5h; current callback availability was not remeasured (disclosed in [docs/submission.md](docs/submission.md)'s devnet note). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
 >

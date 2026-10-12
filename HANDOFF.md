@@ -1,3 +1,5 @@
+> Historical handoff from October 11, superseded by the published Proof Room and completed Colosseum submission. Its mid-flight tree and unfinished-video notes describe that earlier session. Current product scope: `docs/proof-room.md`; current judge path: `docs/judges.md`.
+
 > Current status (2026-10-11): the inherited in-flight work has been audited and repaired. See docs/audit-2026-10-11.md for the frozen checks and remaining limits. The original transfer notes below describe the earlier handoff state.
 
 > Historical Devin handoff, captured mid-audit. For the subsequent Codex repairs and verification, read docs/audit-2026-10-11.md. Do not treat the old in-flight list or test counts as current.

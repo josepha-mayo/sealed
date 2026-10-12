@@ -99,6 +99,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 .mobile-navigation{display:none}@media(max-width:850px){.room-tabs{display:none}.mobile-navigation{display:flex;align-items:center;gap:12px;margin-top:15px}.mobile-navigation>label{font-size:10px;color:#a9bbae}.mobile-navigation>select{width:100%;max-width:260px;background:#31463f;color:#edf3e7;border-color:#435a4e;font-size:12px;padding:9px 11px}.vault-page .card{max-height:calc(100dvh - 350px)}}
 @media(max-width:850px){.app-shell{grid-template-rows:auto minmax(0,1fr)}.app-main{height:auto}.room-scroll{height:auto}.app-sidebar{min-height:0}}
 
+.judge-walkthrough{border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:7px;background:#f2f4eb;padding:15px 18px;margin-bottom:22px}.judge-walkthrough p{font-size:12px;margin:7px 0}.walkthrough-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:11px 0}.judge-walkthrough .field-help{font-size:10px;max-width:780px}.hero-footnote a{color:var(--acc);white-space:nowrap}.decision-summary{scroll-margin-top:12px}#decision-forgery{scroll-margin-top:12px}@media(max-width:620px){.judge-walkthrough{padding:13px}.walkthrough-actions{gap:7px}.walkthrough-actions .secondary-button{flex:1;padding:9px 8px;white-space:nowrap}.walkthrough-actions .text-button{flex-basis:100%;text-align:left;margin-top:4px}.overview-bottom span{line-height:1.6}}
 </style>
 </head>
 <body>
@@ -121,13 +122,14 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
     <header class="app-topbar"><div class="breadcrumb">WORKSPACE <span>/</span> <b id="room-name">Overview</b></div><div class="topbar-right"><span id="room-integrity" role="status">Loading evidence…</span><button class="quiet-button" onclick="openRoom('vault');openEvidenceSection('sec-audit')">Inspect integrity ↗</button></div></header>
     <div class="room-scroll" id="room-scroll">
       <section class="room-panel" id="room-overview" role="tabpanel" aria-labelledby="tab-overview">
-        <div class="overview-hero"><div class="eyebrow">PROOF BEFORE PAYOUT</div><h1>Put the proof on trial.<br><em>Then decide what to fund.</em></h1><p class="hero-copy">A decision desk for teams funding model evaluations. Set an evidence rule, expose weak claims, and keep the receipt that explains your decision.</p><div class="hero-actions"><button class="primary-button" onclick="openRoom('decision')">Make an evidence decision <span>↗</span></button><button class="secondary-button" onclick="openRoom('challenge')">Try the receipt attack</button></div><div class="hero-footnote">Demo: captured localnet arithmetic trials. No wallet or payment required.</div></div>
+        <div class="overview-hero"><div class="eyebrow">PROOF BEFORE PAYOUT</div><h1>Should this AI claim<br><em>get funded?</em></h1><p class="hero-copy">For teams paying for AI evaluations: choose an exam, set the evidence required, and export why a candidate qualifies—or why none do. Try to forge the decision before you trust it.</p><div class="hero-actions"><button class="primary-button" onclick="judgeWalkthrough(1)">Start the 60-second walkthrough <span>↗</span></button><button class="secondary-button" onclick="openRoom('challenge')">Try the receipt attack</button></div><div class="hero-footnote">No login or wallet. Replay captured localnet arithmetic evidence; no payment is sent. <a href="https://youtu.be/8Ypz9YZmgH4" target="_blank" rel="noopener">Watch the 2:23 demo ↗</a></div></div>
         <div class="opening-case"><div><span class="eyebrow">EXHIBIT 01 · THE SCORE THAT DIDN’T SURVIVE</span><h2>A perfect claim. An exam it hadn’t taken.</h2><p>Saved stale outputs claimed 64/64. The MPC-written result on the committed exam was 1/64.</p></div><div class="case-comparison"><div><span>LOCAL ARTIFACT</span><strong>64<span>/64</span></strong></div><span class="comparison-arrow">→</span><div><span>MPC RESULT</span><strong class="case-real">1<span>/64</span></strong></div></div><button class="text-button" onclick="openRoom('challenge')">Put the evidence on trial →</button></div>
-        <div class="workflow-cards"><button onclick="openRoom('decision')"><span class="step-number">01</span><h3>Specify the proof</h3><p>One exact exam. A score floor. Enough receipts to support the decision.</p><span class="step-link">Open the decision room ↗</span></button><button onclick="openRoom('challenge')"><span class="step-number">02</span><h3>Try to cheat it</h3><p>Cloned receipts, edited scores, missing evidence. Run the attack yourself.</p><span class="step-link">Enter the challenge lab ↗</span></button><button onclick="openRoom('payout')"><span class="step-number">03</span><h3>Follow the payout</h3><p>Inspect the captured bounty’s bank, runner, timing and score checks.</p><span class="step-link">Replay the payout proof ↗</span></button></div>
-        <div class="overview-bottom"><span>Questions can be encrypted. <b>The decision should be inspectable.</b></span><button class="text-button" onclick="openRoom('vault');openEvidenceSection('sec-catalog')">Explore the proof library →</button></div>
+        <div class="workflow-cards"><button onclick="judgeWalkthrough(1)"><span class="step-number">01</span><h3>Make “no” inspectable</h3><p>One trial clears 20%. Require three and nobody qualifies. Export the reason.</p><span class="step-link">Open the decision room ↗</span></button><button onclick="openRoom('challenge')"><span class="step-number">02</span><h3>Try to cheat it</h3><p>Cloned receipts, edited scores, missing evidence. Run the attack yourself.</p><span class="step-link">Enter the challenge lab ↗</span></button><button onclick="openRoom('payout')"><span class="step-number">03</span><h3>Follow the payout</h3><p>Inspect the captured bounty’s bank, runner, timing and score checks.</p><span class="step-link">Replay the payout proof ↗</span></button></div>
+        <div class="overview-bottom"><span>Arcium scores against encrypted answer fingerprints. <b>Solana records the result and holds the escrow.</b></span><button class="text-button" onclick="openRoom('vault');openEvidenceSection('sec-catalog')">Explore the proof library →</button></div>
       </section>
       <section class="room-panel" id="room-decision" role="tabpanel" aria-labelledby="tab-decision" hidden>
-        <div class="page-heading"><div><span class="eyebrow">01 / DECISION ROOM</span><h1>What would you accept?</h1><p>Underwrite one task, not a leaderboard. Every candidate faces the same selected exam.</p></div><span class="context-badge">Local evidence decision · no transaction</span></div>
+        <div class="page-heading"><div><span class="eyebrow">01 / DECISION ROOM</span><h1>Is the evidence enough to fund?</h1><p>Choose the required score and number of trials on one exact exam. A receipt records one scored trial.</p></div><span class="context-badge">Local evidence decision · no transaction</span></div>
+        <div class="judge-walkthrough" aria-label="60-second judge walkthrough"><div><span class="eyebrow">TRY THIS FIRST · 60 SECONDS</span><p>One trial can clear a score rule. It cannot become three trials.</p></div><div class="walkthrough-actions"><button class="secondary-button" onclick="judgeWalkthrough(1)">1. Accept one trial</button><button class="secondary-button" onclick="judgeWalkthrough(3)">2. Require three trials</button><button class="text-button" onclick="showDecisionForgery()">3. Try to forge the refusal →</button></div><p class="field-help">Presets use the public calibration exam, a 20% score floor and 32 scored items. Inspect the result, then verify &amp; export it. Your own rules remain available below.</p></div>
         <div class="decision-layout"><form class="decision-controls" onsubmit="event.preventDefault();evaluateDecision()">
           <label for="decision-bank">Evaluation exam <span>01</span></label><select id="decision-bank" onchange="evaluateDecision()"><option value="">Loading exact exam accounts…</option></select><p class="field-help" id="decision-bank-note">An account address identifies the exam; bank names can repeat.</p>
           <label for="decision-pct">Minimum score <span id="decision-pct-label">20%</span></label><input id="decision-pct" type="range" min="0" max="100" step="1" value="20" oninput="evaluateDecision()"><div class="range-ends"><span>0%</span><span>100%</span></div>
@@ -135,7 +137,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
           <label class="toggle-row" for="decision-clean"><span><b>Exclude exposed-answer runs</b><small>Ignore receipts flagged post-reveal</small></span><input id="decision-clean" type="checkbox" checked onchange="evaluateDecision()"></label>
           <details class="advanced-rules"><summary>More evidence rules <span>+</span></summary><label class="toggle-row" for="decision-vouched"><span><b>Venue-linked receipts only</b><small>Recorded with an attested run flag; this does not authenticate model identity.</small></span><input id="decision-vouched" type="checkbox" onchange="evaluateDecision()"></label><label class="toggle-row" for="decision-all-banks"><span><b>Show protocol test exams</b><small>Include the rest of the captured bank accounts</small></span><input id="decision-all-banks" type="checkbox" onchange="refreshProofRoom()"></label><label for="decision-models">Visible candidates</label><select id="decision-models" onchange="evaluateDecision()"><option value="real">Named model runners</option><option value="all">Include protocol test fixtures</option></select><p class="field-help">Runner names are declared, not attested. Export always includes all records so a hidden display row cannot hide evidence.</p></details>
           <button class="primary-button" type="submit">Re-evaluate evidence <span>↻</span></button>
-        </form><div class="decision-results"><div id="decision-summary" aria-live="polite"><div class="loading-state">Loading the captured evidence…</div></div><div class="decision-actions"><button id="decision-export" class="primary-button" onclick="exportDecision()" disabled>Verify &amp; export decision <span>↓</span></button><button class="secondary-button" onclick="openRoom('challenge')">Challenge the evidence →</button></div><div id="decision-export-note" class="field-help" role="status"></div><div class="review-options"><span>REVIEW THE EVIDENCE</span><label for="decision-blind"><input type="checkbox" id="decision-blind" checked onchange="renderDecisionCandidates();renderDecisionDetail()"> Hide runner names</label></div><div id="decision-candidates"></div><div id="decision-detail" aria-live="polite"></div><details class="decision-adversary"><summary>Could someone forge this decision?</summary><p class="field-help">Mutate the certificate generated from your current rule, then give it to the same account-binding verifier. The original decision stays unchanged.</p><div class="row"><label for="decision-attack" class="sr-only">Decision forgery</label><select id="decision-attack"><option value="duplicate">Clone a candidate’s record</option><option value="exam">Invent a different exam</option><option value="summary">Claim an extra qualifier</option><option value="empty">Remove every evidence requirement</option></select><button class="secondary-button" id="decision-attack-run" onclick="attackDecision(this)">Test this forgery ↗</button></div><div id="decision-attack-note" class="field-help" role="status"></div><details id="decision-attack-proof" hidden><summary>Inspect the rejected certificate checks</summary><div id="decision-attack-checks"></div></details></details><details class="scope-note"><summary>What this decision means</summary><p>This is a receipt-backed policy verdict on captured engineering evidence. It is not a model identity attestation, general capability guarantee, or instruction to pay. The bounty contract separately checks each qualifying run. Hiding runner names supports a blind review; it is a display choice, not cryptographic anonymity. Useful task families, sponsor demand and pricing remain unvalidated.</p></details></div></div>
+        </form><div class="decision-results"><div id="decision-summary" aria-live="polite"><div class="loading-state">Loading the captured evidence…</div></div><div class="decision-actions"><button id="decision-export" class="primary-button" onclick="exportDecision()" disabled>Verify &amp; export decision <span>↓</span></button><button class="secondary-button" onclick="openRoom('challenge')">Challenge the evidence →</button></div><div id="decision-export-note" class="field-help" role="status"></div><div class="review-options"><span>REVIEW THE EVIDENCE</span><label for="decision-blind"><input type="checkbox" id="decision-blind" checked onchange="renderDecisionCandidates();renderDecisionDetail()"> Hide runner names</label></div><div id="decision-candidates"></div><div id="decision-detail" aria-live="polite"></div><details class="decision-adversary" id="decision-forgery"><summary>Could someone forge this decision?</summary><p class="field-help">Mutate the certificate generated from your current rule, then give it to the same account-binding verifier. The original decision stays unchanged.</p><div class="row"><label for="decision-attack" class="sr-only">Decision forgery</label><select id="decision-attack"><option value="duplicate">Clone a candidate’s record</option><option value="exam">Invent a different exam</option><option value="summary">Claim an extra qualifier</option><option value="empty">Remove every evidence requirement</option></select><button class="secondary-button" id="decision-attack-run" onclick="attackDecision(this)">Test this forgery ↗</button></div><div id="decision-attack-note" class="field-help" role="status"></div><details id="decision-attack-proof" hidden><summary>Inspect the rejected certificate checks</summary><div id="decision-attack-checks"></div></details></details><details class="scope-note"><summary>What this decision means</summary><p>This is a receipt-backed policy verdict on captured engineering evidence. It is not a model identity attestation, general capability guarantee, or instruction to pay. The bounty contract separately checks each qualifying run. Hiding runner names supports a blind review; it is a display choice, not cryptographic anonymity. Useful task families, sponsor demand and pricing remain unvalidated.</p></details></div></div>
       </section>
       <section class="room-panel" id="room-challenge" role="tabpanel" aria-labelledby="tab-challenge" hidden>
         <div class="page-heading"><div><span class="eyebrow">02 / CHALLENGE LAB</span><h1>Good evidence should resist bad actors.</h1><p>Attack an actual committed card. The same verifier checks the original and your forgery.</p></div><span class="context-badge">Nothing is sent to a chain</span></div>
@@ -3701,7 +3703,7 @@ async function renderCatalog() {
     // pinned artifact path — a missing entry breaks `chain catalog --check`.
     let bound = 0;
     try {
-      const sums = await (await fetch("SHA256SUMS")).text();
+      const sums = await (await fetch("SHA256SUMS", {cache:"no-store"})).text();
       const pinned = new Set(sums.trim().split("\n").map(l => l.slice(l.indexOf("  ") + 2).replace(/^\.\//, "")));
       bound = doc.artifacts.filter(a => pinned.has(a.path)).length;
     } catch {}
@@ -3746,7 +3748,7 @@ async function verifyCatalog() {
     `${listed.size} listed / ${expected.size} found${missing.length ? ` — unlisted: ${missing.slice(0, 3).join(", ")}` : ""}${extra.length ? ` — phantom: ${extra.slice(0, 3).join(", ")}` : ""}`);
   let bound = 0;
   try {
-    const sums = await (await fetch("SHA256SUMS")).text();
+    const sums = await (await fetch("SHA256SUMS", {cache:"no-store"})).text();
     const pinned = new Set(sums.trim().split("\n").map(l => l.slice(l.indexOf("  ") + 2).replace(/^\.\//, "")));
     bound = [...listed].filter(p => pinned.has(p)).length;
     ck("hash binding", bound === listed.size, `${bound}/${listed.size} paths pinned in SHA256SUMS`);
@@ -6161,13 +6163,16 @@ async function runAuditBody(force) {
     }
     flagBad === 0 ? pass("post_reveal flags", `${flagged} flagged on-chain / ${inferred} inferred by timestamp — consistent`) : fail("post_reveal flags", `${flagBad} flag(s) without a prior reveal`);
 
+    // Always revalidate the audit inputs: returning visitors can otherwise
+    // mix a freshly deployed page with an HTTP-cached manifest. Hash and
+    // membership checks remain strict; no bytes are normalized or exempted.
     // [8] served-bundle integrity — the page re-hashes every web asset it
     // was served (snapshot, calibration files, this HTML, the vendored
     // cipher) and compares against web/MANIFEST committed in the repo. A
     // tampered or stale deploy fails here; when the canonical repo copy is
     // reachable the manifest itself is cross-checked too.
     try {
-      const mf = await fetch("MANIFEST").then(r => { if (!r.ok) throw 0; return r.text(); });
+      const mf = await fetch("MANIFEST", {cache:"no-store"}).then(r => { if (!r.ok) throw 0; return r.text(); });
       const rawLines = mf.split("\n").map(l => l.trim()).filter(Boolean);
       const lines = rawLines.map(l => l.split(/\s+/)).filter(l => l.length === 2 && /^[0-9a-f]{64}$/i.test(l[0]));
       // fail closed: an empty or unparseable manifest can never prove the
@@ -6179,7 +6184,7 @@ async function runAuditBody(force) {
         while (cursor < lines.length) {
           const i = cursor++, [want,file] = lines[i], f = file.replace(/^\.\//, "");
           try {
-            const response = await fetch(f);
+            const response = await fetch(f, {cache:"no-store"});
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const buf = new Uint8Array(await response.arrayBuffer());
             checked[i] = {file:f,ok:hex(await sha(buf)) === want};
@@ -6189,7 +6194,7 @@ async function runAuditBody(force) {
       for (const result of checked) result.ok ? okN++ : badList.push(result.file);
       let canon = "";
       try {
-        const canonical = await fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/web/MANIFEST").then(r => r.ok ? r.text() : null);
+        const canonical = await fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/web/MANIFEST", {cache:"no-store"}).then(r => r.ok ? r.text() : null);
         canon = canonical === null ? "" : canonical === mf ? " · served manifest == repo manifest" : " · MANIFEST differs from repo main";
       } catch { canon = " · repo manifest unreachable (offline?)"; }
       if (lines.length > 0)
@@ -6199,7 +6204,7 @@ async function runAuditBody(force) {
       // bundle root — the same recipe `chain fingerprint` prints: sha256
       // over the evidence manifest (served pinned as SHA256SUMS) + MANIFEST.
       try {
-        const evRoot = hex(await sha(utf8(await (await fetch("SHA256SUMS")).text())));
+        const evRoot = hex(await sha(utf8(await (await fetch("SHA256SUMS", {cache:"no-store"})).text())));
         const root = hex(await sha(utf8(`sealed-fingerprint/v1\n${evRoot}\n${hex(await sha(utf8(mf)))}\n`)));
         window.__lastRoot = root;
         rows.push(`<div class="proof"><span class="kv">bundle root <code>${root}</code> — one sha256 for the whole evidence base; <code>chain fingerprint</code> prints the same hash</span></div>`);
@@ -6220,7 +6225,7 @@ async function runAuditBody(force) {
         // the root it notarizes), so it rides the repo, fetched here and
         // compared against the root these served bytes recompute to.
         try {
-          const anch = await fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/evidence-anchor.json").then(r => r.ok ? r.json() : null);
+          const anch = await fetch("https://raw.githubusercontent.com/josepha-mayo/sealed/main/docs/evidence-anchor.json", {cache:"no-store"}).then(r => r.ok ? r.json() : null);
           if (anch?.kind === "sealed-anchor/v1" && anch.explorer) {
             window.__lastAnchor = anch;
             rows.push(anch.bundleRoot === root
@@ -6769,6 +6774,28 @@ function applyVaultPage() {
   page.querySelectorAll('table').forEach(table=>{if(!table.parentElement.classList.contains('table-wrap')){const wrap=document.createElement('div');wrap.className='table-wrap';table.before(wrap);wrap.appendChild(table);}paginateTable(table);});paginateCards(page);
 }
 function filterVault(clear=false){if(clear)document.getElementById('vault-search').value='';const page=vaultPages.get(vaultActive);if(!page)return;page.querySelectorAll('table').forEach(t=>paginateTable(t,true));paginateCards(page,true);}
+
+async function judgeWalkthrough(minRuns) {
+  if (minRuns !== 1 && minRuns !== 3) return;
+  openRoom('decision');
+  await window.__ready;
+  const bank='CSnhf6QySv3BszDkJ47KGooUx86PBpLxxi2iDz42S8fp';
+  if (!(window.__audit?.benches || []).some(b=>b.pk===bank)) return;
+  document.getElementById('decision-bank').value=bank;
+  document.getElementById('decision-pct').value='20';
+  document.getElementById('decision-runs').value=String(minRuns);
+  document.getElementById('decision-items').value='32';
+  document.getElementById('decision-clean').checked=true;
+  document.getElementById('decision-vouched').checked=false;
+  document.getElementById('decision-models').value='real';
+  document.getElementById('decision-blind').checked=true;
+  evaluateDecision();
+  document.getElementById('decision-summary').scrollIntoView?.({block:'start'});
+}
+function showDecisionForgery() {
+  const details=document.getElementById('decision-forgery');
+  details.open=true;details.scrollIntoView?.({block:'start'});
+}
 
 function decisionPolicy() {
   return {bank:document.getElementById('decision-bank').value,minPct:Number(document.getElementById('decision-pct').value),minRuns:Number(document.getElementById('decision-runs').value),minItems:Number(document.getElementById('decision-items').value),vouchedOnly:document.getElementById('decision-vouched').checked,noPostReveal:document.getElementById('decision-clean').checked};
