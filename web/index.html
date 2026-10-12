@@ -743,6 +743,8 @@ const PRIV_BANK = "8HHm4HgAjSDMc1HWMBpsgY5LZ3saEEyZenM3KyitVAug";
 async function quickDecrypt(btn) {
   btn.disabled = true; btn.textContent = "⑤ reading the sealed exam…";
   const ghost = { disabled: false, textContent: "" };
+  // Reveal the paginated private-bank card before decrypting its questions.
+  if (typeof openEvidenceSection === "function") openEvidenceSection("dec-" + PRIV_BANK);
   document.getElementById("dec-" + PRIV_BANK)?.scrollIntoView({ behavior: "smooth", block: "center" });
   try { await decryptBank(PRIV_BANK, ghost); }
   finally { btn.disabled = false; btn.textContent = "⑤ read the sealed exam"; }

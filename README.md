@@ -80,7 +80,7 @@ runs. Useful task families, sponsor demand and pricing remain unvalidated.
 >
 > </details>
 >
-> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/Yorydqh1bGXEvwmBmSrQ9tDj41Kg6Xpt6BJQpMPxZJMz9g7EmKBaxAiZxU7abLt13uxnJic3J1Y6UokHLfSJoSf?cluster=devnet) — all three clickable, all verifiable by anyone.
+> **On devnet now:** program [`sealed`](https://explorer.solana.com/address/FGVuEoWpDGTqBBuR9e26t2t5mDngXgbrAj5CtuLKXLUZ?cluster=devnet) · program [`market`](https://explorer.solana.com/address/8VSHkhNLN3q3yBUhYmTjgKSCMA55VFzfLPXcgp4Z91vN?cluster=devnet) · [the bundle-root memo tx](https://explorer.solana.com/tx/2x5X3FtZ1qtjmwBEpDTbn82qemsNDoVFfyaP42x3FVGhUtA2QWQJYrUSHVBv2Du21FAfrF7i9afhGTB8ugpMSmCK?cluster=devnet) — all three clickable, all verifiable by anyone.
 >
 > **Honest status:** the full loop is proven end-to-end on Arcium localnet and both baseline programs were byte-verified on devnet; the latest Rust hardening must be redeployed before claiming that the current source is live; a historical shared-cluster probe withheld callbacks over 40 attempts and 7.5h; current callback availability was not remeasured (disclosed in [docs/submission.md](docs/submission.md)'s devnet note). The evidence ledger is a merged capture across 8 localnet epochs — labeled as such, replayable byte-for-byte.
 >
